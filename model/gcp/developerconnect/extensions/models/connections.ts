@@ -481,51 +481,51 @@ const StateSchema = z.object({
     authorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     readAuthorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     webhookSecretSecretVersion: z.string(),
     workspace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   bitbucketDataCenterConfig: z.object({
     authorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     hostUri: z.string(),
     readAuthorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     serverVersion: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     sslCaCertificate: z.string(),
     webhookSecretSecretVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   cryptoKeyConfig: z.object({
     keyReference: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deleteTime: z.string().optional(),
   disabled: z.boolean().optional(),
   etag: z.string().optional(),
   gitProxyConfig: z.object({
     enabled: z.boolean(),
     httpProxyBaseUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   githubConfig: z.object({
     appInstallationId: z.string(),
     authorizerCredential: z.object({
       oauthTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     githubApp: z.string(),
     installationUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   githubEnterpriseConfig: z.object({
     appId: z.string(),
     appInstallationId: z.string(),
@@ -537,63 +537,63 @@ const StateSchema = z.object({
     serverVersion: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     sslCaCertificate: z.string(),
     webhookSecretSecretVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gitlabConfig: z.object({
     authorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     readAuthorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     webhookSecretSecretVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gitlabEnterpriseConfig: z.object({
     authorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     hostUri: z.string(),
     readAuthorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     serverVersion: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     sslCaCertificate: z.string(),
     webhookSecretSecretVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   httpConfig: z.object({
     basicAuthentication: z.object({
       passwordSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     bearerTokenAuthentication: z.object({
       tokenSecretVersion: z.string(),
-    }),
+    }).partial(),
     hostUri: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     sslCaCertificate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   installationState: z.object({
     actionUri: z.string(),
     message: z.string(),
     stage: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   reconciling: z.boolean().optional(),
   secureSourceManagerInstanceConfig: z.object({
     instance: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -924,7 +924,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Developer Connect Connections. Registered at `@swamp/gcp/developerconnect/connections`. */
 export const model = {
   type: "@swamp/gcp/developerconnect/connections",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1076,6 +1076,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

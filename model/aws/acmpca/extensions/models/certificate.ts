@@ -210,6 +210,95 @@ const ExtensionsSchema = z.object({
   ).optional(),
 });
 
+const QualifierStateSchema = z.object({
+  CpsUri: z.string(),
+}).partial();
+
+const PolicyQualifierInfoStateSchema = z.object({
+  PolicyQualifierId: z.string(),
+  Qualifier: QualifierStateSchema,
+}).partial();
+
+const PolicyInformationStateSchema = z.object({
+  CertPolicyId: z.string(),
+  PolicyQualifiers: z.array(PolicyQualifierInfoStateSchema),
+}).partial();
+
+const ExtendedKeyUsageStateSchema = z.object({
+  ExtendedKeyUsageType: z.string(),
+  ExtendedKeyUsageObjectIdentifier: z.string(),
+}).partial();
+
+const KeyUsageStateSchema = z.object({
+  DigitalSignature: z.boolean(),
+  NonRepudiation: z.boolean(),
+  KeyEncipherment: z.boolean(),
+  DataEncipherment: z.boolean(),
+  KeyAgreement: z.boolean(),
+  KeyCertSign: z.boolean(),
+  CRLSign: z.boolean(),
+  EncipherOnly: z.boolean(),
+  DecipherOnly: z.boolean(),
+}).partial();
+
+const OtherNameStateSchema = z.object({
+  TypeId: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CustomAttributeStateSchema = z.object({
+  ObjectIdentifier: z.string(),
+  Value: z.string(),
+}).partial();
+
+const SubjectStateSchema = z.object({
+  Country: z.string(),
+  Organization: z.string(),
+  OrganizationalUnit: z.string(),
+  DistinguishedNameQualifier: z.string(),
+  State: z.string(),
+  CommonName: z.string(),
+  SerialNumber: z.string(),
+  Locality: z.string(),
+  Title: z.string(),
+  Surname: z.string(),
+  GivenName: z.string(),
+  Initials: z.string(),
+  Pseudonym: z.string(),
+  GenerationQualifier: z.string(),
+  CustomAttributes: z.array(CustomAttributeStateSchema),
+}).partial();
+
+const EdiPartyNameStateSchema = z.object({
+  PartyName: z.string(),
+  NameAssigner: z.string(),
+}).partial();
+
+const GeneralNameStateSchema = z.object({
+  OtherName: OtherNameStateSchema,
+  Rfc822Name: z.string(),
+  DnsName: z.string(),
+  DirectoryName: SubjectStateSchema,
+  EdiPartyName: EdiPartyNameStateSchema,
+  UniformResourceIdentifier: z.string(),
+  IpAddress: z.string(),
+  RegisteredId: z.string(),
+}).partial();
+
+const CustomExtensionStateSchema = z.object({
+  Critical: z.boolean(),
+  ObjectIdentifier: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ExtensionsStateSchema = z.object({
+  CertificatePolicies: z.array(PolicyInformationStateSchema),
+  ExtendedKeyUsage: z.array(ExtendedKeyUsageStateSchema),
+  KeyUsage: KeyUsageStateSchema,
+  SubjectAlternativeNames: z.array(GeneralNameStateSchema),
+  CustomExtensions: z.array(CustomExtensionStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -271,9 +360,9 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ApiPassthrough: z.object({
-    Extensions: ExtensionsSchema,
-    Subject: SubjectSchema,
-  }).optional(),
+    Extensions: ExtensionsStateSchema,
+    Subject: SubjectStateSchema,
+  }).partial().optional(),
   CertificateAuthorityArn: z.string(),
   CertificateSigningRequest: z.string().optional(),
   SigningAlgorithm: z.string().optional(),
@@ -281,16 +370,16 @@ const StateSchema = z.object({
   Validity: z.object({
     Value: z.number(),
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ValidityNotBefore: z.object({
     Value: z.number(),
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Certificate: z.string().optional(),
   Arn: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -360,7 +449,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ACMPCA Certificate. Registered at `@swamp/aws/acmpca/certificate`. */
 export const model = {
   type: "@swamp/aws/acmpca/certificate",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -419,6 +508,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

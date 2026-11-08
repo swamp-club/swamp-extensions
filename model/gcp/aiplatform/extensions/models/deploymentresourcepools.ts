@@ -374,10 +374,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   dedicatedResources: z.object({
-    autoscalingMetricSpecs: z.array(z.object({
-      metricName: z.string(),
-      target: z.number(),
-    })),
+    autoscalingMetricSpecs: z.array(
+      z.object({
+        metricName: z.string(),
+        target: z.number(),
+      }).partial(),
+    ),
     machineSpec: z.object({
       acceleratorCount: z.number(),
       acceleratorType: z.string(),
@@ -387,18 +389,18 @@ const StateSchema = z.object({
         key: z.string(),
         reservationAffinityType: z.string(),
         values: z.array(z.string()),
-      }),
+      }).partial(),
       tpuTopology: z.string(),
-    }),
+    }).partial(),
     maxReplicaCount: z.number(),
     minReplicaCount: z.number(),
     requiredReplicaCount: z.number(),
     spot: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   disableContainerLogging: z.boolean().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -660,7 +662,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform DeploymentResourcePools. Registered at `@swamp/gcp/aiplatform/deploymentresourcepools`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/deploymentresourcepools",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -854,6 +856,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

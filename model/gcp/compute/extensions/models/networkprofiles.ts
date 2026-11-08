@@ -150,29 +150,31 @@ const StateSchema = z.object({
     interfaceTypes: z.array(z.string()),
     multicast: z.string(),
     predefinedNetworkInternalIpv6Range: z.string(),
-    predefinedSubnetworkRanges: z.array(z.object({
-      ipv6Range: z.string(),
-      namePrefix: z.string(),
-    })),
+    predefinedSubnetworkRanges: z.array(
+      z.object({
+        ipv6Range: z.string(),
+        namePrefix: z.string(),
+      }).partial(),
+    ),
     subnetPurposes: z.array(z.string()),
     subnetStackTypes: z.array(z.string()),
     subnetworkPurposes: z.array(z.string()),
     subnetworkStackTypes: z.array(z.string()),
     unicast: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   location: z.object({
     name: z.string(),
     scope: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   profileType: z.object({
     networkType: z.string(),
     rdmaSubtype: z.string(),
     ullSubtype: z.string(),
     vpcSubtype: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
 }).passthrough();
@@ -215,7 +217,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine NetworkProfiles. Registered at `@swamp/gcp/compute/networkprofiles`. */
 export const model = {
   type: "@swamp/gcp/compute/networkprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +351,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

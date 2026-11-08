@@ -179,6 +179,77 @@ const ManagedWordsConfigSchema = z.object({
   OutputEnabled: z.boolean().optional(),
 });
 
+const ContentFilterConfigStateSchema = z.object({
+  Type: z.string(),
+  InputStrength: z.string(),
+  OutputStrength: z.string(),
+  InputModalities: z.array(z.string()),
+  OutputModalities: z.array(z.string()),
+  InputAction: z.string(),
+  OutputAction: z.string(),
+  InputEnabled: z.boolean(),
+  OutputEnabled: z.boolean(),
+}).partial();
+
+const ContextualGroundingFilterConfigStateSchema = z.object({
+  Type: z.string(),
+  Threshold: z.number(),
+  Action: z.string(),
+  Enabled: z.boolean(),
+}).partial();
+
+const PiiEntityConfigStateSchema = z.object({
+  Type: z.string(),
+  Action: z.string(),
+  InputAction: z.string(),
+  OutputAction: z.string(),
+  InputEnabled: z.boolean(),
+  OutputEnabled: z.boolean(),
+}).partial();
+
+const RegexConfigStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Pattern: z.string(),
+  Action: z.string(),
+  InputAction: z.string(),
+  OutputAction: z.string(),
+  InputEnabled: z.boolean(),
+  OutputEnabled: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TopicConfigStateSchema = z.object({
+  Name: z.string(),
+  Definition: z.string(),
+  Examples: z.array(z.string()),
+  Type: z.string(),
+  InputAction: z.string(),
+  OutputAction: z.string(),
+  InputEnabled: z.boolean(),
+  OutputEnabled: z.boolean(),
+}).partial();
+
+const WordConfigStateSchema = z.object({
+  Text: z.string(),
+  InputAction: z.string(),
+  OutputAction: z.string(),
+  InputEnabled: z.boolean(),
+  OutputEnabled: z.boolean(),
+}).partial();
+
+const ManagedWordsConfigStateSchema = z.object({
+  Type: z.string(),
+  InputAction: z.string(),
+  OutputAction: z.string(),
+  InputEnabled: z.boolean(),
+  OutputEnabled: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -287,20 +358,20 @@ const StateSchema = z.object({
   AutomatedReasoningPolicyConfig: z.object({
     ConfidenceThreshold: z.number(),
     Policies: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   ContentPolicyConfig: z.object({
-    FiltersConfig: z.array(ContentFilterConfigSchema),
+    FiltersConfig: z.array(ContentFilterConfigStateSchema),
     ContentFiltersTierConfig: z.object({
       TierName: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   ContextualGroundingPolicyConfig: z.object({
-    FiltersConfig: z.array(ContextualGroundingFilterConfigSchema),
-  }).optional(),
+    FiltersConfig: z.array(ContextualGroundingFilterConfigStateSchema),
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   CrossRegionConfig: z.object({
     GuardrailProfileArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Description: z.string().optional(),
   FailureRecommendations: z.array(z.string()).optional(),
   GuardrailArn: z.string(),
@@ -308,27 +379,27 @@ const StateSchema = z.object({
   KmsKeyArn: z.string().optional(),
   Name: z.string().optional(),
   SensitiveInformationPolicyConfig: z.object({
-    PiiEntitiesConfig: z.array(PiiEntityConfigSchema),
-    RegexesConfig: z.array(RegexConfigSchema),
-  }).optional(),
+    PiiEntitiesConfig: z.array(PiiEntityConfigStateSchema),
+    RegexesConfig: z.array(RegexConfigStateSchema),
+  }).partial().optional(),
   Status: z.string().optional(),
   StatusReasons: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TopicPolicyConfig: z.object({
-    TopicsConfig: z.array(TopicConfigSchema),
+    TopicsConfig: z.array(TopicConfigStateSchema),
     TopicsTierConfig: z.object({
       TierName: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   UpdatedAt: z.string().optional(),
   Version: z.string().optional(),
   WordPolicyConfig: z.object({
-    WordsConfig: z.array(WordConfigSchema),
-    ManagedWordListsConfig: z.array(ManagedWordsConfigSchema),
-  }).optional(),
+    WordsConfig: z.array(WordConfigStateSchema),
+    ManagedWordListsConfig: z.array(ManagedWordsConfigStateSchema),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -442,7 +513,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock Guardrail. Registered at `@swamp/aws/bedrock/guardrail`. */
 export const model = {
   type: "@swamp/aws/bedrock/guardrail",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -506,6 +577,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -288,22 +288,22 @@ const StateSchema = z.object({
     commitmentInterval: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
+    }).partial(),
     isCommitmentPlan: z.boolean(),
     planName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   purchaseOrderId: z.string().optional(),
   renewalSettings: z.object({
     kind: z.string(),
     renewalType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resourceUiUrl: z.string().optional(),
   seats: z.object({
     kind: z.string(),
     licensedNumberOfSeats: z.number(),
     maximumNumberOfSeats: z.number(),
     numberOfSeats: z.number(),
-  }).optional(),
+  }).partial().optional(),
   skuId: z.string().optional(),
   skuName: z.string().optional(),
   status: z.string().optional(),
@@ -313,11 +313,11 @@ const StateSchema = z.object({
     currentLegacySkuId: z.string(),
     minimumTransferableSeats: z.number(),
     transferabilityExpirationTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   trialSettings: z.object({
     isInTrial: z.boolean(),
     trialEndTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -469,7 +469,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Workspace Reseller Subscriptions. Registered at `@swamp/gcp/reseller/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/reseller/subscriptions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -603,6 +603,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

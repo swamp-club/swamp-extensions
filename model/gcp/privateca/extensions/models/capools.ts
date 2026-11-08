@@ -440,36 +440,40 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   encryptionSpec: z.object({
     cloudKmsKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   issuancePolicy: z.object({
     allowRequesterSpecifiedNotBeforeTime: z.boolean(),
     allowedIssuanceModes: z.object({
       allowConfigBasedIssuance: z.boolean(),
       allowCsrBasedIssuance: z.boolean(),
-    }),
-    allowedKeyTypes: z.array(z.object({
-      ellipticCurve: z.object({
-        signatureAlgorithm: z.string(),
-      }),
-      rsa: z.object({
-        maxModulusSize: z.string(),
-        minModulusSize: z.string(),
-      }),
-    })),
+    }).partial(),
+    allowedKeyTypes: z.array(
+      z.object({
+        ellipticCurve: z.object({
+          signatureAlgorithm: z.string(),
+        }).partial(),
+        rsa: z.object({
+          maxModulusSize: z.string(),
+          minModulusSize: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     backdateDuration: z.string(),
     baselineValues: z.object({
-      additionalExtensions: z.array(z.object({
-        critical: z.boolean(),
-        objectId: z.object({
-          objectIdPath: z.unknown(),
-        }),
-        value: z.string(),
-      })),
+      additionalExtensions: z.array(
+        z.object({
+          critical: z.boolean(),
+          objectId: z.object({
+            objectIdPath: z.unknown(),
+          }).partial(),
+          value: z.string(),
+        }).partial(),
+      ),
       aiaOcspServers: z.array(z.string()),
       caOptions: z.object({
         isCa: z.boolean(),
         maxIssuerPathLength: z.number(),
-      }),
+      }).partial(),
       keyUsage: z.object({
         baseKeyUsage: z.object({
           certSign: z.boolean(),
@@ -481,7 +485,7 @@ const StateSchema = z.object({
           encipherOnly: z.boolean(),
           keyAgreement: z.boolean(),
           keyEncipherment: z.boolean(),
-        }),
+        }).partial(),
         extendedKeyUsage: z.object({
           clientAuth: z.boolean(),
           codeSigning: z.boolean(),
@@ -489,11 +493,13 @@ const StateSchema = z.object({
           ocspSigning: z.boolean(),
           serverAuth: z.boolean(),
           timeStamping: z.boolean(),
-        }),
-        unknownExtendedKeyUsages: z.array(z.object({
-          objectIdPath: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        unknownExtendedKeyUsages: z.array(
+          z.object({
+            objectIdPath: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       nameConstraints: z.object({
         critical: z.boolean(),
         excludedDnsNames: z.array(z.string()),
@@ -504,11 +510,13 @@ const StateSchema = z.object({
         permittedEmailAddresses: z.array(z.string()),
         permittedIpRanges: z.array(z.string()),
         permittedUris: z.array(z.string()),
-      }),
-      policyIds: z.array(z.object({
-        objectIdPath: z.array(z.unknown()),
-      })),
-    }),
+      }).partial(),
+      policyIds: z.array(
+        z.object({
+          objectIdPath: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     identityConstraints: z.object({
       allowSubjectAltNamesPassthrough: z.boolean(),
       allowSubjectPassthrough: z.boolean(),
@@ -517,23 +525,25 @@ const StateSchema = z.object({
         expression: z.string(),
         location: z.string(),
         title: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     maximumLifetime: z.string(),
     passthroughExtensions: z.object({
-      additionalExtensions: z.array(z.object({
-        objectIdPath: z.array(z.unknown()),
-      })),
+      additionalExtensions: z.array(
+        z.object({
+          objectIdPath: z.array(z.unknown()),
+        }).partial(),
+      ),
       knownExtensions: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   publishingOptions: z.object({
     encodingFormat: z.string(),
     publishCaCert: z.boolean(),
     publishCrl: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   tier: z.string().optional(),
 }).passthrough();
 
@@ -837,7 +847,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Certificate Authority CaPools. Registered at `@swamp/gcp/privateca/capools`. */
 export const model = {
   type: "@swamp/gcp/privateca/capools",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1092,6 +1102,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

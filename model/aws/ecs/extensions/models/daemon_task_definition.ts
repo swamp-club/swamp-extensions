@@ -317,6 +317,147 @@ const TagSchema = z.object({
   ).optional(),
 });
 
+const LogDriverVolumeConfigurationStateSchema = z.object({
+  Driver: z.string(),
+}).partial();
+
+const HostVolumePropertiesStateSchema = z.object({
+  SourcePath: z.string(),
+}).partial();
+
+const VolumeStateSchema = z.object({
+  LogDriverVolumeConfiguration: LogDriverVolumeConfigurationStateSchema,
+  Host: HostVolumePropertiesStateSchema,
+  Name: z.string(),
+}).partial();
+
+const SecretStateSchema = z.object({
+  ValueFrom: z.string(),
+  Name: z.string(),
+}).partial();
+
+const HealthCheckStateSchema = z.object({
+  Command: z.array(z.string()),
+  Timeout: z.number(),
+  Retries: z.number(),
+  Interval: z.number(),
+  StartPeriod: z.number(),
+}).partial();
+
+const LogConfigurationStateSchema = z.object({
+  SecretOptions: z.array(SecretStateSchema),
+  Options: z.record(z.string(), z.unknown()),
+  LogDriver: z.string(),
+}).partial();
+
+const EnvironmentFileStateSchema = z.object({
+  Type: z.string(),
+  Value: z.string(),
+}).partial();
+
+const FirelensConfigurationStateSchema = z.object({
+  Options: z.record(z.string(), z.unknown()),
+  Type: z.string(),
+}).partial();
+
+const SystemControlStateSchema = z.object({
+  Value: z.string(),
+  Namespace: z.string(),
+}).partial();
+
+const UlimitStateSchema = z.object({
+  SoftLimit: z.number(),
+  HardLimit: z.number(),
+  Name: z.string(),
+}).partial();
+
+const RepositoryCredentialsStateSchema = z.object({
+  CredentialsParameter: z.string(),
+}).partial();
+
+const KernelCapabilitiesStateSchema = z.object({
+  Add: z.array(z.string()),
+  Drop: z.array(z.string()),
+}).partial();
+
+const TmpfsStateSchema = z.object({
+  Size: z.number(),
+  ContainerPath: z.string(),
+  MountOptions: z.array(z.string()),
+}).partial();
+
+const DeviceStateSchema = z.object({
+  HostPath: z.string(),
+  Permissions: z.array(z.string()),
+  ContainerPath: z.string(),
+}).partial();
+
+const LinuxParametersStateSchema = z.object({
+  Capabilities: KernelCapabilitiesStateSchema,
+  Tmpfs: z.array(TmpfsStateSchema),
+  Devices: z.array(DeviceStateSchema),
+  InitProcessEnabled: z.boolean(),
+}).partial();
+
+const RestartPolicyStateSchema = z.object({
+  IgnoredExitCodes: z.array(z.number()),
+  RestartAttemptPeriod: z.number(),
+  Enabled: z.boolean(),
+}).partial();
+
+const MountPointStateSchema = z.object({
+  ReadOnly: z.boolean(),
+  SourceVolume: z.string(),
+  ContainerPath: z.string(),
+}).partial();
+
+const ContainerDependencyStateSchema = z.object({
+  Condition: z.string(),
+  ContainerName: z.string(),
+}).partial();
+
+const KeyValuePairStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const DaemonContainerDefinitionStateSchema = z.object({
+  User: z.string(),
+  Secrets: z.array(SecretStateSchema),
+  Memory: z.number(),
+  Privileged: z.boolean(),
+  StartTimeout: z.number(),
+  HealthCheck: HealthCheckStateSchema,
+  Cpu: z.number(),
+  EntryPoint: z.array(z.string()),
+  ReadonlyRootFilesystem: z.boolean(),
+  Image: z.string(),
+  Essential: z.boolean(),
+  LogConfiguration: LogConfigurationStateSchema,
+  EnvironmentFiles: z.array(EnvironmentFileStateSchema),
+  Name: z.string(),
+  FirelensConfiguration: FirelensConfigurationStateSchema,
+  SystemControls: z.array(SystemControlStateSchema),
+  Interactive: z.boolean(),
+  Ulimits: z.array(UlimitStateSchema),
+  StopTimeout: z.number(),
+  WorkingDirectory: z.string(),
+  MemoryReservation: z.number(),
+  RepositoryCredentials: RepositoryCredentialsStateSchema,
+  LinuxParameters: LinuxParametersStateSchema,
+  RestartPolicy: RestartPolicyStateSchema,
+  PseudoTerminal: z.boolean(),
+  MountPoints: z.array(MountPointStateSchema),
+  DependsOn: z.array(ContainerDependencyStateSchema),
+  Command: z.array(z.string()),
+  Environment: z.array(KeyValuePairStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -367,16 +508,17 @@ const StateSchema = z.object({
   TaskRoleArn: z.string().optional(),
   DaemonTaskDefinitionArn: z.string(),
   IpcMode: z.string().optional(),
-  Volumes: z.array(VolumeSchema).optional(),
+  Volumes: z.array(VolumeStateSchema).optional(),
   Memory: z.string().optional(),
-  ContainerDefinitions: z.array(DaemonContainerDefinitionSchema).optional(),
+  ContainerDefinitions: z.array(DaemonContainerDefinitionStateSchema)
+    .optional(),
   Family: z.string().optional(),
   Cpu: z.string().optional(),
   PidMode: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -432,7 +574,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS DaemonTaskDefinition. Registered at `@swamp/aws/ecs/daemon-task-definition`. */
 export const model = {
   type: "@swamp/aws/ecs/daemon-task-definition",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.03.2",
@@ -511,6 +653,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

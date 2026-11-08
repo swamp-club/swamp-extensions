@@ -307,32 +307,34 @@ const StateSchema = z.object({
   id: z.string().optional(),
   kind: z.string().optional(),
   replies: z.object({
-    comments: z.array(z.object({
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      snippet: z.object({
-        authorChannelId: z.object({
-          value: z.unknown(),
-        }),
-        authorChannelUrl: z.string(),
-        authorDisplayName: z.string(),
-        authorProfileImageUrl: z.string(),
-        canRate: z.boolean(),
-        channelId: z.string(),
-        imageUrl: z.string(),
-        likeCount: z.number(),
-        moderationStatus: z.string(),
-        parentId: z.string(),
-        publishedAt: z.string(),
-        textDisplay: z.string(),
-        textOriginal: z.string(),
-        updatedAt: z.string(),
-        videoId: z.string(),
-        viewerRating: z.string(),
-      }),
-    })),
-  }).optional(),
+    comments: z.array(
+      z.object({
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        snippet: z.object({
+          authorChannelId: z.object({
+            value: z.unknown(),
+          }).partial(),
+          authorChannelUrl: z.string(),
+          authorDisplayName: z.string(),
+          authorProfileImageUrl: z.string(),
+          canRate: z.boolean(),
+          channelId: z.string(),
+          imageUrl: z.string(),
+          likeCount: z.number(),
+          moderationStatus: z.string(),
+          parentId: z.string(),
+          publishedAt: z.string(),
+          textDisplay: z.string(),
+          textOriginal: z.string(),
+          updatedAt: z.string(),
+          videoId: z.string(),
+          viewerRating: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   snippet: z.object({
     canReply: z.boolean(),
     channelId: z.string(),
@@ -344,7 +346,7 @@ const StateSchema = z.object({
       snippet: z.object({
         authorChannelId: z.object({
           value: z.string(),
-        }),
+        }).partial(),
         authorChannelUrl: z.string(),
         authorDisplayName: z.string(),
         authorProfileImageUrl: z.string(),
@@ -360,11 +362,11 @@ const StateSchema = z.object({
         updatedAt: z.string(),
         videoId: z.string(),
         viewerRating: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     totalReplyCount: z.number(),
     videoId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -572,7 +574,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data CommentThreads. Registered at `@swamp/gcp/youtube/commentthreads`. */
 export const model = {
   type: "@swamp/gcp/youtube/commentthreads",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -706,6 +708,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

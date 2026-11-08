@@ -93,12 +93,14 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  methodDetails: z.array(z.object({
-    method: z.string(),
-    path: z.string(),
-    subapi: z.string(),
-    version: z.string(),
-  })).optional(),
+  methodDetails: z.array(
+    z.object({
+      method: z.string(),
+      path: z.string(),
+      subapi: z.string(),
+      version: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   quotaLimit: z.string().optional(),
   quotaMinuteLimit: z.string().optional(),
@@ -146,7 +148,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Quotas. Registered at `@swamp/gcp/merchantapi/accounts-quotas`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-quotas",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -165,6 +167,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

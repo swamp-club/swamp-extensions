@@ -251,36 +251,42 @@ const StateSchema = z.object({
       applicationTemplate: z.string(),
       revision: z.string(),
       syncOperation: z.string(),
-    }),
+    }).partial(),
     revision: z.string(),
-  }).optional(),
+  }).partial().optional(),
   blueprint: z.object({
     engine: z.string(),
     package: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   etag: z.string().optional(),
-  inputVariableDefaults: z.array(z.object({
-    type: z.string(),
-    value: z.string(),
-    variable: z.string(),
-  })).optional(),
-  inputVariables: z.array(z.object({
-    type: z.string(),
-    value: z.string(),
-    variable: z.string(),
-  })).optional(),
+  inputVariableDefaults: z.array(
+    z.object({
+      type: z.string(),
+      value: z.string(),
+      variable: z.string(),
+    }).partial(),
+  ).optional(),
+  inputVariables: z.array(
+    z.object({
+      type: z.string(),
+      value: z.string(),
+      variable: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  outputVariables: z.array(z.object({
-    type: z.string(),
-    value: z.string(),
-    variable: z.string(),
-  })).optional(),
+  outputVariables: z.array(
+    z.object({
+      type: z.string(),
+      value: z.string(),
+      variable: z.string(),
+    }).partial(),
+  ).optional(),
   releaseRequirements: z.object({
     upgradeableFromReleases: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   unitKind: z.string().optional(),
   updateTime: z.string().optional(),
@@ -383,7 +389,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager Releases. Registered at `@swamp/gcp/saasservicemgmt/releases`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/releases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -562,6 +568,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

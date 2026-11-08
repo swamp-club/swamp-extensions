@@ -63,6 +63,27 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256).describe("Tag value."),
 });
 
+const MicrosoftPurviewCredentialsStateSchema = z.object({
+  SecretArn: z.string(),
+}).partial();
+
+const LabelActionMappingStateSchema = z.object({
+  LabelId: z.string(),
+  LabelName: z.string(),
+  Action: z.string(),
+}).partial();
+
+const MicrosoftPurviewProviderConfigStateSchema = z.object({
+  Credentials: MicrosoftPurviewCredentialsStateSchema,
+  LabelActionMappings: z.array(LabelActionMappingStateSchema),
+  UnmappedAction: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -104,16 +125,16 @@ const StateSchema = z.object({
   Enabled: z.boolean().optional(),
   Name: z.string().optional(),
   ProviderConfig: z.object({
-    MicrosoftPurview: MicrosoftPurviewProviderConfigSchema,
-  }).optional(),
+    MicrosoftPurview: MicrosoftPurviewProviderConfigStateSchema,
+  }).partial().optional(),
   ProviderOutageAction: z.string().optional(),
   ProviderType: z.string().optional(),
   Status: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -157,7 +178,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight DLPSetting. Registered at `@swamp/aws/quicksight/dlpsetting`. */
 export const model = {
   type: "@swamp/aws/quicksight/dlpsetting",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -181,6 +202,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

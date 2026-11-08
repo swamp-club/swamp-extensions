@@ -74,6 +74,29 @@ const BrowserEnterprisePolicySchema = z.object({
   ),
 });
 
+const VpcConfigStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const S3LocationStateSchema = z.object({
+  Bucket: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const CertificateLocationStateSchema = z.object({
+  SecretArn: z.string(),
+}).partial();
+
+const CertificateStateSchema = z.object({
+  CertificateLocation: CertificateLocationStateSchema,
+}).partial();
+
+const BrowserEnterprisePolicyStateSchema = z.object({
+  Location: S3LocationStateSchema,
+  Type: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -134,17 +157,17 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   NetworkConfiguration: z.object({
     NetworkMode: z.string(),
-    VpcConfig: VpcConfigSchema,
-  }).optional(),
+    VpcConfig: VpcConfigStateSchema,
+  }).partial().optional(),
   RecordingConfig: z.object({
     Enabled: z.boolean(),
-    S3Location: S3LocationSchema,
-  }).optional(),
+    S3Location: S3LocationStateSchema,
+  }).partial().optional(),
   BrowserSigning: z.object({
     Enabled: z.boolean(),
-  }).optional(),
-  Certificates: z.array(CertificateSchema).optional(),
-  EnterprisePolicies: z.array(BrowserEnterprisePolicySchema).optional(),
+  }).partial().optional(),
+  Certificates: z.array(CertificateStateSchema).optional(),
+  EnterprisePolicies: z.array(BrowserEnterprisePolicyStateSchema).optional(),
   ExecutionRoleArn: z.string().optional(),
   Status: z.string().optional(),
   FailureReason: z.string().optional(),
@@ -153,7 +176,7 @@ const StateSchema = z.object({
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -217,7 +240,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore BrowserCustom. Registered at `@swamp/aws/bedrockagentcore/browser-custom`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/browser-custom",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -291,6 +314,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -107,12 +107,12 @@ const StateSchema = z.object({
       expireTime: z.string(),
       liftWhenExpired: z.boolean(),
       remindTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   audit: z.object({
     resolveTime: z.string(),
     resolver: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   eventExecutionInfoId: z.string().optional(),
   integration: z.string().optional(),
@@ -121,57 +121,61 @@ const StateSchema = z.object({
   state: z.string().optional(),
   suspensionConfig: z.object({
     customMessage: z.string(),
-    notifications: z.array(z.object({
-      buganizerNotification: z.object({
-        assigneeEmailAddress: z.string(),
-        componentId: z.string(),
-        templateId: z.string(),
-        title: z.string(),
-      }),
-      emailAddress: z.object({
-        email: z.string(),
-        name: z.string(),
-        tokens: z.array(z.unknown()),
-      }),
-      escalatorQueue: z.string(),
-      pubsubTopic: z.string(),
-      request: z.object({
-        postToQueueWithTriggerIdRequest: z.object({
-          clientId: z.unknown(),
-          ignoreErrorIfNoActiveWorkflow: z.unknown(),
-          parameters: z.unknown(),
-          priority: z.unknown(),
-          quotaRetryCount: z.unknown(),
-          requestId: z.unknown(),
-          resourceName: z.unknown(),
-          scheduledTime: z.unknown(),
-          testMode: z.unknown(),
-          triggerId: z.unknown(),
-          userGeneratedExecutionId: z.unknown(),
-          workflowId: z.unknown(),
-          workflowName: z.unknown(),
-        }),
-        suspensionInfoEventParameterKey: z.string(),
-      }),
-    })),
+    notifications: z.array(
+      z.object({
+        buganizerNotification: z.object({
+          assigneeEmailAddress: z.string(),
+          componentId: z.string(),
+          templateId: z.string(),
+          title: z.string(),
+        }).partial(),
+        emailAddress: z.object({
+          email: z.string(),
+          name: z.string(),
+          tokens: z.array(z.unknown()),
+        }).partial(),
+        escalatorQueue: z.string(),
+        pubsubTopic: z.string(),
+        request: z.object({
+          postToQueueWithTriggerIdRequest: z.object({
+            clientId: z.unknown(),
+            ignoreErrorIfNoActiveWorkflow: z.unknown(),
+            parameters: z.unknown(),
+            priority: z.unknown(),
+            quotaRetryCount: z.unknown(),
+            requestId: z.unknown(),
+            resourceName: z.unknown(),
+            scheduledTime: z.unknown(),
+            testMode: z.unknown(),
+            triggerId: z.unknown(),
+            userGeneratedExecutionId: z.unknown(),
+            workflowId: z.unknown(),
+            workflowName: z.unknown(),
+          }).partial(),
+          suspensionInfoEventParameterKey: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     suspensionExpiration: z.object({
       expireAfterMs: z.number(),
       liftWhenExpired: z.boolean(),
       remindAfterMs: z.number(),
-    }),
-    whoMayResolve: z.array(z.object({
-      gaiaIdentity: z.object({
-        emailAddress: z.string(),
-        gaiaId: z.string(),
-      }),
-      googleGroup: z.object({
-        emailAddress: z.string(),
-        gaiaId: z.string(),
-      }),
-      loasRole: z.string(),
-      mdbGroup: z.string(),
-    })),
-  }).optional(),
+    }).partial(),
+    whoMayResolve: z.array(
+      z.object({
+        gaiaIdentity: z.object({
+          emailAddress: z.string(),
+          gaiaId: z.string(),
+        }).partial(),
+        googleGroup: z.object({
+          emailAddress: z.string(),
+          gaiaId: z.string(),
+        }).partial(),
+        loasRole: z.string(),
+        mdbGroup: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   taskId: z.string().optional(),
 }).passthrough();
 
@@ -219,7 +223,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Products.Integrations.Executions.Suspensions. Registered at `@swamp/gcp/integrations/products-integrations-executions-suspensions`. */
 export const model = {
   type: "@swamp/gcp/integrations/products-integrations-executions-suspensions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -304,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

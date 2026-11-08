@@ -129,6 +129,59 @@ const TagSchema = z.object({
   ),
 });
 
+const LambdaCodeHookStateSchema = z.object({
+  CodeHookInterfaceVersion: z.string(),
+  LambdaArn: z.string(),
+}).partial();
+
+const CodeHookSpecificationStateSchema = z.object({
+  LambdaCodeHook: LambdaCodeHookStateSchema,
+}).partial();
+
+const BotAliasLocaleSettingsStateSchema = z.object({
+  CodeHookSpecification: CodeHookSpecificationStateSchema,
+  Enabled: z.boolean(),
+}).partial();
+
+const BotAliasLocaleSettingsItemStateSchema = z.object({
+  LocaleId: z.string(),
+  BotAliasLocaleSetting: BotAliasLocaleSettingsStateSchema,
+}).partial();
+
+const S3BucketLogDestinationStateSchema = z.object({
+  S3BucketArn: z.string(),
+  LogPrefix: z.string(),
+  KmsKeyArn: z.string(),
+}).partial();
+
+const AudioLogDestinationStateSchema = z.object({
+  S3Bucket: S3BucketLogDestinationStateSchema,
+}).partial();
+
+const AudioLogSettingStateSchema = z.object({
+  Destination: AudioLogDestinationStateSchema,
+  Enabled: z.boolean(),
+}).partial();
+
+const CloudWatchLogGroupLogDestinationStateSchema = z.object({
+  CloudWatchLogGroupArn: z.string(),
+  LogPrefix: z.string(),
+}).partial();
+
+const TextLogDestinationStateSchema = z.object({
+  CloudWatch: CloudWatchLogGroupLogDestinationStateSchema,
+}).partial();
+
+const TextLogSettingStateSchema = z.object({
+  Destination: TextLogDestinationStateSchema,
+  Enabled: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -185,21 +238,22 @@ const StateSchema = z.object({
   BotId: z.string(),
   Arn: z.string().optional(),
   BotAliasStatus: z.string().optional(),
-  BotAliasLocaleSettings: z.array(BotAliasLocaleSettingsItemSchema).optional(),
+  BotAliasLocaleSettings: z.array(BotAliasLocaleSettingsItemStateSchema)
+    .optional(),
   BotAliasName: z.string().optional(),
   BotVersion: z.string().optional(),
   ConversationLogSettings: z.object({
-    AudioLogSettings: z.array(AudioLogSettingSchema),
-    TextLogSettings: z.array(TextLogSettingSchema),
-  }).optional(),
+    AudioLogSettings: z.array(AudioLogSettingStateSchema),
+    TextLogSettings: z.array(TextLogSettingStateSchema),
+  }).partial().optional(),
   Description: z.string().optional(),
   SentimentAnalysisSettings: z.object({
     DetectSentiment: z.boolean(),
-  }).optional(),
-  BotAliasTags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  BotAliasTags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -261,7 +315,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lex BotAlias. Registered at `@swamp/aws/lex/bot-alias`. */
 export const model = {
   type: "@swamp/aws/lex/bot-alias",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -325,6 +379,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

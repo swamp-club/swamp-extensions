@@ -43,6 +43,11 @@ const TagsEntrySchema = z.object({
   Key: z.string(),
 });
 
+const TagsEntryStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -72,10 +77,10 @@ const StateSchema = z.object({
   RegistryName: z.string().optional(),
   Description: z.string().optional(),
   RegistryArn: z.string(),
-  Tags: z.array(TagsEntrySchema).optional(),
+  Tags: z.array(TagsEntryStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -111,7 +116,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EventSchemas Registry. Registered at `@swamp/aws/eventschemas/registry`. */
 export const model = {
   type: "@swamp/aws/eventschemas/registry",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -170,6 +175,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

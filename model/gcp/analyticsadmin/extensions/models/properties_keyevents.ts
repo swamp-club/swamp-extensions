@@ -190,7 +190,7 @@ const StateSchema = z.object({
   defaultValue: z.object({
     currencyCode: z.string(),
     numericValue: z.number(),
-  }).optional(),
+  }).partial().optional(),
   deletable: z.boolean().optional(),
   eventName: z.string().optional(),
   name: z.string(),
@@ -256,7 +256,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Analytics Admin Properties.KeyEvents. Registered at `@swamp/gcp/analyticsadmin/properties-keyevents`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/properties-keyevents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -400,6 +400,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

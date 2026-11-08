@@ -111,6 +111,49 @@ const TagSchema = z.object({
   ).optional(),
 });
 
+const PublicDomainNameStateSchema = z.object({
+  CertificateName: z.string(),
+  DomainNames: z.array(z.string()),
+}).partial();
+
+const EnvironmentVariableStateSchema = z.object({
+  Variable: z.string(),
+  Value: z.string(),
+}).partial();
+
+const PortInfoStateSchema = z.object({
+  Port: z.string(),
+  Protocol: z.string(),
+}).partial();
+
+const ContainerStateSchema = z.object({
+  ContainerName: z.string(),
+  Command: z.array(z.string()),
+  Environment: z.array(EnvironmentVariableStateSchema),
+  Image: z.string(),
+  Ports: z.array(PortInfoStateSchema),
+}).partial();
+
+const HealthCheckConfigStateSchema = z.object({
+  HealthyThreshold: z.number(),
+  IntervalSeconds: z.number(),
+  Path: z.string(),
+  SuccessCodes: z.string(),
+  TimeoutSeconds: z.number(),
+  UnhealthyThreshold: z.number(),
+}).partial();
+
+const PublicEndpointStateSchema = z.object({
+  ContainerName: z.string(),
+  ContainerPort: z.number(),
+  HealthCheckConfig: HealthCheckConfigStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -170,24 +213,24 @@ const StateSchema = z.object({
   Power: z.string().optional(),
   ContainerArn: z.string().optional(),
   Scale: z.number().optional(),
-  PublicDomainNames: z.array(PublicDomainNameSchema).optional(),
+  PublicDomainNames: z.array(PublicDomainNameStateSchema).optional(),
   ContainerServiceDeployment: z.object({
-    Containers: z.array(ContainerSchema),
-    PublicEndpoint: PublicEndpointSchema,
-  }).optional(),
+    Containers: z.array(ContainerStateSchema),
+    PublicEndpoint: PublicEndpointStateSchema,
+  }).partial().optional(),
   IsDisabled: z.boolean().optional(),
   PrivateRegistryAccess: z.object({
     EcrImagePullerRole: z.object({
       IsActive: z.boolean(),
       PrincipalArn: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   Url: z.string().optional(),
   PrincipalArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -254,7 +297,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail Container. Registered at `@swamp/aws/lightsail/container`. */
 export const model = {
   type: "@swamp/aws/lightsail/container",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -318,6 +361,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -205,13 +205,15 @@ const StateSchema = z.object({
     discoveredRangesCount: z.number(),
     discoveredRealmsCount: z.number(),
     uniqueScopesCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   claimedScopes: z.array(z.string()).optional(),
-  claimedScopesInfo: z.array(z.object({
-    displayName: z.string(),
-    id: z.string(),
-    name: z.string(),
-  })).optional(),
+  claimedScopesInfo: z.array(
+    z.object({
+      displayName: z.string(),
+      id: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   isDefault: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -274,7 +276,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Number Registry RegistryBooks. Registered at `@swamp/gcp/cloudnumberregistry/registrybooks`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/registrybooks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.05.19.1",
@@ -386,6 +388,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

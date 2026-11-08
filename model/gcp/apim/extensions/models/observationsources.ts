@@ -167,11 +167,13 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   gclbObservationSource: z.object({
-    pscNetworkConfigs: z.array(z.object({
-      network: z.string(),
-      subnetwork: z.string(),
-    })),
-  }).optional(),
+    pscNetworkConfigs: z.array(
+      z.object({
+        network: z.string(),
+        subnetwork: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
@@ -238,7 +240,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API Management ObservationSources. Registered at `@swamp/gcp/apim/observationsources`. */
 export const model = {
   type: "@swamp/gcp/apim/observationsources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -377,6 +379,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

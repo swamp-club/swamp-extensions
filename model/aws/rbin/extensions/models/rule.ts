@@ -54,6 +54,16 @@ const TagSchema = z.object({
   ),
 });
 
+const ResourceTagStateSchema = z.object({
+  ResourceTagKey: z.string(),
+  ResourceTagValue: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -113,23 +123,23 @@ const StateSchema = z.object({
   Arn: z.string(),
   Identifier: z.string().optional(),
   Description: z.string().optional(),
-  ResourceTags: z.array(ResourceTagSchema).optional(),
-  ExcludeResourceTags: z.array(ResourceTagSchema).optional(),
+  ResourceTags: z.array(ResourceTagStateSchema).optional(),
+  ExcludeResourceTags: z.array(ResourceTagStateSchema).optional(),
   ResourceType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   RetentionPeriod: z.object({
     RetentionPeriodValue: z.number(),
     RetentionPeriodUnit: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   LockConfiguration: z.object({
     UnlockDelayValue: z.number(),
     UnlockDelayUnit: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LockState: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -195,7 +205,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Rbin Rule. Registered at `@swamp/aws/rbin/rule`. */
 export const model = {
   type: "@swamp/aws/rbin/rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +269,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

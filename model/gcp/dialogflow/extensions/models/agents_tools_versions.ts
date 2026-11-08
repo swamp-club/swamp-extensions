@@ -233,19 +233,21 @@ const StateSchema = z.object({
   name: z.string(),
   tool: z.object({
     dataStoreSpec: z.object({
-      dataStoreConnections: z.array(z.object({
-        dataStore: z.string(),
-        dataStoreType: z.string(),
-        documentProcessingMode: z.string(),
-      })),
-      fallbackPrompt: z.object({}),
-    }),
+      dataStoreConnections: z.array(
+        z.object({
+          dataStore: z.string(),
+          dataStoreType: z.string(),
+          documentProcessingMode: z.string(),
+        }).partial(),
+      ),
+      fallbackPrompt: z.object({}).partial(),
+    }).partial(),
     description: z.string(),
     displayName: z.string(),
     functionSpec: z.object({
       inputSchema: z.record(z.string(), z.unknown()),
       outputSchema: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     name: z.string(),
     openApiSpec: z.object({
       authentication: z.object({
@@ -254,11 +256,11 @@ const StateSchema = z.object({
           keyName: z.string(),
           requestLocation: z.string(),
           secretVersionForApiKey: z.string(),
-        }),
+        }).partial(),
         bearerTokenConfig: z.object({
           secretVersionForToken: z.string(),
           token: z.string(),
-        }),
+        }).partial(),
         oauthConfig: z.object({
           clientId: z.string(),
           clientSecret: z.string(),
@@ -266,27 +268,29 @@ const StateSchema = z.object({
           scopes: z.array(z.unknown()),
           secretVersionForClientSecret: z.string(),
           tokenEndpoint: z.string(),
-        }),
+        }).partial(),
         serviceAccountAuthConfig: z.object({
           serviceAccount: z.string(),
-        }),
+        }).partial(),
         serviceAgentAuthConfig: z.object({
           serviceAgentAuth: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       serviceDirectoryConfig: z.object({
         service: z.string(),
-      }),
+      }).partial(),
       textSchema: z.string(),
       tlsConfig: z.object({
-        caCerts: z.array(z.object({
-          cert: z.unknown(),
-          displayName: z.unknown(),
-        })),
-      }),
-    }),
+        caCerts: z.array(
+          z.object({
+            cert: z.unknown(),
+            displayName: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
     toolType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -417,7 +421,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.Tools.Versions. Registered at `@swamp/gcp/dialogflow/agents-tools-versions`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-tools-versions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -556,6 +560,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

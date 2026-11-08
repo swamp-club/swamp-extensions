@@ -217,14 +217,16 @@ const StateSchema = z.object({
   modelFeaturesConfig: z.object({
     frequentlyBoughtTogetherConfig: z.object({
       contextProductsType: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   optimizationObjective: z.string().optional(),
   periodicTuningState: z.string().optional(),
-  servingConfigLists: z.array(z.object({
-    servingConfigIds: z.array(z.string()),
-  })).optional(),
+  servingConfigLists: z.array(
+    z.object({
+      servingConfigIds: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   servingState: z.string().optional(),
   trainingState: z.string().optional(),
   tuningOperation: z.string().optional(),
@@ -321,7 +323,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AI Commerce Search Catalogs.Models. Registered at `@swamp/gcp/retail/catalogs-models`. */
 export const model = {
   type: "@swamp/gcp/retail/catalogs-models",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -465,6 +467,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -67,6 +67,33 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const MatcherStateSchema = z.object({
+  HttpCode: z.string(),
+}).partial();
+
+const HealthCheckConfigStateSchema = z.object({
+  Enabled: z.boolean(),
+  Protocol: z.string(),
+  ProtocolVersion: z.string(),
+  Port: z.number(),
+  Path: z.string(),
+  HealthCheckIntervalSeconds: z.number(),
+  HealthCheckTimeoutSeconds: z.number(),
+  HealthyThresholdCount: z.number(),
+  UnhealthyThresholdCount: z.number(),
+  Matcher: MatcherStateSchema,
+}).partial();
+
+const TargetStateSchema = z.object({
+  Id: z.string(),
+  Port: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -111,19 +138,19 @@ const StateSchema = z.object({
     IpAddressType: z.string(),
     LambdaEventStructureVersion: z.string(),
     VpcIdentifier: z.string(),
-    HealthCheck: HealthCheckConfigSchema,
-  }).optional(),
+    HealthCheck: HealthCheckConfigStateSchema,
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   Id: z.string().optional(),
   LastUpdatedAt: z.string().optional(),
   Name: z.string().optional(),
   Status: z.string().optional(),
   Type: z.string().optional(),
-  Targets: z.array(TargetSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Targets: z.array(TargetStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -169,7 +196,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for VpcLattice TargetGroup. Registered at `@swamp/aws/vpclattice/target-group`. */
 export const model = {
   type: "@swamp/aws/vpclattice/target-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -238,6 +265,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

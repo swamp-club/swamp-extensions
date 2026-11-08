@@ -329,63 +329,67 @@ const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
   cryptoKeyName: z.string().optional(),
-  destinations: z.array(z.object({
-    authenticationConfig: z.object({
-      googleOidc: z.object({
-        audience: z.string(),
-        serviceAccount: z.string(),
-      }),
-      oauthToken: z.object({
-        scope: z.string(),
-        serviceAccount: z.string(),
-      }),
-    }),
-    httpEndpoint: z.object({
-      messageBindingTemplate: z.string(),
-      uri: z.string(),
-    }),
-    messageBus: z.string(),
-    networkConfig: z.object({
-      networkAttachment: z.string(),
-    }),
-    outputPayloadFormat: z.object({
-      avro: z.object({
-        schemaDefinition: z.string(),
-      }),
-      json: z.object({}),
-      protobuf: z.object({
-        schemaDefinition: z.string(),
-      }),
-    }),
-    topic: z.string(),
-    workflow: z.string(),
-  })).optional(),
+  destinations: z.array(
+    z.object({
+      authenticationConfig: z.object({
+        googleOidc: z.object({
+          audience: z.string(),
+          serviceAccount: z.string(),
+        }).partial(),
+        oauthToken: z.object({
+          scope: z.string(),
+          serviceAccount: z.string(),
+        }).partial(),
+      }).partial(),
+      httpEndpoint: z.object({
+        messageBindingTemplate: z.string(),
+        uri: z.string(),
+      }).partial(),
+      messageBus: z.string(),
+      networkConfig: z.object({
+        networkAttachment: z.string(),
+      }).partial(),
+      outputPayloadFormat: z.object({
+        avro: z.object({
+          schemaDefinition: z.string(),
+        }).partial(),
+        json: z.object({}).partial(),
+        protobuf: z.object({
+          schemaDefinition: z.string(),
+        }).partial(),
+      }).partial(),
+      topic: z.string(),
+      workflow: z.string(),
+    }).partial(),
+  ).optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
   inputPayloadFormat: z.object({
     avro: z.object({
       schemaDefinition: z.string(),
-    }),
-    json: z.object({}),
+    }).partial(),
+    json: z.object({}).partial(),
     protobuf: z.object({
       schemaDefinition: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   loggingConfig: z.object({
     logSeverity: z.string(),
-  }).optional(),
-  mediations: z.array(z.object({
-    transformation: z.object({
-      transformationTemplate: z.string(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  mediations: z.array(
+    z.object({
+      transformation: z.object({
+        transformationTemplate: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   retryPolicy: z.object({
     maxAttempts: z.number(),
     maxRetryDelay: z.string(),
     minRetryDelay: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzs: z.boolean().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -573,7 +577,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Eventarc Pipelines. Registered at `@swamp/gcp/eventarc/pipelines`. */
 export const model = {
   type: "@swamp/gcp/eventarc/pipelines",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -753,6 +757,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

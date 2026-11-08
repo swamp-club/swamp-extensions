@@ -308,20 +308,24 @@ const StateSchema = z.object({
   inheritedPermissionsDisabled: z.boolean().optional(),
   kind: z.string().optional(),
   pendingOwner: z.boolean().optional(),
-  permissionDetails: z.array(z.object({
-    inherited: z.boolean(),
-    inheritedFrom: z.string(),
-    permissionType: z.string(),
-    role: z.string(),
-  })).optional(),
+  permissionDetails: z.array(
+    z.object({
+      inherited: z.boolean(),
+      inheritedFrom: z.string(),
+      permissionType: z.string(),
+      role: z.string(),
+    }).partial(),
+  ).optional(),
   photoLink: z.string().optional(),
   role: z.string().optional(),
-  teamDrivePermissionDetails: z.array(z.object({
-    inherited: z.boolean(),
-    inheritedFrom: z.string(),
-    role: z.string(),
-    teamDrivePermissionType: z.string(),
-  })).optional(),
+  teamDrivePermissionDetails: z.array(
+    z.object({
+      inherited: z.boolean(),
+      inheritedFrom: z.string(),
+      role: z.string(),
+      teamDrivePermissionType: z.string(),
+    }).partial(),
+  ).optional(),
   type: z.string().optional(),
   view: z.string().optional(),
 }).passthrough();
@@ -407,7 +411,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Permissions. Registered at `@swamp/gcp/drive/permissions`. */
 export const model = {
   type: "@swamp/gcp/drive/permissions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -604,6 +608,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

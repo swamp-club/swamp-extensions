@@ -85,6 +85,47 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const DocumentAttributeStateSchema = z.object({
+  Name: z.string(),
+  Value: z.object({
+    StringValue: z.string(),
+    StringListValue: z.array(z.string()),
+    LongValue: z.number(),
+    DateValue: z.string(),
+  }).partial(),
+}).partial();
+
+const AttributeFilterStateSchema = z.object({
+  AndAllFilters: z.array(z.record(z.string(), z.unknown())),
+  OrAllFilters: z.array(z.record(z.string(), z.unknown())),
+  NotFilter: z.record(z.string(), z.unknown()),
+  EqualsTo: DocumentAttributeStateSchema,
+  ContainsAll: DocumentAttributeStateSchema,
+  ContainsAny: DocumentAttributeStateSchema,
+  GreaterThan: DocumentAttributeStateSchema,
+  GreaterThanOrEquals: DocumentAttributeStateSchema,
+  LessThan: DocumentAttributeStateSchema,
+  LessThanOrEquals: DocumentAttributeStateSchema,
+}).partial();
+
+const ActionFilterConfigurationStateSchema = z.object({
+  DocumentAttributeFilter: AttributeFilterStateSchema,
+}).partial();
+
+const ActionConfigurationStateSchema = z.object({
+  Action: z.string(),
+  FilterConfiguration: ActionFilterConfigurationStateSchema,
+}).partial();
+
+const DataAccessorIdcTrustedTokenIssuerConfigurationStateSchema = z.object({
+  IdcTrustedTokenIssuerArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -127,27 +168,27 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ActionConfigurations: z.array(ActionConfigurationSchema).optional(),
+  ActionConfigurations: z.array(ActionConfigurationStateSchema).optional(),
   ApplicationId: z.string(),
   AuthenticationDetail: z.object({
     AuthenticationType: z.string(),
     AuthenticationConfiguration: z.object({
       IdcTrustedTokenIssuerConfiguration:
-        DataAccessorIdcTrustedTokenIssuerConfigurationSchema,
-    }),
+        DataAccessorIdcTrustedTokenIssuerConfigurationStateSchema,
+    }).partial(),
     ExternalIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   DataAccessorArn: z.string().optional(),
   DataAccessorId: z.string(),
   DisplayName: z.string().optional(),
   IdcApplicationArn: z.string().optional(),
   Principal: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -200,7 +241,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QBusiness DataAccessor. Registered at `@swamp/aws/qbusiness/data-accessor`. */
 export const model = {
   type: "@swamp/aws/qbusiness/data-accessor",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -269,6 +310,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

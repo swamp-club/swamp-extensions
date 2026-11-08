@@ -221,31 +221,35 @@ const StateSchema = z.object({
   description: z.string().optional(),
   etag: z.string().optional(),
   gkePolicy: z.object({
-    checkSets: z.array(z.object({
-      checks: z.array(z.object({
-        alwaysDeny: z.unknown(),
-        displayName: z.unknown(),
-        imageAllowlist: z.unknown(),
-        imageFreshnessCheck: z.unknown(),
-        sigstoreSignatureCheck: z.unknown(),
-        simpleSigningAttestationCheck: z.unknown(),
-        slsaCheck: z.unknown(),
-        trustedDirectoryCheck: z.unknown(),
-        vulnerabilityCheck: z.unknown(),
-      })),
-      displayName: z.string(),
-      imageAllowlist: z.object({
-        allowPattern: z.array(z.unknown()),
-      }),
-      scope: z.object({
-        kubernetesNamespace: z.string(),
-        kubernetesServiceAccount: z.string(),
-      }),
-    })),
+    checkSets: z.array(
+      z.object({
+        checks: z.array(
+          z.object({
+            alwaysDeny: z.unknown(),
+            displayName: z.unknown(),
+            imageAllowlist: z.unknown(),
+            imageFreshnessCheck: z.unknown(),
+            sigstoreSignatureCheck: z.unknown(),
+            simpleSigningAttestationCheck: z.unknown(),
+            slsaCheck: z.unknown(),
+            trustedDirectoryCheck: z.unknown(),
+            vulnerabilityCheck: z.unknown(),
+          }).partial(),
+        ),
+        displayName: z.string(),
+        imageAllowlist: z.object({
+          allowPattern: z.array(z.unknown()),
+        }).partial(),
+        scope: z.object({
+          kubernetesNamespace: z.string(),
+          kubernetesServiceAccount: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     imageAllowlist: z.object({
       allowPattern: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -362,7 +366,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Binary Authorization Platforms.Policies. Registered at `@swamp/gcp/binaryauthorization/platforms-policies`. */
 export const model = {
   type: "@swamp/gcp/binaryauthorization/platforms-policies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -501,6 +505,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

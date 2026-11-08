@@ -171,7 +171,7 @@ const StateSchema = z.object({
   contentAdsSettings: z.object({
     size: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   name: z.string(),
   reportingDimensionId: z.string().optional(),
@@ -238,7 +238,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AdSense Management Accounts.Adclients.Adunits. Registered at `@swamp/gcp/adsense/accounts-adclients-adunits`. */
 export const model = {
   type: "@swamp/gcp/adsense/accounts-adclients-adunits",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -372,6 +372,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

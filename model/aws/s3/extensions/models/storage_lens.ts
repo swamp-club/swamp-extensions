@@ -222,6 +222,113 @@ const TagSchema = z.object({
   ),
 });
 
+const AdvancedDataProtectionMetricsStateSchema = z.object({
+  IsEnabled: z.boolean(),
+}).partial();
+
+const StorageLensGroupSelectionCriteriaStateSchema = z.object({
+  Exclude: z.array(z.string()),
+  Include: z.array(z.string()),
+}).partial();
+
+const StorageLensGroupLevelStateSchema = z.object({
+  StorageLensGroupSelectionCriteria:
+    StorageLensGroupSelectionCriteriaStateSchema,
+}).partial();
+
+const ActivityMetricsStateSchema = z.object({
+  IsEnabled: z.boolean(),
+}).partial();
+
+const AdvancedPerformanceMetricsStateSchema = z.object({
+  IsEnabled: z.boolean(),
+}).partial();
+
+const SelectionCriteriaStateSchema = z.object({
+  Delimiter: z.string(),
+  MaxDepth: z.number(),
+  MinStorageBytesPercentage: z.number(),
+}).partial();
+
+const PrefixLevelStorageMetricsStateSchema = z.object({
+  IsEnabled: z.boolean(),
+  SelectionCriteria: SelectionCriteriaStateSchema,
+}).partial();
+
+const PrefixLevelStateSchema = z.object({
+  StorageMetrics: PrefixLevelStorageMetricsStateSchema,
+}).partial();
+
+const AdvancedCostOptimizationMetricsStateSchema = z.object({
+  IsEnabled: z.boolean(),
+}).partial();
+
+const DetailedStatusCodesMetricsStateSchema = z.object({
+  IsEnabled: z.boolean(),
+}).partial();
+
+const BucketLevelStateSchema = z.object({
+  AdvancedDataProtectionMetrics: AdvancedDataProtectionMetricsStateSchema,
+  PrefixLevel: PrefixLevelStateSchema,
+  ActivityMetrics: ActivityMetricsStateSchema,
+  AdvancedPerformanceMetrics: AdvancedPerformanceMetricsStateSchema,
+  AdvancedCostOptimizationMetrics: AdvancedCostOptimizationMetricsStateSchema,
+  DetailedStatusCodesMetrics: DetailedStatusCodesMetricsStateSchema,
+}).partial();
+
+const AccountLevelStateSchema = z.object({
+  AdvancedDataProtectionMetrics: AdvancedDataProtectionMetricsStateSchema,
+  StorageLensGroupLevel: StorageLensGroupLevelStateSchema,
+  ActivityMetrics: ActivityMetricsStateSchema,
+  AdvancedPerformanceMetrics: AdvancedPerformanceMetricsStateSchema,
+  BucketLevel: BucketLevelStateSchema,
+  AdvancedCostOptimizationMetrics: AdvancedCostOptimizationMetricsStateSchema,
+  DetailedStatusCodesMetrics: DetailedStatusCodesMetricsStateSchema,
+}).partial();
+
+const BucketsAndRegionsStateSchema = z.object({
+  Regions: z.array(z.string()),
+  Buckets: z.array(z.string()),
+}).partial();
+
+const AwsOrgStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const StorageLensTableDestinationStateSchema = z.object({
+  IsEnabled: z.boolean(),
+  Encryption: z.record(z.string(), z.unknown()),
+}).partial();
+
+const S3BucketDestinationStateSchema = z.object({
+  OutputSchemaVersion: z.string(),
+  Format: z.string(),
+  AccountId: z.string(),
+  Prefix: z.string(),
+  Encryption: z.record(z.string(), z.unknown()),
+  Arn: z.string(),
+}).partial();
+
+const CloudWatchMetricsStateSchema = z.object({
+  IsEnabled: z.boolean(),
+}).partial();
+
+const DataExportStateSchema = z.object({
+  StorageLensTableDestination: StorageLensTableDestinationStateSchema,
+  S3BucketDestination: S3BucketDestinationStateSchema,
+  CloudWatchMetrics: CloudWatchMetricsStateSchema,
+}).partial();
+
+const StorageLensExpandedPrefixesDataExportStateSchema = z.object({
+  StorageLensTableDestination: StorageLensTableDestinationStateSchema,
+  S3BucketDestination: S3BucketDestinationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -275,21 +382,22 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   StorageLensConfiguration: z.object({
-    AccountLevel: AccountLevelSchema,
-    Exclude: BucketsAndRegionsSchema,
+    AccountLevel: AccountLevelStateSchema,
+    Exclude: BucketsAndRegionsStateSchema,
     IsEnabled: z.boolean(),
-    Include: BucketsAndRegionsSchema,
+    Include: BucketsAndRegionsStateSchema,
     PrefixDelimiter: z.string(),
-    AwsOrg: AwsOrgSchema,
+    AwsOrg: AwsOrgStateSchema,
     Id: z.string(),
     StorageLensArn: z.string(),
-    DataExport: DataExportSchema,
-    ExpandedPrefixesDataExport: StorageLensExpandedPrefixesDataExportSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    DataExport: DataExportStateSchema,
+    ExpandedPrefixesDataExport:
+      StorageLensExpandedPrefixesDataExportStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -351,7 +459,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 StorageLens. Registered at `@swamp/aws/s3/storage-lens`. */
 export const model = {
   type: "@swamp/aws/s3/storage-lens",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -425,6 +533,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

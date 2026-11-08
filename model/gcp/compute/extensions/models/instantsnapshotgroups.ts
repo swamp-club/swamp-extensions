@@ -214,8 +214,8 @@ const StateSchema = z.object({
     sourceInfo: z.object({
       consistencyGroup: z.string(),
       consistencyGroupId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
   sourceConsistencyGroup: z.string().optional(),
@@ -283,7 +283,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InstantSnapshotGroups. Registered at `@swamp/gcp/compute/instantsnapshotgroups`. */
 export const model = {
   type: "@swamp/gcp/compute/instantsnapshotgroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -317,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

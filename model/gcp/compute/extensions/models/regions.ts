@@ -122,25 +122,29 @@ const StateSchema = z.object({
     obsolete: z.string(),
     replacement: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
   quotaStatusWarning: z.object({
     code: z.string(),
-    data: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
+    data: z.array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     message: z.string(),
-  }).optional(),
-  quotas: z.array(z.object({
-    limit: z.number(),
-    metric: z.string(),
-    owner: z.string(),
-    usage: z.number(),
-  })).optional(),
+  }).partial().optional(),
+  quotas: z.array(
+    z.object({
+      limit: z.number(),
+      metric: z.string(),
+      owner: z.string(),
+      usage: z.number(),
+    }).partial(),
+  ).optional(),
   selfLink: z.string().optional(),
   status: z.string().optional(),
   supportsPzs: z.boolean().optional(),
@@ -185,7 +189,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Regions. Registered at `@swamp/gcp/compute/regions`. */
 export const model = {
   type: "@swamp/gcp/compute/regions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -319,6 +323,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -97,11 +97,11 @@ const StateSchema = z.object({
     File: z.string(),
     Format: z.string(),
     Directionality: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EncryptionKey: z.object({
     Type: z.string(),
     Id: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SourceLanguageCode: z.string().optional(),
   TargetLanguageCodes: z.array(z.string()).optional(),
   SizeBytes: z.number().optional(),
@@ -110,13 +110,15 @@ const StateSchema = z.object({
   LastUpdatedAt: z.string().optional(),
   Directionality: z.string().optional(),
   Format: z.string().optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-  })).optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -179,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Translate Terminology. Registered at `@swamp/aws/translate/terminology`. */
 export const model = {
   type: "@swamp/aws/translate/terminology",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -198,6 +200,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

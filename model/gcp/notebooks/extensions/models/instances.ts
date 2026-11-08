@@ -423,63 +423,73 @@ const StateSchema = z.object({
   enableManagedEuc: z.boolean().optional(),
   enableThirdPartyIdentity: z.boolean().optional(),
   gceSetup: z.object({
-    acceleratorConfigs: z.array(z.object({
-      coreCount: z.string(),
-      type: z.string(),
-    })),
+    acceleratorConfigs: z.array(
+      z.object({
+        coreCount: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     bootDisk: z.object({
       diskEncryption: z.string(),
       diskSizeGb: z.string(),
       diskType: z.string(),
       kmsKey: z.string(),
-    }),
+    }).partial(),
     confidentialInstanceConfig: z.object({
       confidentialInstanceType: z.string(),
-    }),
+    }).partial(),
     containerImage: z.object({
       repository: z.string(),
       tag: z.string(),
-    }),
-    dataDisks: z.array(z.object({
-      diskEncryption: z.string(),
-      diskSizeGb: z.string(),
-      diskType: z.string(),
-      kmsKey: z.string(),
-      resourcePolicies: z.array(z.string()),
-    })),
+    }).partial(),
+    dataDisks: z.array(
+      z.object({
+        diskEncryption: z.string(),
+        diskSizeGb: z.string(),
+        diskType: z.string(),
+        kmsKey: z.string(),
+        resourcePolicies: z.array(z.string()),
+      }).partial(),
+    ),
     disablePublicIp: z.boolean(),
     enableIpForwarding: z.boolean(),
     gpuDriverConfig: z.object({
       customGpuDriverPath: z.string(),
       enableGpuDriver: z.boolean(),
-    }),
+    }).partial(),
     instanceId: z.string(),
     machineType: z.string(),
     metadata: z.record(z.string(), z.unknown()),
     minCpuPlatform: z.string(),
-    networkInterfaces: z.array(z.object({
-      accessConfigs: z.array(z.object({
-        externalIp: z.unknown(),
-      })),
-      internalIp: z.string(),
-      network: z.string(),
-      nicType: z.string(),
-      subnet: z.string(),
-    })),
+    networkInterfaces: z.array(
+      z.object({
+        accessConfigs: z.array(
+          z.object({
+            externalIp: z.unknown(),
+          }).partial(),
+        ),
+        internalIp: z.string(),
+        network: z.string(),
+        nicType: z.string(),
+        subnet: z.string(),
+      }).partial(),
+    ),
     reservationAffinity: z.object({
       consumeReservationType: z.string(),
       key: z.string(),
       values: z.array(z.string()),
-    }),
-    serviceAccounts: z.array(z.object({
-      email: z.string(),
-      scopes: z.array(z.string()),
-    })),
+    }).partial(),
+    serviceAccounts: z.array(
+      z.object({
+        email: z.string(),
+        scopes: z.array(z.string()),
+      }).partial(),
+    ),
     shieldedInstanceConfig: z.object({
       enableIntegrityMonitoring: z.boolean(),
       enableSecureBoot: z.boolean(),
       enableVtpm: z.boolean(),
-    }),
+    }).partial(),
     systemMetadata: z.record(z.string(), z.unknown()),
     tags: z.array(z.string()),
     vmImage: z.object({
@@ -488,8 +498,8 @@ const StateSchema = z.object({
       imageId: z.string(),
       name: z.string(),
       project: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   healthInfo: z.record(z.string(), z.unknown()).optional(),
   healthState: z.string().optional(),
   id: z.string().optional(),
@@ -502,17 +512,19 @@ const StateSchema = z.object({
   state: z.string().optional(),
   thirdPartyProxyUrl: z.string().optional(),
   updateTime: z.string().optional(),
-  upgradeHistory: z.array(z.object({
-    action: z.string(),
-    containerImage: z.string(),
-    createTime: z.string(),
-    framework: z.string(),
-    snapshot: z.string(),
-    state: z.string(),
-    targetVersion: z.string(),
-    version: z.string(),
-    vmImage: z.string(),
-  })).optional(),
+  upgradeHistory: z.array(
+    z.object({
+      action: z.string(),
+      containerImage: z.string(),
+      createTime: z.string(),
+      framework: z.string(),
+      snapshot: z.string(),
+      state: z.string(),
+      targetVersion: z.string(),
+      version: z.string(),
+      vmImage: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -794,7 +806,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Notebooks Instances. Registered at `@swamp/gcp/notebooks/instances`. */
 export const model = {
   type: "@swamp/gcp/notebooks/instances",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1047,6 +1059,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

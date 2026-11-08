@@ -140,12 +140,12 @@ const StateSchema = z.object({
     StackNames: z.object({
       Include: z.array(z.string()),
       Exclude: z.array(z.string()),
-    }),
+    }).partial(),
     StackRoles: z.object({
       Include: z.array(z.string()),
       Exclude: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   Alias: z.string().optional(),
   HookArn: z.string(),
   ExecutionRole: z.string().optional(),
@@ -153,10 +153,10 @@ const StateSchema = z.object({
   LoggingConfig: z.object({
     LogGroupName: z.string(),
     LogRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -258,7 +258,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation LambdaHook. Registered at `@swamp/aws/cloudformation/lambda-hook`. */
 export const model = {
   type: "@swamp/aws/cloudformation/lambda-hook",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -332,6 +332,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

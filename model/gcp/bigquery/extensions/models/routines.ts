@@ -501,26 +501,30 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  arguments: z.array(z.object({
-    argumentKind: z.string(),
-    dataType: z.object({
-      arrayElementType: z.record(z.string(), z.unknown()),
-      rangeElementType: z.record(z.string(), z.unknown()),
-      structType: z.object({
-        fields: z.array(z.unknown()),
-      }),
-      typeKind: z.string(),
-    }),
-    isAggregate: z.boolean(),
-    mode: z.string(),
-    name: z.string(),
-    tableType: z.object({
-      columns: z.array(z.object({
-        name: z.unknown(),
-        type: z.unknown(),
-      })),
-    }),
-  })).optional(),
+  arguments: z.array(
+    z.object({
+      argumentKind: z.string(),
+      dataType: z.object({
+        arrayElementType: z.record(z.string(), z.unknown()),
+        rangeElementType: z.record(z.string(), z.unknown()),
+        structType: z.object({
+          fields: z.array(z.unknown()),
+        }).partial(),
+        typeKind: z.string(),
+      }).partial(),
+      isAggregate: z.boolean(),
+      mode: z.string(),
+      name: z.string(),
+      tableType: z.object({
+        columns: z.array(
+          z.object({
+            name: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   buildStatus: z.object({
     buildDuration: z.string(),
     buildState: z.string(),
@@ -530,9 +534,9 @@ const StateSchema = z.object({
       location: z.string(),
       message: z.string(),
       reason: z.string(),
-    }),
+    }).partial(),
     imageSizeBytes: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTime: z.string().optional(),
   dataGovernanceType: z.string().optional(),
   definitionBody: z.string().optional(),
@@ -546,53 +550,59 @@ const StateSchema = z.object({
     maxBatchingRows: z.string(),
     runtimeConnection: z.string(),
     runtimeVersion: z.string(),
-    volumeMounts: z.array(z.object({
-      mountPath: z.string(),
-      sourcePath: z.string(),
-    })),
-  }).optional(),
+    volumeMounts: z.array(
+      z.object({
+        mountPath: z.string(),
+        sourcePath: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   importedLibraries: z.array(z.string()).optional(),
   language: z.string().optional(),
   lastModifiedTime: z.string().optional(),
   pythonOptions: z.object({
     entryPoint: z.string(),
     packages: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   remoteFunctionOptions: z.object({
     connection: z.string(),
     endpoint: z.string(),
     maxBatchingRows: z.string(),
     userDefinedContext: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   returnTableType: z.object({
-    columns: z.array(z.object({
-      name: z.string(),
-      type: z.object({
-        arrayElementType: z.record(z.string(), z.unknown()),
-        rangeElementType: z.record(z.string(), z.unknown()),
-        structType: z.object({
-          fields: z.unknown(),
-        }),
-        typeKind: z.string(),
-      }),
-    })),
-  }).optional(),
+    columns: z.array(
+      z.object({
+        name: z.string(),
+        type: z.object({
+          arrayElementType: z.record(z.string(), z.unknown()),
+          rangeElementType: z.record(z.string(), z.unknown()),
+          structType: z.object({
+            fields: z.unknown(),
+          }).partial(),
+          typeKind: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   returnType: z.object({
     arrayElementType: z.record(z.string(), z.unknown()),
     rangeElementType: z.record(z.string(), z.unknown()),
     structType: z.object({
-      fields: z.array(z.object({
-        name: z.string(),
-        type: z.record(z.string(), z.unknown()),
-      })),
-    }),
+      fields: z.array(
+        z.object({
+          name: z.string(),
+          type: z.record(z.string(), z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     typeKind: z.string(),
-  }).optional(),
+  }).partial().optional(),
   routineReference: z.object({
     datasetId: z.string(),
     projectId: z.string(),
     routineId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   routineType: z.string().optional(),
   securityMode: z.string().optional(),
   sparkOptions: z.object({
@@ -606,7 +616,7 @@ const StateSchema = z.object({
     properties: z.record(z.string(), z.unknown()),
     pyFileUris: z.array(z.string()),
     runtimeVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   strictMode: z.boolean().optional(),
 }).passthrough();
 
@@ -952,7 +962,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Routines. Registered at `@swamp/gcp/bigquery/routines`. */
 export const model = {
   type: "@swamp/gcp/bigquery/routines",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1169,6 +1179,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

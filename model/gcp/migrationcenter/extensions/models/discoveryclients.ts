@@ -208,11 +208,13 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
-  errors: z.array(z.object({
-    code: z.number(),
-    details: z.array(z.record(z.string(), z.unknown())),
-    message: z.string(),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      code: z.number(),
+      details: z.array(z.record(z.string(), z.unknown())),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
   expireTime: z.string().optional(),
   heartbeatTime: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -294,7 +296,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Migration Center DiscoveryClients. Registered at `@swamp/gcp/migrationcenter/discoveryclients`. */
 export const model = {
   type: "@swamp/gcp/migrationcenter/discoveryclients",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -428,6 +430,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

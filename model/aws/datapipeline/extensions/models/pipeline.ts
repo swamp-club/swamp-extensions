@@ -80,6 +80,38 @@ const PipelineTagSchema = z.object({
   Value: z.string().describe("The value to associate with the key name."),
 });
 
+const ParameterAttributeStateSchema = z.object({
+  Key: z.string(),
+  StringValue: z.string(),
+}).partial();
+
+const ParameterObjectStateSchema = z.object({
+  Attributes: z.array(ParameterAttributeStateSchema),
+  Id: z.string(),
+}).partial();
+
+const ParameterValueStateSchema = z.object({
+  Id: z.string(),
+  StringValue: z.string(),
+}).partial();
+
+const FieldStateSchema = z.object({
+  Key: z.string(),
+  RefValue: z.string(),
+  StringValue: z.string(),
+}).partial();
+
+const PipelineObjectStateSchema = z.object({
+  Fields: z.array(FieldStateSchema),
+  Id: z.string(),
+  Name: z.string(),
+}).partial();
+
+const PipelineTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -119,14 +151,14 @@ const StateSchema = z.object({
   Activate: z.boolean().optional(),
   Description: z.string().optional(),
   Name: z.string().optional(),
-  ParameterObjects: z.array(ParameterObjectSchema).optional(),
-  ParameterValues: z.array(ParameterValueSchema).optional(),
-  PipelineObjects: z.array(PipelineObjectSchema).optional(),
-  PipelineTags: z.array(PipelineTagSchema).optional(),
+  ParameterObjects: z.array(ParameterObjectStateSchema).optional(),
+  ParameterValues: z.array(ParameterValueStateSchema).optional(),
+  PipelineObjects: z.array(PipelineObjectStateSchema).optional(),
+  PipelineTags: z.array(PipelineTagStateSchema).optional(),
   PipelineId: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -172,7 +204,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataPipeline Pipeline. Registered at `@swamp/aws/datapipeline/pipeline`. */
 export const model = {
   type: "@swamp/aws/datapipeline/pipeline",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -236,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

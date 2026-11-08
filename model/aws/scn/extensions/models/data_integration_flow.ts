@@ -121,6 +121,62 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
+const S3OptionsStateSchema = z.object({
+  FileType: z.string(),
+}).partial();
+
+const S3SourceConfigurationStateSchema = z.object({
+  BucketName: z.string(),
+  Prefix: z.string(),
+  Options: S3OptionsStateSchema,
+}).partial();
+
+const FieldPriorityDedupeFieldStateSchema = z.object({
+  Name: z.string(),
+  SortOrder: z.string(),
+}).partial();
+
+const FieldPriorityDedupeStrategyConfigurationStateSchema = z.object({
+  Fields: z.array(FieldPriorityDedupeFieldStateSchema),
+}).partial();
+
+const DedupeStrategyStateSchema = z.object({
+  Type: z.string(),
+  FieldPriority: FieldPriorityDedupeStrategyConfigurationStateSchema,
+}).partial();
+
+const DatasetOptionsStateSchema = z.object({
+  LoadType: z.string(),
+  DedupeRecords: z.boolean(),
+  DedupeStrategy: DedupeStrategyStateSchema,
+}).partial();
+
+const DatasetSourceConfigurationStateSchema = z.object({
+  DatasetIdentifier: z.string(),
+  Options: DatasetOptionsStateSchema,
+}).partial();
+
+const DataIntegrationFlowSourceStateSchema = z.object({
+  SourceType: z.string(),
+  SourceName: z.string(),
+  S3Source: S3SourceConfigurationStateSchema,
+  DatasetSource: DatasetSourceConfigurationStateSchema,
+}).partial();
+
+const SqlTransformationConfigurationStateSchema = z.object({
+  Query: z.string(),
+}).partial();
+
+const DatasetTargetConfigurationStateSchema = z.object({
+  DatasetIdentifier: z.string(),
+  Options: DatasetOptionsStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -170,21 +226,21 @@ const StateSchema = z.object({
   Arn: z.string(),
   InstanceId: z.string().optional(),
   Name: z.string().optional(),
-  Sources: z.array(DataIntegrationFlowSourceSchema).optional(),
+  Sources: z.array(DataIntegrationFlowSourceStateSchema).optional(),
   Transformation: z.object({
     TransformationType: z.string(),
-    SqlTransformation: SqlTransformationConfigurationSchema,
-  }).optional(),
+    SqlTransformation: SqlTransformationConfigurationStateSchema,
+  }).partial().optional(),
   Target: z.object({
     TargetType: z.string(),
-    DatasetTarget: DatasetTargetConfigurationSchema,
-  }).optional(),
+    DatasetTarget: DatasetTargetConfigurationStateSchema,
+  }).partial().optional(),
   CreatedTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -240,7 +296,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SCN DataIntegrationFlow. Registered at `@swamp/aws/scn/data-integration-flow`. */
 export const model = {
   type: "@swamp/aws/scn/data-integration-flow",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -254,6 +310,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -42,6 +42,10 @@ const LinkFilterSchema = z.object({
   Filter: z.string().min(1).max(2000),
 });
 
+const LinkFilterStateSchema = z.object({
+  Filter: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -88,13 +92,13 @@ const StateSchema = z.object({
   ResourceTypes: z.array(z.string()).optional(),
   SinkIdentifier: z.string().optional(),
   LinkConfiguration: z.object({
-    MetricConfiguration: LinkFilterSchema,
-    LogGroupConfiguration: LinkFilterSchema,
-  }).optional(),
+    MetricConfiguration: LinkFilterStateSchema,
+    LogGroupConfiguration: LinkFilterStateSchema,
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -144,7 +148,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Oam Link. Registered at `@swamp/aws/oam/link`. */
 export const model = {
   type: "@swamp/aws/oam/link",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -208,6 +212,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

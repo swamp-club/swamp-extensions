@@ -80,15 +80,19 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  chainNames: z.array(z.object({
-    displayName: z.string(),
-    languageCode: z.string(),
-  })).optional(),
+  chainNames: z.array(
+    z.object({
+      displayName: z.string(),
+      languageCode: z.string(),
+    }).partial(),
+  ).optional(),
   locationCount: z.number().optional(),
   name: z.string(),
-  websites: z.array(z.object({
-    uri: z.string(),
-  })).optional(),
+  websites: z.array(
+    z.object({
+      uri: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -129,7 +133,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud My Business Business Information Chains. Registered at `@swamp/gcp/mybusinessbusinessinformation/chains`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/chains",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -253,6 +257,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

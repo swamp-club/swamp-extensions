@@ -297,48 +297,54 @@ const StateSchema = z.object({
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
   id: z.string().optional(),
-  instances: z.array(z.object({
-    fingerprint: z.string(),
-    name: z.string(),
-    preservedState: z.object({
-      disks: z.record(z.string(), z.unknown()),
-      externalIPs: z.record(z.string(), z.unknown()),
-      internalIPs: z.record(z.string(), z.unknown()),
-      metadata: z.record(z.string(), z.unknown()),
-    }),
-    status: z.string(),
-  })).optional(),
+  instances: z.array(
+    z.object({
+      fingerprint: z.string(),
+      name: z.string(),
+      preservedState: z.object({
+        disks: z.record(z.string(), z.unknown()),
+        externalIPs: z.record(z.string(), z.unknown()),
+        internalIPs: z.record(z.string(), z.unknown()),
+        metadata: z.record(z.string(), z.unknown()),
+      }).partial(),
+      status: z.string(),
+    }).partial(),
+  ).optional(),
   kind: z.string().optional(),
   name: z.string(),
   region: z.string().optional(),
   requestedRunDuration: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resizeBy: z.number().optional(),
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
   state: z.string().optional(),
   status: z.object({
     error: z.object({
-      errors: z.array(z.object({
-        code: z.string(),
-        errorDetails: z.array(z.unknown()),
-        location: z.string(),
-        message: z.string(),
-      })),
-    }),
+      errors: z.array(
+        z.object({
+          code: z.string(),
+          errorDetails: z.array(z.unknown()),
+          location: z.string(),
+          message: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     lastAttempt: z.object({
       error: z.object({
-        errors: z.array(z.object({
-          code: z.unknown(),
-          errorDetails: z.unknown(),
-          location: z.unknown(),
-          message: z.unknown(),
-        })),
-      }),
-    }),
-  }).optional(),
+        errors: z.array(
+          z.object({
+            code: z.unknown(),
+            errorDetails: z.unknown(),
+            location: z.unknown(),
+            message: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   zone: z.string().optional(),
 }).passthrough();
 
@@ -474,7 +480,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagerResizeRequests. Registered at `@swamp/gcp/compute/instancegroupmanagerresizerequests`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagerresizerequests",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -681,6 +687,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

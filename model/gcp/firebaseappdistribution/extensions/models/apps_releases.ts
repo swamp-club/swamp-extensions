@@ -212,7 +212,7 @@ const StateSchema = z.object({
   openInvitationCount: z.number().optional(),
   releaseNotes: z.object({
     text: z.string(),
-  }).optional(),
+  }).partial().optional(),
   testState: z.string().optional(),
   testingUri: z.string().optional(),
   updateTime: z.string().optional(),
@@ -323,7 +323,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase App Distribution Apps.Releases. Registered at `@swamp/gcp/firebaseappdistribution/apps-releases`. */
 export const model = {
   type: "@swamp/gcp/firebaseappdistribution/apps-releases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -473,6 +473,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

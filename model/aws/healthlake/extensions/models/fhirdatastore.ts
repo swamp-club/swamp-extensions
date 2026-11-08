@@ -56,6 +56,16 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value of the tag."),
 });
 
+const KmsEncryptionConfigStateSchema = z.object({
+  CmkType: z.string(),
+  KmsKeyId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -145,7 +155,7 @@ const StateSchema = z.object({
   CreatedAt: z.object({
     Seconds: z.string(),
     Nanos: z.number(),
-  }).optional(),
+  }).partial().optional(),
   DatastoreArn: z.string().optional(),
   DatastoreEndpoint: z.string().optional(),
   DatastoreId: z.string(),
@@ -154,29 +164,29 @@ const StateSchema = z.object({
   DatastoreTypeVersion: z.string().optional(),
   PreloadDataConfig: z.object({
     PreloadDataType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SseConfiguration: z.object({
-    KmsEncryptionConfig: KmsEncryptionConfigSchema,
-  }).optional(),
+    KmsEncryptionConfig: KmsEncryptionConfigStateSchema,
+  }).partial().optional(),
   IdentityProviderConfiguration: z.object({
     AuthorizationStrategy: z.string(),
     FineGrainedAuthorizationEnabled: z.boolean(),
     Metadata: z.string(),
     IdpLambdaArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AnalyticsConfiguration: z.object({
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   NlpConfiguration: z.object({
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ProfileConfiguration: z.object({
     DefaultProfiles: z.array(z.string()),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -272,7 +282,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for HealthLake FHIRDatastore. Registered at `@swamp/aws/healthlake/fhirdatastore`. */
 export const model = {
   type: "@swamp/aws/healthlake/fhirdatastore",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -342,6 +352,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

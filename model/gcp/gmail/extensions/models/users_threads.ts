@@ -165,35 +165,41 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   historyId: z.string().optional(),
   id: z.string(),
-  messages: z.array(z.object({
-    classificationLabelValues: z.array(z.object({
-      fields: z.array(z.unknown()),
-      labelId: z.string(),
-    })),
-    historyId: z.string(),
-    id: z.string(),
-    internalDate: z.string(),
-    labelIds: z.array(z.string()),
-    payload: z.object({
-      body: z.object({
-        attachmentId: z.string(),
-        data: z.string(),
-        size: z.number(),
-      }),
-      filename: z.string(),
-      headers: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-      })),
-      mimeType: z.string(),
-      partId: z.string(),
-      parts: z.array(z.record(z.string(), z.unknown())),
-    }),
-    raw: z.string(),
-    sizeEstimate: z.number(),
-    snippet: z.string(),
-    threadId: z.string(),
-  })).optional(),
+  messages: z.array(
+    z.object({
+      classificationLabelValues: z.array(
+        z.object({
+          fields: z.array(z.unknown()),
+          labelId: z.string(),
+        }).partial(),
+      ),
+      historyId: z.string(),
+      id: z.string(),
+      internalDate: z.string(),
+      labelIds: z.array(z.string()),
+      payload: z.object({
+        body: z.object({
+          attachmentId: z.string(),
+          data: z.string(),
+          size: z.number(),
+        }).partial(),
+        filename: z.string(),
+        headers: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        mimeType: z.string(),
+        partId: z.string(),
+        parts: z.array(z.record(z.string(), z.unknown())),
+      }).partial(),
+      raw: z.string(),
+      sizeEstimate: z.number(),
+      snippet: z.string(),
+      threadId: z.string(),
+    }).partial(),
+  ).optional(),
   snippet: z.string().optional(),
 }).passthrough();
 
@@ -238,7 +244,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Threads. Registered at `@swamp/gcp/gmail/users-threads`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-threads",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -367,6 +373,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

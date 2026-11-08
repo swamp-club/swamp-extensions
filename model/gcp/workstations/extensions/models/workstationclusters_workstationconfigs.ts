@@ -453,16 +453,20 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  allowedPorts: z.array(z.object({
-    first: z.number(),
-    last: z.number(),
-  })).optional(),
+  allowedPorts: z.array(
+    z.object({
+      first: z.number(),
+      last: z.number(),
+    }).partial(),
+  ).optional(),
   annotations: z.record(z.string(), z.unknown()).optional(),
-  conditions: z.array(z.object({
-    code: z.number(),
-    details: z.array(z.record(z.string(), z.unknown())),
-    message: z.string(),
-  })).optional(),
+  conditions: z.array(
+    z.object({
+      code: z.number(),
+      details: z.array(z.record(z.string(), z.unknown())),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
   container: z.object({
     args: z.array(z.string()),
     command: z.array(z.string()),
@@ -470,7 +474,7 @@ const StateSchema = z.object({
     image: z.string(),
     runAsUser: z.number(),
     workingDir: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   degraded: z.boolean().optional(),
   deleteTime: z.string().optional(),
@@ -480,36 +484,42 @@ const StateSchema = z.object({
   encryptionKey: z.object({
     kmsKey: z.string(),
     kmsKeyServiceAccount: z.string(),
-  }).optional(),
-  ephemeralDirectories: z.array(z.object({
-    gcePd: z.object({
-      diskType: z.string(),
-      readOnly: z.boolean(),
-      sourceImage: z.string(),
-      sourceSnapshot: z.string(),
-    }),
-    mountPath: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  ephemeralDirectories: z.array(
+    z.object({
+      gcePd: z.object({
+        diskType: z.string(),
+        readOnly: z.boolean(),
+        sourceImage: z.string(),
+        sourceSnapshot: z.string(),
+      }).partial(),
+      mountPath: z.string(),
+    }).partial(),
+  ).optional(),
   etag: z.string().optional(),
   grantWorkstationAdminRoleOnCreate: z.boolean().optional(),
   host: z.object({
     gceInstance: z.object({
-      accelerators: z.array(z.object({
-        count: z.number(),
-        type: z.string(),
-      })),
-      boostConfigs: z.array(z.object({
-        accelerators: z.array(z.unknown()),
-        bootDiskSizeGb: z.number(),
-        enableNestedVirtualization: z.boolean(),
-        id: z.string(),
-        machineType: z.string(),
-        poolSize: z.number(),
-      })),
+      accelerators: z.array(
+        z.object({
+          count: z.number(),
+          type: z.string(),
+        }).partial(),
+      ),
+      boostConfigs: z.array(
+        z.object({
+          accelerators: z.array(z.unknown()),
+          bootDiskSizeGb: z.number(),
+          enableNestedVirtualization: z.boolean(),
+          id: z.string(),
+          machineType: z.string(),
+          poolSize: z.number(),
+        }).partial(),
+      ),
       bootDiskSizeGb: z.number(),
       confidentialInstanceConfig: z.object({
         enableConfidentialCompute: z.boolean(),
-      }),
+      }).partial(),
       disablePublicIpAddresses: z.boolean(),
       disableSsh: z.boolean(),
       enableNestedVirtualization: z.boolean(),
@@ -523,40 +533,44 @@ const StateSchema = z.object({
         enableIntegrityMonitoring: z.boolean(),
         enableSecureBoot: z.boolean(),
         enableVtpm: z.boolean(),
-      }),
+      }).partial(),
       startupScriptUri: z.string(),
       tags: z.array(z.string()),
       vmTags: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   idleAction: z.string().optional(),
   idleTimeout: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   maxUsableWorkstations: z.number().optional(),
   name: z.string(),
-  persistentDirectories: z.array(z.object({
-    gceHd: z.object({
-      archiveTimeout: z.string(),
-      maxSizeGb: z.number(),
-      reclaimPolicy: z.string(),
-      sizeGb: z.number(),
-      sourceSnapshot: z.string(),
-    }),
-    gcePd: z.object({
-      archiveTimeout: z.string(),
-      diskType: z.string(),
-      fsType: z.string(),
-      maxSizeGb: z.number(),
-      reclaimPolicy: z.string(),
-      sizeGb: z.number(),
-      sourceSnapshot: z.string(),
-    }),
-    mountPath: z.string(),
-  })).optional(),
-  readinessChecks: z.array(z.object({
-    path: z.string(),
-    port: z.number(),
-  })).optional(),
+  persistentDirectories: z.array(
+    z.object({
+      gceHd: z.object({
+        archiveTimeout: z.string(),
+        maxSizeGb: z.number(),
+        reclaimPolicy: z.string(),
+        sizeGb: z.number(),
+        sourceSnapshot: z.string(),
+      }).partial(),
+      gcePd: z.object({
+        archiveTimeout: z.string(),
+        diskType: z.string(),
+        fsType: z.string(),
+        maxSizeGb: z.number(),
+        reclaimPolicy: z.string(),
+        sizeGb: z.number(),
+        sourceSnapshot: z.string(),
+      }).partial(),
+      mountPath: z.string(),
+    }).partial(),
+  ).optional(),
+  readinessChecks: z.array(
+    z.object({
+      path: z.string(),
+      port: z.number(),
+    }).partial(),
+  ).optional(),
   reconciling: z.boolean().optional(),
   replicaZones: z.array(z.string()).optional(),
   runningTimeout: z.string().optional(),
@@ -871,7 +885,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workstations WorkstationClusters.WorkstationConfigs. Registered at `@swamp/gcp/workstations/workstationclusters-workstationconfigs`. */
 export const model = {
   type: "@swamp/gcp/workstations/workstationclusters-workstationconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1140,6 +1154,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

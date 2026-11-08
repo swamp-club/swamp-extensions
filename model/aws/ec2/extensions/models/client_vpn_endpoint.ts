@@ -80,6 +80,42 @@ const DevicePostureTrustProviderSchema = z.object({
   ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const TagSpecificationStateSchema = z.object({
+  ResourceType: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const CertificateAuthenticationRequestStateSchema = z.object({
+  ClientRootCertificateChainArn: z.string(),
+}).partial();
+
+const DirectoryServiceAuthenticationRequestStateSchema = z.object({
+  DirectoryId: z.string(),
+}).partial();
+
+const FederatedAuthenticationRequestStateSchema = z.object({
+  SAMLProviderArn: z.string(),
+  SelfServiceSAMLProviderArn: z.string(),
+}).partial();
+
+const ClientAuthenticationRequestStateSchema = z.object({
+  MutualAuthentication: CertificateAuthenticationRequestStateSchema,
+  Type: z.string(),
+  ActiveDirectory: DirectoryServiceAuthenticationRequestStateSchema,
+  FederatedAuthentication: FederatedAuthenticationRequestStateSchema,
+}).partial();
+
+const DevicePostureTrustProviderStateSchema = z.object({
+  TrustProviderType: z.string(),
+  TenantId: z.string(),
+  PublicSigningKeyUrl: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -204,13 +240,14 @@ const StateSchema = z.object({
   ClientConnectOptions: z.object({
     Enabled: z.boolean(),
     LambdaFunctionArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Description: z.string().optional(),
   ClientRouteEnforcementOptions: z.object({
     Enforced: z.boolean(),
-  }).optional(),
-  TagSpecifications: z.array(TagSpecificationSchema).optional(),
-  AuthenticationOptions: z.array(ClientAuthenticationRequestSchema).optional(),
+  }).partial().optional(),
+  TagSpecifications: z.array(TagSpecificationStateSchema).optional(),
+  AuthenticationOptions: z.array(ClientAuthenticationRequestStateSchema)
+    .optional(),
   ServerCertificateArn: z.string().optional(),
   SessionTimeoutHours: z.number().optional(),
   DnsServers: z.array(z.string()).optional(),
@@ -221,36 +258,36 @@ const StateSchema = z.object({
     CloudwatchLogGroup: z.string(),
     CloudwatchLogStream: z.string(),
     IncludeAuthorizationPolicyContext: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   SplitTunnel: z.boolean().optional(),
   TrafficIpAddressType: z.string().optional(),
   ClientLoginBannerOptions: z.object({
     Enabled: z.boolean(),
     BannerText: z.string(),
-  }).optional(),
+  }).partial().optional(),
   VpcId: z.string().optional(),
   SelfServicePortal: z.string().optional(),
   TransitGatewayConfiguration: z.object({
     TransitGatewayId: z.string(),
     AvailabilityZoneIds: z.array(z.string()),
     AvailabilityZones: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   TransportProtocol: z.string().optional(),
   Id: z.string(),
   EndpointIpAddressType: z.string().optional(),
   VpnPort: z.number().optional(),
   DevicePostureOptions: z.object({
     Enabled: z.boolean(),
-    TrustProviders: z.array(DevicePostureTrustProviderSchema),
-  }).optional(),
+    TrustProviders: z.array(DevicePostureTrustProviderStateSchema),
+  }).partial().optional(),
   AuthorizationPolicy: z.object({
     PolicyDocument: z.string(),
     ShadowMode: z.string(),
     Description: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -381,10 +418,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 ClientVpnEndpoint. Registered at `@swamp/aws/ec2/client-vpn-endpoint`. */
 export const model = {
   type: "@swamp/aws/ec2/client-vpn-endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

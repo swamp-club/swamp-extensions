@@ -146,17 +146,19 @@ const StateSchema = z.object({
   prioritized: z.boolean().optional(),
   rolloutSequence: z.string().optional(),
   stageSoakDurationOverrides: z.record(z.string(), z.unknown()).optional(),
-  stages: z.array(z.object({
-    clusterSelector: z.object({
-      labelSelector: z.string(),
-    }),
-    endTime: z.string(),
-    fleetProjects: z.array(z.string()),
-    soakDuration: z.string(),
-    stageNumber: z.number(),
-    startTime: z.string(),
-    state: z.string(),
-  })).optional(),
+  stages: z.array(
+    z.object({
+      clusterSelector: z.object({
+        labelSelector: z.string(),
+      }).partial(),
+      endTime: z.string(),
+      fleetProjects: z.array(z.string()),
+      soakDuration: z.string(),
+      stageNumber: z.number(),
+      startTime: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   stateReason: z.string().optional(),
   stateReasonType: z.string().optional(),
@@ -166,7 +168,7 @@ const StateSchema = z.object({
   versionUpgrade: z.object({
     desiredVersion: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -210,7 +212,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Rollouts. Registered at `@swamp/gcp/gkehub/rollouts`. */
 export const model = {
   type: "@swamp/gcp/gkehub/rollouts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -244,6 +246,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

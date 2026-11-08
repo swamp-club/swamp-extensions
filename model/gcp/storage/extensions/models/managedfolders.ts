@@ -233,7 +233,7 @@ const StateSchema = z.object({
   name: z.string(),
   rapidCacheConfig: z.object({
     policies: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -315,7 +315,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON ManagedFolders. Registered at `@swamp/gcp/storage/managedfolders`. */
 export const model = {
   type: "@swamp/gcp/storage/managedfolders",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -454,6 +454,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

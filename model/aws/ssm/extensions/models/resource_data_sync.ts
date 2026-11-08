@@ -43,6 +43,11 @@ const AwsOrganizationsSourceSchema = z.object({
   OrganizationSourceType: z.string().min(1).max(64),
 });
 
+const AwsOrganizationsSourceStateSchema = z.object({
+  OrganizationalUnits: z.array(z.string()),
+  OrganizationSourceType: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -85,14 +90,14 @@ const StateSchema = z.object({
     BucketName: z.string(),
     BucketRegion: z.string(),
     SyncFormat: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KMSKeyArn: z.string().optional(),
   SyncSource: z.object({
     IncludeFutureRegions: z.boolean(),
     SourceRegions: z.array(z.string()),
     SourceType: z.string(),
-    AwsOrganizationsSource: AwsOrganizationsSourceSchema,
-  }).optional(),
+    AwsOrganizationsSource: AwsOrganizationsSourceStateSchema,
+  }).partial().optional(),
   BucketName: z.string().optional(),
   BucketRegion: z.string().optional(),
   SyncFormat: z.string().optional(),
@@ -101,7 +106,7 @@ const StateSchema = z.object({
   BucketPrefix: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -149,7 +154,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSM ResourceDataSync. Registered at `@swamp/aws/ssm/resource-data-sync`. */
 export const model = {
   type: "@swamp/aws/ssm/resource-data-sync",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +218,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

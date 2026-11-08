@@ -96,83 +96,87 @@ const StateSchema = z.object({
     buyerCountry: z.string(),
     buyerPostcode: z.string(),
     buyerState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   developerRevenueInBuyerCurrency: z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lastEventTime: z.string().optional(),
-  lineItems: z.array(z.object({
-    listingPrice: z.object({
-      currencyCode: z.string(),
-      nanos: z.number(),
-      units: z.string(),
-    }),
-    oneTimePurchaseDetails: z.object({
-      offerId: z.string(),
-      preorderDetails: z.object({}),
-      purchaseOptionId: z.string(),
-      quantity: z.number(),
-      rentalDetails: z.object({}),
-    }),
-    paidAppDetails: z.object({}),
-    productId: z.string(),
-    productTitle: z.string(),
-    subscriptionDetails: z.object({
-      basePlanId: z.string(),
-      offerId: z.string(),
-      offerPhase: z.string(),
-      offerPhaseDetails: z.object({
-        baseDetails: z.object({}),
-        freeTrialDetails: z.object({}),
-        introductoryPriceDetails: z.object({}),
-        prorationPeriodDetails: z.object({
-          originalOfferPhase: z.unknown(),
-        }),
-      }),
-      servicePeriodEndTime: z.string(),
-      servicePeriodStartTime: z.string(),
-    }),
-    tax: z.object({
-      currencyCode: z.string(),
-      nanos: z.number(),
-      units: z.string(),
-    }),
-    total: z.object({
-      currencyCode: z.string(),
-      nanos: z.number(),
-      units: z.string(),
-    }),
-  })).optional(),
+  lineItems: z.array(
+    z.object({
+      listingPrice: z.object({
+        currencyCode: z.string(),
+        nanos: z.number(),
+        units: z.string(),
+      }).partial(),
+      oneTimePurchaseDetails: z.object({
+        offerId: z.string(),
+        preorderDetails: z.object({}).partial(),
+        purchaseOptionId: z.string(),
+        quantity: z.number(),
+        rentalDetails: z.object({}).partial(),
+      }).partial(),
+      paidAppDetails: z.object({}).partial(),
+      productId: z.string(),
+      productTitle: z.string(),
+      subscriptionDetails: z.object({
+        basePlanId: z.string(),
+        offerId: z.string(),
+        offerPhase: z.string(),
+        offerPhaseDetails: z.object({
+          baseDetails: z.object({}).partial(),
+          freeTrialDetails: z.object({}).partial(),
+          introductoryPriceDetails: z.object({}).partial(),
+          prorationPeriodDetails: z.object({
+            originalOfferPhase: z.unknown(),
+          }).partial(),
+        }).partial(),
+        servicePeriodEndTime: z.string(),
+        servicePeriodStartTime: z.string(),
+      }).partial(),
+      tax: z.object({
+        currencyCode: z.string(),
+        nanos: z.number(),
+        units: z.string(),
+      }).partial(),
+      total: z.object({
+        currencyCode: z.string(),
+        nanos: z.number(),
+        units: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   orderDetails: z.object({
     taxInclusive: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   orderHistory: z.object({
     cancellationEvent: z.object({
       eventTime: z.string(),
-    }),
-    partialRefundEvents: z.array(z.object({
-      createTime: z.string(),
-      processTime: z.string(),
-      refundDetails: z.object({
-        tax: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-        total: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-      }),
-      state: z.string(),
-    })),
+    }).partial(),
+    partialRefundEvents: z.array(
+      z.object({
+        createTime: z.string(),
+        processTime: z.string(),
+        refundDetails: z.object({
+          tax: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          total: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+        }).partial(),
+        state: z.string(),
+      }).partial(),
+    ),
     processedEvent: z.object({
       eventTime: z.string(),
-    }),
+    }).partial(),
     refundEvent: z.object({
       eventTime: z.string(),
       refundDetails: z.object({
@@ -180,27 +184,27 @@ const StateSchema = z.object({
           currencyCode: z.string(),
           nanos: z.number(),
           units: z.string(),
-        }),
+        }).partial(),
         total: z.object({
           currencyCode: z.string(),
           nanos: z.number(),
           units: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       refundReason: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   orderId: z.string().optional(),
   pointsDetails: z.object({
     pointsCouponValue: z.object({
       currencyCode: z.string(),
       nanos: z.number(),
       units: z.string(),
-    }),
+    }).partial(),
     pointsDiscountRateMicros: z.string(),
     pointsOfferId: z.string(),
     pointsSpent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   purchaseToken: z.string().optional(),
   salesChannel: z.string().optional(),
   state: z.string().optional(),
@@ -208,12 +212,12 @@ const StateSchema = z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   total: z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -257,7 +261,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Orders. Registered at `@swamp/gcp/androidpublisher/orders`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/orders",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -406,6 +410,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

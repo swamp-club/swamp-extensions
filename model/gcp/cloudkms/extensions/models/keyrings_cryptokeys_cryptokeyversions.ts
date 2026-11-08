@@ -211,10 +211,10 @@ const StateSchema = z.object({
       caviumCerts: z.array(z.string()),
       googleCardCerts: z.array(z.string()),
       googlePartitionCerts: z.array(z.string()),
-    }),
+    }).partial(),
     content: z.string(),
     format: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   destroyEventTime: z.string().optional(),
   destroyTime: z.string().optional(),
@@ -223,7 +223,7 @@ const StateSchema = z.object({
     ekmConnectionBackendOverride: z.string(),
     ekmConnectionKeyPath: z.string(),
     externalKeyUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   generateTime: z.string().optional(),
   generationFailureReason: z.string().optional(),
   hsmTrusted: z.boolean().optional(),
@@ -310,7 +310,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Key Management Service (KMS) KeyRings.CryptoKeys.CryptoKeyVersions. Registered at `@swamp/gcp/cloudkms/keyrings-cryptokeys-cryptokeyversions`. */
 export const model = {
   type: "@swamp/gcp/cloudkms/keyrings-cryptokeys-cryptokeyversions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -472,6 +472,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

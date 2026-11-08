@@ -238,27 +238,35 @@ const StateSchema = z.object({
   customDomainStatus: z.object({
     certState: z.string(),
     hostState: z.string(),
-    issues: z.array(z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    })),
+    issues: z.array(
+      z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+    ),
     ownershipState: z.string(),
-    requiredDnsUpdates: z.array(z.object({
-      checkTime: z.string(),
-      desired: z.array(z.object({
-        checkError: z.unknown(),
-        domainName: z.unknown(),
-        records: z.unknown(),
-      })),
-      discovered: z.array(z.object({
-        checkError: z.unknown(),
-        domainName: z.unknown(),
-        records: z.unknown(),
-      })),
-      domainName: z.string(),
-    })),
-  }).optional(),
+    requiredDnsUpdates: z.array(
+      z.object({
+        checkTime: z.string(),
+        desired: z.array(
+          z.object({
+            checkError: z.unknown(),
+            domainName: z.unknown(),
+            records: z.unknown(),
+          }).partial(),
+        ),
+        discovered: z.array(
+          z.object({
+            checkError: z.unknown(),
+            domainName: z.unknown(),
+            records: z.unknown(),
+          }).partial(),
+        ),
+        domainName: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   deleteTime: z.string().optional(),
   disabled: z.boolean().optional(),
   displayName: z.string().optional(),
@@ -270,8 +278,8 @@ const StateSchema = z.object({
     redirect: z.object({
       status: z.string(),
       uri: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   type: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -357,7 +365,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase App Hosting Backends.Domains. Registered at `@swamp/gcp/firebaseapphosting/backends-domains`. */
 export const model = {
   type: "@swamp/gcp/firebaseapphosting/backends-domains",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -509,6 +517,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

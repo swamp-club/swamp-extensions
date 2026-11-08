@@ -43,6 +43,11 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -85,17 +90,17 @@ const StateSchema = z.object({
   BillInterval: z.object({
     Start: z.string(),
     End: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   CreatedAt: z.string().optional(),
   ExpiresAt: z.string().optional(),
   FailureMessage: z.string().optional(),
   CostCategoryGroupSharingPreferenceArn: z.string().optional(),
   GroupSharingPreference: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -141,7 +146,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BcmPricingCalculator BillScenario. Registered at `@swamp/aws/bcmpricingcalculator/bill-scenario`. */
 export const model = {
   type: "@swamp/aws/bcmpricingcalculator/bill-scenario",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -185,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

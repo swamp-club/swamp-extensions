@@ -208,134 +208,142 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   abandoned: z.boolean().optional(),
   annotations: z.record(z.string(), z.unknown()).optional(),
-  buildArtifacts: z.array(z.object({
-    image: z.string(),
-    tag: z.string(),
-  })).optional(),
+  buildArtifacts: z.array(
+    z.object({
+      image: z.string(),
+      tag: z.string(),
+    }).partial(),
+  ).optional(),
   condition: z.object({
     dockerVersionSupportedCondition: z.object({
       maintenanceModeTime: z.string(),
       status: z.boolean(),
       supportExpirationTime: z.string(),
       toolVersionSupportState: z.string(),
-    }),
+    }).partial(),
     helmVersionSupportedCondition: z.object({
       maintenanceModeTime: z.string(),
       status: z.boolean(),
       supportExpirationTime: z.string(),
       toolVersionSupportState: z.string(),
-    }),
+    }).partial(),
     kptVersionSupportedCondition: z.object({
       maintenanceModeTime: z.string(),
       status: z.boolean(),
       supportExpirationTime: z.string(),
       toolVersionSupportState: z.string(),
-    }),
+    }).partial(),
     kubectlVersionSupportedCondition: z.object({
       maintenanceModeTime: z.string(),
       status: z.boolean(),
       supportExpirationTime: z.string(),
       toolVersionSupportState: z.string(),
-    }),
+    }).partial(),
     kustomizeVersionSupportedCondition: z.object({
       maintenanceModeTime: z.string(),
       status: z.boolean(),
       supportExpirationTime: z.string(),
       toolVersionSupportState: z.string(),
-    }),
+    }).partial(),
     releaseReadyCondition: z.object({
       status: z.boolean(),
-    }),
+    }).partial(),
     skaffoldSupportedCondition: z.object({
       maintenanceModeTime: z.string(),
       skaffoldSupportState: z.string(),
       status: z.boolean(),
       supportExpirationTime: z.string(),
-    }),
+    }).partial(),
     skaffoldVersionSupportedCondition: z.object({
       maintenanceModeTime: z.string(),
       status: z.boolean(),
       supportExpirationTime: z.string(),
       toolVersionSupportState: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
-  customTargetTypeSnapshots: z.array(z.object({
-    annotations: z.record(z.string(), z.unknown()),
-    createTime: z.string(),
-    customActions: z.object({
-      deployAction: z.string(),
-      includeSkaffoldModules: z.array(z.object({
-        configs: z.unknown(),
-        git: z.unknown(),
-        googleCloudBuildRepo: z.unknown(),
-        googleCloudStorage: z.unknown(),
-      })),
-      renderAction: z.string(),
-    }),
-    customTargetTypeId: z.string(),
-    description: z.string(),
-    etag: z.string(),
-    labels: z.record(z.string(), z.unknown()),
-    name: z.string(),
-    tasks: z.object({
-      deploy: z.object({
-        container: z.object({
-          args: z.unknown(),
-          command: z.unknown(),
-          env: z.unknown(),
-          image: z.unknown(),
-        }),
-      }),
-      render: z.object({
-        container: z.object({
-          args: z.unknown(),
-          command: z.unknown(),
-          env: z.unknown(),
-          image: z.unknown(),
-        }),
-      }),
-    }),
-    uid: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  customTargetTypeSnapshots: z.array(
+    z.object({
+      annotations: z.record(z.string(), z.unknown()),
+      createTime: z.string(),
+      customActions: z.object({
+        deployAction: z.string(),
+        includeSkaffoldModules: z.array(
+          z.object({
+            configs: z.unknown(),
+            git: z.unknown(),
+            googleCloudBuildRepo: z.unknown(),
+            googleCloudStorage: z.unknown(),
+          }).partial(),
+        ),
+        renderAction: z.string(),
+      }).partial(),
+      customTargetTypeId: z.string(),
+      description: z.string(),
+      etag: z.string(),
+      labels: z.record(z.string(), z.unknown()),
+      name: z.string(),
+      tasks: z.object({
+        deploy: z.object({
+          container: z.object({
+            args: z.unknown(),
+            command: z.unknown(),
+            env: z.unknown(),
+            image: z.unknown(),
+          }).partial(),
+        }).partial(),
+        render: z.object({
+          container: z.object({
+            args: z.unknown(),
+            command: z.unknown(),
+            env: z.unknown(),
+            image: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      uid: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   deliveryPipelineSnapshot: z.object({
     annotations: z.record(z.string(), z.unknown()),
     condition: z.object({
       pipelineReadyCondition: z.object({
         status: z.boolean(),
         updateTime: z.string(),
-      }),
+      }).partial(),
       targetsPresentCondition: z.object({
         missingTargets: z.array(z.string()),
         status: z.boolean(),
         updateTime: z.string(),
-      }),
+      }).partial(),
       targetsTypeCondition: z.object({
         errorDetails: z.string(),
         status: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     createTime: z.string(),
     description: z.string(),
     etag: z.string(),
     labels: z.record(z.string(), z.unknown()),
     name: z.string(),
     serialPipeline: z.object({
-      stages: z.array(z.object({
-        deployParameters: z.array(z.unknown()),
-        profiles: z.array(z.unknown()),
-        strategy: z.object({
-          canary: z.unknown(),
-          standard: z.unknown(),
-        }),
-        targetId: z.string(),
-      })),
-    }),
+      stages: z.array(
+        z.object({
+          deployParameters: z.array(z.unknown()),
+          profiles: z.array(z.unknown()),
+          strategy: z.object({
+            canary: z.unknown(),
+            standard: z.unknown(),
+          }).partial(),
+          targetId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     suspended: z.boolean(),
     uid: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deployParameters: z.record(z.string(), z.unknown()).optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
@@ -349,55 +357,59 @@ const StateSchema = z.object({
   skaffoldVersion: z.string().optional(),
   targetArtifacts: z.record(z.string(), z.unknown()).optional(),
   targetRenders: z.record(z.string(), z.unknown()).optional(),
-  targetSnapshots: z.array(z.object({
-    annotations: z.record(z.string(), z.unknown()),
-    anthosCluster: z.object({
-      membership: z.string(),
-    }),
-    associatedEntities: z.record(z.string(), z.unknown()),
-    createTime: z.string(),
-    customTarget: z.object({
-      customTargetType: z.string(),
-    }),
-    deployParameters: z.record(z.string(), z.unknown()),
-    description: z.string(),
-    etag: z.string(),
-    executionConfigs: z.array(z.object({
-      artifactStorage: z.string(),
-      defaultPool: z.object({
-        artifactStorage: z.unknown(),
-        serviceAccount: z.unknown(),
-      }),
-      executionTimeout: z.string(),
-      privatePool: z.object({
-        artifactStorage: z.unknown(),
-        serviceAccount: z.unknown(),
-        workerPool: z.unknown(),
-      }),
-      serviceAccount: z.string(),
-      usages: z.array(z.unknown()),
-      verbose: z.boolean(),
-      workerPool: z.string(),
-    })),
-    gke: z.object({
-      cluster: z.string(),
-      dnsEndpoint: z.boolean(),
-      internalIp: z.boolean(),
-      proxyUrl: z.string(),
-    }),
-    labels: z.record(z.string(), z.unknown()),
-    multiTarget: z.object({
-      targetIds: z.array(z.string()),
-    }),
-    name: z.string(),
-    requireApproval: z.boolean(),
-    run: z.object({
-      location: z.string(),
-    }),
-    targetId: z.string(),
-    uid: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  targetSnapshots: z.array(
+    z.object({
+      annotations: z.record(z.string(), z.unknown()),
+      anthosCluster: z.object({
+        membership: z.string(),
+      }).partial(),
+      associatedEntities: z.record(z.string(), z.unknown()),
+      createTime: z.string(),
+      customTarget: z.object({
+        customTargetType: z.string(),
+      }).partial(),
+      deployParameters: z.record(z.string(), z.unknown()),
+      description: z.string(),
+      etag: z.string(),
+      executionConfigs: z.array(
+        z.object({
+          artifactStorage: z.string(),
+          defaultPool: z.object({
+            artifactStorage: z.unknown(),
+            serviceAccount: z.unknown(),
+          }).partial(),
+          executionTimeout: z.string(),
+          privatePool: z.object({
+            artifactStorage: z.unknown(),
+            serviceAccount: z.unknown(),
+            workerPool: z.unknown(),
+          }).partial(),
+          serviceAccount: z.string(),
+          usages: z.array(z.unknown()),
+          verbose: z.boolean(),
+          workerPool: z.string(),
+        }).partial(),
+      ),
+      gke: z.object({
+        cluster: z.string(),
+        dnsEndpoint: z.boolean(),
+        internalIp: z.boolean(),
+        proxyUrl: z.string(),
+      }).partial(),
+      labels: z.record(z.string(), z.unknown()),
+      multiTarget: z.object({
+        targetIds: z.array(z.string()),
+      }).partial(),
+      name: z.string(),
+      requireApproval: z.boolean(),
+      run: z.object({
+        location: z.string(),
+      }).partial(),
+      targetId: z.string(),
+      uid: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   toolVersions: z.object({
     docker: z.string(),
     helm: z.string(),
@@ -405,7 +417,7 @@ const StateSchema = z.object({
     kubectl: z.string(),
     kustomize: z.string(),
     skaffold: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
 }).passthrough();
 
@@ -515,7 +527,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deploy DeliveryPipelines.Releases. Registered at `@swamp/gcp/clouddeploy/deliverypipelines-releases`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/deliverypipelines-releases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -696,6 +708,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

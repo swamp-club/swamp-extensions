@@ -59,6 +59,17 @@ const ContentTypeProfileSchema = z.object({
   ),
 });
 
+const QueryArgProfileStateSchema = z.object({
+  QueryArg: z.string(),
+  ProfileId: z.string(),
+}).partial();
+
+const ContentTypeProfileStateSchema = z.object({
+  Format: z.string(),
+  ProfileId: z.string(),
+  ContentType: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -111,15 +122,15 @@ const StateSchema = z.object({
   Comment: z.string().optional(),
   QueryArgProfileConfig: z.object({
     ForwardWhenQueryArgProfileIsUnknown: z.boolean(),
-    QueryArgProfiles: z.array(QueryArgProfileSchema),
-  }).optional(),
+    QueryArgProfiles: z.array(QueryArgProfileStateSchema),
+  }).partial().optional(),
   ContentTypeProfileConfig: z.object({
     ForwardWhenContentTypeIsUnknown: z.boolean(),
-    ContentTypeProfiles: z.array(ContentTypeProfileSchema),
-  }).optional(),
+    ContentTypeProfiles: z.array(ContentTypeProfileStateSchema),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -174,7 +185,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront FieldLevelEncryptionConfig. Registered at `@swamp/aws/cloudfront/field-level-encryption-config`. */
 export const model = {
   type: "@swamp/aws/cloudfront/field-level-encryption-config",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -183,6 +194,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

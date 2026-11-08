@@ -211,9 +211,11 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   account: z.string().optional(),
   cancellationReason: z.string().optional(),
-  consumers: z.array(z.object({
-    project: z.string(),
-  })).optional(),
+  consumers: z.array(
+    z.object({
+      project: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   entitlementBenefitIds: z.array(z.string()).optional(),
   inputProperties: z.record(z.string(), z.unknown()).optional(),
@@ -359,7 +361,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Commerce Partner Procurement Providers.Entitlements. Registered at `@swamp/gcp/cloudcommerceprocurement/providers-entitlements`. */
 export const model = {
   type: "@swamp/gcp/cloudcommerceprocurement/providers-entitlements",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -488,6 +490,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

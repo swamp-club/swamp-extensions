@@ -505,7 +505,7 @@ const StateSchema = z.object({
       frequencyBackupScheduled: z.string(),
       metadataOnly: z.boolean(),
       namespace: z.string(),
-    }),
+    }).partial(),
     category: z.string(),
     cpuCoreCount: z.number(),
     deploymentBackupId: z.string(),
@@ -516,7 +516,7 @@ const StateSchema = z.object({
       diagnosticState: z.string(),
       namespace: z.string(),
       object: z.string(),
-    }),
+    }).partial(),
     deploymentRole: z.string(),
     deploymentType: z.string(),
     deploymentUrl: z.string(),
@@ -524,9 +524,11 @@ const StateSchema = z.object({
     environmentType: z.string(),
     fqdn: z.string(),
     healthy: z.boolean(),
-    ingressIps: z.array(z.object({
-      ingressIpAddress: z.string(),
-    })),
+    ingressIps: z.array(
+      z.object({
+        ingressIpAddress: z.string(),
+      }).partial(),
+    ),
     isAutoScalingEnabled: z.boolean(),
     isLatestVersion: z.boolean(),
     isPublic: z.boolean(),
@@ -538,24 +540,26 @@ const StateSchema = z.object({
     lifecycleSubState: z.string(),
     loadBalancerId: z.string(),
     loadBalancerSubnetId: z.string(),
-    locks: z.array(z.object({
-      compartmentId: z.string(),
-      createTime: z.string(),
-      message: z.string(),
-      relatedResourceId: z.string(),
-      type: z.string(),
-    })),
+    locks: z.array(
+      z.object({
+        compartmentId: z.string(),
+        createTime: z.string(),
+        message: z.string(),
+        relatedResourceId: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     maintenanceConfig: z.object({
       bundleReleaseUpgradePeriodDays: z.number(),
       interimReleaseUpgradePeriodDays: z.number(),
       isInterimReleaseAutoUpgradeEnabled: z.boolean(),
       majorReleaseUpgradePeriodDays: z.number(),
       securityPatchUpgradePeriodDays: z.number(),
-    }),
+    }).partial(),
     maintenanceWindow: z.object({
       day: z.string(),
       startHour: z.number(),
-    }),
+    }).partial(),
     nextBackupScheduleTime: z.string(),
     nextMaintenanceActionType: z.string(),
     nextMaintenanceDescription: z.string(),
@@ -574,23 +578,25 @@ const StateSchema = z.object({
         operatorGroupId: z.string(),
         securityGroupId: z.string(),
         userGroupId: z.string(),
-      }),
+      }).partial(),
       identityDomainId: z.string(),
       oggVersion: z.string(),
       passwordSecretId: z.string(),
-    }),
+    }).partial(),
     oggVersionSupportEndTime: z.string(),
-    placements: z.array(z.object({
-      availabilityDomain: z.string(),
-      faultDomain: z.string(),
-    })),
+    placements: z.array(
+      z.object({
+        availabilityDomain: z.string(),
+        faultDomain: z.string(),
+      }).partial(),
+    ),
     privateIpAddress: z.string(),
     publicIpAddress: z.string(),
     roleChangeTime: z.string(),
     storageUtilizationBytes: z.string(),
     updateTime: z.string(),
     upgradeRequiredTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -946,7 +952,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GoldengateDeployments. Registered at `@swamp/gcp/oracledatabase/goldengatedeployments`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/goldengatedeployments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -970,6 +976,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

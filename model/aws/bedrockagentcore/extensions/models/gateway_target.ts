@@ -292,6 +292,215 @@ const InferenceProviderTargetConfigurationSchema = z.object({
   Operations: z.array(InferenceOperationConfigurationSchema).optional(),
 });
 
+const OAuth2AuthorizationDataStateSchema = z.object({
+  AuthorizationUrl: z.string(),
+  UserId: z.string(),
+}).partial();
+
+const S3CertificateConfigurationStateSchema = z.object({
+  Uri: z.string(),
+  BucketOwnerAccountId: z.string(),
+}).partial();
+
+const SecretsManagerCertificateConfigurationStateSchema = z.object({
+  SecretArn: z.string(),
+}).partial();
+
+const OAuthCredentialProviderStateSchema = z.object({
+  ProviderArn: z.string(),
+  Scopes: z.array(z.string()),
+  CustomParameters: z.record(z.string(), z.unknown()),
+  GrantType: z.string(),
+  DefaultReturnUrl: z.string(),
+}).partial();
+
+const ApiKeyCredentialProviderStateSchema = z.object({
+  ProviderArn: z.string(),
+  CredentialParameterName: z.string(),
+  CredentialPrefix: z.string(),
+  CredentialLocation: z.string(),
+}).partial();
+
+const IamCredentialProviderStateSchema = z.object({
+  Service: z.string(),
+  Region: z.string(),
+}).partial();
+
+const CredentialProviderConfigurationStateSchema = z.object({
+  CredentialProviderType: z.string(),
+  CredentialProvider: z.object({
+    OauthCredentialProvider: OAuthCredentialProviderStateSchema,
+    ApiKeyCredentialProvider: ApiKeyCredentialProviderStateSchema,
+    IamCredentialProvider: IamCredentialProviderStateSchema,
+  }).partial(),
+}).partial();
+
+const ManagedVpcResourceStateSchema = z.object({
+  VpcIdentifier: z.string(),
+  SubnetIds: z.array(z.string()),
+  EndpointIpAddressType: z.string(),
+  SecurityGroupIds: z.array(z.string()),
+  RoutingDomain: z.string(),
+  Tags: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ManagedResourceDetailsStateSchema = z.object({
+  Domain: z.string(),
+  ResourceGatewayArn: z.string(),
+  ResourceAssociationArn: z.string(),
+}).partial();
+
+const S3ConfigurationStateSchema = z.object({
+  Uri: z.string(),
+  BucketOwnerAccountId: z.string(),
+}).partial();
+
+const SchemaDefinitionStateSchema = z.object({
+  Type: z.string(),
+  Properties: z.record(z.string(), z.unknown()),
+  Required: z.array(z.string()),
+  Items: z.record(z.string(), z.unknown()),
+  Description: z.string(),
+}).partial();
+
+const ToolDefinitionStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  InputSchema: SchemaDefinitionStateSchema,
+  OutputSchema: SchemaDefinitionStateSchema,
+}).partial();
+
+const McpLambdaTargetConfigurationStateSchema = z.object({
+  LambdaArn: z.string(),
+  ToolSchema: z.object({
+    S3: S3ConfigurationStateSchema,
+    InlinePayload: z.array(ToolDefinitionStateSchema),
+  }).partial(),
+}).partial();
+
+const McpServerTargetConfigurationStateSchema = z.object({
+  Endpoint: z.string(),
+  McpToolSchema: z.object({
+    S3: S3ConfigurationStateSchema,
+    InlinePayload: z.string(),
+  }).partial(),
+  ListingMode: z.string(),
+  ResourcePriority: z.number(),
+}).partial();
+
+const ApiGatewayToolOverrideStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Path: z.string(),
+  Method: z.string(),
+}).partial();
+
+const ApiGatewayToolFilterStateSchema = z.object({
+  FilterPath: z.string(),
+  Methods: z.array(z.string()),
+}).partial();
+
+const ApiGatewayToolConfigurationStateSchema = z.object({
+  ToolOverrides: z.array(ApiGatewayToolOverrideStateSchema),
+  ToolFilters: z.array(ApiGatewayToolFilterStateSchema),
+}).partial();
+
+const ApiGatewayTargetConfigurationStateSchema = z.object({
+  RestApiId: z.string(),
+  Stage: z.string(),
+  ApiGatewayToolConfiguration: ApiGatewayToolConfigurationStateSchema,
+}).partial();
+
+const ConnectorSourceStateSchema = z.object({
+  ConnectorId: z.string(),
+}).partial();
+
+const ConnectorParameterOverrideStateSchema = z.object({
+  Path: z.string(),
+  Description: z.string(),
+  Visible: z.boolean(),
+}).partial();
+
+const ConnectorConfigurationStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  ParameterValues: z.unknown(),
+  ParameterOverrides: z.array(ConnectorParameterOverrideStateSchema),
+}).partial();
+
+const ConnectorTargetConfigurationStateSchema = z.object({
+  Source: ConnectorSourceStateSchema,
+  Enabled: z.array(z.string()),
+  Configurations: z.array(ConnectorConfigurationStateSchema),
+}).partial();
+
+const HttpApiSchemaConfigurationStateSchema = z.object({
+  Source: z.object({
+    S3: S3ConfigurationStateSchema,
+    InlinePayload: z.string(),
+  }).partial(),
+}).partial();
+
+const RuntimeTargetConfigurationStateSchema = z.object({
+  Arn: z.string(),
+  Qualifier: z.string(),
+  Schema: HttpApiSchemaConfigurationStateSchema,
+}).partial();
+
+const StickinessConfigurationStateSchema = z.object({
+  Identifier: z.string(),
+  Timeout: z.number(),
+}).partial();
+
+const PassthroughTargetConfigurationStateSchema = z.object({
+  Endpoint: z.string(),
+  ProtocolType: z.string(),
+  Schema: HttpApiSchemaConfigurationStateSchema,
+  StickinessConfiguration: StickinessConfigurationStateSchema,
+}).partial();
+
+const HttpConnectorSourceStateSchema = z.object({
+  ConnectorId: z.string(),
+}).partial();
+
+const HttpConnectorTargetConfigurationStateSchema = z.object({
+  Source: HttpConnectorSourceStateSchema,
+  Parameters: z.record(z.string(), z.unknown()),
+}).partial();
+
+const InferenceConnectorSourceStateSchema = z.object({
+  ConnectorId: z.string(),
+}).partial();
+
+const InferenceConnectorTargetConfigurationStateSchema = z.object({
+  Source: InferenceConnectorSourceStateSchema,
+}).partial();
+
+const ProviderPrefixStateSchema = z.object({
+  Strip: z.boolean(),
+  Separator: z.string(),
+}).partial();
+
+const ModelMappingStateSchema = z.object({
+  ProviderPrefix: ProviderPrefixStateSchema,
+}).partial();
+
+const ModelEntryStateSchema = z.object({
+  Model: z.string(),
+}).partial();
+
+const InferenceOperationConfigurationStateSchema = z.object({
+  Path: z.string(),
+  ProviderPath: z.string(),
+  Models: z.array(ModelEntryStateSchema),
+}).partial();
+
+const InferenceProviderTargetConfigurationStateSchema = z.object({
+  Endpoint: z.string(),
+  ModelMapping: ModelMappingStateSchema,
+  Operations: z.array(InferenceOperationConfigurationStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -364,18 +573,17 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   AuthorizationData: z.object({
-    Oauth2: z.object({
-      AuthorizationUrl: z.string(),
-      UserId: z.string(),
-    }),
-  }).optional(),
-  CertificateConfigurations: z.array(z.object({
-    S3: S3CertificateConfigurationSchema,
-    SecretsManager: SecretsManagerCertificateConfigurationSchema,
-  })).optional(),
+    Oauth2: OAuth2AuthorizationDataStateSchema,
+  }).partial().optional(),
+  CertificateConfigurations: z.array(
+    z.object({
+      S3: S3CertificateConfigurationStateSchema,
+      SecretsManager: SecretsManagerCertificateConfigurationStateSchema,
+    }).partial(),
+  ).optional(),
   CreatedAt: z.string().optional(),
   CredentialProviderConfigurations: z.array(
-    CredentialProviderConfigurationSchema,
+    CredentialProviderConfigurationStateSchema,
   ).optional(),
   Description: z.string().optional(),
   GatewayArn: z.string().optional(),
@@ -385,52 +593,49 @@ const StateSchema = z.object({
     AllowedRequestHeaders: z.array(z.string()),
     AllowedQueryParameters: z.array(z.string()),
     AllowedResponseHeaders: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Name: z.string().optional(),
   PrivateEndpoint: z.object({
     SelfManagedLatticeResource: z.object({
       ResourceConfigurationIdentifier: z.string(),
-    }),
-    ManagedVpcResource: ManagedVpcResourceSchema,
-  }).optional(),
-  PrivateEndpointManagedResources: z.array(z.object({
-    Domain: z.string(),
-    ResourceGatewayArn: z.string(),
-    ResourceAssociationArn: z.string(),
-  })).optional(),
+    }).partial(),
+    ManagedVpcResource: ManagedVpcResourceStateSchema,
+  }).partial().optional(),
+  PrivateEndpointManagedResources: z.array(ManagedResourceDetailsStateSchema)
+    .optional(),
   ProtocolType: z.string().optional(),
   Status: z.string().optional(),
   StatusReasons: z.array(z.string()).optional(),
   TargetConfiguration: z.object({
     Mcp: z.object({
       OpenApiSchema: z.object({
-        S3: S3ConfigurationSchema,
+        S3: S3ConfigurationStateSchema,
         InlinePayload: z.string(),
-      }),
+      }).partial(),
       SmithyModel: z.object({
-        S3: S3ConfigurationSchema,
+        S3: S3ConfigurationStateSchema,
         InlinePayload: z.string(),
-      }),
-      Lambda: McpLambdaTargetConfigurationSchema,
-      McpServer: McpServerTargetConfigurationSchema,
-      ApiGateway: ApiGatewayTargetConfigurationSchema,
-      Connector: ConnectorTargetConfigurationSchema,
-    }),
+      }).partial(),
+      Lambda: McpLambdaTargetConfigurationStateSchema,
+      McpServer: McpServerTargetConfigurationStateSchema,
+      ApiGateway: ApiGatewayTargetConfigurationStateSchema,
+      Connector: ConnectorTargetConfigurationStateSchema,
+    }).partial(),
     Http: z.object({
-      AgentcoreRuntime: RuntimeTargetConfigurationSchema,
-      Passthrough: PassthroughTargetConfigurationSchema,
-      Connector: HttpConnectorTargetConfigurationSchema,
-    }),
+      AgentcoreRuntime: RuntimeTargetConfigurationStateSchema,
+      Passthrough: PassthroughTargetConfigurationStateSchema,
+      Connector: HttpConnectorTargetConfigurationStateSchema,
+    }).partial(),
     Inference: z.object({
-      Connector: InferenceConnectorTargetConfigurationSchema,
-      Provider: InferenceProviderTargetConfigurationSchema,
-    }),
-  }).optional(),
+      Connector: InferenceConnectorTargetConfigurationStateSchema,
+      Provider: InferenceProviderTargetConfigurationStateSchema,
+    }).partial(),
+  }).partial().optional(),
   TargetId: z.string(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -511,7 +716,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore GatewayTarget. Registered at `@swamp/aws/bedrockagentcore/gateway-target`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-target",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -615,6 +820,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

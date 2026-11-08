@@ -176,11 +176,13 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   id: z.number().optional(),
-  references: z.array(z.object({
-    name: z.string(),
-    subject: z.string(),
-    version: z.number(),
-  })).optional(),
+  references: z.array(
+    z.object({
+      name: z.string(),
+      subject: z.string(),
+      version: z.number(),
+    }).partial(),
+  ).optional(),
   schema: z.string().optional(),
   schemaType: z.string().optional(),
   subject: z.string().optional(),
@@ -255,7 +257,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka SchemaRegistries.Contexts.Subjects.Versions. Registered at `@swamp/gcp/managedkafka/schemaregistries-contexts-subjects-versions`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/schemaregistries-contexts-subjects-versions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -394,6 +396,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

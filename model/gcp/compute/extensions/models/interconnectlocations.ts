@@ -123,11 +123,13 @@ const StateSchema = z.object({
   city: z.string().optional(),
   continent: z.string().optional(),
   creationTimestamp: z.string().optional(),
-  crossSiteInterconnectInfos: z.array(z.object({
-    city: z.string(),
-    maxDynamicPathBandwidthGbps: z.string(),
-    maxFixedPathBandwidthGbps: z.string(),
-  })).optional(),
+  crossSiteInterconnectInfos: z.array(
+    z.object({
+      city: z.string(),
+      maxDynamicPathBandwidthGbps: z.string(),
+      maxFixedPathBandwidthGbps: z.string(),
+    }).partial(),
+  ).optional(),
   description: z.string().optional(),
   facilityProvider: z.string().optional(),
   facilityProviderFacilityId: z.string().optional(),
@@ -135,12 +137,14 @@ const StateSchema = z.object({
   kind: z.string().optional(),
   name: z.string(),
   peeringdbFacilityId: z.string().optional(),
-  regionInfos: z.array(z.object({
-    expectedRttMs: z.string(),
-    l2ForwardingEnabled: z.boolean(),
-    locationPresence: z.string(),
-    region: z.string(),
-  })).optional(),
+  regionInfos: z.array(
+    z.object({
+      expectedRttMs: z.string(),
+      l2ForwardingEnabled: z.boolean(),
+      locationPresence: z.string(),
+      region: z.string(),
+    }).partial(),
+  ).optional(),
   selfLink: z.string().optional(),
   singleRegionProductionCriticalPeerLocations: z.array(z.string()).optional(),
   status: z.string().optional(),
@@ -185,7 +189,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InterconnectLocations. Registered at `@swamp/gcp/compute/interconnectlocations`. */
 export const model = {
   type: "@swamp/gcp/compute/interconnectlocations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -324,6 +328,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

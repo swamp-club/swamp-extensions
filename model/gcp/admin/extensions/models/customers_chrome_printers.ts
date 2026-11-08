@@ -186,11 +186,13 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  auxiliaryMessages: z.array(z.object({
-    auxiliaryMessage: z.string(),
-    fieldMask: z.string(),
-    severity: z.string(),
-  })).optional(),
+  auxiliaryMessages: z.array(
+    z.object({
+      auxiliaryMessage: z.string(),
+      fieldMask: z.string(),
+      severity: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -264,7 +266,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Customers.Chrome.Printers. Registered at `@swamp/gcp/admin/customers-chrome-printers`. */
 export const model = {
   type: "@swamp/gcp/admin/customers-chrome-printers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -293,6 +295,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

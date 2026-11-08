@@ -206,6 +206,98 @@ const FilesystemConfigurationSchema = z.object({
   ).optional(),
 });
 
+const ContainerConfigurationStateSchema = z.object({
+  ContainerUri: z.string(),
+}).partial();
+
+const S3LocationStateSchema = z.object({
+  Bucket: z.string(),
+  Prefix: z.string(),
+  VersionId: z.string(),
+}).partial();
+
+const CodeStateSchema = z.object({
+  S3: S3LocationStateSchema,
+}).partial();
+
+const CodeConfigurationStateSchema = z.object({
+  Code: CodeStateSchema,
+  Runtime: z.string(),
+  EntryPoint: z.array(z.string()),
+}).partial();
+
+const VpcConfigStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const ClaimMatchValueTypeStateSchema = z.object({
+  MatchValueString: z.string(),
+  MatchValueStringList: z.array(z.string()),
+}).partial();
+
+const AuthorizingClaimMatchValueTypeStateSchema = z.object({
+  ClaimMatchOperator: z.string(),
+  ClaimMatchValue: ClaimMatchValueTypeStateSchema,
+}).partial();
+
+const CustomClaimValidationTypeStateSchema = z.object({
+  AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeStateSchema,
+  InboundTokenClaimName: z.string(),
+  InboundTokenClaimValueType: z.string(),
+}).partial();
+
+const HostingEnvironmentStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const AllowedWorkloadConfigurationStateSchema = z.object({
+  HostingEnvironments: z.array(HostingEnvironmentStateSchema),
+  WorkloadIdentities: z.array(z.string()),
+}).partial();
+
+const PrivateEndpointOverrideStateSchema = z.object({
+  Domain: z.string(),
+  PrivateEndpoint: z.record(z.string(), z.unknown()),
+}).partial();
+
+const CustomJWTAuthorizerConfigurationStateSchema = z.object({
+  DiscoveryUrl: z.string(),
+  AllowedAudience: z.array(z.string()),
+  AllowedClients: z.array(z.string()),
+  AllowedScopes: z.array(z.string()),
+  CustomClaims: z.array(CustomClaimValidationTypeStateSchema),
+  AllowedWorkloadConfiguration: AllowedWorkloadConfigurationStateSchema,
+  PrivateEndpoint: z.record(z.string(), z.unknown()),
+  PrivateEndpointOverrides: z.array(PrivateEndpointOverrideStateSchema),
+}).partial();
+
+const SessionStorageConfigurationStateSchema = z.object({
+  MountPath: z.string(),
+}).partial();
+
+const EfsAccessPointConfigurationStateSchema = z.object({
+  AccessPointArn: z.string(),
+  MountPath: z.string(),
+}).partial();
+
+const S3FilesAccessPointConfigurationStateSchema = z.object({
+  AccessPointArn: z.string(),
+  MountPath: z.string(),
+}).partial();
+
+const CapacityProviderVolumeConfigurationStateSchema = z.object({
+  VolumeName: z.string(),
+  MountPath: z.string(),
+}).partial();
+
+const FilesystemConfigurationStateSchema = z.object({
+  SessionStorage: SessionStorageConfigurationStateSchema,
+  EfsAccessPoint: EfsAccessPointConfigurationStateSchema,
+  S3FilesAccessPoint: S3FilesAccessPointConfigurationStateSchema,
+  CapacityProviderVolume: CapacityProviderVolumeConfigurationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -302,35 +394,36 @@ const StateSchema = z.object({
   AgentRuntimeName: z.string().optional(),
   Description: z.string().optional(),
   AgentRuntimeArtifact: z.object({
-    ContainerConfiguration: ContainerConfigurationSchema,
-    CodeConfiguration: CodeConfigurationSchema,
-  }).optional(),
+    ContainerConfiguration: ContainerConfigurationStateSchema,
+    CodeConfiguration: CodeConfigurationStateSchema,
+  }).partial().optional(),
   RoleArn: z.string().optional(),
   NetworkConfiguration: z.object({
     NetworkMode: z.string(),
-    NetworkModeConfig: VpcConfigSchema,
-  }).optional(),
+    NetworkModeConfig: VpcConfigStateSchema,
+  }).partial().optional(),
   ProtocolConfiguration: z.string().optional(),
   PlatformVersion: z.string().optional(),
   EnvironmentVariables: z.record(z.string(), z.unknown()).optional(),
   AuthorizerConfiguration: z.object({
-    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema,
-  }).optional(),
+    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationStateSchema,
+  }).partial().optional(),
   LifecycleConfiguration: z.object({
     IdleRuntimeSessionTimeout: z.number(),
     MaxLifetime: z.number(),
-  }).optional(),
+  }).partial().optional(),
   RequestHeaderConfiguration: z.object({
     RequestHeaderAllowlist: z.array(z.string()),
-  }).optional(),
-  FilesystemConfigurations: z.array(FilesystemConfigurationSchema).optional(),
+  }).partial().optional(),
+  FilesystemConfigurations: z.array(FilesystemConfigurationStateSchema)
+    .optional(),
   CapacityProviderConfiguration: z.object({
     CapacityProviderArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AgentRuntimeVersion: z.string().optional(),
   WorkloadIdentityDetails: z.object({
     WorkloadIdentityArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   LastUpdatedAt: z.string().optional(),
   Status: z.string().optional(),
@@ -338,7 +431,7 @@ const StateSchema = z.object({
   FailureReason: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -439,7 +532,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Runtime. Registered at `@swamp/aws/bedrockagentcore/runtime`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/runtime",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -538,6 +631,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

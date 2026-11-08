@@ -245,33 +245,37 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   basic: z.object({
     combiningFunction: z.string(),
-    conditions: z.array(z.object({
-      devicePolicy: z.object({
-        allowedDeviceManagementLevels: z.array(z.unknown()),
-        allowedEncryptionStatuses: z.array(z.unknown()),
-        osConstraints: z.array(z.unknown()),
-        requireAdminApproval: z.boolean(),
-        requireCorpOwned: z.boolean(),
-        requireScreenlock: z.boolean(),
-      }),
-      ipSubnetworks: z.array(z.string()),
-      members: z.array(z.string()),
-      negate: z.boolean(),
-      regions: z.array(z.string()),
-      requiredAccessLevels: z.array(z.string()),
-      vpcNetworkSources: z.array(z.object({
-        vpcSubnetwork: z.unknown(),
-      })),
-    })),
-  }).optional(),
+    conditions: z.array(
+      z.object({
+        devicePolicy: z.object({
+          allowedDeviceManagementLevels: z.array(z.unknown()),
+          allowedEncryptionStatuses: z.array(z.unknown()),
+          osConstraints: z.array(z.unknown()),
+          requireAdminApproval: z.boolean(),
+          requireCorpOwned: z.boolean(),
+          requireScreenlock: z.boolean(),
+        }).partial(),
+        ipSubnetworks: z.array(z.string()),
+        members: z.array(z.string()),
+        negate: z.boolean(),
+        regions: z.array(z.string()),
+        requiredAccessLevels: z.array(z.string()),
+        vpcNetworkSources: z.array(
+          z.object({
+            vpcSubnetwork: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+  }).partial().optional(),
   custom: z.object({
     expr: z.object({
       description: z.string(),
       expression: z.string(),
       location: z.string(),
       title: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   description: z.string().optional(),
   name: z.string(),
   title: z.string().optional(),
@@ -397,7 +401,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Context Manager AccessPolicies.AccessLevels. Registered at `@swamp/gcp/accesscontextmanager/accesspolicies-accesslevels`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/accesspolicies-accesslevels",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -541,6 +545,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

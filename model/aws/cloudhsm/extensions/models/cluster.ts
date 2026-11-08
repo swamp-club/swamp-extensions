@@ -88,13 +88,15 @@ const StateSchema = z.object({
   BackupRetentionPolicy: z.object({
     Type: z.string(),
     Value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   NetworkType: z.string().optional(),
   Mode: z.string().optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-  })).optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+    }).partial(),
+  ).optional(),
   State: z.string().optional(),
   SecurityGroup: z.string().optional(),
   VpcId: z.string().optional(),
@@ -102,7 +104,7 @@ const StateSchema = z.object({
   BackupPolicy: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -156,7 +158,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudHSM Cluster. Registered at `@swamp/aws/cloudhsm/cluster`. */
 export const model = {
   type: "@swamp/aws/cloudhsm/cluster",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -180,6 +182,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

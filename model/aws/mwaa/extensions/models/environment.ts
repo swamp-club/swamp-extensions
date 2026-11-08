@@ -44,6 +44,12 @@ const ModuleLoggingConfigurationSchema = z.object({
     .optional(),
 });
 
+const ModuleLoggingConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  LogLevel: z.string(),
+  CloudWatchLogGroupArn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -198,14 +204,14 @@ const StateSchema = z.object({
   NetworkConfiguration: z.object({
     SubnetIds: z.array(z.string()),
     SecurityGroupIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   LoggingConfiguration: z.object({
-    DagProcessingLogs: ModuleLoggingConfigurationSchema,
-    SchedulerLogs: ModuleLoggingConfigurationSchema,
-    WebserverLogs: ModuleLoggingConfigurationSchema,
-    WorkerLogs: ModuleLoggingConfigurationSchema,
-    TaskLogs: ModuleLoggingConfigurationSchema,
-  }).optional(),
+    DagProcessingLogs: ModuleLoggingConfigurationStateSchema,
+    SchedulerLogs: ModuleLoggingConfigurationStateSchema,
+    WebserverLogs: ModuleLoggingConfigurationStateSchema,
+    WorkerLogs: ModuleLoggingConfigurationStateSchema,
+    TaskLogs: ModuleLoggingConfigurationStateSchema,
+  }).partial().optional(),
   WeeklyMaintenanceWindowStart: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   WebserverAccessMode: z.string().optional(),
@@ -216,7 +222,7 @@ const StateSchema = z.object({
   WorkerReplacementStrategy: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -358,7 +364,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MWAA Environment. Registered at `@swamp/aws/mwaa/environment`. */
 export const model = {
   type: "@swamp/aws/mwaa/environment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -437,6 +443,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

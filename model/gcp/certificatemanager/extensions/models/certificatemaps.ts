@@ -183,14 +183,18 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   description: z.string().optional(),
-  gclbTargets: z.array(z.object({
-    ipConfigs: z.array(z.object({
-      ipAddress: z.string(),
-      ports: z.array(z.unknown()),
-    })),
-    targetHttpsProxy: z.string(),
-    targetSslProxy: z.string(),
-  })).optional(),
+  gclbTargets: z.array(
+    z.object({
+      ipConfigs: z.array(
+        z.object({
+          ipAddress: z.string(),
+          ports: z.array(z.unknown()),
+        }).partial(),
+      ),
+      targetHttpsProxy: z.string(),
+      targetSslProxy: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   tags: z.record(z.string(), z.unknown()).optional(),
@@ -252,7 +256,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Certificate Manager CertificateMaps. Registered at `@swamp/gcp/certificatemanager/certificatemaps`. */
 export const model = {
   type: "@swamp/gcp/certificatemanager/certificatemaps",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -391,6 +395,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

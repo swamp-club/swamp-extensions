@@ -186,28 +186,36 @@ const StateSchema = z.object({
   apiProducts: z.array(z.string()).optional(),
   appGroup: z.string().optional(),
   appId: z.string().optional(),
-  attributes: z.array(z.object({
-    name: z.string(),
-    value: z.string(),
-  })).optional(),
-  callbackUrl: z.string().optional(),
-  createdAt: z.string().optional(),
-  credentials: z.array(z.object({
-    apiProducts: z.array(z.object({
-      apiproduct: z.string(),
-      status: z.string(),
-    })),
-    attributes: z.array(z.object({
+  attributes: z.array(
+    z.object({
       name: z.string(),
       value: z.string(),
-    })),
-    consumerKey: z.string(),
-    consumerSecret: z.string(),
-    expiresAt: z.string(),
-    issuedAt: z.string(),
-    scopes: z.array(z.string()),
-    status: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
+  callbackUrl: z.string().optional(),
+  createdAt: z.string().optional(),
+  credentials: z.array(
+    z.object({
+      apiProducts: z.array(
+        z.object({
+          apiproduct: z.string(),
+          status: z.string(),
+        }).partial(),
+      ),
+      attributes: z.array(
+        z.object({
+          name: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      consumerKey: z.string(),
+      consumerSecret: z.string(),
+      expiresAt: z.string(),
+      issuedAt: z.string(),
+      scopes: z.array(z.string()),
+      status: z.string(),
+    }).partial(),
+  ).optional(),
   keyExpiresIn: z.string().optional(),
   lastModifiedAt: z.string().optional(),
   name: z.string(),
@@ -282,7 +290,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Appgroups.Apps. Registered at `@swamp/gcp/apigee/appgroups-apps`. */
 export const model = {
   type: "@swamp/gcp/apigee/appgroups-apps",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -421,6 +429,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -144,6 +144,59 @@ const TagSchema = z.object({
   ),
 });
 
+const SnsConfigurationStateSchema = z.object({
+  TopicArn: z.string(),
+}).partial();
+
+const DimensionMappingStateSchema = z.object({
+  Name: z.string(),
+  DimensionValueType: z.string(),
+}).partial();
+
+const MultiMeasureAttributeMappingStateSchema = z.object({
+  SourceColumn: z.string(),
+  MeasureValueType: z.string(),
+  TargetMultiMeasureAttributeName: z.string(),
+}).partial();
+
+const MultiMeasureMappingsStateSchema = z.object({
+  TargetMultiMeasureName: z.string(),
+  MultiMeasureAttributeMappings: z.array(
+    MultiMeasureAttributeMappingStateSchema,
+  ),
+}).partial();
+
+const MixedMeasureMappingStateSchema = z.object({
+  MeasureName: z.string(),
+  SourceColumn: z.string(),
+  TargetMeasureName: z.string(),
+  MeasureValueType: z.string(),
+  MultiMeasureAttributeMappings: z.array(
+    MultiMeasureAttributeMappingStateSchema,
+  ),
+}).partial();
+
+const TimestreamConfigurationStateSchema = z.object({
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  TimeColumn: z.string(),
+  DimensionMappings: z.array(DimensionMappingStateSchema),
+  MultiMeasureMappings: MultiMeasureMappingsStateSchema,
+  MixedMeasureMappings: z.array(MixedMeasureMappingStateSchema),
+  MeasureNameColumn: z.string(),
+}).partial();
+
+const S3ConfigurationStateSchema = z.object({
+  BucketName: z.string(),
+  ObjectKeyPrefix: z.string(),
+  EncryptionOption: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -215,18 +268,18 @@ const StateSchema = z.object({
   QueryString: z.string().optional(),
   ScheduleConfiguration: z.object({
     ScheduleExpression: z.string(),
-  }).optional(),
+  }).partial().optional(),
   NotificationConfiguration: z.object({
-    SnsConfiguration: SnsConfigurationSchema,
-  }).optional(),
+    SnsConfiguration: SnsConfigurationStateSchema,
+  }).partial().optional(),
   ClientToken: z.string().optional(),
   ScheduledQueryExecutionRoleArn: z.string().optional(),
   TargetConfiguration: z.object({
-    TimestreamConfiguration: TimestreamConfigurationSchema,
-  }).optional(),
+    TimestreamConfiguration: TimestreamConfigurationStateSchema,
+  }).partial().optional(),
   ErrorReportConfiguration: z.object({
-    S3Configuration: S3ConfigurationSchema,
-  }).optional(),
+    S3Configuration: S3ConfigurationStateSchema,
+  }).partial().optional(),
   KmsKeyId: z.string().optional(),
   SQName: z.string().optional(),
   SQQueryString: z.string().optional(),
@@ -236,10 +289,10 @@ const StateSchema = z.object({
   SQTargetConfiguration: z.string().optional(),
   SQErrorReportConfiguration: z.string().optional(),
   SQKmsKeyId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -315,7 +368,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Timestream ScheduledQuery. Registered at `@swamp/aws/timestream/scheduled-query`. */
 export const model = {
   type: "@swamp/aws/timestream/scheduled-query",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -379,6 +432,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

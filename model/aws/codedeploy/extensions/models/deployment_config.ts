@@ -52,6 +52,21 @@ const TimeBasedCanarySchema = z.object({
   CanaryInterval: z.number().int(),
 });
 
+const MinimumHealthyHostsPerZoneStateSchema = z.object({
+  Value: z.number(),
+  Type: z.string(),
+}).partial();
+
+const TimeBasedLinearStateSchema = z.object({
+  LinearInterval: z.number(),
+  LinearPercentage: z.number(),
+}).partial();
+
+const TimeBasedCanaryStateSchema = z.object({
+  CanaryPercentage: z.number(),
+  CanaryInterval: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -99,20 +114,20 @@ const StateSchema = z.object({
   MinimumHealthyHosts: z.object({
     Value: z.number(),
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ZonalConfig: z.object({
     FirstZoneMonitorDurationInSeconds: z.number(),
     MonitorDurationInSeconds: z.number(),
-    MinimumHealthyHostsPerZone: MinimumHealthyHostsPerZoneSchema,
-  }).optional(),
+    MinimumHealthyHostsPerZone: MinimumHealthyHostsPerZoneStateSchema,
+  }).partial().optional(),
   TrafficRoutingConfig: z.object({
     Type: z.string(),
-    TimeBasedLinear: TimeBasedLinearSchema,
-    TimeBasedCanary: TimeBasedCanarySchema,
-  }).optional(),
+    TimeBasedLinear: TimeBasedLinearStateSchema,
+    TimeBasedCanary: TimeBasedCanaryStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -166,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeDeploy DeploymentConfig. Registered at `@swamp/aws/codedeploy/deployment-config`. */
 export const model = {
   type: "@swamp/aws/codedeploy/deployment-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -225,6 +240,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

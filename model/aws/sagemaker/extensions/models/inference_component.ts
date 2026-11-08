@@ -194,6 +194,105 @@ const TagSchema = z.object({
   ),
 });
 
+const DeployedImageStateSchema = z.object({
+  SpecifiedImage: z.string(),
+  ResolvedImage: z.string(),
+  ResolutionTime: z.string(),
+}).partial();
+
+const MetricsEndpointStateSchema = z.object({
+  MetricsEndpointPath: z.string(),
+  MetricPublishFrequencyInSeconds: z.number(),
+}).partial();
+
+const ContainerMetricsConfigStateSchema = z.object({
+  MetricsEndpoints: z.array(MetricsEndpointStateSchema),
+}).partial();
+
+const InferenceComponentContainerSpecificationStateSchema = z.object({
+  DeployedImage: DeployedImageStateSchema,
+  Image: z.string(),
+  ArtifactUrl: z.string(),
+  Environment: z.record(z.string(), z.unknown()),
+  ContainerMetricsConfig: ContainerMetricsConfigStateSchema,
+}).partial();
+
+const InferenceComponentStartupParametersStateSchema = z.object({
+  ModelDataDownloadTimeoutInSeconds: z.number(),
+  ContainerStartupHealthCheckTimeoutInSeconds: z.number(),
+}).partial();
+
+const InferenceComponentComputeResourceRequirementsStateSchema = z.object({
+  NumberOfCpuCoresRequired: z.number(),
+  NumberOfAcceleratorDevicesRequired: z.number(),
+  MinMemoryRequiredInMb: z.number(),
+  MaxMemoryRequiredInMb: z.number(),
+}).partial();
+
+const InferenceComponentDataCacheConfigStateSchema = z.object({
+  EnableCaching: z.boolean(),
+}).partial();
+
+const InferenceComponentAvailabilityZoneBalanceStateSchema = z.object({
+  EnforcementMode: z.string(),
+  MaxImbalance: z.number(),
+}).partial();
+
+const InferenceComponentSchedulingConfigStateSchema = z.object({
+  PlacementStrategy: z.string(),
+  AvailabilityZoneBalance: InferenceComponentAvailabilityZoneBalanceStateSchema,
+}).partial();
+
+const InferenceComponentContainerSpecificationForInstanceTypeStateSchema = z
+  .object({
+    Image: z.string(),
+    ArtifactUrl: z.string(),
+    Environment: z.record(z.string(), z.unknown()),
+    ContainerMetricsConfig: ContainerMetricsConfigStateSchema,
+  }).partial();
+
+const InferenceComponentSpecificationForInstanceTypeStateSchema = z.object({
+  InstanceType: z.string(),
+  ModelName: z.string(),
+  Container: InferenceComponentContainerSpecificationForInstanceTypeStateSchema,
+  StartupParameters: InferenceComponentStartupParametersStateSchema,
+  ComputeResourceRequirements:
+    InferenceComponentComputeResourceRequirementsStateSchema,
+  DataCacheConfig: InferenceComponentDataCacheConfigStateSchema,
+  CurrentDataCacheConfig: InferenceComponentDataCacheConfigStateSchema,
+  SchedulingConfig: InferenceComponentSchedulingConfigStateSchema,
+}).partial();
+
+const InferenceComponentPlacementStatusStateSchema = z.object({
+  InstanceType: z.string(),
+  CurrentCopyCount: z.number(),
+}).partial();
+
+const InferenceComponentCapacitySizeStateSchema = z.object({
+  Type: z.string(),
+  Value: z.number(),
+}).partial();
+
+const InferenceComponentRollingUpdatePolicyStateSchema = z.object({
+  MaximumBatchSize: InferenceComponentCapacitySizeStateSchema,
+  WaitIntervalInSeconds: z.number(),
+  RollbackMaximumBatchSize: InferenceComponentCapacitySizeStateSchema,
+  MaximumExecutionTimeoutInSeconds: z.number(),
+}).partial();
+
+const AlarmStateSchema = z.object({
+  AlarmName: z.string(),
+}).partial();
+
+const AutoRollbackConfigurationStateSchema = z.object({
+  Alarms: z.array(AlarmStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -279,36 +378,34 @@ const StateSchema = z.object({
   Specification: z.object({
     ModelName: z.string(),
     BaseInferenceComponentName: z.string(),
-    Container: InferenceComponentContainerSpecificationSchema,
-    StartupParameters: InferenceComponentStartupParametersSchema,
+    Container: InferenceComponentContainerSpecificationStateSchema,
+    StartupParameters: InferenceComponentStartupParametersStateSchema,
     ComputeResourceRequirements:
-      InferenceComponentComputeResourceRequirementsSchema,
-    DataCacheConfig: InferenceComponentDataCacheConfigSchema,
-    CurrentDataCacheConfig: InferenceComponentDataCacheConfigSchema,
-    SchedulingConfig: InferenceComponentSchedulingConfigSchema,
-  }).optional(),
-  Specifications: z.array(InferenceComponentSpecificationForInstanceTypeSchema)
-    .optional(),
+      InferenceComponentComputeResourceRequirementsStateSchema,
+    DataCacheConfig: InferenceComponentDataCacheConfigStateSchema,
+    CurrentDataCacheConfig: InferenceComponentDataCacheConfigStateSchema,
+    SchedulingConfig: InferenceComponentSchedulingConfigStateSchema,
+  }).partial().optional(),
+  Specifications: z.array(
+    InferenceComponentSpecificationForInstanceTypeStateSchema,
+  ).optional(),
   RuntimeConfig: z.object({
     CopyCount: z.number(),
     DesiredCopyCount: z.number(),
     CurrentCopyCount: z.number(),
-    PlacementStatus: z.array(z.object({
-      InstanceType: z.string(),
-      CurrentCopyCount: z.number(),
-    })),
-  }).optional(),
+    PlacementStatus: z.array(InferenceComponentPlacementStatusStateSchema),
+  }).partial().optional(),
   DeploymentConfig: z.object({
-    RollingUpdatePolicy: InferenceComponentRollingUpdatePolicySchema,
-    AutoRollbackConfiguration: AutoRollbackConfigurationSchema,
-  }).optional(),
+    RollingUpdatePolicy: InferenceComponentRollingUpdatePolicyStateSchema,
+    AutoRollbackConfiguration: AutoRollbackConfigurationStateSchema,
+  }).partial().optional(),
   InferenceComponentStatus: z.string().optional(),
   CreationTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -394,7 +491,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker InferenceComponent. Registered at `@swamp/aws/sagemaker/inference-component`. */
 export const model = {
   type: "@swamp/aws/sagemaker/inference-component",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -463,6 +560,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -239,28 +239,34 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  notificationConfigs: z.array(z.object({
-    filter: z.string(),
-    pubsubTopic: z.string(),
-  })).optional(),
+  notificationConfigs: z.array(
+    z.object({
+      filter: z.string(),
+      pubsubTopic: z.string(),
+    }).partial(),
+  ).optional(),
   parserConfig: z.object({
     allowNullHeader: z.boolean(),
     schema: z.object({
       ignoreMinOccurs: z.boolean(),
-      schemas: z.array(z.object({
-        messageSchemaConfigs: z.record(z.string(), z.unknown()),
-        version: z.array(z.unknown()),
-      })),
+      schemas: z.array(
+        z.object({
+          messageSchemaConfigs: z.record(z.string(), z.unknown()),
+          version: z.array(z.unknown()),
+        }).partial(),
+      ),
       schematizedParsingType: z.string(),
-      types: z.array(z.object({
-        type: z.array(z.unknown()),
-        version: z.array(z.unknown()),
-      })),
+      types: z.array(
+        z.object({
+          type: z.array(z.unknown()),
+          version: z.array(z.unknown()),
+        }).partial(),
+      ),
       unexpectedSegmentHandling: z.string(),
-    }),
+    }).partial(),
     segmentTerminator: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   rejectDuplicateMessage: z.boolean().optional(),
 }).passthrough();
 
@@ -383,7 +389,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Healthcare Datasets.Hl7V2Stores. Registered at `@swamp/gcp/healthcare/datasets-hl7v2stores`. */
 export const model = {
   type: "@swamp/gcp/healthcare/datasets-hl7v2stores",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -561,6 +567,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

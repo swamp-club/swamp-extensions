@@ -97,32 +97,38 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   bundleDetails: z.object({
-    bundleElements: z.array(z.object({
-      product: z.string(),
-    })),
+    bundleElements: z.array(
+      z.object({
+        product: z.string(),
+      }).partial(),
+    ),
     entitlementMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   finiteBillingCycleDetails: z.object({
     billingCycleCountLimit: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  priceConfigs: z.array(z.object({
-    amount: z.object({
-      amountMicros: z.string(),
-      currencyCode: z.string(),
-    }),
-    regionCode: z.string(),
-  })).optional(),
+  priceConfigs: z.array(
+    z.object({
+      amount: z.object({
+        amountMicros: z.string(),
+        currencyCode: z.string(),
+      }).partial(),
+      regionCode: z.string(),
+    }).partial(),
+  ).optional(),
   productType: z.string().optional(),
   regionCodes: z.array(z.string()).optional(),
   subscriptionBillingCycleDuration: z.object({
     count: z.number(),
     unit: z.string(),
-  }).optional(),
-  titles: z.array(z.object({
-    languageCode: z.string(),
-    text: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  titles: z.array(
+    z.object({
+      languageCode: z.string(),
+      text: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -166,7 +172,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Payments Reseller Subscription Partners.Products. Registered at `@swamp/gcp/paymentsresellersubscription/partners-products`. */
 export const model = {
   type: "@swamp/gcp/paymentsresellersubscription/partners-products",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -280,6 +286,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

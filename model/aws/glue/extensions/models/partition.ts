@@ -138,6 +138,57 @@ const StorageDescriptorSchema = z.object({
   ).optional(),
 });
 
+const ColumnStateSchema = z.object({
+  Comment: z.string(),
+  Type: z.string(),
+  Name: z.string(),
+}).partial();
+
+const SerdeInfoStateSchema = z.object({
+  Parameters: z.record(z.string(), z.unknown()),
+  SerializationLibrary: z.string(),
+  Name: z.string(),
+}).partial();
+
+const OrderStateSchema = z.object({
+  Column: z.string(),
+  SortOrder: z.number(),
+}).partial();
+
+const SchemaIdStateSchema = z.object({
+  RegistryName: z.string(),
+  SchemaName: z.string(),
+  SchemaArn: z.string(),
+}).partial();
+
+const SchemaReferenceStateSchema = z.object({
+  SchemaId: SchemaIdStateSchema,
+  SchemaVersionId: z.string(),
+  SchemaVersionNumber: z.number(),
+}).partial();
+
+const SkewedInfoStateSchema = z.object({
+  SkewedColumnValues: z.array(z.string()),
+  SkewedColumnValueLocationMaps: z.record(z.string(), z.unknown()),
+  SkewedColumnNames: z.array(z.string()),
+}).partial();
+
+const StorageDescriptorStateSchema = z.object({
+  StoredAsSubDirectories: z.boolean(),
+  Parameters: z.record(z.string(), z.unknown()),
+  BucketColumns: z.array(z.string()),
+  NumberOfBuckets: z.number(),
+  OutputFormat: z.string(),
+  Columns: z.array(ColumnStateSchema),
+  SerdeInfo: SerdeInfoStateSchema,
+  SortColumns: z.array(OrderStateSchema),
+  Compressed: z.boolean(),
+  SchemaReference: SchemaReferenceStateSchema,
+  SkewedInfo: SkewedInfoStateSchema,
+  InputFormat: z.string(),
+  Location: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -182,14 +233,14 @@ const StateSchema = z.object({
   TableName: z.string(),
   CatalogId: z.string(),
   PartitionInput: z.object({
-    StorageDescriptor: StorageDescriptorSchema,
+    StorageDescriptor: StorageDescriptorStateSchema,
     Values: z.array(z.string()),
     Parameters: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   IdentifierPartitionInputValues: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -239,7 +290,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Partition. Registered at `@swamp/aws/glue/partition`. */
 export const model = {
   type: "@swamp/aws/glue/partition",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -258,6 +309,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -99,6 +99,37 @@ const DataTableAccessControlConfigurationSchema = z.object({
     ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ApplicationStateSchema = z.object({
+  ApplicationPermissions: z.array(z.string()),
+  Namespace: z.string(),
+  Type: z.string(),
+}).partial();
+
+const FlowModuleStateSchema = z.object({
+  Type: z.string(),
+  FlowModuleId: z.string(),
+}).partial();
+
+const PrimaryAttributeValueStateSchema = z.object({
+  AccessType: z.string(),
+  AttributeName: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const PrimaryAttributeAccessControlConfigurationItemStateSchema = z.object({
+  PrimaryAttributeValues: z.array(PrimaryAttributeValueStateSchema),
+}).partial();
+
+const DataTableAccessControlConfigurationStateSchema = z.object({
+  PrimaryAttributeAccessControlConfiguration:
+    PrimaryAttributeAccessControlConfigurationItemStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -161,7 +192,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  AllowedAccessControlTags: z.array(TagSchema).optional(),
+  AllowedAccessControlTags: z.array(TagStateSchema).optional(),
   Description: z.string().optional(),
   InstanceArn: z.string().optional(),
   Permissions: z.array(z.string()).optional(),
@@ -170,18 +201,18 @@ const StateSchema = z.object({
   TagRestrictedResources: z.array(z.string()).optional(),
   HierarchyRestrictedResources: z.array(z.string()).optional(),
   AllowedAccessControlHierarchyGroupId: z.string().optional(),
-  Applications: z.array(ApplicationSchema).optional(),
-  AllowedFlowModules: z.array(FlowModuleSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Applications: z.array(ApplicationStateSchema).optional(),
+  AllowedFlowModules: z.array(FlowModuleStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LastModifiedRegion: z.string().optional(),
   LastModifiedTime: z.number().optional(),
   GranularAccessControlConfiguration: z.object({
     DataTableAccessControlConfiguration:
-      DataTableAccessControlConfigurationSchema,
-  }).optional(),
+      DataTableAccessControlConfigurationStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -253,7 +284,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect SecurityProfile. Registered at `@swamp/aws/connect/security-profile`. */
 export const model = {
   type: "@swamp/aws/connect/security-profile",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -340,6 +371,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

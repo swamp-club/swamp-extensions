@@ -241,9 +241,11 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   etag: z.string().optional(),
   expireTime: z.string().optional(),
-  items: z.array(z.object({
-    value: z.string(),
-  })).optional(),
+  items: z.array(
+    z.object({
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   kmsKeyName: z.string().optional(),
   kmsKeyVersionName: z.string().optional(),
   name: z.string(),
@@ -370,7 +372,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Speech-to-Text CustomClasses. Registered at `@swamp/gcp/speech/customclasses`. */
 export const model = {
   type: "@swamp/gcp/speech/customclasses",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -514,6 +516,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

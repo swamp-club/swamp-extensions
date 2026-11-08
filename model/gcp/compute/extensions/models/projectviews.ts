@@ -88,12 +88,14 @@ const StateSchema = z.object({
     cloudArmorTier: z.string(),
     commonInstanceMetadata: z.object({
       fingerprint: z.string(),
-      items: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
+      items: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       kind: z.string(),
-    }),
+    }).partial(),
     creationTimestamp: z.string(),
     defaultNetworkTier: z.string(),
     defaultServiceAccount: z.string(),
@@ -102,20 +104,22 @@ const StateSchema = z.object({
     id: z.string(),
     kind: z.string(),
     name: z.string(),
-    quotas: z.array(z.object({
-      limit: z.number(),
-      metric: z.string(),
-      owner: z.string(),
-      usage: z.number(),
-    })),
+    quotas: z.array(
+      z.object({
+        limit: z.number(),
+        metric: z.string(),
+        owner: z.string(),
+        usage: z.number(),
+      }).partial(),
+    ),
     selfLink: z.string(),
     usageExportLocation: z.object({
       bucketName: z.string(),
       reportNamePrefix: z.string(),
-    }),
+    }).partial(),
     vmDnsSetting: z.string(),
     xpnProjectStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -156,7 +160,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ProjectViews. Registered at `@swamp/gcp/compute/projectviews`. */
 export const model = {
   type: "@swamp/gcp/compute/projectviews",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -165,6 +169,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

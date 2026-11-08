@@ -116,6 +116,57 @@ const PolicyTagSchema = z.object({
   Value: z.string().max(256).regex(new RegExp("^([^\\s]*)$")),
 });
 
+const ResourceTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const NetworkFirewallPolicyStateSchema = z.object({
+  FirewallDeploymentModel: z.string(),
+}).partial();
+
+const ThirdPartyFirewallPolicyStateSchema = z.object({
+  FirewallDeploymentModel: z.string(),
+}).partial();
+
+const NetworkAclEntryStateSchema = z.object({
+  CidrBlock: z.string(),
+  Egress: z.boolean(),
+  IcmpTypeCode: z.object({
+    Code: z.number(),
+    Type: z.number(),
+  }).partial(),
+  Ipv6CidrBlock: z.string(),
+  PortRange: z.object({
+    From: z.number(),
+    To: z.number(),
+  }).partial(),
+  Protocol: z.string(),
+  RuleAction: z.string(),
+}).partial();
+
+const NetworkAclEntrySetStateSchema = z.object({
+  FirstEntries: z.array(NetworkAclEntryStateSchema),
+  ForceRemediateForFirstEntries: z.boolean(),
+  LastEntries: z.array(NetworkAclEntryStateSchema),
+  ForceRemediateForLastEntries: z.boolean(),
+}).partial();
+
+const NetworkAclCommonPolicyStateSchema = z.object({
+  NetworkAclEntrySet: NetworkAclEntrySetStateSchema,
+}).partial();
+
+const PolicyOptionStateSchema = z.object({
+  NetworkFirewallPolicy: NetworkFirewallPolicyStateSchema,
+  ThirdPartyFirewallPolicy: ThirdPartyFirewallPolicyStateSchema,
+  NetworkAclCommonPolicy: NetworkAclCommonPolicyStateSchema,
+}).partial();
+
+const PolicyTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -197,17 +248,17 @@ const StateSchema = z.object({
   ExcludeMap: z.object({
     ACCOUNT: z.array(z.string()),
     ORGUNIT: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   ExcludeResourceTags: z.boolean().optional(),
   IncludeMap: z.object({
     ACCOUNT: z.array(z.string()),
     ORGUNIT: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Id: z.string(),
   PolicyName: z.string().optional(),
   PolicyDescription: z.string().optional(),
   RemediationEnabled: z.boolean().optional(),
-  ResourceTags: z.array(ResourceTagSchema).optional(),
+  ResourceTags: z.array(ResourceTagStateSchema).optional(),
   ResourceTagLogicalOperator: z.string().optional(),
   ResourceType: z.string().optional(),
   ResourceTypeList: z.array(z.string()).optional(),
@@ -215,15 +266,15 @@ const StateSchema = z.object({
   SecurityServicePolicyData: z.object({
     ManagedServiceData: z.string(),
     Type: z.string(),
-    PolicyOption: PolicyOptionSchema,
-  }).optional(),
+    PolicyOption: PolicyOptionStateSchema,
+  }).partial().optional(),
   Arn: z.string().optional(),
   DeleteAllPolicyResources: z.boolean().optional(),
   ResourcesCleanUp: z.boolean().optional(),
-  Tags: z.array(PolicyTagSchema).optional(),
+  Tags: z.array(PolicyTagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -311,7 +362,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FMS Policy. Registered at `@swamp/aws/fms/policy`. */
 export const model = {
   type: "@swamp/aws/fms/policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -375,6 +426,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -114,81 +114,87 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   backfillJob: z.object({
-    errors: z.array(z.object({
+    errors: z.array(
+      z.object({
+        details: z.record(z.string(), z.unknown()),
+        errorTime: z.string(),
+        errorUuid: z.string(),
+        message: z.string(),
+        reason: z.string(),
+      }).partial(),
+    ),
+    eventFilter: z.object({
+      sqlWhereClause: z.string(),
+    }).partial(),
+    lastEndTime: z.string(),
+    lastStartTime: z.string(),
+    state: z.string(),
+    trigger: z.string(),
+  }).partial().optional(),
+  createTime: z.string().optional(),
+  customizationRules: z.array(
+    z.object({
+      bigqueryClustering: z.object({
+        columns: z.array(z.string()),
+      }).partial(),
+      bigqueryPartitioning: z.object({
+        ingestionTimePartition: z.object({
+          partitioningTimeGranularity: z.string(),
+        }).partial(),
+        integerRangePartition: z.object({
+          column: z.string(),
+          end: z.string(),
+          interval: z.string(),
+          start: z.string(),
+        }).partial(),
+        requirePartitionFilter: z.boolean(),
+        timeUnitPartition: z.object({
+          column: z.string(),
+          partitioningTimeGranularity: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  displayName: z.string().optional(),
+  errors: z.array(
+    z.object({
       details: z.record(z.string(), z.unknown()),
       errorTime: z.string(),
       errorUuid: z.string(),
       message: z.string(),
       reason: z.string(),
-    })),
-    eventFilter: z.object({
-      sqlWhereClause: z.string(),
-    }),
-    lastEndTime: z.string(),
-    lastStartTime: z.string(),
-    state: z.string(),
-    trigger: z.string(),
-  }).optional(),
-  createTime: z.string().optional(),
-  customizationRules: z.array(z.object({
-    bigqueryClustering: z.object({
-      columns: z.array(z.string()),
-    }),
-    bigqueryPartitioning: z.object({
-      ingestionTimePartition: z.object({
-        partitioningTimeGranularity: z.string(),
-      }),
-      integerRangePartition: z.object({
-        column: z.string(),
-        end: z.string(),
-        interval: z.string(),
-        start: z.string(),
-      }),
-      requirePartitionFilter: z.boolean(),
-      timeUnitPartition: z.object({
-        column: z.string(),
-        partitioningTimeGranularity: z.string(),
-      }),
-    }),
-  })).optional(),
-  displayName: z.string().optional(),
-  errors: z.array(z.object({
-    details: z.record(z.string(), z.unknown()),
-    errorTime: z.string(),
-    errorUuid: z.string(),
-    message: z.string(),
-    reason: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   sourceObject: z.object({
     mongodbIdentifier: z.object({
       collection: z.string(),
       database: z.string(),
-    }),
+    }).partial(),
     mysqlIdentifier: z.object({
       database: z.string(),
       table: z.string(),
-    }),
+    }).partial(),
     oracleIdentifier: z.object({
       schema: z.string(),
       table: z.string(),
-    }),
+    }).partial(),
     postgresqlIdentifier: z.object({
       schema: z.string(),
       table: z.string(),
-    }),
+    }).partial(),
     salesforceIdentifier: z.object({
       objectName: z.string(),
-    }),
+    }).partial(),
     spannerIdentifier: z.object({
       schema: z.string(),
       table: z.string(),
-    }),
+    }).partial(),
     sqlServerIdentifier: z.object({
       schema: z.string(),
       table: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -236,7 +242,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Datastream Streams.Objects. Registered at `@swamp/gcp/datastream/streams-objects`. */
 export const model = {
   type: "@swamp/gcp/datastream/streams-objects",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -395,6 +401,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

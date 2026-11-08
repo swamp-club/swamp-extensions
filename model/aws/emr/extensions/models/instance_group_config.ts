@@ -102,6 +102,68 @@ const AppConfigurationSchema = z.object({
   Classification: z.string().optional(),
 });
 
+const SimpleScalingPolicyConfigurationStateSchema = z.object({
+  ScalingAdjustment: z.number(),
+  CoolDown: z.number(),
+  AdjustmentType: z.string(),
+}).partial();
+
+const ScalingActionStateSchema = z.object({
+  Market: z.string(),
+  SimpleScalingPolicyConfiguration: SimpleScalingPolicyConfigurationStateSchema,
+}).partial();
+
+const MetricDimensionStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const CloudWatchAlarmDefinitionStateSchema = z.object({
+  MetricName: z.string(),
+  ComparisonOperator: z.string(),
+  Statistic: z.string(),
+  Dimensions: z.array(MetricDimensionStateSchema),
+  Period: z.number(),
+  EvaluationPeriods: z.number(),
+  Unit: z.string(),
+  Namespace: z.string(),
+  Threshold: z.number(),
+}).partial();
+
+const ScalingTriggerStateSchema = z.object({
+  CloudWatchAlarmDefinition: CloudWatchAlarmDefinitionStateSchema,
+}).partial();
+
+const ScalingRuleStateSchema = z.object({
+  Action: ScalingActionStateSchema,
+  Description: z.string(),
+  Trigger: ScalingTriggerStateSchema,
+  Name: z.string(),
+}).partial();
+
+const ScalingConstraintsStateSchema = z.object({
+  MinCapacity: z.number(),
+  MaxCapacity: z.number(),
+}).partial();
+
+const VolumeSpecificationStateSchema = z.object({
+  SizeInGB: z.number(),
+  Throughput: z.number(),
+  VolumeType: z.string(),
+  Iops: z.number(),
+}).partial();
+
+const EbsBlockDeviceConfigStateSchema = z.object({
+  VolumeSpecification: VolumeSpecificationStateSchema,
+  VolumesPerInstance: z.number(),
+}).partial();
+
+const AppConfigurationStateSchema = z.object({
+  ConfigurationProperties: z.record(z.string(), z.unknown()),
+  Configurations: z.array(z.record(z.string(), z.unknown())),
+  Classification: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -140,25 +202,25 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   JobFlowId: z.string(),
   AutoScalingPolicy: z.object({
-    Rules: z.array(ScalingRuleSchema),
-    Constraints: ScalingConstraintsSchema,
-  }).optional(),
+    Rules: z.array(ScalingRuleStateSchema),
+    Constraints: ScalingConstraintsStateSchema,
+  }).partial().optional(),
   BidPrice: z.string().optional(),
   InstanceCount: z.number().optional(),
   EbsConfiguration: z.object({
-    EbsBlockDeviceConfigs: z.array(EbsBlockDeviceConfigSchema),
+    EbsBlockDeviceConfigs: z.array(EbsBlockDeviceConfigStateSchema),
     EbsOptimized: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   InstanceRole: z.string().optional(),
   CustomAmiId: z.string().optional(),
   InstanceGroupId: z.string(),
-  Configurations: z.array(AppConfigurationSchema).optional(),
+  Configurations: z.array(AppConfigurationStateSchema).optional(),
   InstanceType: z.string().optional(),
   Market: z.string().optional(),
   Name: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -204,7 +266,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR InstanceGroupConfig. Registered at `@swamp/aws/emr/instance-group-config`. */
 export const model = {
   type: "@swamp/aws/emr/instance-group-config",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -223,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

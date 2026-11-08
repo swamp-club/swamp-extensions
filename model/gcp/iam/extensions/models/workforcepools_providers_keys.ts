@@ -180,7 +180,7 @@ const StateSchema = z.object({
     keySpec: z.string(),
     notAfterTime: z.string(),
     notBeforeTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   state: z.string().optional(),
   use: z.string().optional(),
@@ -255,7 +255,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) WorkforcePools.Providers.Keys. Registered at `@swamp/gcp/iam/workforcepools-providers-keys`. */
 export const model = {
   type: "@swamp/gcp/iam/workforcepools-providers-keys",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -274,6 +274,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

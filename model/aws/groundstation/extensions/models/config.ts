@@ -149,6 +149,95 @@ const TelemetrySinkConfigSchema = z.object({
   TelemetrySinkData: TelemetrySinkDataSchema,
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const FrequencyStateSchema = z.object({
+  Value: z.number(),
+  Units: z.string(),
+}).partial();
+
+const FrequencyBandwidthStateSchema = z.object({
+  Value: z.number(),
+  Units: z.string(),
+}).partial();
+
+const SpectrumConfigStateSchema = z.object({
+  CenterFrequency: FrequencyStateSchema,
+  Bandwidth: FrequencyBandwidthStateSchema,
+  Polarization: z.string(),
+}).partial();
+
+const AntennaDownlinkConfigStateSchema = z.object({
+  SpectrumConfig: SpectrumConfigStateSchema,
+}).partial();
+
+const TrackingConfigStateSchema = z.object({
+  Autotrack: z.string(),
+}).partial();
+
+const DataflowEndpointConfigStateSchema = z.object({
+  DataflowEndpointName: z.string(),
+  DataflowEndpointRegion: z.string(),
+}).partial();
+
+const DemodulationConfigStateSchema = z.object({
+  UnvalidatedJSON: z.string(),
+}).partial();
+
+const DecodeConfigStateSchema = z.object({
+  UnvalidatedJSON: z.string(),
+}).partial();
+
+const AntennaDownlinkDemodDecodeConfigStateSchema = z.object({
+  SpectrumConfig: SpectrumConfigStateSchema,
+  DemodulationConfig: DemodulationConfigStateSchema,
+  DecodeConfig: DecodeConfigStateSchema,
+}).partial();
+
+const UplinkSpectrumConfigStateSchema = z.object({
+  CenterFrequency: FrequencyStateSchema,
+  Polarization: z.string(),
+}).partial();
+
+const EirpStateSchema = z.object({
+  Value: z.number(),
+  Units: z.string(),
+}).partial();
+
+const AntennaUplinkConfigStateSchema = z.object({
+  SpectrumConfig: UplinkSpectrumConfigStateSchema,
+  TargetEirp: EirpStateSchema,
+  TransmitDisabled: z.boolean(),
+}).partial();
+
+const UplinkEchoConfigStateSchema = z.object({
+  Enabled: z.boolean(),
+  AntennaUplinkConfigArn: z.string(),
+}).partial();
+
+const S3RecordingConfigStateSchema = z.object({
+  BucketArn: z.string(),
+  RoleArn: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const KinesisDataStreamDataStateSchema = z.object({
+  KinesisRoleArn: z.string(),
+  KinesisDataStreamArn: z.string(),
+}).partial();
+
+const TelemetrySinkDataStateSchema = z.object({
+  KinesisDataStreamData: KinesisDataStreamDataStateSchema,
+}).partial();
+
+const TelemetrySinkConfigStateSchema = z.object({
+  TelemetrySinkType: z.string(),
+  TelemetrySinkData: TelemetrySinkDataStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -182,23 +271,24 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Name: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Type: z.string().optional(),
   ConfigData: z.object({
-    AntennaDownlinkConfig: AntennaDownlinkConfigSchema,
-    TrackingConfig: TrackingConfigSchema,
-    DataflowEndpointConfig: DataflowEndpointConfigSchema,
-    AntennaDownlinkDemodDecodeConfig: AntennaDownlinkDemodDecodeConfigSchema,
-    AntennaUplinkConfig: AntennaUplinkConfigSchema,
-    UplinkEchoConfig: UplinkEchoConfigSchema,
-    S3RecordingConfig: S3RecordingConfigSchema,
-    TelemetrySinkConfig: TelemetrySinkConfigSchema,
-  }).optional(),
+    AntennaDownlinkConfig: AntennaDownlinkConfigStateSchema,
+    TrackingConfig: TrackingConfigStateSchema,
+    DataflowEndpointConfig: DataflowEndpointConfigStateSchema,
+    AntennaDownlinkDemodDecodeConfig:
+      AntennaDownlinkDemodDecodeConfigStateSchema,
+    AntennaUplinkConfig: AntennaUplinkConfigStateSchema,
+    UplinkEchoConfig: UplinkEchoConfigStateSchema,
+    S3RecordingConfig: S3RecordingConfigStateSchema,
+    TelemetrySinkConfig: TelemetrySinkConfigStateSchema,
+  }).partial().optional(),
   Arn: z.string(),
   Id: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -240,7 +330,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GroundStation Config. Registered at `@swamp/aws/groundstation/config`. */
 export const model = {
   type: "@swamp/aws/groundstation/config",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -304,6 +394,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

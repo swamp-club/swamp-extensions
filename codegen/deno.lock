@@ -1151,7 +1151,8 @@
       "jsr:@swamp-club/swamp-testing@0.20261030.67",
       "jsr:@zip-js/zip-js@2.8.22",
       "npm:@apidevtools/json-schema-ref-parser@11.9.3",
-      "npm:pluralize@8.0.0"
+      "npm:pluralize@8.0.0",
+      "npm:zod@4.6.7"
     ]
   }
 }

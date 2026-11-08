@@ -155,61 +155,67 @@ const StateSchema = z.object({
       agentName: z.string(),
       agentOwner: z.object({
         email: z.string(),
-      }),
+      }).partial(),
       agentType: z.string(),
-    }),
+    }).partial(),
     applicationInfo: z.object({
       applicationName: z.string(),
       impersonation: z.boolean(),
       oauthClientId: z.string(),
-    }),
+    }).partial(),
     callerType: z.string(),
     email: z.string(),
     key: z.string(),
     profileId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
-  events: z.array(z.object({
-    name: z.string(),
-    parameters: z.array(z.object({
-      boolValue: z.boolean(),
-      intValue: z.string(),
-      messageValue: z.object({
-        parameter: z.unknown(),
-      }),
-      multiIntValue: z.array(z.unknown()),
-      multiMessageValue: z.array(z.unknown()),
-      multiValue: z.array(z.unknown()),
+  events: z.array(
+    z.object({
       name: z.string(),
-      value: z.string(),
-    })),
-    resourceIds: z.array(z.string()),
-    sensitiveParameters: z.array(z.object({
-      boolValue: z.boolean(),
-      intValue: z.string(),
-      messageValue: z.object({
-        parameter: z.unknown(),
-      }),
-      multiIntValue: z.array(z.unknown()),
-      multiMessageValue: z.array(z.unknown()),
-      multiValue: z.array(z.unknown()),
-      name: z.string(),
-      value: z.string(),
-    })),
-    status: z.object({
-      errorCode: z.string(),
-      errorMessage: z.string(),
-      eventStatus: z.string(),
-      httpStatusCode: z.number(),
-    }),
-    type: z.string(),
-  })).optional(),
+      parameters: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          intValue: z.string(),
+          messageValue: z.object({
+            parameter: z.unknown(),
+          }).partial(),
+          multiIntValue: z.array(z.unknown()),
+          multiMessageValue: z.array(z.unknown()),
+          multiValue: z.array(z.unknown()),
+          name: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      resourceIds: z.array(z.string()),
+      sensitiveParameters: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          intValue: z.string(),
+          messageValue: z.object({
+            parameter: z.unknown(),
+          }).partial(),
+          multiIntValue: z.array(z.unknown()),
+          multiMessageValue: z.array(z.unknown()),
+          multiValue: z.array(z.unknown()),
+          name: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      status: z.object({
+        errorCode: z.string(),
+        errorMessage: z.string(),
+        eventStatus: z.string(),
+        httpStatusCode: z.number(),
+      }).partial(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   id: z.object({
     applicationName: z.string(),
     customerId: z.string(),
     time: z.string(),
     uniqueQualifier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ipAddress: z.string().optional(),
   isAgenticAction: z.boolean().optional(),
   kind: z.string().optional(),
@@ -217,36 +223,42 @@ const StateSchema = z.object({
     ipAsn: z.array(z.number()),
     regionCode: z.string(),
     subdivisionCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ownerDomain: z.string().optional(),
-  resourceDetails: z.array(z.object({
-    appliedLabels: z.array(z.object({
-      fieldValues: z.array(z.unknown()),
+  resourceDetails: z.array(
+    z.object({
+      appliedLabels: z.array(
+        z.object({
+          fieldValues: z.array(z.unknown()),
+          id: z.string(),
+          reason: z.object({
+            reasonType: z.unknown(),
+          }).partial(),
+          title: z.string(),
+        }).partial(),
+      ),
       id: z.string(),
-      reason: z.object({
-        reasonType: z.unknown(),
-      }),
+      ownerDetails: z.object({
+        ownerIdentity: z.array(
+          z.object({
+            customerIdentity: z.unknown(),
+            groupIdentity: z.unknown(),
+            sharedDriveIdentity: z.unknown(),
+            userIdentity: z.unknown(),
+          }).partial(),
+        ),
+        ownerType: z.string(),
+      }).partial(),
+      relation: z.string(),
       title: z.string(),
-    })),
-    id: z.string(),
-    ownerDetails: z.object({
-      ownerIdentity: z.array(z.object({
-        customerIdentity: z.unknown(),
-        groupIdentity: z.unknown(),
-        sharedDriveIdentity: z.unknown(),
-        userIdentity: z.unknown(),
-      })),
-      ownerType: z.string(),
-    }),
-    relation: z.string(),
-    title: z.string(),
-    type: z.string(),
-  })).optional(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   userDeviceInfo: z.object({
     deviceId: z.string(),
     deviceOsVersion: z.string(),
     deviceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -293,7 +305,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Activities. Registered at `@swamp/gcp/admin/activities`. */
 export const model = {
   type: "@swamp/gcp/admin/activities",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -447,6 +459,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

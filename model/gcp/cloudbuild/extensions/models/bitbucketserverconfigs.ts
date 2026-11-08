@@ -198,11 +198,13 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   apiKey: z.string().optional(),
-  connectedRepositories: z.array(z.object({
-    projectKey: z.string(),
-    repoSlug: z.string(),
-    webhookId: z.number(),
-  })).optional(),
+  connectedRepositories: z.array(
+    z.object({
+      projectKey: z.string(),
+      repoSlug: z.string(),
+      webhookId: z.number(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   hostUri: z.string().optional(),
   name: z.string(),
@@ -212,7 +214,7 @@ const StateSchema = z.object({
     adminAccessTokenVersionName: z.string(),
     readAccessTokenVersionName: z.string(),
     webhookSecretVersionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sslCa: z.string().optional(),
   username: z.string().optional(),
   webhookKey: z.string().optional(),
@@ -295,7 +297,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Build BitbucketServerConfigs. Registered at `@swamp/gcp/cloudbuild/bitbucketserverconfigs`. */
 export const model = {
   type: "@swamp/gcp/cloudbuild/bitbucketserverconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -314,6 +316,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

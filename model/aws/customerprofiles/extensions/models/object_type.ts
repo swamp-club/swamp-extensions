@@ -109,6 +109,32 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const ObjectTypeFieldStateSchema = z.object({
+  Source: z.string(),
+  Target: z.string(),
+  ContentType: z.string(),
+}).partial();
+
+const FieldMapStateSchema = z.object({
+  Name: z.string(),
+  ObjectTypeField: ObjectTypeFieldStateSchema,
+}).partial();
+
+const ObjectTypeKeyStateSchema = z.object({
+  FieldNames: z.array(z.string()),
+  StandardIdentifiers: z.array(z.string()),
+}).partial();
+
+const KeyMapStateSchema = z.object({
+  Name: z.string(),
+  ObjectTypeKeyList: z.array(ObjectTypeKeyStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -171,19 +197,19 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   EncryptionKey: z.string().optional(),
   ExpirationDays: z.number().optional(),
-  Fields: z.array(FieldMapSchema).optional(),
-  Keys: z.array(KeyMapSchema).optional(),
+  Fields: z.array(FieldMapStateSchema).optional(),
+  Keys: z.array(KeyMapStateSchema).optional(),
   CreatedAt: z.string().optional(),
   LastUpdatedAt: z.string().optional(),
   SourceLastUpdatedTimestampFormat: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TemplateId: z.string().optional(),
   MaxProfileObjectCount: z.number().optional(),
   MaxAvailableProfileObjectCount: z.number().optional(),
   SourcePriority: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -249,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles ObjectType. Registered at `@swamp/aws/customerprofiles/object-type`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/object-type",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -318,6 +344,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

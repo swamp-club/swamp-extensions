@@ -117,10 +117,12 @@ const StateSchema = z.object({
   availableEndTime: z.string().optional(),
   availableStartTime: z.string().optional(),
   createTime: z.string().optional(),
-  creatorContacts: z.array(z.object({
-    email: z.string(),
-    name: z.string(),
-  })).optional(),
+  creatorContacts: z.array(
+    z.object({
+      email: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   displayName: z.string().optional(),
   hasCreatorSignedOff: z.boolean().optional(),
   productId: z.string().optional(),
@@ -129,43 +131,49 @@ const StateSchema = z.object({
   seller: z.object({
     accountId: z.string(),
     subAccountId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   syndicationProduct: z.string().optional(),
-  targetingCriterion: z.array(z.object({
-    exclusions: z.array(z.object({
-      creativeSizeValue: z.object({
-        allowedFormats: z.unknown(),
-        companionSizes: z.unknown(),
-        creativeSizeType: z.unknown(),
-        nativeTemplate: z.unknown(),
-        size: z.unknown(),
-        skippableAdType: z.unknown(),
-      }),
-      dayPartTargetingValue: z.object({
-        dayParts: z.unknown(),
-        timeZoneType: z.unknown(),
-      }),
-      longValue: z.string(),
-      stringValue: z.string(),
-    })),
-    inclusions: z.array(z.object({
-      creativeSizeValue: z.object({
-        allowedFormats: z.unknown(),
-        companionSizes: z.unknown(),
-        creativeSizeType: z.unknown(),
-        nativeTemplate: z.unknown(),
-        size: z.unknown(),
-        skippableAdType: z.unknown(),
-      }),
-      dayPartTargetingValue: z.object({
-        dayParts: z.unknown(),
-        timeZoneType: z.unknown(),
-      }),
-      longValue: z.string(),
-      stringValue: z.string(),
-    })),
-    key: z.string(),
-  })).optional(),
+  targetingCriterion: z.array(
+    z.object({
+      exclusions: z.array(
+        z.object({
+          creativeSizeValue: z.object({
+            allowedFormats: z.unknown(),
+            companionSizes: z.unknown(),
+            creativeSizeType: z.unknown(),
+            nativeTemplate: z.unknown(),
+            size: z.unknown(),
+            skippableAdType: z.unknown(),
+          }).partial(),
+          dayPartTargetingValue: z.object({
+            dayParts: z.unknown(),
+            timeZoneType: z.unknown(),
+          }).partial(),
+          longValue: z.string(),
+          stringValue: z.string(),
+        }).partial(),
+      ),
+      inclusions: z.array(
+        z.object({
+          creativeSizeValue: z.object({
+            allowedFormats: z.unknown(),
+            companionSizes: z.unknown(),
+            creativeSizeType: z.unknown(),
+            nativeTemplate: z.unknown(),
+            size: z.unknown(),
+            skippableAdType: z.unknown(),
+          }).partial(),
+          dayPartTargetingValue: z.object({
+            dayParts: z.unknown(),
+            timeZoneType: z.unknown(),
+          }).partial(),
+          longValue: z.string(),
+          stringValue: z.string(),
+        }).partial(),
+      ),
+      key: z.string(),
+    }).partial(),
+  ).optional(),
   terms: z.object({
     brandingType: z.string(),
     description: z.string(),
@@ -174,55 +182,61 @@ const StateSchema = z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
+      }).partial(),
       pricingType: z.string(),
-    }),
+    }).partial(),
     estimatedImpressionsPerDay: z.string(),
     guaranteedFixedPriceTerms: z.object({
-      fixedPrices: z.array(z.object({
-        advertiserIds: z.array(z.unknown()),
-        buyer: z.object({
-          accountId: z.unknown(),
-        }),
-        price: z.object({
-          amount: z.unknown(),
-          pricingType: z.unknown(),
-        }),
-      })),
+      fixedPrices: z.array(
+        z.object({
+          advertiserIds: z.array(z.unknown()),
+          buyer: z.object({
+            accountId: z.unknown(),
+          }).partial(),
+          price: z.object({
+            amount: z.unknown(),
+            pricingType: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       guaranteedImpressions: z.string(),
       guaranteedLooks: z.string(),
       impressionCap: z.string(),
       minimumDailyLooks: z.string(),
       percentShareOfVoice: z.string(),
       reservationType: z.string(),
-    }),
+    }).partial(),
     nonGuaranteedAuctionTerms: z.object({
       autoOptimizePrivateAuction: z.boolean(),
-      reservePricesPerBuyer: z.array(z.object({
-        advertiserIds: z.array(z.unknown()),
-        buyer: z.object({
-          accountId: z.unknown(),
-        }),
-        price: z.object({
-          amount: z.unknown(),
-          pricingType: z.unknown(),
-        }),
-      })),
-    }),
+      reservePricesPerBuyer: z.array(
+        z.object({
+          advertiserIds: z.array(z.unknown()),
+          buyer: z.object({
+            accountId: z.unknown(),
+          }).partial(),
+          price: z.object({
+            amount: z.unknown(),
+            pricingType: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     nonGuaranteedFixedPriceTerms: z.object({
-      fixedPrices: z.array(z.object({
-        advertiserIds: z.array(z.unknown()),
-        buyer: z.object({
-          accountId: z.unknown(),
-        }),
-        price: z.object({
-          amount: z.unknown(),
-          pricingType: z.unknown(),
-        }),
-      })),
-    }),
+      fixedPrices: z.array(
+        z.object({
+          advertiserIds: z.array(z.unknown()),
+          buyer: z.object({
+            accountId: z.unknown(),
+          }).partial(),
+          price: z.object({
+            amount: z.unknown(),
+            pricingType: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     sellerTimeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   webPropertyCode: z.string().optional(),
 }).passthrough();
@@ -266,7 +280,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Accounts.Products. Registered at `@swamp/gcp/adexchangebuyer2/accounts-products`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/accounts-products",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -395,6 +409,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

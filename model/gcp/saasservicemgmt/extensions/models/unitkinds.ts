@@ -321,55 +321,61 @@ const StateSchema = z.object({
     group: z.string(),
     scope: z.object({
       type: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   applicationTemplateComponent: z.object({
     component: z.string(),
     compositeRef: z.object({
       applicationTemplate: z.string(),
       revision: z.string(),
       syncOperation: z.string(),
-    }),
+    }).partial(),
     revision: z.string(),
-  }).optional(),
+  }).partial().optional(),
   boundaryType: z.string().optional(),
   createTime: z.string().optional(),
   defaultRelease: z.string().optional(),
   deleteTime: z.string().optional(),
-  dependencies: z.array(z.object({
-    alias: z.string(),
-    unitKind: z.string(),
-  })).optional(),
+  dependencies: z.array(
+    z.object({
+      alias: z.string(),
+      unitKind: z.string(),
+    }).partial(),
+  ).optional(),
   durationLimits: z.object({
     unitOperationTimeout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
-  inputVariableMappings: z.array(z.object({
-    from: z.object({
-      dependency: z.string(),
-      outputVariable: z.string(),
-    }),
-    to: z.object({
-      dependency: z.string(),
-      ignoreForLookup: z.boolean(),
-      inputVariable: z.string(),
-    }),
-    variable: z.string(),
-  })).optional(),
+  inputVariableMappings: z.array(
+    z.object({
+      from: z.object({
+        dependency: z.string(),
+        outputVariable: z.string(),
+      }).partial(),
+      to: z.object({
+        dependency: z.string(),
+        ignoreForLookup: z.boolean(),
+        inputVariable: z.string(),
+      }).partial(),
+      variable: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  outputVariableMappings: z.array(z.object({
-    from: z.object({
-      dependency: z.string(),
-      outputVariable: z.string(),
-    }),
-    to: z.object({
-      dependency: z.string(),
-      ignoreForLookup: z.boolean(),
-      inputVariable: z.string(),
-    }),
-    variable: z.string(),
-  })).optional(),
+  outputVariableMappings: z.array(
+    z.object({
+      from: z.object({
+        dependency: z.string(),
+        outputVariable: z.string(),
+      }).partial(),
+      to: z.object({
+        dependency: z.string(),
+        ignoreForLookup: z.boolean(),
+        inputVariable: z.string(),
+      }).partial(),
+      variable: z.string(),
+    }).partial(),
+  ).optional(),
   saas: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -544,7 +550,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager UnitKinds. Registered at `@swamp/gcp/saasservicemgmt/unitkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/unitkinds",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -718,6 +724,11 @@ export const model = {
     {
       toVersion: "2026.10.29.1",
       description: "Added: durationLimits",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

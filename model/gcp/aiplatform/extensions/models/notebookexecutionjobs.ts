@@ -347,41 +347,41 @@ const StateSchema = z.object({
         key: z.string(),
         reservationAffinityType: z.string(),
         values: z.array(z.string()),
-      }),
+      }).partial(),
       tpuTopology: z.string(),
-    }),
+    }).partial(),
     networkSpec: z.object({
       enableInternetAccess: z.boolean(),
       network: z.string(),
       subnetwork: z.string(),
-    }),
+    }).partial(),
     persistentDiskSpec: z.object({
       diskSizeGb: z.string(),
       diskType: z.string(),
-    }),
+    }).partial(),
     shieldedInstanceConfig: z.object({
       enableIntegrityMonitoring: z.boolean(),
       enableSecureBoot: z.boolean(),
       enableVtpm: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   dataformRepositorySource: z.object({
     commitSha: z.string(),
     dataformRepositoryResourceName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   directNotebookSource: z.object({
     content: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   executionTimeout: z.string().optional(),
   executionUser: z.string().optional(),
   gcsNotebookSource: z.object({
     generation: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcsOutputUri: z.string().optional(),
   jobState: z.string().optional(),
   kernelName: z.string().optional(),
@@ -394,19 +394,19 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   workbenchRuntime: z.object({
     customContainerImage: z.object({
       repository: z.string(),
       tag: z.string(),
-    }),
+    }).partial(),
     vmImage: z.object({
       family: z.string(),
       name: z.string(),
       project: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -630,7 +630,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform NotebookExecutionJobs. Registered at `@swamp/gcp/aiplatform/notebookexecutionjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/notebookexecutionjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -812,6 +812,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -117,22 +117,24 @@ const StateSchema = z.object({
   config: z.object({
     allDataAddonConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     gatewayPluginAddonConfig: z.object({
-      gatewayPluginConfigs: z.array(z.object({
-        apigeeEdgeConfig: z.object({
-          environmentFilter: z.unknown(),
-        }),
-        apigeeOpdkConfig: z.object({
-          environmentFilter: z.unknown(),
-        }),
-        apigeeXHybridConfig: z.object({
-          environmentFilter: z.unknown(),
-        }),
-        pluginInstance: z.string(),
-      })),
-    }),
-  }).optional(),
+      gatewayPluginConfigs: z.array(
+        z.object({
+          apigeeEdgeConfig: z.object({
+            environmentFilter: z.unknown(),
+          }).partial(),
+          apigeeOpdkConfig: z.object({
+            environmentFilter: z.unknown(),
+          }).partial(),
+          apigeeXHybridConfig: z.object({
+            environmentFilter: z.unknown(),
+          }).partial(),
+          pluginInstance: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dataSource: z.string().optional(),
   description: z.string().optional(),
@@ -183,7 +185,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Addons. Registered at `@swamp/gcp/apihub/addons`. */
 export const model = {
   type: "@swamp/gcp/apihub/addons",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -322,6 +324,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

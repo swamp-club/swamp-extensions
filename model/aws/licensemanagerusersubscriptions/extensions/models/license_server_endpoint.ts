@@ -66,6 +66,35 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The tag value."),
 });
 
+const SecretsManagerCredentialsProviderStateSchema = z.object({
+  SecretId: z.string(),
+}).partial();
+
+const CredentialsProviderStateSchema = z.object({
+  SecretsManagerCredentialsProvider:
+    SecretsManagerCredentialsProviderStateSchema,
+}).partial();
+
+const RdsSalSettingsStateSchema = z.object({
+  RdsSalCredentialsProvider: CredentialsProviderStateSchema,
+}).partial();
+
+const ServerSettingsStateSchema = z.object({
+  RdsSalSettings: RdsSalSettingsStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const LicenseServerStateSchema = z.object({
+  ProvisioningStatus: z.string(),
+  HealthStatus: z.string(),
+  Ipv4Address: z.string(),
+  Ipv6Address: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -110,26 +139,21 @@ const StateSchema = z.object({
   IdentityProviderArn: z.string(),
   LicenseServerSettings: z.object({
     ServerType: z.string(),
-    ServerSettings: ServerSettingsSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    ServerSettings: ServerSettingsStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LicenseServerEndpointArn: z.string(),
   LicenseServerEndpointId: z.string().optional(),
   LicenseServerEndpointProvisioningStatus: z.string().optional(),
   ServerType: z.string().optional(),
   ServerEndpoint: z.object({
     Endpoint: z.string(),
-  }).optional(),
-  LicenseServers: z.array(z.object({
-    ProvisioningStatus: z.string(),
-    HealthStatus: z.string(),
-    Ipv4Address: z.string(),
-    Ipv6Address: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  LicenseServers: z.array(LicenseServerStateSchema).optional(),
   CreationTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -181,7 +205,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LicenseManagerUserSubscriptions LicenseServerEndpoint. Registered at `@swamp/aws/licensemanagerusersubscriptions/license-server-endpoint`. */
 export const model = {
   type: "@swamp/aws/licensemanagerusersubscriptions/license-server-endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -195,6 +219,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -158,6 +158,83 @@ const DisasterRecoverySourceSchema = z.object({
   PolicyName: z.string().optional(),
 });
 
+const AssociatedSystemStateSchema = z.object({
+  SystemArn: z.string(),
+  UserJourneyIds: z.array(z.string()),
+}).partial();
+
+const CrossAccountRoleConfigurationStateSchema = z.object({
+  CrossAccountRoleArn: z.string(),
+  ExternalId: z.string(),
+}).partial();
+
+const S3ReportOutputConfigurationStateSchema = z.object({
+  BucketPath: z.string(),
+  BucketOwner: z.string(),
+}).partial();
+
+const ReportOutputConfigurationStateSchema = z.object({
+  S3: S3ReportOutputConfigurationStateSchema,
+}).partial();
+
+const ResourceTagStateSchema = z.object({
+  Key: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const EksLabelSelectorRequirementStateSchema = z.object({
+  Key: z.string(),
+  Operator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const EksLabelSelectorStateSchema = z.object({
+  MatchLabels: z.record(z.string(), z.unknown()),
+  MatchExpressions: z.array(EksLabelSelectorRequirementStateSchema),
+}).partial();
+
+const EksSourceStateSchema = z.object({
+  ClusterArn: z.string(),
+  Namespaces: z.array(z.string()),
+  LabelSelector: EksLabelSelectorStateSchema,
+}).partial();
+
+const ResourceConfigurationStateSchema = z.object({
+  ResourceTags: z.array(ResourceTagStateSchema),
+  CfnStackArn: z.string(),
+  TfStateFileUrl: z.string(),
+  Eks: EksSourceStateSchema,
+  DesignFileS3Url: z.string(),
+}).partial();
+
+const InputSourceDefinitionStateSchema = z.object({
+  ResourceConfiguration: ResourceConfigurationStateSchema,
+}).partial();
+
+const AssertionDefinitionStateSchema = z.object({
+  Text: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const SloSourceStateSchema = z.object({
+  Value: z.number(),
+  PolicyName: z.string(),
+}).partial();
+
+const TargetSourceStateSchema = z.object({
+  Value: z.number(),
+  PolicyName: z.string(),
+}).partial();
+
+const DisasterRecoverySourceStateSchema = z.object({
+  Value: z.string(),
+  PolicyName: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -250,37 +327,37 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   Regions: z.array(z.string()).optional(),
-  AssociatedSystems: z.array(AssociatedSystemSchema).optional(),
+  AssociatedSystems: z.array(AssociatedSystemStateSchema).optional(),
   PolicyArn: z.string().optional(),
   PermissionModel: z.object({
     InvokerRoleName: z.string(),
-    CrossAccountRoleArns: z.array(CrossAccountRoleConfigurationSchema),
-  }).optional(),
+    CrossAccountRoleArns: z.array(CrossAccountRoleConfigurationStateSchema),
+  }).partial().optional(),
   DependencyDiscovery: z.string().optional(),
   ReportConfiguration: z.object({
-    ReportOutput: z.array(ReportOutputConfigurationSchema),
-  }).optional(),
-  InputSources: z.array(InputSourceDefinitionSchema).optional(),
-  Assertions: z.array(AssertionDefinitionSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+    ReportOutput: z.array(ReportOutputConfigurationStateSchema),
+  }).partial().optional(),
+  InputSources: z.array(InputSourceDefinitionStateSchema).optional(),
+  Assertions: z.array(AssertionDefinitionStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   EffectivePolicyValues: z.object({
-    AvailabilitySlo: SloSourceSchema,
-    MultiAzRto: TargetSourceSchema,
-    MultiAzRpo: TargetSourceSchema,
-    MultiAzDrApproach: DisasterRecoverySourceSchema,
-    MultiRegionRto: TargetSourceSchema,
-    MultiRegionRpo: TargetSourceSchema,
-    MultiRegionDrApproach: DisasterRecoverySourceSchema,
-  }).optional(),
+    AvailabilitySlo: SloSourceStateSchema,
+    MultiAzRto: TargetSourceStateSchema,
+    MultiAzRpo: TargetSourceStateSchema,
+    MultiAzDrApproach: DisasterRecoverySourceStateSchema,
+    MultiRegionRto: TargetSourceStateSchema,
+    MultiRegionRpo: TargetSourceStateSchema,
+    MultiRegionDrApproach: DisasterRecoverySourceStateSchema,
+  }).partial().optional(),
   KmsKeyId: z.string().optional(),
   DevOpsAgentConfiguration: z.object({
     AgentSpaceArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -378,7 +455,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ResilienceHubV2 Service. Registered at `@swamp/aws/resiliencehubv2/service`. */
 export const model = {
   type: "@swamp/aws/resiliencehubv2/service",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -432,6 +509,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

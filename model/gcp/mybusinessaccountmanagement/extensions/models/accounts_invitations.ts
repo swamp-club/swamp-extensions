@@ -106,22 +106,22 @@ const StateSchema = z.object({
         revision: z.number(),
         sortingCode: z.string(),
         sublocality: z.string(),
-      }),
+      }).partial(),
       phoneNumber: z.string(),
       registeredDomain: z.string(),
-    }),
+    }).partial(),
     permissionLevel: z.string(),
     primaryOwner: z.string(),
     role: z.string(),
     type: z.string(),
     verificationState: z.string(),
     vettedState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetLocation: z.object({
     address: z.string(),
     locationName: z.string(),
     placeId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetType: z.string().optional(),
 }).passthrough();
 
@@ -166,7 +166,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud My Business Account Management Accounts.Invitations. Registered at `@swamp/gcp/mybusinessaccountmanagement/accounts-invitations`. */
 export const model = {
   type: "@swamp/gcp/mybusinessaccountmanagement/accounts-invitations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -320,6 +320,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

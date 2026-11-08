@@ -60,6 +60,20 @@ const RecordingModeOverrideSchema = z.object({
   ).optional(),
 });
 
+const RecordingStrategyStateSchema = z.object({
+  UseOnly: z.string(),
+}).partial();
+
+const ExclusionByResourceTypesStateSchema = z.object({
+  ResourceTypes: z.array(z.string()),
+}).partial();
+
+const RecordingModeOverrideStateSchema = z.object({
+  ResourceTypes: z.array(z.string()),
+  RecordingFrequency: z.string(),
+  Description: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -121,19 +135,19 @@ const StateSchema = z.object({
   RecordingGroup: z.object({
     IncludeGlobalResourceTypes: z.boolean(),
     ResourceTypes: z.array(z.string()),
-    RecordingStrategy: RecordingStrategySchema,
-    ExclusionByResourceTypes: ExclusionByResourceTypesSchema,
+    RecordingStrategy: RecordingStrategyStateSchema,
+    ExclusionByResourceTypes: ExclusionByResourceTypesStateSchema,
     AllSupported: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   RecordingMode: z.object({
-    RecordingModeOverrides: z.array(RecordingModeOverrideSchema),
+    RecordingModeOverrides: z.array(RecordingModeOverrideStateSchema),
     RecordingFrequency: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RoleARN: z.string().optional(),
   StartedOnCreate: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -201,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Config ConfigurationRecorder. Registered at `@swamp/aws/config/configuration-recorder`. */
 export const model = {
   type: "@swamp/aws/config/configuration-recorder",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -215,6 +229,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

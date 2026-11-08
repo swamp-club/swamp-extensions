@@ -95,6 +95,39 @@ const S3AccessPointVpcConfigurationSchema = z.object({
     ),
 });
 
+const OntapUnixFileSystemUserStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const OntapWindowsFileSystemUserStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const OntapFileSystemIdentityStateSchema = z.object({
+  Type: z.string(),
+  UnixUser: OntapUnixFileSystemUserStateSchema,
+  WindowsUser: OntapWindowsFileSystemUserStateSchema,
+}).partial();
+
+const FileSystemGIDStateSchema = z.object({
+  Gid: z.number(),
+}).partial();
+
+const OpenZFSPosixFileSystemUserStateSchema = z.object({
+  Uid: z.number(),
+  Gid: z.number(),
+  SecondaryGids: z.array(FileSystemGIDStateSchema),
+}).partial();
+
+const OpenZFSFileSystemIdentityStateSchema = z.object({
+  Type: z.string(),
+  PosixUser: OpenZFSPosixFileSystemUserStateSchema,
+}).partial();
+
+const S3AccessPointVpcConfigurationStateSchema = z.object({
+  VpcId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -155,22 +188,22 @@ const StateSchema = z.object({
   Type: z.string().optional(),
   OntapConfiguration: z.object({
     VolumeId: z.string(),
-    FileSystemIdentity: OntapFileSystemIdentitySchema,
-  }).optional(),
+    FileSystemIdentity: OntapFileSystemIdentityStateSchema,
+  }).partial().optional(),
   OpenZFSConfiguration: z.object({
     VolumeId: z.string(),
-    FileSystemIdentity: OpenZFSFileSystemIdentitySchema,
-  }).optional(),
+    FileSystemIdentity: OpenZFSFileSystemIdentityStateSchema,
+  }).partial().optional(),
   S3AccessPoint: z.object({
     ResourceARN: z.string(),
     Alias: z.string(),
-    VpcConfiguration: S3AccessPointVpcConfigurationSchema,
+    VpcConfiguration: S3AccessPointVpcConfigurationStateSchema,
     Policy: z.union([z.string(), z.record(z.string(), z.unknown())]),
-  }).optional(),
+  }).partial().optional(),
   Lifecycle: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -238,7 +271,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FSx S3AccessPointAttachment. Registered at `@swamp/aws/fsx/s3access-point-attachment`. */
 export const model = {
   type: "@swamp/aws/fsx/s3access-point-attachment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -317,6 +350,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

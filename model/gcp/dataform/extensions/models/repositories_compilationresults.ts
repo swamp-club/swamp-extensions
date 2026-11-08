@@ -213,43 +213,45 @@ const StateSchema = z.object({
       gcsOutputBucket: z.string(),
       gcsRepositorySnapshotDestination: z.object({
         repositorySnapshotUri: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     defaultSchema: z.string(),
     pipelineConfig: z.object({
       path: z.string(),
       pipelineType: z.string(),
-    }),
+    }).partial(),
     schemaSuffix: z.string(),
     tablePrefix: z.string(),
     vars: z.record(z.string(), z.unknown()),
-  }).optional(),
-  compilationErrors: z.array(z.object({
-    actionTarget: z.object({
-      database: z.string(),
-      name: z.string(),
-      schema: z.string(),
-    }),
-    message: z.string(),
-    path: z.string(),
-    stack: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  compilationErrors: z.array(
+    z.object({
+      actionTarget: z.object({
+        database: z.string(),
+        name: z.string(),
+        schema: z.string(),
+      }).partial(),
+      message: z.string(),
+      path: z.string(),
+      stack: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   dataEncryptionState: z.object({
     kmsKeyVersionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataformCoreVersion: z.string().optional(),
   gcsRepositorySnapshotMetadata: z.object({
     crc32cChecksum: z.string(),
     generation: z.string(),
     repositorySnapshotUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gitCommitish: z.string().optional(),
   internalMetadata: z.string().optional(),
   name: z.string(),
   privateResourceMetadata: z.object({
     userScoped: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   releaseConfig: z.string().optional(),
   resolvedGitCommitSha: z.string().optional(),
   workspace: z.string().optional(),
@@ -367,7 +369,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.CompilationResults. Registered at `@swamp/gcp/dataform/repositories-compilationresults`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-compilationresults",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -548,6 +550,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

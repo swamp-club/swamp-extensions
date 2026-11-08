@@ -113,25 +113,27 @@ const StateSchema = z.object({
       responseStatusCode: z.number(),
       url: z.string(),
       userAgent: z.string(),
-    }),
+    }).partial(),
     reportLocation: z.object({
       filePath: z.string(),
       functionName: z.string(),
       lineNumber: z.number(),
-    }),
-    sourceReferences: z.array(z.object({
-      repository: z.string(),
-      revisionId: z.string(),
-    })),
+    }).partial(),
+    sourceReferences: z.array(
+      z.object({
+        repository: z.string(),
+        revisionId: z.string(),
+      }).partial(),
+    ),
     user: z.string(),
-  }).optional(),
+  }).partial().optional(),
   eventTime: z.string().optional(),
   message: z.string().optional(),
   serviceContext: z.object({
     resourceType: z.string(),
     service: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -175,7 +177,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Error Reporting Events. Registered at `@swamp/gcp/clouderrorreporting/events`. */
 export const model = {
   type: "@swamp/gcp/clouderrorreporting/events",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -299,6 +301,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

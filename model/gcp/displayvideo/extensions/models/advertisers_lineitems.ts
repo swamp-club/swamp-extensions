@@ -1000,68 +1000,78 @@ const StateSchema = z.object({
       effectiveBiddingValueSource: z.string(),
       type: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     fixedBid: z.object({
       bidAmountMicros: z.string(),
-    }),
+    }).partial(),
     maximizeSpendAutoBid: z.object({
       customBiddingAlgorithmId: z.string(),
       maxAverageCpmBidAmountMicros: z.string(),
       performanceGoalType: z.string(),
       raiseBidForDeals: z.boolean(),
-    }),
+    }).partial(),
     performanceGoalAutoBid: z.object({
       customBiddingAlgorithmId: z.string(),
       maxAverageCpmBidAmountMicros: z.string(),
       performanceGoalAmountMicros: z.string(),
       performanceGoalType: z.string(),
-    }),
+    }).partial(),
     youtubeAndPartnersBid: z.object({
       adGroupEffectiveTargetCpaSource: z.string(),
       adGroupEffectiveTargetCpaValue: z.string(),
       type: z.string(),
       value: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   budget: z.object({
     budgetAllocationType: z.string(),
     budgetUnit: z.string(),
     maxAmount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   campaignId: z.string().optional(),
   containsEuPoliticalAds: z.string().optional(),
   conversionCounting: z.object({
-    floodlightActivityConfigs: z.array(z.object({
-      floodlightActivityId: z.string(),
-      postClickLookbackWindowDays: z.number(),
-      postViewLookbackWindowDays: z.number(),
-    })),
+    floodlightActivityConfigs: z.array(
+      z.object({
+        floodlightActivityId: z.string(),
+        postClickLookbackWindowDays: z.number(),
+        postViewLookbackWindowDays: z.number(),
+      }).partial(),
+    ),
     postViewCountPercentageMillis: z.string(),
     primaryAttributionModelId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creativeIds: z.array(z.string()).optional(),
   demandGenSettings: z.object({
     geoLanguageTargetingEnabled: z.boolean(),
     linkedMerchantId: z.string(),
     thirdPartyMeasurementConfigs: z.object({
-      brandLiftVendorConfigs: z.array(z.object({
-        placementId: z.string(),
-        vendor: z.string(),
-      })),
-      brandSafetyVendorConfigs: z.array(z.object({
-        placementId: z.string(),
-        vendor: z.string(),
-      })),
-      reachVendorConfigs: z.array(z.object({
-        placementId: z.string(),
-        vendor: z.string(),
-      })),
-      viewabilityVendorConfigs: z.array(z.object({
-        placementId: z.string(),
-        vendor: z.string(),
-      })),
-    }),
-  }).optional(),
+      brandLiftVendorConfigs: z.array(
+        z.object({
+          placementId: z.string(),
+          vendor: z.string(),
+        }).partial(),
+      ),
+      brandSafetyVendorConfigs: z.array(
+        z.object({
+          placementId: z.string(),
+          vendor: z.string(),
+        }).partial(),
+      ),
+      reachVendorConfigs: z.array(
+        z.object({
+          placementId: z.string(),
+          vendor: z.string(),
+        }).partial(),
+      ),
+      viewabilityVendorConfigs: z.array(
+        z.object({
+          placementId: z.string(),
+          vendor: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   entityStatus: z.string().optional(),
   excludeNewExchanges: z.boolean().optional(),
@@ -1071,27 +1081,27 @@ const StateSchema = z.object({
         day: z.number(),
         month: z.number(),
         year: z.number(),
-      }),
+      }).partial(),
       startDate: z.object({
         day: z.number(),
         month: z.number(),
         year: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     flightDateType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   frequencyCap: z.object({
     maxImpressions: z.number(),
     maxViews: z.number(),
     timeUnit: z.string(),
     timeUnitCount: z.number(),
     unlimited: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   insertionOrderId: z.string().optional(),
   integrationDetails: z.object({
     details: z.string(),
     integrationCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lineItemId: z.string().optional(),
   lineItemType: z.string().optional(),
   mobileApp: z.object({
@@ -1099,7 +1109,7 @@ const StateSchema = z.object({
     displayName: z.string(),
     platform: z.string(),
     publisher: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   optimizeFixedBidding: z.boolean().optional(),
   pacing: z.object({
@@ -1107,23 +1117,25 @@ const StateSchema = z.object({
     dailyMaxMicros: z.string(),
     pacingPeriod: z.string(),
     pacingType: z.string(),
-  }).optional(),
-  partnerCosts: z.array(z.object({
-    costType: z.string(),
-    feeAmount: z.string(),
-    feePercentageMillis: z.string(),
-    feeType: z.string(),
-    invoiceType: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  partnerCosts: z.array(
+    z.object({
+      costType: z.string(),
+      feeAmount: z.string(),
+      feePercentageMillis: z.string(),
+      feeType: z.string(),
+      invoiceType: z.string(),
+    }).partial(),
+  ).optional(),
   partnerRevenueModel: z.object({
     markupAmount: z.string(),
     markupType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reservationType: z.string().optional(),
   targetingExpansion: z.object({
     enableOptimizedTargeting: z.boolean(),
     excludeDemographicExpansion: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   warningMessages: z.array(z.string()).optional(),
   youtubeAndPartnersSettings: z.object({
@@ -1133,59 +1145,71 @@ const StateSchema = z.object({
       includeGoogleTv: z.boolean(),
       includeYoutube: z.boolean(),
       includeYoutubeVideoPartners: z.boolean(),
-    }),
+    }).partial(),
     leadFormId: z.string(),
     linkedMerchantId: z.string(),
-    relatedVideos: z.array(z.object({
-      videoAssetId: z.string(),
-      videoId: z.string(),
-    })),
+    relatedVideos: z.array(
+      z.object({
+        videoAssetId: z.string(),
+        videoId: z.string(),
+      }).partial(),
+    ),
     targetFrequency: z.object({
       targetCount: z.string(),
       timeUnit: z.string(),
       timeUnitCount: z.number(),
-    }),
+    }).partial(),
     thirdPartyMeasurementConfigs: z.object({
-      brandLiftVendorConfigs: z.array(z.object({
-        placementId: z.string(),
-        vendor: z.string(),
-      })),
-      brandSafetyVendorConfigs: z.array(z.object({
-        placementId: z.string(),
-        vendor: z.string(),
-      })),
-      reachVendorConfigs: z.array(z.object({
-        placementId: z.string(),
-        vendor: z.string(),
-      })),
-      viewabilityVendorConfigs: z.array(z.object({
-        placementId: z.string(),
-        vendor: z.string(),
-      })),
-    }),
+      brandLiftVendorConfigs: z.array(
+        z.object({
+          placementId: z.string(),
+          vendor: z.string(),
+        }).partial(),
+      ),
+      brandSafetyVendorConfigs: z.array(
+        z.object({
+          placementId: z.string(),
+          vendor: z.string(),
+        }).partial(),
+      ),
+      reachVendorConfigs: z.array(
+        z.object({
+          placementId: z.string(),
+          vendor: z.string(),
+        }).partial(),
+      ),
+      viewabilityVendorConfigs: z.array(
+        z.object({
+          placementId: z.string(),
+          vendor: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     videoAdInventoryControl: z.object({
       allowInFeed: z.boolean(),
       allowInStream: z.boolean(),
       allowNonSkippableInStream: z.boolean(),
       allowShorts: z.boolean(),
-    }),
+    }).partial(),
     videoAdSequenceSettings: z.object({
       minimumDuration: z.string(),
-      steps: z.array(z.object({
-        adGroupId: z.string(),
-        interactionType: z.string(),
-        previousStepId: z.string(),
-        stepId: z.string(),
-      })),
-    }),
+      steps: z.array(
+        z.object({
+          adGroupId: z.string(),
+          interactionType: z.string(),
+          previousStepId: z.string(),
+          stepId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     viewFrequencyCap: z.object({
       maxImpressions: z.number(),
       maxViews: z.number(),
       timeUnit: z.string(),
       timeUnitCount: z.number(),
       unlimited: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2039,7 +2063,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.LineItems. Registered at `@swamp/gcp/displayvideo/advertisers-lineitems`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-lineitems",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2228,6 +2252,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -296,39 +296,39 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   appEngine: z.object({
     moduleId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   basicService: z.object({
     serviceLabels: z.record(z.string(), z.unknown()),
     serviceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cloudEndpoints: z.object({
     service: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cloudRun: z.object({
     location: z.string(),
     serviceName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clusterIstio: z.object({
     clusterName: z.string(),
     location: z.string(),
     serviceName: z.string(),
     serviceNamespace: z.string(),
-  }).optional(),
-  custom: z.object({}).optional(),
+  }).partial().optional(),
+  custom: z.object({}).partial().optional(),
   displayName: z.string().optional(),
   gkeNamespace: z.object({
     clusterName: z.string(),
     location: z.string(),
     namespaceName: z.string(),
     projectId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gkeService: z.object({
     clusterName: z.string(),
     location: z.string(),
     namespaceName: z.string(),
     projectId: z.string(),
     serviceName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gkeWorkload: z.object({
     clusterName: z.string(),
     location: z.string(),
@@ -336,21 +336,21 @@ const StateSchema = z.object({
     projectId: z.string(),
     topLevelControllerName: z.string(),
     topLevelControllerType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   istioCanonicalService: z.object({
     canonicalService: z.string(),
     canonicalServiceNamespace: z.string(),
     meshUid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   meshIstio: z.object({
     meshUid: z.string(),
     serviceName: z.string(),
     serviceNamespace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   telemetry: z.object({
     resourceName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   userLabels: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
@@ -525,7 +525,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring Services. Registered at `@swamp/gcp/monitoring/services`. */
 export const model = {
   type: "@swamp/gcp/monitoring/services",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -659,6 +659,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

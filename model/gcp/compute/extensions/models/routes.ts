@@ -202,10 +202,12 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  asPaths: z.array(z.object({
-    asLists: z.array(z.number()),
-    pathSegmentType: z.string(),
-  })).optional(),
+  asPaths: z.array(
+    z.object({
+      asLists: z.array(z.number()),
+      pathSegmentType: z.string(),
+    }).partial(),
+  ).optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
   destRange: z.string().optional(),
@@ -227,20 +229,24 @@ const StateSchema = z.object({
   nextHopVpnTunnel: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   priority: z.number().optional(),
   routeStatus: z.string().optional(),
   routeType: z.string().optional(),
   selfLink: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  warnings: z.array(z.object({
-    code: z.string(),
-    data: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
-    message: z.string(),
-  })).optional(),
+  warnings: z.array(
+    z.object({
+      code: z.string(),
+      data: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -327,7 +333,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Routes. Registered at `@swamp/gcp/compute/routes`. */
 export const model = {
   type: "@swamp/gcp/compute/routes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -481,6 +487,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -362,93 +362,103 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   cancellationDetails: z.object({
     reason: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   cycleEndTime: z.string().optional(),
   endUserEntitled: z.boolean().optional(),
   freeTrialEndTime: z.string().optional(),
-  lineItems: z.array(z.object({
-    amount: z.object({
-      amountMicros: z.string(),
-      currencyCode: z.string(),
-    }),
-    bundleDetails: z.object({
-      bundleElementDetails: z.array(z.object({
-        product: z.unknown(),
-        userAccountLinkedTime: z.unknown(),
-      })),
-    }),
-    description: z.string(),
-    finiteBillingCycleDetails: z.object({
-      billingCycleCountLimit: z.string(),
-    }),
-    lineItemFreeTrialEndTime: z.string(),
-    lineItemIndex: z.number(),
-    lineItemPromotionSpecs: z.array(z.object({
-      freeTrialDuration: z.object({
-        count: z.unknown(),
-        unit: z.unknown(),
-      }),
-      introductoryPricingDetails: z.object({
-        introductoryPricingSpecs: z.unknown(),
-      }),
-      promotion: z.string(),
-      type: z.string(),
-    })),
-    name: z.string(),
-    oneTimeRecurrenceDetails: z.object({
-      servicePeriod: z.object({
-        endTime: z.string(),
-        startTime: z.string(),
-      }),
-    }),
-    planType: z.string(),
-    product: z.string(),
-    productPayload: z.object({
-      googleHomePayload: z.object({
-        attachedToGoogleStructure: z.boolean(),
-        googleStructureId: z.string(),
-        partnerStructureId: z.string(),
-      }),
-      googleOnePayload: z.object({
-        campaigns: z.array(z.unknown()),
-        offering: z.string(),
-        salesChannel: z.string(),
-        storeId: z.string(),
-      }),
-      youtubePayload: z.object({
-        accessEndTime: z.string(),
-        partnerEligibilityIds: z.array(z.unknown()),
-        partnerPlanType: z.string(),
-      }),
-    }),
-    recurrenceType: z.string(),
-    state: z.string(),
-  })).optional(),
+  lineItems: z.array(
+    z.object({
+      amount: z.object({
+        amountMicros: z.string(),
+        currencyCode: z.string(),
+      }).partial(),
+      bundleDetails: z.object({
+        bundleElementDetails: z.array(
+          z.object({
+            product: z.unknown(),
+            userAccountLinkedTime: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      description: z.string(),
+      finiteBillingCycleDetails: z.object({
+        billingCycleCountLimit: z.string(),
+      }).partial(),
+      lineItemFreeTrialEndTime: z.string(),
+      lineItemIndex: z.number(),
+      lineItemPromotionSpecs: z.array(
+        z.object({
+          freeTrialDuration: z.object({
+            count: z.unknown(),
+            unit: z.unknown(),
+          }).partial(),
+          introductoryPricingDetails: z.object({
+            introductoryPricingSpecs: z.unknown(),
+          }).partial(),
+          promotion: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
+      name: z.string(),
+      oneTimeRecurrenceDetails: z.object({
+        servicePeriod: z.object({
+          endTime: z.string(),
+          startTime: z.string(),
+        }).partial(),
+      }).partial(),
+      planType: z.string(),
+      product: z.string(),
+      productPayload: z.object({
+        googleHomePayload: z.object({
+          attachedToGoogleStructure: z.boolean(),
+          googleStructureId: z.string(),
+          partnerStructureId: z.string(),
+        }).partial(),
+        googleOnePayload: z.object({
+          campaigns: z.array(z.unknown()),
+          offering: z.string(),
+          salesChannel: z.string(),
+          storeId: z.string(),
+        }).partial(),
+        youtubePayload: z.object({
+          accessEndTime: z.string(),
+          partnerEligibilityIds: z.array(z.unknown()),
+          partnerPlanType: z.string(),
+        }).partial(),
+      }).partial(),
+      recurrenceType: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   migrationDetails: z.object({
     legacyCreationTime: z.string(),
     migratedSubscriptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   partnerUserToken: z.string().optional(),
   processingState: z.string().optional(),
   products: z.array(z.string()).optional(),
-  promotionSpecs: z.array(z.object({
-    freeTrialDuration: z.object({
-      count: z.number(),
-      unit: z.string(),
-    }),
-    introductoryPricingDetails: z.object({
-      introductoryPricingSpecs: z.array(z.object({
-        discountAmount: z.unknown(),
-        discountRatioMicros: z.unknown(),
-        recurrenceCount: z.unknown(),
-        regionCode: z.unknown(),
-      })),
-    }),
-    promotion: z.string(),
-    type: z.string(),
-  })).optional(),
+  promotionSpecs: z.array(
+    z.object({
+      freeTrialDuration: z.object({
+        count: z.number(),
+        unit: z.string(),
+      }).partial(),
+      introductoryPricingDetails: z.object({
+        introductoryPricingSpecs: z.array(
+          z.object({
+            discountAmount: z.unknown(),
+            discountRatioMicros: z.unknown(),
+            recurrenceCount: z.unknown(),
+            regionCode: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      promotion: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   promotions: z.array(z.string()).optional(),
   purchaseTime: z.string().optional(),
   redirectUri: z.string().optional(),
@@ -456,13 +466,13 @@ const StateSchema = z.object({
   serviceLocation: z.object({
     postalCode: z.string(),
     regionCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
   upgradeDowngradeDetails: z.object({
     billingCycleSpec: z.string(),
     previousSubscriptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -758,7 +768,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Payments Reseller Subscription Partners.Subscriptions. Registered at `@swamp/gcp/paymentsresellersubscription/partners-subscriptions`. */
 export const model = {
   type: "@swamp/gcp/paymentsresellersubscription/partners-subscriptions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1007,6 +1017,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

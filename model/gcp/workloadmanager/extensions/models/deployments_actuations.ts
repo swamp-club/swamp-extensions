@@ -167,11 +167,13 @@ const StateSchema = z.object({
     hasUserFacingErrorMsg: z.boolean(),
     terraformError: z.string(),
     terraformTemplate: z.string(),
-  }).optional(),
-  deploymentOutput: z.array(z.object({
-    name: z.string(),
-    type: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  deploymentOutput: z.array(
+    z.object({
+      name: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   endTime: z.string().optional(),
   name: z.string(),
   startTime: z.string().optional(),
@@ -227,7 +229,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workload Manager Deployments.Actuations. Registered at `@swamp/gcp/workloadmanager/deployments-actuations`. */
 export const model = {
   type: "@swamp/gcp/workloadmanager/deployments-actuations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -384,6 +386,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

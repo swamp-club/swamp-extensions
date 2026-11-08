@@ -280,7 +280,7 @@ const StateSchema = z.object({
     executionConfig: z.object({
       authenticationConfig: z.object({
         userWorkloadAuthenticationType: z.string(),
-      }),
+      }).partial(),
       idleTtl: z.string(),
       kmsKey: z.string(),
       networkTags: z.array(z.string()),
@@ -290,35 +290,35 @@ const StateSchema = z.object({
       stagingBucket: z.string(),
       subnetworkUri: z.string(),
       ttl: z.string(),
-    }),
+    }).partial(),
     peripheralsConfig: z.object({
       metastoreService: z.string(),
       sparkHistoryServerConfig: z.object({
         dataprocCluster: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   jupyterSession: z.object({
     displayName: z.string(),
     kernel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   runtimeConfig: z.object({
     autotuningConfig: z.object({
       scenarios: z.array(z.string()),
-    }),
+    }).partial(),
     cohort: z.string(),
     containerImage: z.string(),
     properties: z.record(z.string(), z.unknown()),
     repositoryConfig: z.object({
       pypiRepositoryConfig: z.object({
         pypiRepository: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     version: z.string(),
-  }).optional(),
-  sparkConnectSession: z.object({}).optional(),
+  }).partial().optional(),
+  sparkConnectSession: z.object({}).partial().optional(),
   updateTime: z.string().optional(),
   uuid: z.string().optional(),
 }).passthrough();
@@ -478,7 +478,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc SessionTemplates. Registered at `@swamp/gcp/dataproc/sessiontemplates`. */
 export const model = {
   type: "@swamp/gcp/dataproc/sessiontemplates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -662,6 +662,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

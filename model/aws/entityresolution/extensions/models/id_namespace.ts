@@ -92,6 +92,39 @@ const TagSchema = z.object({
   ),
 });
 
+const IdNamespaceInputSourceStateSchema = z.object({
+  InputSourceARN: z.string(),
+  SchemaName: z.string(),
+}).partial();
+
+const RuleStateSchema = z.object({
+  RuleName: z.string(),
+  MatchingKeys: z.array(z.string()),
+}).partial();
+
+const NamespaceRuleBasedPropertiesStateSchema = z.object({
+  Rules: z.array(RuleStateSchema),
+  RuleDefinitionTypes: z.array(z.string()),
+  AttributeMatchingModel: z.string(),
+  RecordMatchingModels: z.array(z.string()),
+}).partial();
+
+const NamespaceProviderPropertiesStateSchema = z.object({
+  ProviderServiceArn: z.string(),
+  ProviderConfiguration: z.record(z.string(), z.unknown()),
+}).partial();
+
+const IdNamespaceIdMappingWorkflowPropertiesStateSchema = z.object({
+  IdMappingType: z.string(),
+  RuleBasedProperties: NamespaceRuleBasedPropertiesStateSchema,
+  ProviderProperties: NamespaceProviderPropertiesStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -125,19 +158,19 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   IdNamespaceName: z.string(),
   Description: z.string().optional(),
-  InputSourceConfig: z.array(IdNamespaceInputSourceSchema).optional(),
+  InputSourceConfig: z.array(IdNamespaceInputSourceStateSchema).optional(),
   IdMappingWorkflowProperties: z.array(
-    IdNamespaceIdMappingWorkflowPropertiesSchema,
+    IdNamespaceIdMappingWorkflowPropertiesStateSchema,
   ).optional(),
   Type: z.string().optional(),
   RoleArn: z.string().optional(),
   IdNamespaceArn: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -180,7 +213,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EntityResolution IdNamespace. Registered at `@swamp/aws/entityresolution/id-namespace`. */
 export const model = {
   type: "@swamp/aws/entityresolution/id-namespace",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -244,6 +277,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

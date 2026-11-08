@@ -43,6 +43,11 @@ const TagSchema = z.object({
   Value: z.string().describe("A value is the optional value of the tag."),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -851,16 +856,16 @@ const StateSchema = z.object({
     NestingLevel: z.string(),
     SecretsManagerAccessRoleArn: z.string(),
     SecretsManagerSecretId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DynamoDbSettings: z.object({
     ServiceAccessRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ElasticsearchSettings: z.object({
     EndpointUri: z.string(),
     ErrorRetryDuration: z.number(),
     FullLoadErrorPercentage: z.number(),
     ServiceAccessRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EndpointArn: z.string(),
   EndpointIdentifier: z.string().optional(),
   EndpointType: z.string().optional(),
@@ -881,7 +886,7 @@ const StateSchema = z.object({
     ServerName: z.string(),
     ServerTimezone: z.string(),
     Username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   IbmDb2Settings: z.object({
     CurrentLsn: z.string(),
     KeepCsvFiles: z.boolean(),
@@ -892,7 +897,7 @@ const StateSchema = z.object({
     SecretsManagerSecretId: z.string(),
     SetDataCaptureChanges: z.boolean(),
     WriteBufferSize: z.number(),
-  }).optional(),
+  }).partial().optional(),
   KafkaSettings: z.object({
     Broker: z.string(),
     IncludeControlDetails: z.boolean(),
@@ -912,7 +917,7 @@ const StateSchema = z.object({
     SslClientKeyArn: z.string(),
     SslClientKeyPassword: z.string(),
     Topic: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KinesisSettings: z.object({
     IncludeControlDetails: z.boolean(),
     IncludeNullAndEmpty: z.boolean(),
@@ -924,7 +929,7 @@ const StateSchema = z.object({
     PartitionIncludeSchemaTable: z.boolean(),
     ServiceAccessRoleArn: z.string(),
     StreamArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KmsKeyId: z.string().optional(),
   MicrosoftSqlServerSettings: z.object({
     BcpPacketSize: z.number(),
@@ -944,7 +949,7 @@ const StateSchema = z.object({
     UseBcpFullLoad: z.boolean(),
     UseThirdPartyBackupDevice: z.boolean(),
     Username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MongoDbSettings: z.object({
     AuthMechanism: z.string(),
     AuthSource: z.string(),
@@ -959,7 +964,7 @@ const StateSchema = z.object({
     SecretsManagerSecretId: z.string(),
     ServerName: z.string(),
     Username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MySqlSettings: z.object({
     AfterConnectScript: z.string(),
     CleanSourceMetadataOnMismatch: z.boolean(),
@@ -970,7 +975,7 @@ const StateSchema = z.object({
     SecretsManagerSecretId: z.string(),
     ServerTimezone: z.string(),
     TargetDbType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   NeptuneSettings: z.object({
     ErrorRetryDuration: z.number(),
     IamAuthEnabled: z.boolean(),
@@ -979,7 +984,7 @@ const StateSchema = z.object({
     S3BucketFolder: z.string(),
     S3BucketName: z.string(),
     ServiceAccessRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OracleSettings: z.object({
     AccessAlternateDirectly: z.boolean(),
     AddSupplementalLogging: z.boolean(),
@@ -1016,7 +1021,7 @@ const StateSchema = z.object({
     UseDirectPathFullLoad: z.boolean(),
     UseLogminerReader: z.boolean(),
     UsePathPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Password: z.string().optional(),
   Port: z.number().optional(),
   PostgreSqlSettings: z.object({
@@ -1036,7 +1041,7 @@ const StateSchema = z.object({
     SecretsManagerAccessRoleArn: z.string(),
     SecretsManagerSecretId: z.string(),
     SlotName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RedisSettings: z.object({
     AuthPassword: z.string(),
     AuthType: z.string(),
@@ -1045,7 +1050,7 @@ const StateSchema = z.object({
     ServerName: z.string(),
     SslCaCertificateArn: z.string(),
     SslSecurityProtocol: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RedshiftSettings: z.object({
     AcceptAnyDate: z.boolean(),
     AfterConnectScript: z.string(),
@@ -1073,7 +1078,7 @@ const StateSchema = z.object({
     TrimBlanks: z.boolean(),
     TruncateColumns: z.boolean(),
     WriteBufferSize: z.number(),
-  }).optional(),
+  }).partial().optional(),
   ResourceIdentifier: z.string().optional(),
   S3Settings: z.object({
     AddColumnName: z.boolean(),
@@ -1117,18 +1122,18 @@ const StateSchema = z.object({
     TimestampColumnName: z.string(),
     UseCsvNoSupValue: z.boolean(),
     UseTaskStartTimeForFullLoadTimestamp: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ServerName: z.string().optional(),
   SslMode: z.string().optional(),
   SybaseSettings: z.object({
     SecretsManagerAccessRoleArn: z.string(),
     SecretsManagerSecretId: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Username: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -1938,7 +1943,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS Endpoint. Registered at `@swamp/aws/dms/endpoint`. */
 export const model = {
   type: "@swamp/aws/dms/endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -1967,6 +1972,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

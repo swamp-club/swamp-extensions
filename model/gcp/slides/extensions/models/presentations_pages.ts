@@ -101,309 +101,329 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  commentAnchors: z.array(z.object({
-    anchorId: z.string(),
-    objectAnchors: z.array(z.object({
-      objectId: z.string(),
-      shapeTextAnchors: z.object({
-        ranges: z.unknown(),
-      }),
-      tableCellAnchors: z.object({
-        cellRanges: z.unknown(),
-      }),
-    })),
-  })).optional(),
-  comments: z.array(z.object({
-    anchorId: z.string(),
-    commentId: z.string(),
-    headPost: z.object({
-      assigneeEmail: z.string(),
-      author: z.object({
-        anonymous: z.boolean(),
-        displayName: z.string(),
-        me: z.boolean(),
-        user: z.string(),
-      }),
-      commentAction: z.string(),
-      content: z.string(),
-      contentHtml: z.string(),
-      createTime: z.string(),
-      deleted: z.boolean(),
-      fromCopiedPresentation: z.boolean(),
-      fromImportedPresentation: z.boolean(),
-      postId: z.string(),
-      updateTime: z.string(),
-    }),
-    plainTextQuote: z.string(),
-    replies: z.array(z.object({
-      assigneeEmail: z.string(),
-      author: z.object({
-        anonymous: z.unknown(),
-        displayName: z.unknown(),
-        me: z.unknown(),
-        user: z.unknown(),
-      }),
-      commentAction: z.string(),
-      content: z.string(),
-      contentHtml: z.string(),
-      createTime: z.string(),
-      deleted: z.boolean(),
-      fromCopiedPresentation: z.boolean(),
-      fromImportedPresentation: z.boolean(),
-      postId: z.string(),
-      updateTime: z.string(),
-    })),
-    status: z.string(),
-  })).optional(),
+  commentAnchors: z.array(
+    z.object({
+      anchorId: z.string(),
+      objectAnchors: z.array(
+        z.object({
+          objectId: z.string(),
+          shapeTextAnchors: z.object({
+            ranges: z.unknown(),
+          }).partial(),
+          tableCellAnchors: z.object({
+            cellRanges: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
+  comments: z.array(
+    z.object({
+      anchorId: z.string(),
+      commentId: z.string(),
+      headPost: z.object({
+        assigneeEmail: z.string(),
+        author: z.object({
+          anonymous: z.boolean(),
+          displayName: z.string(),
+          me: z.boolean(),
+          user: z.string(),
+        }).partial(),
+        commentAction: z.string(),
+        content: z.string(),
+        contentHtml: z.string(),
+        createTime: z.string(),
+        deleted: z.boolean(),
+        fromCopiedPresentation: z.boolean(),
+        fromImportedPresentation: z.boolean(),
+        postId: z.string(),
+        updateTime: z.string(),
+      }).partial(),
+      plainTextQuote: z.string(),
+      replies: z.array(
+        z.object({
+          assigneeEmail: z.string(),
+          author: z.object({
+            anonymous: z.unknown(),
+            displayName: z.unknown(),
+            me: z.unknown(),
+            user: z.unknown(),
+          }).partial(),
+          commentAction: z.string(),
+          content: z.string(),
+          contentHtml: z.string(),
+          createTime: z.string(),
+          deleted: z.boolean(),
+          fromCopiedPresentation: z.boolean(),
+          fromImportedPresentation: z.boolean(),
+          postId: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+      ),
+      status: z.string(),
+    }).partial(),
+  ).optional(),
   commentsViewMode: z.string().optional(),
   layoutProperties: z.object({
     displayName: z.string(),
     masterObjectId: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   masterProperties: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   notesProperties: z.object({
     speakerNotesObjectId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   objectId: z.string().optional(),
-  pageElements: z.array(z.object({
-    description: z.string(),
-    elementGroup: z.object({
-      children: z.array(z.record(z.string(), z.unknown())),
-    }),
-    image: z.object({
-      contentUrl: z.string(),
-      imageProperties: z.object({
-        brightness: z.number(),
-        contrast: z.number(),
-        cropProperties: z.object({
-          angle: z.unknown(),
-          bottomOffset: z.unknown(),
-          leftOffset: z.unknown(),
-          rightOffset: z.unknown(),
-          topOffset: z.unknown(),
-        }),
-        link: z.object({
-          pageObjectId: z.unknown(),
-          relativeLink: z.unknown(),
-          slideIndex: z.unknown(),
-          url: z.unknown(),
-        }),
-        outline: z.object({
-          dashStyle: z.unknown(),
-          outlineFill: z.unknown(),
-          propertyState: z.unknown(),
-          weight: z.unknown(),
-        }),
-        recolor: z.object({
-          name: z.unknown(),
-          recolorStops: z.unknown(),
-        }),
-        shadow: z.object({
-          alignment: z.unknown(),
-          alpha: z.unknown(),
-          blurRadius: z.unknown(),
-          color: z.unknown(),
-          propertyState: z.unknown(),
-          rotateWithShape: z.unknown(),
-          transform: z.unknown(),
-          type: z.unknown(),
-        }),
-        transparency: z.number(),
-      }),
-      placeholder: z.object({
-        index: z.number(),
-        parentObjectId: z.string(),
-        type: z.string(),
-      }),
-      sourceUrl: z.string(),
-    }),
-    line: z.object({
-      lineCategory: z.string(),
-      lineProperties: z.object({
-        dashStyle: z.string(),
-        endArrow: z.string(),
-        endConnection: z.object({
-          connectedObjectId: z.unknown(),
-          connectionSiteIndex: z.unknown(),
-        }),
-        lineFill: z.object({
-          solidFill: z.unknown(),
-        }),
-        link: z.object({
-          pageObjectId: z.unknown(),
-          relativeLink: z.unknown(),
-          slideIndex: z.unknown(),
-          url: z.unknown(),
-        }),
-        startArrow: z.string(),
-        startConnection: z.object({
-          connectedObjectId: z.unknown(),
-          connectionSiteIndex: z.unknown(),
-        }),
-        weight: z.object({
-          magnitude: z.unknown(),
-          unit: z.unknown(),
-        }),
-      }),
-      lineType: z.string(),
-    }),
-    objectId: z.string(),
-    shape: z.object({
-      placeholder: z.object({
-        index: z.number(),
-        parentObjectId: z.string(),
-        type: z.string(),
-      }),
-      shapeProperties: z.object({
-        autofit: z.object({
-          autofitType: z.unknown(),
-          fontScale: z.unknown(),
-          lineSpacingReduction: z.unknown(),
-        }),
-        contentAlignment: z.string(),
-        link: z.object({
-          pageObjectId: z.unknown(),
-          relativeLink: z.unknown(),
-          slideIndex: z.unknown(),
-          url: z.unknown(),
-        }),
-        outline: z.object({
-          dashStyle: z.unknown(),
-          outlineFill: z.unknown(),
-          propertyState: z.unknown(),
-          weight: z.unknown(),
-        }),
-        shadow: z.object({
-          alignment: z.unknown(),
-          alpha: z.unknown(),
-          blurRadius: z.unknown(),
-          color: z.unknown(),
-          propertyState: z.unknown(),
-          rotateWithShape: z.unknown(),
-          transform: z.unknown(),
-          type: z.unknown(),
-        }),
-        shapeBackgroundFill: z.object({
-          propertyState: z.unknown(),
-          solidFill: z.unknown(),
-        }),
-      }),
-      shapeType: z.string(),
-      text: z.object({
-        lists: z.record(z.string(), z.unknown()),
-        textElements: z.array(z.unknown()),
-      }),
-    }),
-    sheetsChart: z.object({
-      chartId: z.number(),
-      contentUrl: z.string(),
-      sheetsChartProperties: z.object({
-        chartImageProperties: z.object({
-          brightness: z.unknown(),
-          contrast: z.unknown(),
-          cropProperties: z.unknown(),
-          link: z.unknown(),
-          outline: z.unknown(),
-          recolor: z.unknown(),
-          shadow: z.unknown(),
-          transparency: z.unknown(),
-        }),
-      }),
-      spreadsheetId: z.string(),
-    }),
-    size: z.object({
-      height: z.object({
-        magnitude: z.number(),
+  pageElements: z.array(
+    z.object({
+      description: z.string(),
+      elementGroup: z.object({
+        children: z.array(z.record(z.string(), z.unknown())),
+      }).partial(),
+      image: z.object({
+        contentUrl: z.string(),
+        imageProperties: z.object({
+          brightness: z.number(),
+          contrast: z.number(),
+          cropProperties: z.object({
+            angle: z.unknown(),
+            bottomOffset: z.unknown(),
+            leftOffset: z.unknown(),
+            rightOffset: z.unknown(),
+            topOffset: z.unknown(),
+          }).partial(),
+          link: z.object({
+            pageObjectId: z.unknown(),
+            relativeLink: z.unknown(),
+            slideIndex: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+          outline: z.object({
+            dashStyle: z.unknown(),
+            outlineFill: z.unknown(),
+            propertyState: z.unknown(),
+            weight: z.unknown(),
+          }).partial(),
+          recolor: z.object({
+            name: z.unknown(),
+            recolorStops: z.unknown(),
+          }).partial(),
+          shadow: z.object({
+            alignment: z.unknown(),
+            alpha: z.unknown(),
+            blurRadius: z.unknown(),
+            color: z.unknown(),
+            propertyState: z.unknown(),
+            rotateWithShape: z.unknown(),
+            transform: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          transparency: z.number(),
+        }).partial(),
+        placeholder: z.object({
+          index: z.number(),
+          parentObjectId: z.string(),
+          type: z.string(),
+        }).partial(),
+        sourceUrl: z.string(),
+      }).partial(),
+      line: z.object({
+        lineCategory: z.string(),
+        lineProperties: z.object({
+          dashStyle: z.string(),
+          endArrow: z.string(),
+          endConnection: z.object({
+            connectedObjectId: z.unknown(),
+            connectionSiteIndex: z.unknown(),
+          }).partial(),
+          lineFill: z.object({
+            solidFill: z.unknown(),
+          }).partial(),
+          link: z.object({
+            pageObjectId: z.unknown(),
+            relativeLink: z.unknown(),
+            slideIndex: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+          startArrow: z.string(),
+          startConnection: z.object({
+            connectedObjectId: z.unknown(),
+            connectionSiteIndex: z.unknown(),
+          }).partial(),
+          weight: z.object({
+            magnitude: z.unknown(),
+            unit: z.unknown(),
+          }).partial(),
+        }).partial(),
+        lineType: z.string(),
+      }).partial(),
+      objectId: z.string(),
+      shape: z.object({
+        placeholder: z.object({
+          index: z.number(),
+          parentObjectId: z.string(),
+          type: z.string(),
+        }).partial(),
+        shapeProperties: z.object({
+          autofit: z.object({
+            autofitType: z.unknown(),
+            fontScale: z.unknown(),
+            lineSpacingReduction: z.unknown(),
+          }).partial(),
+          contentAlignment: z.string(),
+          link: z.object({
+            pageObjectId: z.unknown(),
+            relativeLink: z.unknown(),
+            slideIndex: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+          outline: z.object({
+            dashStyle: z.unknown(),
+            outlineFill: z.unknown(),
+            propertyState: z.unknown(),
+            weight: z.unknown(),
+          }).partial(),
+          shadow: z.object({
+            alignment: z.unknown(),
+            alpha: z.unknown(),
+            blurRadius: z.unknown(),
+            color: z.unknown(),
+            propertyState: z.unknown(),
+            rotateWithShape: z.unknown(),
+            transform: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          shapeBackgroundFill: z.object({
+            propertyState: z.unknown(),
+            solidFill: z.unknown(),
+          }).partial(),
+        }).partial(),
+        shapeType: z.string(),
+        text: z.object({
+          lists: z.record(z.string(), z.unknown()),
+          textElements: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+      sheetsChart: z.object({
+        chartId: z.number(),
+        contentUrl: z.string(),
+        sheetsChartProperties: z.object({
+          chartImageProperties: z.object({
+            brightness: z.unknown(),
+            contrast: z.unknown(),
+            cropProperties: z.unknown(),
+            link: z.unknown(),
+            outline: z.unknown(),
+            recolor: z.unknown(),
+            shadow: z.unknown(),
+            transparency: z.unknown(),
+          }).partial(),
+        }).partial(),
+        spreadsheetId: z.string(),
+      }).partial(),
+      size: z.object({
+        height: z.object({
+          magnitude: z.number(),
+          unit: z.string(),
+        }).partial(),
+        width: z.object({
+          magnitude: z.number(),
+          unit: z.string(),
+        }).partial(),
+      }).partial(),
+      speakerSpotlight: z.object({
+        speakerSpotlightProperties: z.object({
+          outline: z.object({
+            dashStyle: z.unknown(),
+            outlineFill: z.unknown(),
+            propertyState: z.unknown(),
+            weight: z.unknown(),
+          }).partial(),
+          shadow: z.object({
+            alignment: z.unknown(),
+            alpha: z.unknown(),
+            blurRadius: z.unknown(),
+            color: z.unknown(),
+            propertyState: z.unknown(),
+            rotateWithShape: z.unknown(),
+            transform: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      table: z.object({
+        columns: z.number(),
+        horizontalBorderRows: z.array(
+          z.object({
+            tableBorderCells: z.unknown(),
+          }).partial(),
+        ),
+        rows: z.number(),
+        tableColumns: z.array(
+          z.object({
+            columnWidth: z.unknown(),
+          }).partial(),
+        ),
+        tableRows: z.array(
+          z.object({
+            rowHeight: z.unknown(),
+            tableCells: z.unknown(),
+            tableRowProperties: z.unknown(),
+          }).partial(),
+        ),
+        verticalBorderRows: z.array(
+          z.object({
+            tableBorderCells: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      title: z.string(),
+      transform: z.object({
+        scaleX: z.number(),
+        scaleY: z.number(),
+        shearX: z.number(),
+        shearY: z.number(),
+        translateX: z.number(),
+        translateY: z.number(),
         unit: z.string(),
-      }),
-      width: z.object({
-        magnitude: z.number(),
-        unit: z.string(),
-      }),
-    }),
-    speakerSpotlight: z.object({
-      speakerSpotlightProperties: z.object({
-        outline: z.object({
-          dashStyle: z.unknown(),
-          outlineFill: z.unknown(),
-          propertyState: z.unknown(),
-          weight: z.unknown(),
-        }),
-        shadow: z.object({
-          alignment: z.unknown(),
-          alpha: z.unknown(),
-          blurRadius: z.unknown(),
-          color: z.unknown(),
-          propertyState: z.unknown(),
-          rotateWithShape: z.unknown(),
-          transform: z.unknown(),
-          type: z.unknown(),
-        }),
-      }),
-    }),
-    table: z.object({
-      columns: z.number(),
-      horizontalBorderRows: z.array(z.object({
-        tableBorderCells: z.unknown(),
-      })),
-      rows: z.number(),
-      tableColumns: z.array(z.object({
-        columnWidth: z.unknown(),
-      })),
-      tableRows: z.array(z.object({
-        rowHeight: z.unknown(),
-        tableCells: z.unknown(),
-        tableRowProperties: z.unknown(),
-      })),
-      verticalBorderRows: z.array(z.object({
-        tableBorderCells: z.unknown(),
-      })),
-    }),
-    title: z.string(),
-    transform: z.object({
-      scaleX: z.number(),
-      scaleY: z.number(),
-      shearX: z.number(),
-      shearY: z.number(),
-      translateX: z.number(),
-      translateY: z.number(),
-      unit: z.string(),
-    }),
-    video: z.object({
-      id: z.string(),
-      source: z.string(),
-      url: z.string(),
-      videoProperties: z.object({
-        autoPlay: z.boolean(),
-        end: z.number(),
-        mute: z.boolean(),
-        outline: z.object({
-          dashStyle: z.unknown(),
-          outlineFill: z.unknown(),
-          propertyState: z.unknown(),
-          weight: z.unknown(),
-        }),
-        start: z.number(),
-      }),
-    }),
-    wordArt: z.object({
-      renderedText: z.string(),
-    }),
-  })).optional(),
+      }).partial(),
+      video: z.object({
+        id: z.string(),
+        source: z.string(),
+        url: z.string(),
+        videoProperties: z.object({
+          autoPlay: z.boolean(),
+          end: z.number(),
+          mute: z.boolean(),
+          outline: z.object({
+            dashStyle: z.unknown(),
+            outlineFill: z.unknown(),
+            propertyState: z.unknown(),
+            weight: z.unknown(),
+          }).partial(),
+          start: z.number(),
+        }).partial(),
+      }).partial(),
+      wordArt: z.object({
+        renderedText: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   pageProperties: z.object({
     colorScheme: z.object({
-      colors: z.array(z.object({
-        color: z.object({
-          blue: z.unknown(),
-          green: z.unknown(),
-          red: z.unknown(),
-        }),
-        type: z.string(),
-      })),
-    }),
+      colors: z.array(
+        z.object({
+          color: z.object({
+            blue: z.unknown(),
+            green: z.unknown(),
+            red: z.unknown(),
+          }).partial(),
+          type: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     pageBackgroundFill: z.object({
       propertyState: z.string(),
       solidFill: z.object({
@@ -413,25 +433,25 @@ const StateSchema = z.object({
             blue: z.unknown(),
             green: z.unknown(),
             red: z.unknown(),
-          }),
+          }).partial(),
           themeColor: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       stretchedPictureFill: z.object({
         contentUrl: z.string(),
         size: z.object({
           height: z.object({
             magnitude: z.unknown(),
             unit: z.unknown(),
-          }),
+          }).partial(),
           width: z.object({
             magnitude: z.unknown(),
             unit: z.unknown(),
-          }),
-        }),
-      }),
-    }),
-  }).optional(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   pageType: z.string().optional(),
   revisionId: z.string().optional(),
   slideProperties: z.object({
@@ -439,128 +459,134 @@ const StateSchema = z.object({
     layoutObjectId: z.string(),
     masterObjectId: z.string(),
     notesPage: z.object({
-      commentAnchors: z.array(z.object({
-        anchorId: z.string(),
-        objectAnchors: z.array(z.unknown()),
-      })),
-      comments: z.array(z.object({
-        anchorId: z.string(),
-        commentId: z.string(),
-        headPost: z.object({
-          assigneeEmail: z.unknown(),
-          author: z.unknown(),
-          commentAction: z.unknown(),
-          content: z.unknown(),
-          contentHtml: z.unknown(),
-          createTime: z.unknown(),
-          deleted: z.unknown(),
-          fromCopiedPresentation: z.unknown(),
-          fromImportedPresentation: z.unknown(),
-          postId: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        plainTextQuote: z.string(),
-        replies: z.array(z.unknown()),
-        status: z.string(),
-      })),
+      commentAnchors: z.array(
+        z.object({
+          anchorId: z.string(),
+          objectAnchors: z.array(z.unknown()),
+        }).partial(),
+      ),
+      comments: z.array(
+        z.object({
+          anchorId: z.string(),
+          commentId: z.string(),
+          headPost: z.object({
+            assigneeEmail: z.unknown(),
+            author: z.unknown(),
+            commentAction: z.unknown(),
+            content: z.unknown(),
+            contentHtml: z.unknown(),
+            createTime: z.unknown(),
+            deleted: z.unknown(),
+            fromCopiedPresentation: z.unknown(),
+            fromImportedPresentation: z.unknown(),
+            postId: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          plainTextQuote: z.string(),
+          replies: z.array(z.unknown()),
+          status: z.string(),
+        }).partial(),
+      ),
       commentsViewMode: z.string(),
       layoutProperties: z.object({
         displayName: z.string(),
         masterObjectId: z.string(),
         name: z.string(),
-      }),
+      }).partial(),
       masterProperties: z.object({
         displayName: z.string(),
-      }),
+      }).partial(),
       notesProperties: z.object({
         speakerNotesObjectId: z.string(),
-      }),
+      }).partial(),
       objectId: z.string(),
-      pageElements: z.array(z.object({
-        description: z.string(),
-        elementGroup: z.object({
-          children: z.unknown(),
-        }),
-        image: z.object({
-          contentUrl: z.unknown(),
-          imageProperties: z.unknown(),
-          placeholder: z.unknown(),
-          sourceUrl: z.unknown(),
-        }),
-        line: z.object({
-          lineCategory: z.unknown(),
-          lineProperties: z.unknown(),
-          lineType: z.unknown(),
-        }),
-        objectId: z.string(),
-        shape: z.object({
-          placeholder: z.unknown(),
-          shapeProperties: z.unknown(),
-          shapeType: z.unknown(),
-          text: z.unknown(),
-        }),
-        sheetsChart: z.object({
-          chartId: z.unknown(),
-          contentUrl: z.unknown(),
-          sheetsChartProperties: z.unknown(),
-          spreadsheetId: z.unknown(),
-        }),
-        size: z.object({
-          height: z.unknown(),
-          width: z.unknown(),
-        }),
-        speakerSpotlight: z.object({
-          speakerSpotlightProperties: z.unknown(),
-        }),
-        table: z.object({
-          columns: z.unknown(),
-          horizontalBorderRows: z.unknown(),
-          rows: z.unknown(),
-          tableColumns: z.unknown(),
-          tableRows: z.unknown(),
-          verticalBorderRows: z.unknown(),
-        }),
-        title: z.string(),
-        transform: z.object({
-          scaleX: z.unknown(),
-          scaleY: z.unknown(),
-          shearX: z.unknown(),
-          shearY: z.unknown(),
-          translateX: z.unknown(),
-          translateY: z.unknown(),
-          unit: z.unknown(),
-        }),
-        video: z.object({
-          id: z.unknown(),
-          source: z.unknown(),
-          url: z.unknown(),
-          videoProperties: z.unknown(),
-        }),
-        wordArt: z.object({
-          renderedText: z.unknown(),
-        }),
-      })),
+      pageElements: z.array(
+        z.object({
+          description: z.string(),
+          elementGroup: z.object({
+            children: z.unknown(),
+          }).partial(),
+          image: z.object({
+            contentUrl: z.unknown(),
+            imageProperties: z.unknown(),
+            placeholder: z.unknown(),
+            sourceUrl: z.unknown(),
+          }).partial(),
+          line: z.object({
+            lineCategory: z.unknown(),
+            lineProperties: z.unknown(),
+            lineType: z.unknown(),
+          }).partial(),
+          objectId: z.string(),
+          shape: z.object({
+            placeholder: z.unknown(),
+            shapeProperties: z.unknown(),
+            shapeType: z.unknown(),
+            text: z.unknown(),
+          }).partial(),
+          sheetsChart: z.object({
+            chartId: z.unknown(),
+            contentUrl: z.unknown(),
+            sheetsChartProperties: z.unknown(),
+            spreadsheetId: z.unknown(),
+          }).partial(),
+          size: z.object({
+            height: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+          speakerSpotlight: z.object({
+            speakerSpotlightProperties: z.unknown(),
+          }).partial(),
+          table: z.object({
+            columns: z.unknown(),
+            horizontalBorderRows: z.unknown(),
+            rows: z.unknown(),
+            tableColumns: z.unknown(),
+            tableRows: z.unknown(),
+            verticalBorderRows: z.unknown(),
+          }).partial(),
+          title: z.string(),
+          transform: z.object({
+            scaleX: z.unknown(),
+            scaleY: z.unknown(),
+            shearX: z.unknown(),
+            shearY: z.unknown(),
+            translateX: z.unknown(),
+            translateY: z.unknown(),
+            unit: z.unknown(),
+          }).partial(),
+          video: z.object({
+            id: z.unknown(),
+            source: z.unknown(),
+            url: z.unknown(),
+            videoProperties: z.unknown(),
+          }).partial(),
+          wordArt: z.object({
+            renderedText: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       pageProperties: z.object({
         colorScheme: z.object({
           colors: z.array(z.unknown()),
-        }),
+        }).partial(),
         pageBackgroundFill: z.object({
           propertyState: z.string(),
           solidFill: z.object({
             alpha: z.unknown(),
             color: z.unknown(),
-          }),
+          }).partial(),
           stretchedPictureFill: z.object({
             contentUrl: z.unknown(),
             size: z.unknown(),
-          }),
-        }),
-      }),
+          }).partial(),
+        }).partial(),
+      }).partial(),
       pageType: z.string(),
       revisionId: z.string(),
       slideProperties: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -603,7 +629,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Slides Presentations.Pages. Registered at `@swamp/gcp/slides/presentations-pages`. */
 export const model = {
   type: "@swamp/gcp/slides/presentations-pages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -747,6 +773,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

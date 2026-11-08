@@ -378,19 +378,21 @@ const StateSchema = z.object({
   defaultPrice: z.object({
     currency: z.string(),
     priceMicros: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gracePeriod: z.string().optional(),
   listings: z.record(z.string(), z.unknown()).optional(),
   managedProductTaxesAndComplianceSettings: z.object({
     eeaWithdrawalRightType: z.string(),
     isTokenizedDigitalAsset: z.boolean(),
     productTaxCategoryCode: z.string(),
-    regionalProductAgeRatingInfos: z.array(z.object({
-      productAgeRatingTier: z.string(),
-      regionCode: z.string(),
-    })),
+    regionalProductAgeRatingInfos: z.array(
+      z.object({
+        productAgeRatingTier: z.string(),
+        regionCode: z.string(),
+      }).partial(),
+    ),
     taxRateInfoByRegionCode: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   packageName: z.string().optional(),
   prices: z.record(z.string(), z.unknown()).optional(),
   purchaseType: z.string().optional(),
@@ -401,12 +403,14 @@ const StateSchema = z.object({
     eeaWithdrawalRightType: z.string(),
     isTokenizedDigitalAsset: z.boolean(),
     productTaxCategoryCode: z.string(),
-    regionalProductAgeRatingInfos: z.array(z.object({
-      productAgeRatingTier: z.string(),
-      regionCode: z.string(),
-    })),
+    regionalProductAgeRatingInfos: z.array(
+      z.object({
+        productAgeRatingTier: z.string(),
+        regionCode: z.string(),
+      }).partial(),
+    ),
     taxRateInfoByRegionCode: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   trialPeriod: z.string().optional(),
 }).passthrough();
 
@@ -636,7 +640,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Inappproducts. Registered at `@swamp/gcp/androidpublisher/inappproducts`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/inappproducts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -793,6 +797,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

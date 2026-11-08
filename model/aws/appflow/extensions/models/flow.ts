@@ -713,6 +713,308 @@ const GlueDataCatalogSchema = z.object({
   ).describe("A string containing the value for the tag"),
 });
 
+const ScheduledTriggerPropertiesStateSchema = z.object({
+  ScheduleExpression: z.string(),
+  DataPullMode: z.string(),
+  ScheduleStartTime: z.number(),
+  ScheduleEndTime: z.number(),
+  FirstExecutionFrom: z.number(),
+  TimeZone: z.string(),
+  ScheduleOffset: z.number(),
+  FlowErrorDeactivationThreshold: z.number(),
+}).partial();
+
+const AmplitudeSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const DatadogSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const DynatraceSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const GoogleAnalyticsSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const InforNexusSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const MarketoSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const S3InputFormatConfigStateSchema = z.object({
+  S3InputFileType: z.string(),
+}).partial();
+
+const S3SourcePropertiesStateSchema = z.object({
+  BucketName: z.string(),
+  BucketPrefix: z.string(),
+  S3InputFormatConfig: S3InputFormatConfigStateSchema,
+}).partial();
+
+const SAPODataParallelismConfigStateSchema = z.object({
+  maxParallelism: z.number(),
+}).partial();
+
+const SAPODataPaginationConfigStateSchema = z.object({
+  maxPageSize: z.number(),
+}).partial();
+
+const SAPODataSourcePropertiesStateSchema = z.object({
+  ObjectPath: z.string(),
+  parallelismConfig: SAPODataParallelismConfigStateSchema,
+  paginationConfig: SAPODataPaginationConfigStateSchema,
+}).partial();
+
+const SalesforceSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+  EnableDynamicFieldUpdate: z.boolean(),
+  IncludeDeletedRecords: z.boolean(),
+  DataTransferApi: z.string(),
+}).partial();
+
+const PardotSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const ServiceNowSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const SingularSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const SlackSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const TrendmicroSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const VeevaSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+  DocumentType: z.string(),
+  IncludeSourceFiles: z.boolean(),
+  IncludeRenditions: z.boolean(),
+  IncludeAllVersions: z.boolean(),
+}).partial();
+
+const ZendeskSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const CustomConnectorSourcePropertiesStateSchema = z.object({
+  EntityName: z.string(),
+  CustomProperties: z.record(z.string(), z.unknown()),
+  DataTransferApi: z.object({
+    Name: z.string(),
+    Type: z.string(),
+  }).partial(),
+}).partial();
+
+const SourceConnectorPropertiesStateSchema = z.object({
+  Amplitude: AmplitudeSourcePropertiesStateSchema,
+  Datadog: DatadogSourcePropertiesStateSchema,
+  Dynatrace: DynatraceSourcePropertiesStateSchema,
+  GoogleAnalytics: GoogleAnalyticsSourcePropertiesStateSchema,
+  InforNexus: InforNexusSourcePropertiesStateSchema,
+  Marketo: MarketoSourcePropertiesStateSchema,
+  S3: S3SourcePropertiesStateSchema,
+  SAPOData: SAPODataSourcePropertiesStateSchema,
+  Salesforce: SalesforceSourcePropertiesStateSchema,
+  Pardot: PardotSourcePropertiesStateSchema,
+  ServiceNow: ServiceNowSourcePropertiesStateSchema,
+  Singular: SingularSourcePropertiesStateSchema,
+  Slack: SlackSourcePropertiesStateSchema,
+  Trendmicro: TrendmicroSourcePropertiesStateSchema,
+  Veeva: VeevaSourcePropertiesStateSchema,
+  Zendesk: ZendeskSourcePropertiesStateSchema,
+  CustomConnector: CustomConnectorSourcePropertiesStateSchema,
+}).partial();
+
+const IncrementalPullConfigStateSchema = z.object({
+  DatetimeTypeFieldName: z.string(),
+}).partial();
+
+const ErrorHandlingConfigStateSchema = z.object({
+  FailOnFirstError: z.boolean(),
+  BucketPrefix: z.string(),
+  BucketName: z.string(),
+}).partial();
+
+const RedshiftDestinationPropertiesStateSchema = z.object({
+  Object: z.string(),
+  IntermediateBucketName: z.string(),
+  BucketPrefix: z.string(),
+  ErrorHandlingConfig: ErrorHandlingConfigStateSchema,
+}).partial();
+
+const PrefixConfigStateSchema = z.object({
+  PrefixType: z.string(),
+  PrefixFormat: z.string(),
+  PathPrefixHierarchy: z.array(z.string()),
+}).partial();
+
+const AggregationConfigStateSchema = z.object({
+  AggregationType: z.string(),
+  TargetFileSize: z.number(),
+}).partial();
+
+const S3OutputFormatConfigStateSchema = z.object({
+  FileType: z.string(),
+  PrefixConfig: PrefixConfigStateSchema,
+  AggregationConfig: AggregationConfigStateSchema,
+  PreserveSourceDataTyping: z.boolean(),
+}).partial();
+
+const S3DestinationPropertiesStateSchema = z.object({
+  BucketName: z.string(),
+  BucketPrefix: z.string(),
+  S3OutputFormatConfig: S3OutputFormatConfigStateSchema,
+}).partial();
+
+const SalesforceDestinationPropertiesStateSchema = z.object({
+  Object: z.string(),
+  ErrorHandlingConfig: ErrorHandlingConfigStateSchema,
+  IdFieldNames: z.array(z.string()),
+  WriteOperationType: z.string(),
+  DataTransferApi: z.string(),
+}).partial();
+
+const SnowflakeDestinationPropertiesStateSchema = z.object({
+  Object: z.string(),
+  IntermediateBucketName: z.string(),
+  BucketPrefix: z.string(),
+  ErrorHandlingConfig: ErrorHandlingConfigStateSchema,
+}).partial();
+
+const EventBridgeDestinationPropertiesStateSchema = z.object({
+  Object: z.string(),
+  ErrorHandlingConfig: ErrorHandlingConfigStateSchema,
+}).partial();
+
+const UpsolverS3OutputFormatConfigStateSchema = z.object({
+  FileType: z.string(),
+  PrefixConfig: PrefixConfigStateSchema,
+  AggregationConfig: AggregationConfigStateSchema,
+}).partial();
+
+const UpsolverDestinationPropertiesStateSchema = z.object({
+  BucketName: z.string(),
+  BucketPrefix: z.string(),
+  S3OutputFormatConfig: UpsolverS3OutputFormatConfigStateSchema,
+}).partial();
+
+const LookoutMetricsDestinationPropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const MarketoDestinationPropertiesStateSchema = z.object({
+  Object: z.string(),
+  ErrorHandlingConfig: ErrorHandlingConfigStateSchema,
+}).partial();
+
+const ZendeskDestinationPropertiesStateSchema = z.object({
+  Object: z.string(),
+  ErrorHandlingConfig: ErrorHandlingConfigStateSchema,
+  IdFieldNames: z.array(z.string()),
+  WriteOperationType: z.string(),
+}).partial();
+
+const CustomConnectorDestinationPropertiesStateSchema = z.object({
+  EntityName: z.string(),
+  ErrorHandlingConfig: ErrorHandlingConfigStateSchema,
+  WriteOperationType: z.string(),
+  IdFieldNames: z.array(z.string()),
+  CustomProperties: z.record(z.string(), z.unknown()),
+}).partial();
+
+const SuccessResponseHandlingConfigStateSchema = z.object({
+  BucketPrefix: z.string(),
+  BucketName: z.string(),
+}).partial();
+
+const SAPODataDestinationPropertiesStateSchema = z.object({
+  ObjectPath: z.string(),
+  ErrorHandlingConfig: ErrorHandlingConfigStateSchema,
+  SuccessResponseHandlingConfig: SuccessResponseHandlingConfigStateSchema,
+  IdFieldNames: z.array(z.string()),
+  WriteOperationType: z.string(),
+}).partial();
+
+const DestinationConnectorPropertiesStateSchema = z.object({
+  Redshift: RedshiftDestinationPropertiesStateSchema,
+  S3: S3DestinationPropertiesStateSchema,
+  Salesforce: SalesforceDestinationPropertiesStateSchema,
+  Snowflake: SnowflakeDestinationPropertiesStateSchema,
+  EventBridge: EventBridgeDestinationPropertiesStateSchema,
+  Upsolver: UpsolverDestinationPropertiesStateSchema,
+  LookoutMetrics: LookoutMetricsDestinationPropertiesStateSchema,
+  Marketo: MarketoDestinationPropertiesStateSchema,
+  Zendesk: ZendeskDestinationPropertiesStateSchema,
+  CustomConnector: CustomConnectorDestinationPropertiesStateSchema,
+  SAPOData: SAPODataDestinationPropertiesStateSchema,
+}).partial();
+
+const DestinationFlowConfigStateSchema = z.object({
+  ConnectorType: z.string(),
+  ApiVersion: z.string(),
+  ConnectorProfileName: z.string(),
+  DestinationConnectorProperties: DestinationConnectorPropertiesStateSchema,
+}).partial();
+
+const ConnectorOperatorStateSchema = z.object({
+  Amplitude: z.string(),
+  Datadog: z.string(),
+  Dynatrace: z.string(),
+  GoogleAnalytics: z.string(),
+  InforNexus: z.string(),
+  Marketo: z.string(),
+  S3: z.string(),
+  SAPOData: z.string(),
+  Salesforce: z.string(),
+  Pardot: z.string(),
+  ServiceNow: z.string(),
+  Singular: z.string(),
+  Slack: z.string(),
+  Trendmicro: z.string(),
+  Veeva: z.string(),
+  Zendesk: z.string(),
+  CustomConnector: z.string(),
+}).partial();
+
+const TaskPropertiesObjectStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TaskStateSchema = z.object({
+  SourceFields: z.array(z.string()),
+  ConnectorOperator: ConnectorOperatorStateSchema,
+  DestinationField: z.string(),
+  TaskType: z.string(),
+  TaskProperties: z.array(TaskPropertiesObjectStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const GlueDataCatalogStateSchema = z.object({
+  RoleArn: z.string(),
+  DatabaseName: z.string(),
+  TablePrefix: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -804,25 +1106,26 @@ const StateSchema = z.object({
   KMSArn: z.string().optional(),
   TriggerConfig: z.object({
     TriggerType: z.string(),
-    TriggerProperties: ScheduledTriggerPropertiesSchema,
-  }).optional(),
+    TriggerProperties: ScheduledTriggerPropertiesStateSchema,
+  }).partial().optional(),
   FlowStatus: z.string().optional(),
   SourceFlowConfig: z.object({
     ConnectorType: z.string(),
     ApiVersion: z.string(),
     ConnectorProfileName: z.string(),
-    SourceConnectorProperties: SourceConnectorPropertiesSchema,
-    IncrementalPullConfig: IncrementalPullConfigSchema,
-  }).optional(),
-  DestinationFlowConfigList: z.array(DestinationFlowConfigSchema).optional(),
-  Tasks: z.array(TaskSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+    SourceConnectorProperties: SourceConnectorPropertiesStateSchema,
+    IncrementalPullConfig: IncrementalPullConfigStateSchema,
+  }).partial().optional(),
+  DestinationFlowConfigList: z.array(DestinationFlowConfigStateSchema)
+    .optional(),
+  Tasks: z.array(TaskStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   MetadataCatalogConfig: z.object({
-    GlueDataCatalog: GlueDataCatalogSchema,
-  }).optional(),
+    GlueDataCatalog: GlueDataCatalogStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -919,7 +1222,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppFlow Flow. Registered at `@swamp/aws/appflow/flow`. */
 export const model = {
   type: "@swamp/aws/appflow/flow",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -983,6 +1286,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

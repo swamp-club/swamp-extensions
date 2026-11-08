@@ -288,10 +288,10 @@ const StateSchema = z.object({
     allowAllPackageNames: z.boolean(),
     allowedPackageNames: z.array(z.string()),
     supportNonGoogleAppStoreDistribution: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
-  expressSettings: z.object({}).optional(),
+  expressSettings: z.object({}).partial().optional(),
   iosSettings: z.object({
     allowAllBundleIds: z.boolean(),
     allowedBundleIds: z.array(z.string()),
@@ -299,19 +299,19 @@ const StateSchema = z.object({
       keyId: z.string(),
       privateKey: z.string(),
       teamId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   testingOptions: z.object({
     testingChallenge: z.string(),
     testingScore: z.number(),
-  }).optional(),
-  universalSettings: z.object({}).optional(),
+  }).partial().optional(),
+  universalSettings: z.object({}).partial().optional(),
   wafSettings: z.object({
     wafFeature: z.string(),
     wafService: z.string(),
-  }).optional(),
+  }).partial().optional(),
   webSettings: z.object({
     allowAllDomains: z.boolean(),
     allowAmpTraffic: z.boolean(),
@@ -321,10 +321,10 @@ const StateSchema = z.object({
       actionSettings: z.record(z.string(), z.unknown()),
       defaultSettings: z.object({
         scoreThreshold: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     integrationType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -494,7 +494,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud reCAPTCHA Enterprise Keys. Registered at `@swamp/gcp/recaptchaenterprise/keys`. */
 export const model = {
   type: "@swamp/gcp/recaptchaenterprise/keys",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -653,6 +653,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

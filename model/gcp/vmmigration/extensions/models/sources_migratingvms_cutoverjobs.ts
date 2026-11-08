@@ -147,57 +147,65 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   computeEngineDisksTargetDetails: z.object({
-    disks: z.array(z.object({
-      diskUri: z.string(),
-      sourceDiskNumber: z.number(),
-    })),
-    disksTargetDetails: z.object({}),
+    disks: z.array(
+      z.object({
+        diskUri: z.string(),
+        sourceDiskNumber: z.number(),
+      }).partial(),
+    ),
+    disksTargetDetails: z.object({}).partial(),
     vmTargetDetails: z.object({
       vmUri: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   computeEngineTargetDetails: z.object({
-    adaptationModifiers: z.array(z.object({
-      modifier: z.string(),
-      value: z.string(),
-    })),
+    adaptationModifiers: z.array(
+      z.object({
+        modifier: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     additionalLicenses: z.array(z.string()),
     appliedLicense: z.object({
       osLicense: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     bootConversion: z.string(),
     bootOption: z.string(),
     computeScheduling: z.object({
       minNodeCpus: z.number(),
-      nodeAffinities: z.array(z.object({
-        key: z.string(),
-        operator: z.string(),
-        values: z.array(z.unknown()),
-      })),
+      nodeAffinities: z.array(
+        z.object({
+          key: z.string(),
+          operator: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+      ),
       onHostMaintenance: z.string(),
       restartType: z.string(),
-    }),
+    }).partial(),
     diskReplicaZones: z.array(z.string()),
     diskType: z.string(),
     enableIntegrityMonitoring: z.boolean(),
     enableVtpm: z.boolean(),
     encryption: z.object({
       kmsKey: z.string(),
-    }),
+    }).partial(),
     hostname: z.string(),
     labels: z.record(z.string(), z.unknown()),
     licenseType: z.string(),
     machineType: z.string(),
     machineTypeSeries: z.string(),
     metadata: z.record(z.string(), z.unknown()),
-    networkInterfaces: z.array(z.object({
-      externalIp: z.string(),
-      internalIp: z.string(),
-      network: z.string(),
-      networkTier: z.string(),
-      subnetwork: z.string(),
-    })),
+    networkInterfaces: z.array(
+      z.object({
+        externalIp: z.string(),
+        internalIp: z.string(),
+        network: z.string(),
+        networkTier: z.string(),
+        subnetwork: z.string(),
+      }).partial(),
+    ),
     networkTags: z.array(z.string()),
     project: z.string(),
     secureBoot: z.boolean(),
@@ -205,82 +213,92 @@ const StateSchema = z.object({
     storagePool: z.string(),
     vmName: z.string(),
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   endTime: z.string().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   progressPercent: z.number().optional(),
   state: z.string().optional(),
   stateMessage: z.string().optional(),
   stateTime: z.string().optional(),
-  steps: z.array(z.object({
-    endTime: z.string(),
-    finalSync: z.object({
-      cycleNumber: z.number(),
+  steps: z.array(
+    z.object({
       endTime: z.string(),
-      error: z.object({
-        code: z.number(),
-        details: z.array(z.unknown()),
-        message: z.string(),
-      }),
-      name: z.string(),
-      progressPercent: z.number(),
+      finalSync: z.object({
+        cycleNumber: z.number(),
+        endTime: z.string(),
+        error: z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+        name: z.string(),
+        progressPercent: z.number(),
+        startTime: z.string(),
+        state: z.string(),
+        steps: z.array(
+          z.object({
+            endTime: z.unknown(),
+            initializingReplication: z.unknown(),
+            postProcessing: z.unknown(),
+            replicating: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+        ),
+        totalPauseDuration: z.string(),
+        warnings: z.array(
+          z.object({
+            actionItem: z.unknown(),
+            code: z.unknown(),
+            helpLinks: z.unknown(),
+            warningMessage: z.unknown(),
+            warningTime: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      instantiatingMigratedVm: z.object({}).partial(),
+      preparingVmDisks: z.object({}).partial(),
+      previousReplicationCycle: z.object({
+        cycleNumber: z.number(),
+        endTime: z.string(),
+        error: z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+        name: z.string(),
+        progressPercent: z.number(),
+        startTime: z.string(),
+        state: z.string(),
+        steps: z.array(
+          z.object({
+            endTime: z.unknown(),
+            initializingReplication: z.unknown(),
+            postProcessing: z.unknown(),
+            replicating: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+        ),
+        totalPauseDuration: z.string(),
+        warnings: z.array(
+          z.object({
+            actionItem: z.unknown(),
+            code: z.unknown(),
+            helpLinks: z.unknown(),
+            warningMessage: z.unknown(),
+            warningTime: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      shuttingDownSourceVm: z.object({}).partial(),
       startTime: z.string(),
-      state: z.string(),
-      steps: z.array(z.object({
-        endTime: z.unknown(),
-        initializingReplication: z.unknown(),
-        postProcessing: z.unknown(),
-        replicating: z.unknown(),
-        startTime: z.unknown(),
-      })),
-      totalPauseDuration: z.string(),
-      warnings: z.array(z.object({
-        actionItem: z.unknown(),
-        code: z.unknown(),
-        helpLinks: z.unknown(),
-        warningMessage: z.unknown(),
-        warningTime: z.unknown(),
-      })),
-    }),
-    instantiatingMigratedVm: z.object({}),
-    preparingVmDisks: z.object({}),
-    previousReplicationCycle: z.object({
-      cycleNumber: z.number(),
-      endTime: z.string(),
-      error: z.object({
-        code: z.number(),
-        details: z.array(z.unknown()),
-        message: z.string(),
-      }),
-      name: z.string(),
-      progressPercent: z.number(),
-      startTime: z.string(),
-      state: z.string(),
-      steps: z.array(z.object({
-        endTime: z.unknown(),
-        initializingReplication: z.unknown(),
-        postProcessing: z.unknown(),
-        replicating: z.unknown(),
-        startTime: z.unknown(),
-      })),
-      totalPauseDuration: z.string(),
-      warnings: z.array(z.object({
-        actionItem: z.unknown(),
-        code: z.unknown(),
-        helpLinks: z.unknown(),
-        warningMessage: z.unknown(),
-        warningTime: z.unknown(),
-      })),
-    }),
-    shuttingDownSourceVm: z.object({}),
-    startTime: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -332,7 +350,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VM Migration Sources.MigratingVms.CutoverJobs. Registered at `@swamp/gcp/vmmigration/sources-migratingvms-cutoverjobs`. */
 export const model = {
   type: "@swamp/gcp/vmmigration/sources-migratingvms-cutoverjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -490,6 +508,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -115,28 +115,32 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   evaluationConfig: z.object({
-    datasets: z.array(z.object({
-      dataset: z.string(),
-    })),
+    datasets: z.array(
+      z.object({
+        dataset: z.string(),
+      }).partial(),
+    ),
     smartComposeConfig: z.object({
       allowlistDocument: z.string(),
       maxResultCount: z.number(),
-    }),
+    }).partial(),
     smartReplyConfig: z.object({
       allowlistDocument: z.string(),
       maxResultCount: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   rawHumanEvalTemplateCsv: z.string().optional(),
   smartReplyMetrics: z.object({
     allowlistCoverage: z.number(),
     conversationCount: z.string(),
-    topNMetrics: z.array(z.object({
-      n: z.number(),
-      recall: z.number(),
-    })),
-  }).optional(),
+    topNMetrics: z.array(
+      z.object({
+        n: z.number(),
+        recall: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -183,7 +187,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow ConversationModels.Evaluations. Registered at `@swamp/gcp/dialogflow/conversationmodels-evaluations`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/conversationmodels-evaluations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -202,6 +206,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

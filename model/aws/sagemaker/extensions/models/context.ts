@@ -93,17 +93,19 @@ const StateSchema = z.object({
     SourceUri: z.string(),
     SourceType: z.string(),
     SourceId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Properties: z.record(z.string(), z.unknown()).optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-  })).optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+    }).partial(),
+  ).optional(),
   CreationTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -161,7 +163,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Context. Registered at `@swamp/aws/sagemaker/context`. */
 export const model = {
   type: "@swamp/aws/sagemaker/context",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -185,6 +187,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

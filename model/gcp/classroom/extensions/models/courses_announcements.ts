@@ -315,45 +315,47 @@ const StateSchema = z.object({
   id: z.string(),
   individualStudentsOptions: z.object({
     studentIds: z.array(z.string()),
-  }).optional(),
-  materials: z.array(z.object({
-    driveFile: z.object({
+  }).partial().optional(),
+  materials: z.array(
+    z.object({
       driveFile: z.object({
+        driveFile: z.object({
+          alternateLink: z.string(),
+          id: z.string(),
+          thumbnailUrl: z.string(),
+          title: z.string(),
+        }).partial(),
+        shareMode: z.string(),
+      }).partial(),
+      form: z.object({
+        formUrl: z.string(),
+        responseUrl: z.string(),
+        thumbnailUrl: z.string(),
+        title: z.string(),
+      }).partial(),
+      gem: z.object({
+        id: z.string(),
+        title: z.string(),
+        url: z.string(),
+      }).partial(),
+      link: z.object({
+        thumbnailUrl: z.string(),
+        title: z.string(),
+        url: z.string(),
+      }).partial(),
+      notebook: z.object({
+        id: z.string(),
+        title: z.string(),
+        url: z.string(),
+      }).partial(),
+      youtubeVideo: z.object({
         alternateLink: z.string(),
         id: z.string(),
         thumbnailUrl: z.string(),
         title: z.string(),
-      }),
-      shareMode: z.string(),
-    }),
-    form: z.object({
-      formUrl: z.string(),
-      responseUrl: z.string(),
-      thumbnailUrl: z.string(),
-      title: z.string(),
-    }),
-    gem: z.object({
-      id: z.string(),
-      title: z.string(),
-      url: z.string(),
-    }),
-    link: z.object({
-      thumbnailUrl: z.string(),
-      title: z.string(),
-      url: z.string(),
-    }),
-    notebook: z.object({
-      id: z.string(),
-      title: z.string(),
-      url: z.string(),
-    }),
-    youtubeVideo: z.object({
-      alternateLink: z.string(),
-      id: z.string(),
-      thumbnailUrl: z.string(),
-      title: z.string(),
-    }),
-  })).optional(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   scheduledTime: z.string().optional(),
   state: z.string().optional(),
   text: z.string().optional(),
@@ -507,7 +509,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Classroom Courses.Announcements. Registered at `@swamp/gcp/classroom/courses-announcements`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses-announcements",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -641,6 +643,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

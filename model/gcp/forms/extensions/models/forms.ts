@@ -373,138 +373,142 @@ const StateSchema = z.object({
     description: z.string(),
     documentTitle: z.string(),
     title: z.string(),
-  }).optional(),
-  items: z.array(z.object({
-    description: z.string(),
-    imageItem: z.object({
-      image: z.object({
-        altText: z.string(),
-        contentUri: z.string(),
-        properties: z.object({
-          alignment: z.unknown(),
-          width: z.unknown(),
-        }),
-        sourceUri: z.string(),
-      }),
-    }),
-    itemId: z.string(),
-    pageBreakItem: z.object({}),
-    questionGroupItem: z.object({
-      grid: z.object({
-        columns: z.object({
-          options: z.unknown(),
-          shuffle: z.unknown(),
-          type: z.unknown(),
-        }),
-        shuffleQuestions: z.boolean(),
-      }),
-      image: z.object({
-        altText: z.string(),
-        contentUri: z.string(),
-        properties: z.object({
-          alignment: z.unknown(),
-          width: z.unknown(),
-        }),
-        sourceUri: z.string(),
-      }),
-      questions: z.array(z.object({
-        choiceQuestion: z.unknown(),
-        dateQuestion: z.unknown(),
-        fileUploadQuestion: z.unknown(),
-        grading: z.unknown(),
-        questionId: z.unknown(),
-        ratingQuestion: z.unknown(),
-        required: z.unknown(),
-        rowQuestion: z.unknown(),
-        scaleQuestion: z.unknown(),
-        textQuestion: z.unknown(),
-        timeQuestion: z.unknown(),
-      })),
-    }),
-    questionItem: z.object({
-      image: z.object({
-        altText: z.string(),
-        contentUri: z.string(),
-        properties: z.object({
-          alignment: z.unknown(),
-          width: z.unknown(),
-        }),
-        sourceUri: z.string(),
-      }),
-      question: z.object({
-        choiceQuestion: z.object({
-          options: z.unknown(),
-          shuffle: z.unknown(),
-          type: z.unknown(),
-        }),
-        dateQuestion: z.object({
-          includeTime: z.unknown(),
-          includeYear: z.unknown(),
-        }),
-        fileUploadQuestion: z.object({
-          folderId: z.unknown(),
-          maxFileSize: z.unknown(),
-          maxFiles: z.unknown(),
-          types: z.unknown(),
-        }),
-        grading: z.object({
-          correctAnswers: z.unknown(),
-          generalFeedback: z.unknown(),
-          pointValue: z.unknown(),
-          whenRight: z.unknown(),
-          whenWrong: z.unknown(),
-        }),
-        questionId: z.string(),
-        ratingQuestion: z.object({
-          iconType: z.unknown(),
-          ratingScaleLevel: z.unknown(),
-        }),
-        required: z.boolean(),
-        rowQuestion: z.object({
-          title: z.unknown(),
-        }),
-        scaleQuestion: z.object({
-          high: z.unknown(),
-          highLabel: z.unknown(),
-          low: z.unknown(),
-          lowLabel: z.unknown(),
-        }),
-        textQuestion: z.object({
-          paragraph: z.unknown(),
-        }),
-        timeQuestion: z.object({
-          duration: z.unknown(),
-        }),
-      }),
-    }),
-    textItem: z.object({}),
-    title: z.string(),
-    videoItem: z.object({
-      caption: z.string(),
-      video: z.object({
-        properties: z.object({
-          alignment: z.unknown(),
-          width: z.unknown(),
-        }),
-        youtubeUri: z.string(),
-      }),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  items: z.array(
+    z.object({
+      description: z.string(),
+      imageItem: z.object({
+        image: z.object({
+          altText: z.string(),
+          contentUri: z.string(),
+          properties: z.object({
+            alignment: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+          sourceUri: z.string(),
+        }).partial(),
+      }).partial(),
+      itemId: z.string(),
+      pageBreakItem: z.object({}).partial(),
+      questionGroupItem: z.object({
+        grid: z.object({
+          columns: z.object({
+            options: z.unknown(),
+            shuffle: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          shuffleQuestions: z.boolean(),
+        }).partial(),
+        image: z.object({
+          altText: z.string(),
+          contentUri: z.string(),
+          properties: z.object({
+            alignment: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+          sourceUri: z.string(),
+        }).partial(),
+        questions: z.array(
+          z.object({
+            choiceQuestion: z.unknown(),
+            dateQuestion: z.unknown(),
+            fileUploadQuestion: z.unknown(),
+            grading: z.unknown(),
+            questionId: z.unknown(),
+            ratingQuestion: z.unknown(),
+            required: z.unknown(),
+            rowQuestion: z.unknown(),
+            scaleQuestion: z.unknown(),
+            textQuestion: z.unknown(),
+            timeQuestion: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      questionItem: z.object({
+        image: z.object({
+          altText: z.string(),
+          contentUri: z.string(),
+          properties: z.object({
+            alignment: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+          sourceUri: z.string(),
+        }).partial(),
+        question: z.object({
+          choiceQuestion: z.object({
+            options: z.unknown(),
+            shuffle: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          dateQuestion: z.object({
+            includeTime: z.unknown(),
+            includeYear: z.unknown(),
+          }).partial(),
+          fileUploadQuestion: z.object({
+            folderId: z.unknown(),
+            maxFileSize: z.unknown(),
+            maxFiles: z.unknown(),
+            types: z.unknown(),
+          }).partial(),
+          grading: z.object({
+            correctAnswers: z.unknown(),
+            generalFeedback: z.unknown(),
+            pointValue: z.unknown(),
+            whenRight: z.unknown(),
+            whenWrong: z.unknown(),
+          }).partial(),
+          questionId: z.string(),
+          ratingQuestion: z.object({
+            iconType: z.unknown(),
+            ratingScaleLevel: z.unknown(),
+          }).partial(),
+          required: z.boolean(),
+          rowQuestion: z.object({
+            title: z.unknown(),
+          }).partial(),
+          scaleQuestion: z.object({
+            high: z.unknown(),
+            highLabel: z.unknown(),
+            low: z.unknown(),
+            lowLabel: z.unknown(),
+          }).partial(),
+          textQuestion: z.object({
+            paragraph: z.unknown(),
+          }).partial(),
+          timeQuestion: z.object({
+            duration: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      textItem: z.object({}).partial(),
+      title: z.string(),
+      videoItem: z.object({
+        caption: z.string(),
+        video: z.object({
+          properties: z.object({
+            alignment: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+          youtubeUri: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   linkedSheetId: z.string().optional(),
   publishSettings: z.object({
     publishState: z.object({
       isAcceptingResponses: z.boolean(),
       isPublished: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   responderUri: z.string().optional(),
   revisionId: z.string().optional(),
   settings: z.object({
     emailCollectionType: z.string(),
     quizSettings: z.object({
       isQuiz: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -812,7 +816,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Forms Forms. Registered at `@swamp/gcp/forms/forms`. */
 export const model = {
   type: "@swamp/gcp/forms/forms",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -949,6 +953,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

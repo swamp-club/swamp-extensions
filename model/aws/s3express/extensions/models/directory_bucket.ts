@@ -143,6 +143,58 @@ const InventoryConfigurationSchema = z.object({
   ),
 });
 
+const ServerSideEncryptionByDefaultStateSchema = z.object({
+  KMSMasterKeyID: z.string(),
+  SSEAlgorithm: z.string(),
+}).partial();
+
+const ServerSideEncryptionRuleStateSchema = z.object({
+  BucketKeyEnabled: z.boolean(),
+  ServerSideEncryptionByDefault: ServerSideEncryptionByDefaultStateSchema,
+}).partial();
+
+const AbortIncompleteMultipartUploadStateSchema = z.object({
+  DaysAfterInitiation: z.number(),
+}).partial();
+
+const RuleStateSchema = z.object({
+  AbortIncompleteMultipartUpload: AbortIncompleteMultipartUploadStateSchema,
+  ExpirationInDays: z.number(),
+  Id: z.string(),
+  Prefix: z.string(),
+  Status: z.string(),
+  ObjectSizeGreaterThan: z.string(),
+  ObjectSizeLessThan: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const MetricsConfigurationStateSchema = z.object({
+  Id: z.string(),
+  Prefix: z.string(),
+  AccessPointArn: z.string(),
+}).partial();
+
+const DestinationStateSchema = z.object({
+  BucketArn: z.string(),
+  BucketAccountId: z.string(),
+  Format: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const InventoryConfigurationStateSchema = z.object({
+  Destination: DestinationStateSchema,
+  Enabled: z.boolean(),
+  Id: z.string(),
+  IncludedObjectVersions: z.string(),
+  OptionalFields: z.array(z.string()),
+  Prefix: z.string(),
+  ScheduleFrequency: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -197,17 +249,20 @@ const StateSchema = z.object({
   DataRedundancy: z.string().optional(),
   Arn: z.string().optional(),
   BucketEncryption: z.object({
-    ServerSideEncryptionConfiguration: z.array(ServerSideEncryptionRuleSchema),
-  }).optional(),
+    ServerSideEncryptionConfiguration: z.array(
+      ServerSideEncryptionRuleStateSchema,
+    ),
+  }).partial().optional(),
   LifecycleConfiguration: z.object({
-    Rules: z.array(RuleSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
-  MetricsConfigurations: z.array(MetricsConfigurationSchema).optional(),
-  InventoryConfigurations: z.array(InventoryConfigurationSchema).optional(),
+    Rules: z.array(RuleStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  MetricsConfigurations: z.array(MetricsConfigurationStateSchema).optional(),
+  InventoryConfigurations: z.array(InventoryConfigurationStateSchema)
+    .optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -268,7 +323,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3Express DirectoryBucket. Registered at `@swamp/aws/s3express/directory-bucket`. */
 export const model = {
   type: "@swamp/aws/s3express/directory-bucket",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -347,6 +402,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

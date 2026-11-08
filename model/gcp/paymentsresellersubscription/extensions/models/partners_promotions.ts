@@ -102,26 +102,30 @@ const StateSchema = z.object({
   freeTrialDuration: z.object({
     count: z.number(),
     unit: z.string(),
-  }).optional(),
+  }).partial().optional(),
   introductoryPricingDetails: z.object({
-    introductoryPricingSpecs: z.array(z.object({
-      discountAmount: z.object({
-        amountMicros: z.string(),
-        currencyCode: z.string(),
-      }),
-      discountRatioMicros: z.string(),
-      recurrenceCount: z.number(),
-      regionCode: z.string(),
-    })),
-  }).optional(),
+    introductoryPricingSpecs: z.array(
+      z.object({
+        discountAmount: z.object({
+          amountMicros: z.string(),
+          currencyCode: z.string(),
+        }).partial(),
+        discountRatioMicros: z.string(),
+        recurrenceCount: z.number(),
+        regionCode: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   promotionType: z.string().optional(),
   regionCodes: z.array(z.string()).optional(),
   startTime: z.string().optional(),
-  titles: z.array(z.object({
-    languageCode: z.string(),
-    text: z.string(),
-  })).optional(),
+  titles: z.array(
+    z.object({
+      languageCode: z.string(),
+      text: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -165,7 +169,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Payments Reseller Subscription Partners.Promotions. Registered at `@swamp/gcp/paymentsresellersubscription/partners-promotions`. */
 export const model = {
   type: "@swamp/gcp/paymentsresellersubscription/partners-promotions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -279,6 +283,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

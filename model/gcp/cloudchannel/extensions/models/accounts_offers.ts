@@ -108,8 +108,8 @@ const StateSchema = z.object({
       allowedCustomerTypes: z.array(z.string()),
       allowedRegions: z.array(z.string()),
       promotionalOrderTypes: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   dealCode: z.string().optional(),
   endTime: z.string().optional(),
   marketingInfo: z.object({
@@ -117,100 +117,110 @@ const StateSchema = z.object({
       content: z.string(),
       title: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  parameterDefinitions: z.array(z.object({
-    allowedValues: z.array(z.object({
-      boolValue: z.boolean(),
-      doubleValue: z.number(),
-      int64Value: z.string(),
-      protoValue: z.record(z.string(), z.unknown()),
-      stringValue: z.string(),
-    })),
-    maxValue: z.object({
-      boolValue: z.boolean(),
-      doubleValue: z.number(),
-      int64Value: z.string(),
-      protoValue: z.record(z.string(), z.unknown()),
-      stringValue: z.string(),
-    }),
-    minValue: z.object({
-      boolValue: z.boolean(),
-      doubleValue: z.number(),
-      int64Value: z.string(),
-      protoValue: z.record(z.string(), z.unknown()),
-      stringValue: z.string(),
-    }),
-    name: z.string(),
-    optional: z.boolean(),
-    parameterType: z.string(),
-  })).optional(),
+  parameterDefinitions: z.array(
+    z.object({
+      allowedValues: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          doubleValue: z.number(),
+          int64Value: z.string(),
+          protoValue: z.record(z.string(), z.unknown()),
+          stringValue: z.string(),
+        }).partial(),
+      ),
+      maxValue: z.object({
+        boolValue: z.boolean(),
+        doubleValue: z.number(),
+        int64Value: z.string(),
+        protoValue: z.record(z.string(), z.unknown()),
+        stringValue: z.string(),
+      }).partial(),
+      minValue: z.object({
+        boolValue: z.boolean(),
+        doubleValue: z.number(),
+        int64Value: z.string(),
+        protoValue: z.record(z.string(), z.unknown()),
+        stringValue: z.string(),
+      }).partial(),
+      name: z.string(),
+      optional: z.boolean(),
+      parameterType: z.string(),
+    }).partial(),
+  ).optional(),
   plan: z.object({
     billingAccount: z.string(),
     paymentCycle: z.object({
       duration: z.number(),
       periodType: z.string(),
-    }),
+    }).partial(),
     paymentPlan: z.string(),
     paymentType: z.string(),
     trialPeriod: z.object({
       duration: z.number(),
       periodType: z.string(),
-    }),
-  }).optional(),
-  priceByResources: z.array(z.object({
-    price: z.object({
-      basePrice: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-      discount: z.number(),
-      discountComponents: z.array(z.object({
-        discountAbsolute: z.unknown(),
-        discountPercentage: z.unknown(),
-        discountType: z.unknown(),
-      })),
-      effectivePrice: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-      externalPriceUri: z.string(),
-      pricePeriod: z.object({
-        duration: z.number(),
-        periodType: z.string(),
-      }),
-    }),
-    pricePhases: z.array(z.object({
-      firstPeriod: z.number(),
-      lastPeriod: z.number(),
-      periodType: z.string(),
+    }).partial(),
+  }).partial().optional(),
+  priceByResources: z.array(
+    z.object({
       price: z.object({
-        basePrice: z.unknown(),
-        discount: z.unknown(),
-        discountComponents: z.unknown(),
-        effectivePrice: z.unknown(),
-        externalPriceUri: z.unknown(),
-        pricePeriod: z.unknown(),
-      }),
-      priceTiers: z.array(z.unknown()),
-    })),
-    resourceType: z.string(),
-  })).optional(),
+        basePrice: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+        discount: z.number(),
+        discountComponents: z.array(
+          z.object({
+            discountAbsolute: z.unknown(),
+            discountPercentage: z.unknown(),
+            discountType: z.unknown(),
+          }).partial(),
+        ),
+        effectivePrice: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+        externalPriceUri: z.string(),
+        pricePeriod: z.object({
+          duration: z.number(),
+          periodType: z.string(),
+        }).partial(),
+      }).partial(),
+      pricePhases: z.array(
+        z.object({
+          firstPeriod: z.number(),
+          lastPeriod: z.number(),
+          periodType: z.string(),
+          price: z.object({
+            basePrice: z.unknown(),
+            discount: z.unknown(),
+            discountComponents: z.unknown(),
+            effectivePrice: z.unknown(),
+            externalPriceUri: z.unknown(),
+            pricePeriod: z.unknown(),
+          }).partial(),
+          priceTiers: z.array(z.unknown()),
+        }).partial(),
+      ),
+      resourceType: z.string(),
+    }).partial(),
+  ).optional(),
   sku: z.object({
     marketingInfo: z.object({
       defaultLogo: z.object({
         content: z.string(),
         title: z.string(),
         type: z.string(),
-      }),
+      }).partial(),
       description: z.string(),
       displayName: z.string(),
-    }),
+    }).partial(),
     name: z.string(),
     product: z.object({
       marketingInfo: z.object({
@@ -218,13 +228,13 @@ const StateSchema = z.object({
           content: z.string(),
           title: z.string(),
           type: z.string(),
-        }),
+        }).partial(),
         description: z.string(),
         displayName: z.string(),
-      }),
+      }).partial(),
       name: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   startTime: z.string().optional(),
 }).passthrough();
 
@@ -269,7 +279,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Channel Accounts.Offers. Registered at `@swamp/gcp/cloudchannel/accounts-offers`. */
 export const model = {
   type: "@swamp/gcp/cloudchannel/accounts-offers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -388,6 +398,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

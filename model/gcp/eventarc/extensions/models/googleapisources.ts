@@ -247,14 +247,14 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   loggingConfig: z.object({
     logSeverity: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   organizationSubscription: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   projectSubscriptions: z.object({
     list: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -353,7 +353,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Eventarc GoogleApiSources. Registered at `@swamp/gcp/eventarc/googleapisources`. */
 export const model = {
   type: "@swamp/gcp/eventarc/googleapisources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1070,6 +1070,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

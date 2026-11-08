@@ -258,47 +258,51 @@ const StateSchema = z.object({
   base64EncodedName: z.string().optional(),
   localInventoryAttributes: z.object({
     availability: z.string(),
-    customAttributes: z.array(z.object({
-      groupValues: z.array(z.record(z.string(), z.unknown())),
-      name: z.string(),
-      value: z.string(),
-    })),
+    customAttributes: z.array(
+      z.object({
+        groupValues: z.array(z.record(z.string(), z.unknown())),
+        name: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     instoreProductLocation: z.string(),
     localShippingLabel: z.string(),
-    loyaltyPrograms: z.array(z.object({
-      cashbackForFutureUse: z.object({
-        amountMicros: z.string(),
-        currencyCode: z.string(),
-      }),
-      loyaltyPoints: z.string(),
-      memberPriceEffectiveInterval: z.object({
-        endTime: z.string(),
-        startTime: z.string(),
-      }),
-      price: z.object({
-        amountMicros: z.string(),
-        currencyCode: z.string(),
-      }),
-      programLabel: z.string(),
-      shippingLabel: z.string(),
-      tierLabel: z.string(),
-    })),
+    loyaltyPrograms: z.array(
+      z.object({
+        cashbackForFutureUse: z.object({
+          amountMicros: z.string(),
+          currencyCode: z.string(),
+        }).partial(),
+        loyaltyPoints: z.string(),
+        memberPriceEffectiveInterval: z.object({
+          endTime: z.string(),
+          startTime: z.string(),
+        }).partial(),
+        price: z.object({
+          amountMicros: z.string(),
+          currencyCode: z.string(),
+        }).partial(),
+        programLabel: z.string(),
+        shippingLabel: z.string(),
+        tierLabel: z.string(),
+      }).partial(),
+    ),
     pickupMethod: z.string(),
     pickupSla: z.string(),
     price: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     quantity: z.string(),
     salePrice: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     salePriceEffectiveDate: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   storeCode: z.string().optional(),
 }).passthrough();
@@ -473,7 +477,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Products.LocalInventories. Registered at `@swamp/gcp/merchantapi/accounts-products-localinventories`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-products-localinventories",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -492,6 +496,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

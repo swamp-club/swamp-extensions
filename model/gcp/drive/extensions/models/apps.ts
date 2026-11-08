@@ -115,11 +115,13 @@ const StateSchema = z.object({
   createInFolderTemplate: z.string().optional(),
   createUrl: z.string().optional(),
   hasDriveWideScope: z.boolean().optional(),
-  icons: z.array(z.object({
-    category: z.string(),
-    iconUrl: z.string(),
-    size: z.number(),
-  })).optional(),
+  icons: z.array(
+    z.object({
+      category: z.string(),
+      iconUrl: z.string(),
+      size: z.number(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   installed: z.boolean().optional(),
   kind: z.string().optional(),
@@ -179,7 +181,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Apps. Registered at `@swamp/gcp/drive/apps`. */
 export const model = {
   type: "@swamp/gcp/drive/apps",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -303,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

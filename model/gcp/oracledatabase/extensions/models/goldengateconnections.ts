@@ -1239,21 +1239,21 @@ const StateSchema = z.object({
       endpoint: z.string(),
       secretAccessKeySecret: z.string(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     amazonRedshiftConnectionProperties: z.object({
       connectionUrl: z.string(),
       password: z.string(),
       passwordSecretVersion: z.string(),
       technologyType: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     amazonS3ConnectionProperties: z.object({
       accessKeyId: z.string(),
       endpoint: z.string(),
       region: z.string(),
       secretAccessKeySecret: z.string(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     azureDataLakeStorageConnectionProperties: z.object({
       account: z.string(),
       accountKeySecret: z.string(),
@@ -1265,14 +1265,14 @@ const StateSchema = z.object({
       endpoint: z.string(),
       sasTokenSecret: z.string(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     azureSynapseAnalyticsConnectionProperties: z.object({
       connectionString: z.string(),
       password: z.string(),
       passwordSecretVersion: z.string(),
       technologyType: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     connectionType: z.string(),
     databricksConnectionProperties: z.object({
       authenticationType: z.string(),
@@ -1283,12 +1283,14 @@ const StateSchema = z.object({
       passwordSecretVersion: z.string(),
       storageCredential: z.string(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     db2ConnectionProperties: z.object({
-      additionalAttributes: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
+      additionalAttributes: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       database: z.string(),
       host: z.string(),
       password: z.string(),
@@ -1300,7 +1302,7 @@ const StateSchema = z.object({
       sslServerCertificateFile: z.string(),
       technologyType: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     displayName: z.string(),
     elasticsearchConnectionProperties: z.object({
@@ -1312,11 +1314,11 @@ const StateSchema = z.object({
       servers: z.string(),
       technologyType: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     genericConnectionProperties: z.object({
       host: z.string(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     goldengateConnectionProperties: z.object({
       goldengateDeploymentId: z.string(),
       host: z.string(),
@@ -1325,45 +1327,45 @@ const StateSchema = z.object({
       port: z.number(),
       technologyType: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     googleBigQueryConnectionProperties: z.object({
       serviceAccountKeyFile: z.string(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     googleCloudStorageConnectionProperties: z.object({
       serviceAccountKeyFile: z.string(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     googlePubsubConnectionProperties: z.object({
       serviceAccountKeyFile: z.string(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     hdfsConnectionProperties: z.object({
       coreSiteXml: z.string(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     icebergConnectionProperties: z.object({
       catalog: z.object({
         catalogType: z.string(),
         glueIcebergCatalog: z.object({
           glueId: z.string(),
-        }),
+        }).partial(),
         nessieIcebergCatalog: z.object({
           branch: z.string(),
           uri: z.string(),
-        }),
+        }).partial(),
         polarisIcebergCatalog: z.object({
           clientId: z.string(),
           clientSecret: z.string(),
           polarisCatalog: z.string(),
           principalRole: z.string(),
           uri: z.string(),
-        }),
+        }).partial(),
         restIcebergCatalog: z.object({
           properties: z.string(),
           uri: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       storage: z.object({
         amazonS3IcebergStorage: z.object({
           accessKeyId: z.string(),
@@ -1372,22 +1374,22 @@ const StateSchema = z.object({
           region: z.string(),
           schemeType: z.string(),
           secretAccessKeySecret: z.string(),
-        }),
+        }).partial(),
         azureDataLakeStorageIcebergStorage: z.object({
           accountKeySecret: z.string(),
           azureAccount: z.string(),
           container: z.string(),
           endpoint: z.string(),
-        }),
+        }).partial(),
         googleCloudStorageIcebergStorage: z.object({
           bucket: z.string(),
           projectId: z.string(),
           serviceAccountKeyFile: z.string(),
-        }),
+        }).partial(),
         storageType: z.string(),
-      }),
+      }).partial(),
       technologyType: z.string(),
-    }),
+    }).partial(),
     ingressIpAddresses: z.array(z.string()),
     javaMessageServiceConnectionProperties: z.object({
       authenticationType: z.string(),
@@ -1412,13 +1414,15 @@ const StateSchema = z.object({
       trustStorePasswordSecretVersion: z.string(),
       useJndi: z.boolean(),
       username: z.string(),
-    }),
+    }).partial(),
     kafkaConnectionProperties: z.object({
-      bootstrapServers: z.array(z.object({
-        host: z.string(),
-        port: z.number(),
-        privateIpAddress: z.string(),
-      })),
+      bootstrapServers: z.array(
+        z.object({
+          host: z.string(),
+          port: z.number(),
+          privateIpAddress: z.string(),
+        }).partial(),
+      ),
       clusterId: z.string(),
       consumerPropertiesFile: z.string(),
       keyStoreFile: z.string(),
@@ -1437,7 +1441,7 @@ const StateSchema = z.object({
       trustStorePasswordSecretVersion: z.string(),
       useResourcePrincipal: z.boolean(),
       username: z.string(),
-    }),
+    }).partial(),
     kafkaSchemaRegistryConnectionProperties: z.object({
       authenticationType: z.string(),
       keyStoreFile: z.string(),
@@ -1453,7 +1457,7 @@ const StateSchema = z.object({
       trustStorePasswordSecretVersion: z.string(),
       url: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     lifecycleDetails: z.string(),
     lifecycleState: z.string(),
     microsoftFabricConnectionProperties: z.object({
@@ -1462,12 +1466,14 @@ const StateSchema = z.object({
       endpoint: z.string(),
       technologyType: z.string(),
       tenantId: z.string(),
-    }),
+    }).partial(),
     microsoftSqlserverConnectionProperties: z.object({
-      additionalAttributes: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
+      additionalAttributes: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       database: z.string(),
       host: z.string(),
       password: z.string(),
@@ -1478,7 +1484,7 @@ const StateSchema = z.object({
       sslCaFile: z.string(),
       technologyType: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     mongodbConnectionProperties: z.object({
       connectionString: z.string(),
       databaseId: z.string(),
@@ -1491,12 +1497,14 @@ const StateSchema = z.object({
       tlsCertificateKeyFilePassword: z.string(),
       tlsCertificateKeyFilePasswordSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     mysqlConnectionProperties: z.object({
-      additionalAttributes: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
+      additionalAttributes: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       database: z.string(),
       dbSystemId: z.string(),
       host: z.string(),
@@ -1511,7 +1519,7 @@ const StateSchema = z.object({
       sslMode: z.string(),
       technologyType: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     ociObjectStorageConnectionProperties: z.object({
       privateKeyFile: z.string(),
       privateKeyPassphraseSecret: z.string(),
@@ -1521,7 +1529,7 @@ const StateSchema = z.object({
       tenancyId: z.string(),
       useResourcePrincipal: z.boolean(),
       userId: z.string(),
-    }),
+    }).partial(),
     ocid: z.string(),
     oracleAiDataPlatformConnectionProperties: z.object({
       connectionUrl: z.string(),
@@ -1533,7 +1541,7 @@ const StateSchema = z.object({
       tenancyId: z.string(),
       useResourcePrincipal: z.boolean(),
       userId: z.string(),
-    }),
+    }).partial(),
     oracleConnectionProperties: z.object({
       authenticationMode: z.string(),
       connectionString: z.string(),
@@ -1544,7 +1552,7 @@ const StateSchema = z.object({
       technologyType: z.string(),
       username: z.string(),
       walletFile: z.string(),
-    }),
+    }).partial(),
     oracleNosqlConnectionProperties: z.object({
       privateKeyFile: z.string(),
       privateKeyPassphraseSecret: z.string(),
@@ -1554,12 +1562,14 @@ const StateSchema = z.object({
       tenancyId: z.string(),
       useResourcePrincipal: z.boolean(),
       userId: z.string(),
-    }),
+    }).partial(),
     postgresqlConnectionProperties: z.object({
-      additionalAttributes: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
+      additionalAttributes: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       database: z.string(),
       dbSystemId: z.string(),
       host: z.string(),
@@ -1574,7 +1584,7 @@ const StateSchema = z.object({
       sslMode: z.string(),
       technologyType: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     redisConnectionProperties: z.object({
       authenticationType: z.string(),
       keyStoreFile: z.string(),
@@ -1590,7 +1600,7 @@ const StateSchema = z.object({
       trustStorePassword: z.string(),
       trustStorePasswordSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     routingMethod: z.string(),
     snowflakeConnectionProperties: z.object({
       authenticationType: z.string(),
@@ -1601,9 +1611,9 @@ const StateSchema = z.object({
       privateKeyPassphraseSecret: z.string(),
       technologyType: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2695,7 +2705,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GoldengateConnections. Registered at `@swamp/gcp/oracledatabase/goldengateconnections`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/goldengateconnections",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -2719,6 +2729,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

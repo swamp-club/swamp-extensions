@@ -184,6 +184,71 @@ const MapFilterSchema = z.object({
   ),
 });
 
+const SeverityUpdateStateSchema = z.object({
+  Product: z.number(),
+  Label: z.string(),
+  Normalized: z.number(),
+}).partial();
+
+const RelatedFindingStateSchema = z.object({
+  ProductArn: z.string(),
+  Id: z.string(),
+}).partial();
+
+const NoteUpdateStateSchema = z.object({
+  Text: z.string(),
+  UpdatedBy: z.string(),
+}).partial();
+
+const WorkflowUpdateStateSchema = z.object({
+  Status: z.string(),
+}).partial();
+
+const AutomationRulesFindingFieldsUpdateStateSchema = z.object({
+  Types: z.array(z.string()),
+  Severity: SeverityUpdateStateSchema,
+  Confidence: z.number(),
+  Criticality: z.number(),
+  UserDefinedFields: z.record(z.string(), z.unknown()),
+  VerificationState: z.string(),
+  RelatedFindings: z.array(RelatedFindingStateSchema),
+  Note: NoteUpdateStateSchema,
+  Workflow: WorkflowUpdateStateSchema,
+}).partial();
+
+const AutomationRulesActionStateSchema = z.object({
+  Type: z.string(),
+  FindingFieldsUpdate: AutomationRulesFindingFieldsUpdateStateSchema,
+}).partial();
+
+const StringFilterStateSchema = z.object({
+  Comparison: z.string(),
+  Value: z.string(),
+}).partial();
+
+const DateRangeStateSchema = z.object({
+  Unit: z.string(),
+  Value: z.number(),
+}).partial();
+
+const DateFilterStateSchema = z.object({
+  DateRange: DateRangeStateSchema,
+  End: z.string(),
+  Start: z.string(),
+}).partial();
+
+const NumberFilterStateSchema = z.object({
+  Eq: z.number(),
+  Gte: z.number(),
+  Lte: z.number(),
+}).partial();
+
+const MapFilterStateSchema = z.object({
+  Comparison: z.string(),
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -341,48 +406,48 @@ const StateSchema = z.object({
   UpdatedAt: z.string().optional(),
   CreatedBy: z.string().optional(),
   IsTerminal: z.boolean().optional(),
-  Actions: z.array(AutomationRulesActionSchema).optional(),
+  Actions: z.array(AutomationRulesActionStateSchema).optional(),
   Criteria: z.object({
-    ProductArn: z.array(StringFilterSchema),
-    AwsAccountId: z.array(StringFilterSchema),
-    Id: z.array(StringFilterSchema),
-    GeneratorId: z.array(StringFilterSchema),
-    Type: z.array(StringFilterSchema),
-    FirstObservedAt: z.array(DateFilterSchema),
-    LastObservedAt: z.array(DateFilterSchema),
-    CreatedAt: z.array(DateFilterSchema),
-    UpdatedAt: z.array(DateFilterSchema),
-    Confidence: z.array(NumberFilterSchema),
-    Criticality: z.array(NumberFilterSchema),
-    Title: z.array(StringFilterSchema),
-    Description: z.array(StringFilterSchema),
-    SourceUrl: z.array(StringFilterSchema),
-    ProductName: z.array(StringFilterSchema),
-    CompanyName: z.array(StringFilterSchema),
-    SeverityLabel: z.array(StringFilterSchema),
-    ResourceType: z.array(StringFilterSchema),
-    ResourceId: z.array(StringFilterSchema),
-    ResourcePartition: z.array(StringFilterSchema),
-    ResourceRegion: z.array(StringFilterSchema),
-    ResourceTags: z.array(MapFilterSchema),
-    ResourceDetailsOther: z.array(MapFilterSchema),
-    ComplianceStatus: z.array(StringFilterSchema),
-    ComplianceSecurityControlId: z.array(StringFilterSchema),
-    ComplianceAssociatedStandardsId: z.array(StringFilterSchema),
-    VerificationState: z.array(StringFilterSchema),
-    WorkflowStatus: z.array(StringFilterSchema),
-    RecordState: z.array(StringFilterSchema),
-    RelatedFindingsProductArn: z.array(StringFilterSchema),
-    RelatedFindingsId: z.array(StringFilterSchema),
-    NoteText: z.array(StringFilterSchema),
-    NoteUpdatedAt: z.array(DateFilterSchema),
-    NoteUpdatedBy: z.array(StringFilterSchema),
-    UserDefinedFields: z.array(MapFilterSchema),
-  }).optional(),
+    ProductArn: z.array(StringFilterStateSchema),
+    AwsAccountId: z.array(StringFilterStateSchema),
+    Id: z.array(StringFilterStateSchema),
+    GeneratorId: z.array(StringFilterStateSchema),
+    Type: z.array(StringFilterStateSchema),
+    FirstObservedAt: z.array(DateFilterStateSchema),
+    LastObservedAt: z.array(DateFilterStateSchema),
+    CreatedAt: z.array(DateFilterStateSchema),
+    UpdatedAt: z.array(DateFilterStateSchema),
+    Confidence: z.array(NumberFilterStateSchema),
+    Criticality: z.array(NumberFilterStateSchema),
+    Title: z.array(StringFilterStateSchema),
+    Description: z.array(StringFilterStateSchema),
+    SourceUrl: z.array(StringFilterStateSchema),
+    ProductName: z.array(StringFilterStateSchema),
+    CompanyName: z.array(StringFilterStateSchema),
+    SeverityLabel: z.array(StringFilterStateSchema),
+    ResourceType: z.array(StringFilterStateSchema),
+    ResourceId: z.array(StringFilterStateSchema),
+    ResourcePartition: z.array(StringFilterStateSchema),
+    ResourceRegion: z.array(StringFilterStateSchema),
+    ResourceTags: z.array(MapFilterStateSchema),
+    ResourceDetailsOther: z.array(MapFilterStateSchema),
+    ComplianceStatus: z.array(StringFilterStateSchema),
+    ComplianceSecurityControlId: z.array(StringFilterStateSchema),
+    ComplianceAssociatedStandardsId: z.array(StringFilterStateSchema),
+    VerificationState: z.array(StringFilterStateSchema),
+    WorkflowStatus: z.array(StringFilterStateSchema),
+    RecordState: z.array(StringFilterStateSchema),
+    RelatedFindingsProductArn: z.array(StringFilterStateSchema),
+    RelatedFindingsId: z.array(StringFilterStateSchema),
+    NoteText: z.array(StringFilterStateSchema),
+    NoteUpdatedAt: z.array(DateFilterStateSchema),
+    NoteUpdatedBy: z.array(StringFilterStateSchema),
+    UserDefinedFields: z.array(MapFilterStateSchema),
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -540,7 +605,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub AutomationRule. Registered at `@swamp/aws/securityhub/automation-rule`. */
 export const model = {
   type: "@swamp/aws/securityhub/automation-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -624,6 +689,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

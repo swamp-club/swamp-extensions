@@ -1254,245 +1254,313 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  apis: z.array(z.object({
-    edition: z.string(),
-    methods: z.array(z.object({
+  apis: z.array(
+    z.object({
       edition: z.string(),
+      methods: z.array(
+        z.object({
+          edition: z.string(),
+          name: z.string(),
+          options: z.array(z.unknown()),
+          requestStreaming: z.boolean(),
+          requestTypeUrl: z.string(),
+          responseStreaming: z.boolean(),
+          responseTypeUrl: z.string(),
+          syntax: z.string(),
+        }).partial(),
+      ),
+      mixins: z.array(
+        z.object({
+          name: z.string(),
+          root: z.string(),
+        }).partial(),
+      ),
       name: z.string(),
-      options: z.array(z.unknown()),
-      requestStreaming: z.boolean(),
-      requestTypeUrl: z.string(),
-      responseStreaming: z.boolean(),
-      responseTypeUrl: z.string(),
+      options: z.array(
+        z.object({
+          name: z.string(),
+          value: z.record(z.string(), z.unknown()),
+        }).partial(),
+      ),
+      sourceContext: z.object({
+        fileName: z.string(),
+      }).partial(),
       syntax: z.string(),
-    })),
-    mixins: z.array(z.object({
-      name: z.string(),
-      root: z.string(),
-    })),
-    name: z.string(),
-    options: z.array(z.object({
-      name: z.string(),
-      value: z.record(z.string(), z.unknown()),
-    })),
-    sourceContext: z.object({
-      fileName: z.string(),
-    }),
-    syntax: z.string(),
-    version: z.string(),
-  })).optional(),
-  aspects: z.array(z.object({
-    kind: z.string(),
-    rules: z.array(z.object({
-      config: z.record(z.string(), z.unknown()),
-      selector: z.string(),
-    })),
-    spec: z.record(z.string(), z.unknown()),
-  })).optional(),
+      version: z.string(),
+    }).partial(),
+  ).optional(),
+  aspects: z.array(
+    z.object({
+      kind: z.string(),
+      rules: z.array(
+        z.object({
+          config: z.record(z.string(), z.unknown()),
+          selector: z.string(),
+        }).partial(),
+      ),
+      spec: z.record(z.string(), z.unknown()),
+    }).partial(),
+  ).optional(),
   authentication: z.object({
-    providers: z.array(z.object({
-      audiences: z.string(),
-      authorizationUrl: z.string(),
-      id: z.string(),
-      issuer: z.string(),
-      jwksUri: z.string(),
-      jwtLocations: z.array(z.object({
-        cookie: z.unknown(),
-        header: z.unknown(),
-        query: z.unknown(),
-        valuePrefix: z.unknown(),
-      })),
-    })),
-    rules: z.array(z.object({
-      allowWithoutCredential: z.boolean(),
-      oauth: z.object({
-        canonicalScopes: z.string(),
-      }),
-      requirements: z.array(z.object({
-        audiences: z.unknown(),
-        providerId: z.unknown(),
-      })),
-      selector: z.string(),
-    })),
-  }).optional(),
+    providers: z.array(
+      z.object({
+        audiences: z.string(),
+        authorizationUrl: z.string(),
+        id: z.string(),
+        issuer: z.string(),
+        jwksUri: z.string(),
+        jwtLocations: z.array(
+          z.object({
+            cookie: z.unknown(),
+            header: z.unknown(),
+            query: z.unknown(),
+            valuePrefix: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+    rules: z.array(
+      z.object({
+        allowWithoutCredential: z.boolean(),
+        oauth: z.object({
+          canonicalScopes: z.string(),
+        }).partial(),
+        requirements: z.array(
+          z.object({
+            audiences: z.unknown(),
+            providerId: z.unknown(),
+          }).partial(),
+        ),
+        selector: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   backend: z.object({
-    rules: z.array(z.object({
-      address: z.string(),
-      deadline: z.number(),
-      disableAuth: z.boolean(),
-      jwtAudience: z.string(),
-      loadBalancingPolicy: z.string(),
-      minDeadline: z.number(),
-      operationDeadline: z.number(),
-      overridesByRequestProtocol: z.record(z.string(), z.unknown()),
-      pathTranslation: z.string(),
-      protocol: z.string(),
-      selector: z.string(),
-    })),
-  }).optional(),
+    rules: z.array(
+      z.object({
+        address: z.string(),
+        deadline: z.number(),
+        disableAuth: z.boolean(),
+        jwtAudience: z.string(),
+        loadBalancingPolicy: z.string(),
+        minDeadline: z.number(),
+        operationDeadline: z.number(),
+        overridesByRequestProtocol: z.record(z.string(), z.unknown()),
+        pathTranslation: z.string(),
+        protocol: z.string(),
+        selector: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   billing: z.object({
-    consumerDestinations: z.array(z.object({
-      metrics: z.array(z.string()),
-      monitoredResource: z.string(),
-    })),
-  }).optional(),
+    consumerDestinations: z.array(
+      z.object({
+        metrics: z.array(z.string()),
+        monitoredResource: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   configVersion: z.number().optional(),
   context: z.object({
-    rules: z.array(z.object({
-      allowedRequestExtensions: z.array(z.string()),
-      allowedResponseExtensions: z.array(z.string()),
-      provided: z.array(z.string()),
-      requested: z.array(z.string()),
-      selector: z.string(),
-    })),
-  }).optional(),
+    rules: z.array(
+      z.object({
+        allowedRequestExtensions: z.array(z.string()),
+        allowedResponseExtensions: z.array(z.string()),
+        provided: z.array(z.string()),
+        requested: z.array(z.string()),
+        selector: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   control: z.object({
     environment: z.string(),
-    methodPolicies: z.array(z.object({
-      requestPolicies: z.array(z.object({
-        resourcePermission: z.unknown(),
-        resourceType: z.unknown(),
-        selector: z.unknown(),
-      })),
-      selector: z.string(),
-    })),
-  }).optional(),
+    methodPolicies: z.array(
+      z.object({
+        requestPolicies: z.array(
+          z.object({
+            resourcePermission: z.unknown(),
+            resourceType: z.unknown(),
+            selector: z.unknown(),
+          }).partial(),
+        ),
+        selector: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   customError: z.object({
-    rules: z.array(z.object({
-      isErrorType: z.boolean(),
-      selector: z.string(),
-    })),
+    rules: z.array(
+      z.object({
+        isErrorType: z.boolean(),
+        selector: z.string(),
+      }).partial(),
+    ),
     types: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   documentation: z.object({
     additionalIamInfo: z.string(),
     documentationRootUrl: z.string(),
     overview: z.string(),
-    pages: z.array(z.object({
-      content: z.string(),
-      name: z.string(),
-      subpages: z.array(z.record(z.string(), z.unknown())),
-    })),
-    rules: z.array(z.object({
-      deprecationDescription: z.string(),
-      description: z.string(),
-      disableReplacementWords: z.string(),
-      selector: z.string(),
-    })),
-    sectionOverrides: z.array(z.object({
-      content: z.string(),
-      name: z.string(),
-      subpages: z.array(z.record(z.string(), z.unknown())),
-    })),
+    pages: z.array(
+      z.object({
+        content: z.string(),
+        name: z.string(),
+        subpages: z.array(z.record(z.string(), z.unknown())),
+      }).partial(),
+    ),
+    rules: z.array(
+      z.object({
+        deprecationDescription: z.string(),
+        description: z.string(),
+        disableReplacementWords: z.string(),
+        selector: z.string(),
+      }).partial(),
+    ),
+    sectionOverrides: z.array(
+      z.object({
+        content: z.string(),
+        name: z.string(),
+        subpages: z.array(z.record(z.string(), z.unknown())),
+      }).partial(),
+    ),
     serviceRootUrl: z.string(),
     summary: z.string(),
-  }).optional(),
-  endpoints: z.array(z.object({
-    aliases: z.array(z.string()),
-    allowCors: z.boolean(),
-    name: z.string(),
-    target: z.string(),
-  })).optional(),
-  enums: z.array(z.object({
-    edition: z.string(),
-    enumvalue: z.array(z.object({
+  }).partial().optional(),
+  endpoints: z.array(
+    z.object({
+      aliases: z.array(z.string()),
+      allowCors: z.boolean(),
       name: z.string(),
-      number: z.number(),
-      options: z.array(z.unknown()),
-    })),
-    name: z.string(),
-    options: z.array(z.object({
+      target: z.string(),
+    }).partial(),
+  ).optional(),
+  enums: z.array(
+    z.object({
+      edition: z.string(),
+      enumvalue: z.array(
+        z.object({
+          name: z.string(),
+          number: z.number(),
+          options: z.array(z.unknown()),
+        }).partial(),
+      ),
       name: z.string(),
-      value: z.record(z.string(), z.unknown()),
-    })),
-    sourceContext: z.object({
-      fileName: z.string(),
-    }),
-    syntax: z.string(),
-  })).optional(),
+      options: z.array(
+        z.object({
+          name: z.string(),
+          value: z.record(z.string(), z.unknown()),
+        }).partial(),
+      ),
+      sourceContext: z.object({
+        fileName: z.string(),
+      }).partial(),
+      syntax: z.string(),
+    }).partial(),
+  ).optional(),
   http: z.object({
     fullyDecodeReservedExpansion: z.boolean(),
-    rules: z.array(z.object({
-      additionalBindings: z.array(z.record(z.string(), z.unknown())),
-      body: z.string(),
-      custom: z.object({
-        kind: z.string(),
-        path: z.string(),
-      }),
-      delete: z.string(),
-      get: z.string(),
-      patch: z.string(),
-      post: z.string(),
-      put: z.string(),
-      responseBody: z.string(),
-      selector: z.string(),
-    })),
-  }).optional(),
+    rules: z.array(
+      z.object({
+        additionalBindings: z.array(z.record(z.string(), z.unknown())),
+        body: z.string(),
+        custom: z.object({
+          kind: z.string(),
+          path: z.string(),
+        }).partial(),
+        delete: z.string(),
+        get: z.string(),
+        patch: z.string(),
+        post: z.string(),
+        put: z.string(),
+        responseBody: z.string(),
+        selector: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   id: z.string().optional(),
   logging: z.object({
-    consumerDestinations: z.array(z.object({
-      logs: z.array(z.string()),
-      monitoredResource: z.string(),
-    })),
-    producerDestinations: z.array(z.object({
-      logs: z.array(z.string()),
-      monitoredResource: z.string(),
-    })),
-  }).optional(),
-  logs: z.array(z.object({
-    description: z.string(),
-    displayName: z.string(),
-    labels: z.array(z.object({
+    consumerDestinations: z.array(
+      z.object({
+        logs: z.array(z.string()),
+        monitoredResource: z.string(),
+      }).partial(),
+    ),
+    producerDestinations: z.array(
+      z.object({
+        logs: z.array(z.string()),
+        monitoredResource: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  logs: z.array(
+    z.object({
       description: z.string(),
-      key: z.string(),
-      valueType: z.string(),
-    })),
-    name: z.string(),
-  })).optional(),
-  metrics: z.array(z.object({
-    description: z.string(),
-    displayName: z.string(),
-    labels: z.array(z.object({
+      displayName: z.string(),
+      labels: z.array(
+        z.object({
+          description: z.string(),
+          key: z.string(),
+          valueType: z.string(),
+        }).partial(),
+      ),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
+  metrics: z.array(
+    z.object({
       description: z.string(),
-      key: z.string(),
-      valueType: z.string(),
-    })),
-    launchStage: z.string(),
-    metadata: z.object({
-      ingestDelay: z.string(),
+      displayName: z.string(),
+      labels: z.array(
+        z.object({
+          description: z.string(),
+          key: z.string(),
+          valueType: z.string(),
+        }).partial(),
+      ),
       launchStage: z.string(),
-      samplePeriod: z.string(),
-      timeSeriesResourceHierarchyLevel: z.array(z.string()),
-    }),
-    metricKind: z.string(),
-    monitoredResourceTypes: z.array(z.string()),
-    name: z.string(),
-    type: z.string(),
-    unit: z.string(),
-    valueType: z.string(),
-  })).optional(),
-  monitoredResources: z.array(z.object({
-    description: z.string(),
-    displayName: z.string(),
-    labels: z.array(z.object({
-      description: z.string(),
-      key: z.string(),
+      metadata: z.object({
+        ingestDelay: z.string(),
+        launchStage: z.string(),
+        samplePeriod: z.string(),
+        timeSeriesResourceHierarchyLevel: z.array(z.string()),
+      }).partial(),
+      metricKind: z.string(),
+      monitoredResourceTypes: z.array(z.string()),
+      name: z.string(),
+      type: z.string(),
+      unit: z.string(),
       valueType: z.string(),
-    })),
-    launchStage: z.string(),
-    name: z.string(),
-    type: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
+  monitoredResources: z.array(
+    z.object({
+      description: z.string(),
+      displayName: z.string(),
+      labels: z.array(
+        z.object({
+          description: z.string(),
+          key: z.string(),
+          valueType: z.string(),
+        }).partial(),
+      ),
+      launchStage: z.string(),
+      name: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   monitoring: z.object({
-    consumerDestinations: z.array(z.object({
-      metrics: z.array(z.string()),
-      monitoredResource: z.string(),
-    })),
-    producerDestinations: z.array(z.object({
-      metrics: z.array(z.string()),
-      monitoredResource: z.string(),
-    })),
-  }).optional(),
+    consumerDestinations: z.array(
+      z.object({
+        metrics: z.array(z.string()),
+        monitoredResource: z.string(),
+      }).partial(),
+    ),
+    producerDestinations: z.array(
+      z.object({
+        metrics: z.array(z.string()),
+        monitoredResource: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   producerProjectId: z.string().optional(),
   publishing: z.object({
@@ -1501,207 +1569,233 @@ const StateSchema = z.object({
     docTagPrefix: z.string(),
     documentationUri: z.string(),
     githubLabel: z.string(),
-    librarySettings: z.array(z.object({
-      cppSettings: z.object({
-        common: z.object({
-          destinations: z.unknown(),
-          referenceDocsUri: z.unknown(),
-          selectiveGapicGeneration: z.unknown(),
-        }),
-      }),
-      dotnetSettings: z.object({
-        common: z.object({
-          destinations: z.unknown(),
-          referenceDocsUri: z.unknown(),
-          selectiveGapicGeneration: z.unknown(),
-        }),
-        forcedNamespaceAliases: z.array(z.unknown()),
-        handwrittenSignatures: z.array(z.unknown()),
-        ignoredResources: z.array(z.unknown()),
-        renamedResources: z.record(z.string(), z.unknown()),
-        renamedServices: z.record(z.string(), z.unknown()),
-      }),
-      goSettings: z.object({
-        common: z.object({
-          destinations: z.unknown(),
-          referenceDocsUri: z.unknown(),
-          selectiveGapicGeneration: z.unknown(),
-        }),
-        renamedServices: z.record(z.string(), z.unknown()),
-      }),
-      javaSettings: z.object({
-        common: z.object({
-          destinations: z.unknown(),
-          referenceDocsUri: z.unknown(),
-          selectiveGapicGeneration: z.unknown(),
-        }),
-        libraryPackage: z.string(),
-        serviceClassNames: z.record(z.string(), z.unknown()),
-      }),
-      launchStage: z.string(),
-      nodeSettings: z.object({
-        common: z.object({
-          destinations: z.unknown(),
-          referenceDocsUri: z.unknown(),
-          selectiveGapicGeneration: z.unknown(),
-        }),
-      }),
-      phpSettings: z.object({
-        common: z.object({
-          destinations: z.unknown(),
-          referenceDocsUri: z.unknown(),
-          selectiveGapicGeneration: z.unknown(),
-        }),
-        libraryPackage: z.string(),
-      }),
-      pythonSettings: z.object({
-        common: z.object({
-          destinations: z.unknown(),
-          referenceDocsUri: z.unknown(),
-          selectiveGapicGeneration: z.unknown(),
-        }),
-        experimentalFeatures: z.object({
-          protobufPythonicTypesEnabled: z.unknown(),
-          restAsyncIoEnabled: z.unknown(),
-          unversionedPackageDisabled: z.unknown(),
-        }),
-      }),
-      restNumericEnums: z.boolean(),
-      rubySettings: z.object({
-        common: z.object({
-          destinations: z.unknown(),
-          referenceDocsUri: z.unknown(),
-          selectiveGapicGeneration: z.unknown(),
-        }),
-      }),
-      version: z.string(),
-    })),
-    methodSettings: z.array(z.object({
-      autoPopulatedFields: z.array(z.string()),
-      batching: z.object({
-        batchDescriptor: z.object({
-          batchedField: z.unknown(),
-          discriminatorFields: z.unknown(),
-          subresponseField: z.unknown(),
-        }),
-        thresholds: z.object({
-          delayThreshold: z.unknown(),
-          elementCountLimit: z.unknown(),
-          elementCountThreshold: z.unknown(),
-          flowControlByteLimit: z.unknown(),
-          flowControlElementLimit: z.unknown(),
-          flowControlLimitExceededBehavior: z.unknown(),
-          requestByteLimit: z.unknown(),
-          requestByteThreshold: z.unknown(),
-        }),
-      }),
-      longRunning: z.object({
-        initialPollDelay: z.string(),
-        maxPollDelay: z.string(),
-        pollDelayMultiplier: z.number(),
-        totalPollTimeout: z.string(),
-      }),
-      selector: z.string(),
-    })),
+    librarySettings: z.array(
+      z.object({
+        cppSettings: z.object({
+          common: z.object({
+            destinations: z.unknown(),
+            referenceDocsUri: z.unknown(),
+            selectiveGapicGeneration: z.unknown(),
+          }).partial(),
+        }).partial(),
+        dotnetSettings: z.object({
+          common: z.object({
+            destinations: z.unknown(),
+            referenceDocsUri: z.unknown(),
+            selectiveGapicGeneration: z.unknown(),
+          }).partial(),
+          forcedNamespaceAliases: z.array(z.unknown()),
+          handwrittenSignatures: z.array(z.unknown()),
+          ignoredResources: z.array(z.unknown()),
+          renamedResources: z.record(z.string(), z.unknown()),
+          renamedServices: z.record(z.string(), z.unknown()),
+        }).partial(),
+        goSettings: z.object({
+          common: z.object({
+            destinations: z.unknown(),
+            referenceDocsUri: z.unknown(),
+            selectiveGapicGeneration: z.unknown(),
+          }).partial(),
+          renamedServices: z.record(z.string(), z.unknown()),
+        }).partial(),
+        javaSettings: z.object({
+          common: z.object({
+            destinations: z.unknown(),
+            referenceDocsUri: z.unknown(),
+            selectiveGapicGeneration: z.unknown(),
+          }).partial(),
+          libraryPackage: z.string(),
+          serviceClassNames: z.record(z.string(), z.unknown()),
+        }).partial(),
+        launchStage: z.string(),
+        nodeSettings: z.object({
+          common: z.object({
+            destinations: z.unknown(),
+            referenceDocsUri: z.unknown(),
+            selectiveGapicGeneration: z.unknown(),
+          }).partial(),
+        }).partial(),
+        phpSettings: z.object({
+          common: z.object({
+            destinations: z.unknown(),
+            referenceDocsUri: z.unknown(),
+            selectiveGapicGeneration: z.unknown(),
+          }).partial(),
+          libraryPackage: z.string(),
+        }).partial(),
+        pythonSettings: z.object({
+          common: z.object({
+            destinations: z.unknown(),
+            referenceDocsUri: z.unknown(),
+            selectiveGapicGeneration: z.unknown(),
+          }).partial(),
+          experimentalFeatures: z.object({
+            protobufPythonicTypesEnabled: z.unknown(),
+            restAsyncIoEnabled: z.unknown(),
+            unversionedPackageDisabled: z.unknown(),
+          }).partial(),
+        }).partial(),
+        restNumericEnums: z.boolean(),
+        rubySettings: z.object({
+          common: z.object({
+            destinations: z.unknown(),
+            referenceDocsUri: z.unknown(),
+            selectiveGapicGeneration: z.unknown(),
+          }).partial(),
+        }).partial(),
+        version: z.string(),
+      }).partial(),
+    ),
+    methodSettings: z.array(
+      z.object({
+        autoPopulatedFields: z.array(z.string()),
+        batching: z.object({
+          batchDescriptor: z.object({
+            batchedField: z.unknown(),
+            discriminatorFields: z.unknown(),
+            subresponseField: z.unknown(),
+          }).partial(),
+          thresholds: z.object({
+            delayThreshold: z.unknown(),
+            elementCountLimit: z.unknown(),
+            elementCountThreshold: z.unknown(),
+            flowControlByteLimit: z.unknown(),
+            flowControlElementLimit: z.unknown(),
+            flowControlLimitExceededBehavior: z.unknown(),
+            requestByteLimit: z.unknown(),
+            requestByteThreshold: z.unknown(),
+          }).partial(),
+        }).partial(),
+        longRunning: z.object({
+          initialPollDelay: z.string(),
+          maxPollDelay: z.string(),
+          pollDelayMultiplier: z.number(),
+          totalPollTimeout: z.string(),
+        }).partial(),
+        selector: z.string(),
+      }).partial(),
+    ),
     newIssueUri: z.string(),
     organization: z.string(),
     protoReferenceDocumentationUri: z.string(),
     restReferenceDocumentationUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   quota: z.object({
-    limits: z.array(z.object({
-      defaultLimit: z.string(),
-      description: z.string(),
-      displayName: z.string(),
-      duration: z.string(),
-      freeTier: z.string(),
-      maxLimit: z.string(),
-      metric: z.string(),
-      name: z.string(),
-      trafficSource: z.string(),
-      unit: z.string(),
-      values: z.record(z.string(), z.unknown()),
-    })),
-    metricRules: z.array(z.object({
-      agenticMetricCosts: z.record(z.string(), z.unknown()),
-      metricCosts: z.record(z.string(), z.unknown()),
-      nonagenticMetricCosts: z.record(z.string(), z.unknown()),
-      selector: z.string(),
-    })),
-  }).optional(),
+    limits: z.array(
+      z.object({
+        defaultLimit: z.string(),
+        description: z.string(),
+        displayName: z.string(),
+        duration: z.string(),
+        freeTier: z.string(),
+        maxLimit: z.string(),
+        metric: z.string(),
+        name: z.string(),
+        trafficSource: z.string(),
+        unit: z.string(),
+        values: z.record(z.string(), z.unknown()),
+      }).partial(),
+    ),
+    metricRules: z.array(
+      z.object({
+        agenticMetricCosts: z.record(z.string(), z.unknown()),
+        metricCosts: z.record(z.string(), z.unknown()),
+        nonagenticMetricCosts: z.record(z.string(), z.unknown()),
+        selector: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   sourceInfo: z.object({
     sourceFiles: z.array(z.record(z.string(), z.unknown())),
-  }).optional(),
+  }).partial().optional(),
   systemParameters: z.object({
-    rules: z.array(z.object({
-      parameters: z.array(z.object({
-        httpHeader: z.unknown(),
-        name: z.unknown(),
-        urlQueryParameter: z.unknown(),
-      })),
-      selector: z.string(),
-    })),
-  }).optional(),
-  systemTypes: z.array(z.object({
-    edition: z.string(),
-    fields: z.array(z.object({
-      cardinality: z.string(),
-      defaultValue: z.string(),
-      jsonName: z.string(),
-      kind: z.string(),
+    rules: z.array(
+      z.object({
+        parameters: z.array(
+          z.object({
+            httpHeader: z.unknown(),
+            name: z.unknown(),
+            urlQueryParameter: z.unknown(),
+          }).partial(),
+        ),
+        selector: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  systemTypes: z.array(
+    z.object({
+      edition: z.string(),
+      fields: z.array(
+        z.object({
+          cardinality: z.string(),
+          defaultValue: z.string(),
+          jsonName: z.string(),
+          kind: z.string(),
+          name: z.string(),
+          number: z.number(),
+          oneofIndex: z.number(),
+          options: z.array(z.unknown()),
+          packed: z.boolean(),
+          typeUrl: z.string(),
+        }).partial(),
+      ),
       name: z.string(),
-      number: z.number(),
-      oneofIndex: z.number(),
-      options: z.array(z.unknown()),
-      packed: z.boolean(),
-      typeUrl: z.string(),
-    })),
-    name: z.string(),
-    oneofs: z.array(z.string()),
-    options: z.array(z.object({
-      name: z.string(),
-      value: z.record(z.string(), z.unknown()),
-    })),
-    sourceContext: z.object({
-      fileName: z.string(),
-    }),
-    syntax: z.string(),
-  })).optional(),
+      oneofs: z.array(z.string()),
+      options: z.array(
+        z.object({
+          name: z.string(),
+          value: z.record(z.string(), z.unknown()),
+        }).partial(),
+      ),
+      sourceContext: z.object({
+        fileName: z.string(),
+      }).partial(),
+      syntax: z.string(),
+    }).partial(),
+  ).optional(),
   title: z.string().optional(),
-  types: z.array(z.object({
-    edition: z.string(),
-    fields: z.array(z.object({
-      cardinality: z.string(),
-      defaultValue: z.string(),
-      jsonName: z.string(),
-      kind: z.string(),
+  types: z.array(
+    z.object({
+      edition: z.string(),
+      fields: z.array(
+        z.object({
+          cardinality: z.string(),
+          defaultValue: z.string(),
+          jsonName: z.string(),
+          kind: z.string(),
+          name: z.string(),
+          number: z.number(),
+          oneofIndex: z.number(),
+          options: z.array(z.unknown()),
+          packed: z.boolean(),
+          typeUrl: z.string(),
+        }).partial(),
+      ),
       name: z.string(),
-      number: z.number(),
-      oneofIndex: z.number(),
-      options: z.array(z.unknown()),
-      packed: z.boolean(),
-      typeUrl: z.string(),
-    })),
-    name: z.string(),
-    oneofs: z.array(z.string()),
-    options: z.array(z.object({
-      name: z.string(),
-      value: z.record(z.string(), z.unknown()),
-    })),
-    sourceContext: z.object({
-      fileName: z.string(),
-    }),
-    syntax: z.string(),
-  })).optional(),
+      oneofs: z.array(z.string()),
+      options: z.array(
+        z.object({
+          name: z.string(),
+          value: z.record(z.string(), z.unknown()),
+        }).partial(),
+      ),
+      sourceContext: z.object({
+        fileName: z.string(),
+      }).partial(),
+      syntax: z.string(),
+    }).partial(),
+  ).optional(),
   usage: z.object({
     producerNotificationChannel: z.string(),
     requirements: z.array(z.string()),
-    rules: z.array(z.object({
-      allowUnregisteredCalls: z.boolean(),
-      selector: z.string(),
-      skipServiceControl: z.boolean(),
-    })),
-  }).optional(),
+    rules: z.array(
+      z.object({
+        allowUnregisteredCalls: z.boolean(),
+        selector: z.string(),
+        skipServiceControl: z.boolean(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2873,7 +2967,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Service Management Services.Configs. Registered at `@swamp/gcp/servicemanagement/services-configs`. */
 export const model = {
   type: "@swamp/gcp/servicemanagement/services-configs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3060,6 +3154,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

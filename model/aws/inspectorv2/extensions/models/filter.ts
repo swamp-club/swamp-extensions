@@ -75,6 +75,43 @@ const PackageFilterSchema = z.object({
   Version: StringFilterSchema.optional(),
 });
 
+const StringFilterStateSchema = z.object({
+  Comparison: z.string(),
+  Value: z.string(),
+}).partial();
+
+const NumberFilterStateSchema = z.object({
+  LowerInclusive: z.number(),
+  UpperInclusive: z.number(),
+}).partial();
+
+const DateFilterStateSchema = z.object({
+  EndInclusive: z.number(),
+  StartInclusive: z.number(),
+}).partial();
+
+const PortRangeFilterStateSchema = z.object({
+  BeginInclusive: z.number(),
+  EndInclusive: z.number(),
+}).partial();
+
+const MapFilterStateSchema = z.object({
+  Comparison: z.string(),
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const PackageFilterStateSchema = z.object({
+  Architecture: StringFilterStateSchema,
+  Epoch: NumberFilterStateSchema,
+  FilePath: StringFilterStateSchema,
+  Name: StringFilterStateSchema,
+  Release: StringFilterStateSchema,
+  SourceLambdaLayerArn: StringFilterStateSchema,
+  SourceLayerHash: StringFilterStateSchema,
+  Version: StringFilterStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -150,56 +187,56 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   FilterCriteria: z.object({
-    AwsAccountId: z.array(StringFilterSchema),
-    CodeVulnerabilityDetectorName: z.array(StringFilterSchema),
-    CodeVulnerabilityDetectorTags: z.array(StringFilterSchema),
-    CodeVulnerabilityFilePath: z.array(StringFilterSchema),
-    ComponentId: z.array(StringFilterSchema),
-    ComponentType: z.array(StringFilterSchema),
-    Ec2InstanceImageId: z.array(StringFilterSchema),
-    Ec2InstanceSubnetId: z.array(StringFilterSchema),
-    Ec2InstanceVpcId: z.array(StringFilterSchema),
-    EcrImageArchitecture: z.array(StringFilterSchema),
-    EcrImageHash: z.array(StringFilterSchema),
-    EcrImageInUseCount: z.array(NumberFilterSchema),
-    EcrImagePushedAt: z.array(DateFilterSchema),
-    EcrImageRegistry: z.array(StringFilterSchema),
-    EcrImageRepositoryName: z.array(StringFilterSchema),
-    EcrImageTags: z.array(StringFilterSchema),
-    EpssScore: z.array(NumberFilterSchema),
-    ExploitAvailable: z.array(StringFilterSchema),
-    FindingArn: z.array(StringFilterSchema),
-    FindingStatus: z.array(StringFilterSchema),
-    FindingType: z.array(StringFilterSchema),
-    FirstObservedAt: z.array(DateFilterSchema),
-    FixAvailable: z.array(StringFilterSchema),
-    InspectorScore: z.array(NumberFilterSchema),
-    LambdaFunctionExecutionRoleArn: z.array(StringFilterSchema),
-    LambdaFunctionLastModifiedAt: z.array(DateFilterSchema),
-    LambdaFunctionLayers: z.array(StringFilterSchema),
-    LambdaFunctionName: z.array(StringFilterSchema),
-    LambdaFunctionRuntime: z.array(StringFilterSchema),
-    LastObservedAt: z.array(DateFilterSchema),
-    NetworkProtocol: z.array(StringFilterSchema),
-    PortRange: z.array(PortRangeFilterSchema),
-    RelatedVulnerabilities: z.array(StringFilterSchema),
-    ResourceId: z.array(StringFilterSchema),
-    ResourceTags: z.array(MapFilterSchema),
-    ResourceType: z.array(StringFilterSchema),
-    Severity: z.array(StringFilterSchema),
-    Title: z.array(StringFilterSchema),
-    UpdatedAt: z.array(DateFilterSchema),
-    VendorSeverity: z.array(StringFilterSchema),
-    VulnerabilityId: z.array(StringFilterSchema),
-    VulnerabilitySource: z.array(StringFilterSchema),
-    VulnerablePackages: z.array(PackageFilterSchema),
-  }).optional(),
+    AwsAccountId: z.array(StringFilterStateSchema),
+    CodeVulnerabilityDetectorName: z.array(StringFilterStateSchema),
+    CodeVulnerabilityDetectorTags: z.array(StringFilterStateSchema),
+    CodeVulnerabilityFilePath: z.array(StringFilterStateSchema),
+    ComponentId: z.array(StringFilterStateSchema),
+    ComponentType: z.array(StringFilterStateSchema),
+    Ec2InstanceImageId: z.array(StringFilterStateSchema),
+    Ec2InstanceSubnetId: z.array(StringFilterStateSchema),
+    Ec2InstanceVpcId: z.array(StringFilterStateSchema),
+    EcrImageArchitecture: z.array(StringFilterStateSchema),
+    EcrImageHash: z.array(StringFilterStateSchema),
+    EcrImageInUseCount: z.array(NumberFilterStateSchema),
+    EcrImagePushedAt: z.array(DateFilterStateSchema),
+    EcrImageRegistry: z.array(StringFilterStateSchema),
+    EcrImageRepositoryName: z.array(StringFilterStateSchema),
+    EcrImageTags: z.array(StringFilterStateSchema),
+    EpssScore: z.array(NumberFilterStateSchema),
+    ExploitAvailable: z.array(StringFilterStateSchema),
+    FindingArn: z.array(StringFilterStateSchema),
+    FindingStatus: z.array(StringFilterStateSchema),
+    FindingType: z.array(StringFilterStateSchema),
+    FirstObservedAt: z.array(DateFilterStateSchema),
+    FixAvailable: z.array(StringFilterStateSchema),
+    InspectorScore: z.array(NumberFilterStateSchema),
+    LambdaFunctionExecutionRoleArn: z.array(StringFilterStateSchema),
+    LambdaFunctionLastModifiedAt: z.array(DateFilterStateSchema),
+    LambdaFunctionLayers: z.array(StringFilterStateSchema),
+    LambdaFunctionName: z.array(StringFilterStateSchema),
+    LambdaFunctionRuntime: z.array(StringFilterStateSchema),
+    LastObservedAt: z.array(DateFilterStateSchema),
+    NetworkProtocol: z.array(StringFilterStateSchema),
+    PortRange: z.array(PortRangeFilterStateSchema),
+    RelatedVulnerabilities: z.array(StringFilterStateSchema),
+    ResourceId: z.array(StringFilterStateSchema),
+    ResourceTags: z.array(MapFilterStateSchema),
+    ResourceType: z.array(StringFilterStateSchema),
+    Severity: z.array(StringFilterStateSchema),
+    Title: z.array(StringFilterStateSchema),
+    UpdatedAt: z.array(DateFilterStateSchema),
+    VendorSeverity: z.array(StringFilterStateSchema),
+    VulnerabilityId: z.array(StringFilterStateSchema),
+    VulnerabilitySource: z.array(StringFilterStateSchema),
+    VulnerablePackages: z.array(PackageFilterStateSchema),
+  }).partial().optional(),
   FilterAction: z.string().optional(),
   Arn: z.string(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -281,7 +318,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for InspectorV2 Filter. Registered at `@swamp/aws/inspectorv2/filter`. */
 export const model = {
   type: "@swamp/aws/inspectorv2/filter",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -350,6 +387,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

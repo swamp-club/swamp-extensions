@@ -300,6 +300,149 @@ const TagSchema = z.object({
   ),
 });
 
+const Oauth2AuthorizationServerMetadataStateSchema = z.object({
+  Issuer: z.string(),
+  AuthorizationEndpoint: z.string(),
+  TokenEndpoint: z.string(),
+  ResponseTypes: z.array(z.string()),
+}).partial();
+
+const Oauth2DiscoveryStateSchema = z.object({
+  DiscoveryUrl: z.string(),
+  AuthorizationServerMetadata: Oauth2AuthorizationServerMetadataStateSchema,
+}).partial();
+
+const SecretReferenceStateSchema = z.object({
+  SecretId: z.string(),
+  JsonKey: z.string(),
+}).partial();
+
+const TokenExchangeGrantTypeConfigStateSchema = z.object({
+  ActorTokenContent: z.string(),
+  ActorTokenScopes: z.array(z.string()),
+}).partial();
+
+const OnBehalfOfTokenExchangeConfigStateSchema = z.object({
+  GrantType: z.string(),
+  TokenExchangeGrantTypeConfig: TokenExchangeGrantTypeConfigStateSchema,
+}).partial();
+
+const KmsKeySourceTypeStateSchema = z.object({
+  KmsKeyArn: z.string(),
+}).partial();
+
+const PrivateKeySourceStateSchema = z.object({
+  KmsKeySource: KmsKeySourceTypeStateSchema,
+}).partial();
+
+const PrivateKeyJwtConfigStateSchema = z.object({
+  PrivateKeySource: PrivateKeySourceStateSchema,
+  SigningAlgorithm: z.string(),
+  AdditionalHeaderClaims: z.record(z.string(), z.unknown()),
+  AdditionalPayloadClaims: z.record(z.string(), z.unknown()),
+}).partial();
+
+const SelfManagedLatticeResourceStateSchema = z.object({
+  ResourceConfigurationIdentifier: z.string(),
+}).partial();
+
+const ManagedVpcResourceStateSchema = z.object({
+  VpcIdentifier: z.string(),
+  SubnetIds: z.array(z.string()),
+  EndpointIpAddressType: z.string(),
+  SecurityGroupIds: z.array(z.string()),
+  RoutingDomain: z.string(),
+  Tags: z.record(z.string(), z.unknown()),
+}).partial();
+
+const PrivateEndpointStateSchema = z.object({
+  SelfManagedLatticeResource: SelfManagedLatticeResourceStateSchema,
+  ManagedVpcResource: ManagedVpcResourceStateSchema,
+}).partial();
+
+const PrivateEndpointOverrideStateSchema = z.object({
+  Domain: z.string(),
+  PrivateEndpoint: PrivateEndpointStateSchema,
+}).partial();
+
+const CustomOauth2ProviderConfigInputStateSchema = z.object({
+  OauthDiscovery: Oauth2DiscoveryStateSchema,
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  ClientSecretConfig: SecretReferenceStateSchema,
+  ClientSecretSource: z.string(),
+  OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigStateSchema,
+  ClientAuthenticationMethod: z.string(),
+  PrivateKeyJwtConfig: PrivateKeyJwtConfigStateSchema,
+  PrivateEndpoint: PrivateEndpointStateSchema,
+  PrivateEndpointOverrides: z.array(PrivateEndpointOverrideStateSchema),
+}).partial();
+
+const GoogleOauth2ProviderConfigInputStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  ClientSecretConfig: SecretReferenceStateSchema,
+  ClientSecretSource: z.string(),
+}).partial();
+
+const GithubOauth2ProviderConfigInputStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  ClientSecretConfig: SecretReferenceStateSchema,
+  ClientSecretSource: z.string(),
+}).partial();
+
+const SlackOauth2ProviderConfigInputStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  ClientSecretConfig: SecretReferenceStateSchema,
+  ClientSecretSource: z.string(),
+}).partial();
+
+const SalesforceOauth2ProviderConfigInputStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  ClientSecretConfig: SecretReferenceStateSchema,
+  ClientSecretSource: z.string(),
+}).partial();
+
+const MicrosoftOauth2ProviderConfigInputStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  ClientSecretConfig: SecretReferenceStateSchema,
+  ClientSecretSource: z.string(),
+  TenantId: z.string(),
+}).partial();
+
+const AtlassianOauth2ProviderConfigInputStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  ClientSecretConfig: SecretReferenceStateSchema,
+  ClientSecretSource: z.string(),
+}).partial();
+
+const LinkedinOauth2ProviderConfigInputStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  ClientSecretConfig: SecretReferenceStateSchema,
+  ClientSecretSource: z.string(),
+}).partial();
+
+const IncludedOauth2ProviderConfigInputStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  ClientSecretConfig: SecretReferenceStateSchema,
+  ClientSecretSource: z.string(),
+  Issuer: z.string(),
+  AuthorizationEndpoint: z.string(),
+  TokenEndpoint: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -417,39 +560,42 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   CredentialProviderVendor: z.string().optional(),
   Oauth2ProviderConfigInput: z.object({
-    CustomOauth2ProviderConfig: CustomOauth2ProviderConfigInputSchema,
-    GoogleOauth2ProviderConfig: GoogleOauth2ProviderConfigInputSchema,
-    GithubOauth2ProviderConfig: GithubOauth2ProviderConfigInputSchema,
-    SlackOauth2ProviderConfig: SlackOauth2ProviderConfigInputSchema,
-    SalesforceOauth2ProviderConfig: SalesforceOauth2ProviderConfigInputSchema,
-    MicrosoftOauth2ProviderConfig: MicrosoftOauth2ProviderConfigInputSchema,
-    AtlassianOauth2ProviderConfig: AtlassianOauth2ProviderConfigInputSchema,
-    LinkedinOauth2ProviderConfig: LinkedinOauth2ProviderConfigInputSchema,
-    IncludedOauth2ProviderConfig: IncludedOauth2ProviderConfigInputSchema,
-  }).optional(),
+    CustomOauth2ProviderConfig: CustomOauth2ProviderConfigInputStateSchema,
+    GoogleOauth2ProviderConfig: GoogleOauth2ProviderConfigInputStateSchema,
+    GithubOauth2ProviderConfig: GithubOauth2ProviderConfigInputStateSchema,
+    SlackOauth2ProviderConfig: SlackOauth2ProviderConfigInputStateSchema,
+    SalesforceOauth2ProviderConfig:
+      SalesforceOauth2ProviderConfigInputStateSchema,
+    MicrosoftOauth2ProviderConfig:
+      MicrosoftOauth2ProviderConfigInputStateSchema,
+    AtlassianOauth2ProviderConfig:
+      AtlassianOauth2ProviderConfigInputStateSchema,
+    LinkedinOauth2ProviderConfig: LinkedinOauth2ProviderConfigInputStateSchema,
+    IncludedOauth2ProviderConfig: IncludedOauth2ProviderConfigInputStateSchema,
+  }).partial().optional(),
   CredentialProviderArn: z.string(),
   ClientSecretArn: z.object({
     SecretArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ClientSecretJsonKey: z.string().optional(),
   ClientSecretSource: z.string().optional(),
   CallbackUrl: z.string().optional(),
   Oauth2ProviderConfigOutput: z.object({
-    OauthDiscovery: Oauth2DiscoverySchema,
+    OauthDiscovery: Oauth2DiscoveryStateSchema,
     ClientId: z.string(),
-    OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema,
+    OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigStateSchema,
     ClientAuthenticationMethod: z.string(),
-    PrivateKeyJwtConfig: PrivateKeyJwtConfigSchema,
-    PrivateEndpoint: PrivateEndpointSchema,
-    PrivateEndpointOverrides: z.array(PrivateEndpointOverrideSchema),
-  }).optional(),
+    PrivateKeyJwtConfig: PrivateKeyJwtConfigStateSchema,
+    PrivateEndpoint: PrivateEndpointStateSchema,
+    PrivateEndpointOverrides: z.array(PrivateEndpointOverrideStateSchema),
+  }).partial().optional(),
   CreatedTime: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
   Status: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -573,7 +719,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore OAuth2CredentialProvider. Registered at `@swamp/aws/bedrockagentcore/oauth2credential-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/oauth2credential-provider",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -647,6 +793,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

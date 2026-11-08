@@ -48,6 +48,14 @@ const PolicyStatementSchema = z.object({
   Statement: z.string().min(35).max(10000).describe("The policy statement."),
 });
 
+const CedarPolicyStateSchema = z.object({
+  Statement: z.string(),
+}).partial();
+
+const PolicyStatementStateSchema = z.object({
+  Statement: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -98,9 +106,9 @@ const StateSchema = z.object({
   PolicyEngineId: z.string().optional(),
   Name: z.string().optional(),
   Definition: z.object({
-    Cedar: CedarPolicySchema,
-    Policy: PolicyStatementSchema,
-  }).optional(),
+    Cedar: CedarPolicyStateSchema,
+    Policy: PolicyStatementStateSchema,
+  }).partial().optional(),
   Description: z.string().optional(),
   ValidationMode: z.string().optional(),
   EnforcementMode: z.string().optional(),
@@ -112,7 +120,7 @@ const StateSchema = z.object({
   StatusReasons: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -169,7 +177,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Policy. Registered at `@swamp/aws/bedrockagentcore/policy`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -238,6 +246,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

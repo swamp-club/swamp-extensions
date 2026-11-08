@@ -844,23 +844,27 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   accountId: z.string().optional(),
-  autoEventFilter: z.array(z.object({
-    parameter: z.array(z.object({
-      key: z.string(),
-      list: z.array(z.unknown()),
-      map: z.array(z.unknown()),
+  autoEventFilter: z.array(
+    z.object({
+      parameter: z.array(
+        z.object({
+          key: z.string(),
+          list: z.array(z.unknown()),
+          map: z.array(z.unknown()),
+          type: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       type: z.string(),
-      value: z.string(),
-    })),
-    type: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   checkValidation: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   containerId: z.string().optional(),
   continuousTimeMinMilliseconds: z.object({
     key: z.string(),
@@ -868,34 +872,42 @@ const StateSchema = z.object({
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
-  customEventFilter: z.array(z.object({
-    parameter: z.array(z.object({
-      key: z.string(),
-      list: z.array(z.unknown()),
-      map: z.array(z.unknown()),
+  }).partial().optional(),
+  customEventFilter: z.array(
+    z.object({
+      parameter: z.array(
+        z.object({
+          key: z.string(),
+          list: z.array(z.unknown()),
+          map: z.array(z.unknown()),
+          type: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       type: z.string(),
-      value: z.string(),
-    })),
-    type: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   eventName: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
-  filter: z.array(z.object({
-    parameter: z.array(z.object({
-      key: z.string(),
-      list: z.array(z.unknown()),
-      map: z.array(z.unknown()),
+  }).partial().optional(),
+  filter: z.array(
+    z.object({
+      parameter: z.array(
+        z.object({
+          key: z.string(),
+          list: z.array(z.unknown()),
+          map: z.array(z.unknown()),
+          type: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       type: z.string(),
-      value: z.string(),
-    })),
-    type: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   fingerprint: z.string().optional(),
   horizontalScrollPercentageList: z.object({
     key: z.string(),
@@ -903,43 +915,45 @@ const StateSchema = z.object({
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   interval: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   intervalSeconds: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   limit: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   maxTimerLengthSeconds: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  parameter: z.array(z.object({
-    key: z.string(),
-    list: z.array(z.record(z.string(), z.unknown())),
-    map: z.array(z.record(z.string(), z.unknown())),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
+  parameter: z.array(
+    z.object({
+      key: z.string(),
+      list: z.array(z.record(z.string(), z.unknown())),
+      map: z.array(z.record(z.string(), z.unknown())),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   parentFolderId: z.string().optional(),
   selector: z.object({
     key: z.string(),
@@ -947,14 +961,14 @@ const StateSchema = z.object({
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   totalTimeMinMilliseconds: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   triggerId: z.string().optional(),
   type: z.string().optional(),
   uniqueTriggerId: z.object({
@@ -963,49 +977,49 @@ const StateSchema = z.object({
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   verticalScrollPercentageList: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   visibilitySelector: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   visiblePercentageMax: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   visiblePercentageMin: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   waitForTags: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   waitForTagsTimeout: z.object({
     key: z.string(),
     list: z.array(z.record(z.string(), z.unknown())),
     map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1690,7 +1704,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tag Manager Accounts.Containers.Triggers. Registered at `@swamp/gcp/tagmanager/accounts-containers-triggers`. */
 export const model = {
   type: "@swamp/gcp/tagmanager/accounts-containers-triggers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1724,6 +1738,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

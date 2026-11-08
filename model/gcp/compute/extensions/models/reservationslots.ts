@@ -272,13 +272,13 @@ const StateSchema = z.object({
       cluster: z.string(),
       host: z.string(),
       subBlock: z.string(),
-    }),
+    }).partial(),
     selfLink: z.string(),
     selfLinkWithId: z.string(),
     shareSettings: z.object({
       projectMap: z.record(z.string(), z.unknown()),
       shareType: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
     status: z.object({
       physicalTopology: z.object({
@@ -286,12 +286,12 @@ const StateSchema = z.object({
         cluster: z.string(),
         host: z.string(),
         subBlock: z.string(),
-      }),
+      }).partial(),
       rdmaIpAddresses: z.array(z.string()),
       runningInstances: z.array(z.string()),
-    }),
+    }).partial(),
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -424,7 +424,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ReservationSlots. Registered at `@swamp/gcp/compute/reservationslots`. */
 export const model = {
   type: "@swamp/gcp/compute/reservationslots",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -583,6 +583,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

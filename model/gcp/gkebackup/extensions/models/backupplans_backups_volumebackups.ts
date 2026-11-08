@@ -130,7 +130,7 @@ const StateSchema = z.object({
   sourcePvc: z.object({
     name: z.string(),
     namespace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   stateMessage: z.string().optional(),
   storageBytes: z.string().optional(),
@@ -183,7 +183,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup for GKE BackupPlans.Backups.VolumeBackups. Registered at `@swamp/gcp/gkebackup/backupplans-backups-volumebackups`. */
 export const model = {
   type: "@swamp/gcp/gkebackup/backupplans-backups-volumebackups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -322,6 +322,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

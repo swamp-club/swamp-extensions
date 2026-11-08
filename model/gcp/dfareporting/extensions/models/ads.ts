@@ -903,7 +903,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   archived: z.boolean().optional(),
   audienceSegmentId: z.string().optional(),
   campaignId: z.string().optional(),
@@ -914,143 +914,167 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clickThroughUrl: z.object({
     computedClickThroughUrl: z.string(),
     customClickThroughUrl: z.string(),
     defaultLandingPage: z.boolean(),
     landingPageId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clickThroughUrlSuffixProperties: z.object({
     clickThroughUrlSuffix: z.string(),
     overrideInheritedSuffix: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   comments: z.string().optional(),
   compatibility: z.string().optional(),
   contextualKeywordTargeting: z.object({
-    keywords: z.array(z.object({
-      keyword: z.string(),
-    })),
-  }).optional(),
+    keywords: z.array(
+      z.object({
+        keyword: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   createInfo: z.object({
     time: z.string(),
-  }).optional(),
-  creativeGroupAssignments: z.array(z.object({
-    creativeGroupId: z.string(),
-    creativeGroupNumber: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  creativeGroupAssignments: z.array(
+    z.object({
+      creativeGroupId: z.string(),
+      creativeGroupNumber: z.string(),
+    }).partial(),
+  ).optional(),
   creativeRotation: z.object({
-    creativeAssignments: z.array(z.object({
-      active: z.boolean(),
-      applyEventTags: z.boolean(),
-      clickThroughUrl: z.object({
-        computedClickThroughUrl: z.string(),
-        customClickThroughUrl: z.string(),
-        defaultLandingPage: z.boolean(),
-        landingPageId: z.string(),
-      }),
-      companionCreativeOverrides: z.array(z.object({
-        clickThroughUrl: z.unknown(),
-        creativeId: z.unknown(),
-      })),
-      creativeGroupAssignments: z.array(z.object({
-        creativeGroupId: z.unknown(),
-        creativeGroupNumber: z.unknown(),
-      })),
-      creativeId: z.string(),
-      creativeIdDimensionValue: z.object({
-        dimensionName: z.string(),
-        etag: z.string(),
-        id: z.string(),
-        kind: z.string(),
-        matchType: z.string(),
-        value: z.string(),
-      }),
-      endTime: z.string(),
-      richMediaExitOverrides: z.array(z.object({
-        clickThroughUrl: z.unknown(),
-        enabled: z.unknown(),
-        exitId: z.unknown(),
-      })),
-      sequence: z.number(),
-      sslCompliant: z.boolean(),
-      startTime: z.string(),
-      weight: z.number(),
-    })),
+    creativeAssignments: z.array(
+      z.object({
+        active: z.boolean(),
+        applyEventTags: z.boolean(),
+        clickThroughUrl: z.object({
+          computedClickThroughUrl: z.string(),
+          customClickThroughUrl: z.string(),
+          defaultLandingPage: z.boolean(),
+          landingPageId: z.string(),
+        }).partial(),
+        companionCreativeOverrides: z.array(
+          z.object({
+            clickThroughUrl: z.unknown(),
+            creativeId: z.unknown(),
+          }).partial(),
+        ),
+        creativeGroupAssignments: z.array(
+          z.object({
+            creativeGroupId: z.unknown(),
+            creativeGroupNumber: z.unknown(),
+          }).partial(),
+        ),
+        creativeId: z.string(),
+        creativeIdDimensionValue: z.object({
+          dimensionName: z.string(),
+          etag: z.string(),
+          id: z.string(),
+          kind: z.string(),
+          matchType: z.string(),
+          value: z.string(),
+        }).partial(),
+        endTime: z.string(),
+        richMediaExitOverrides: z.array(
+          z.object({
+            clickThroughUrl: z.unknown(),
+            enabled: z.unknown(),
+            exitId: z.unknown(),
+          }).partial(),
+        ),
+        sequence: z.number(),
+        sslCompliant: z.boolean(),
+        startTime: z.string(),
+        weight: z.number(),
+      }).partial(),
+    ),
     creativeOptimizationConfigurationId: z.string(),
     type: z.string(),
     weightCalculationStrategy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dayPartTargeting: z.object({
     daysOfWeek: z.array(z.string()),
     hoursOfDay: z.array(z.number()),
     userLocalTime: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   defaultClickThroughEventTagProperties: z.object({
     defaultClickThroughEventTagId: z.string(),
     overrideInheritedEventTag: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   deliverySchedule: z.object({
     frequencyCap: z.object({
       duration: z.string(),
       impressions: z.string(),
-    }),
+    }).partial(),
     hardCutoff: z.boolean(),
     impressionRatio: z.string(),
     priority: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dynamicClickTracker: z.boolean().optional(),
   endTime: z.string().optional(),
-  eventTagOverrides: z.array(z.object({
-    enabled: z.boolean(),
-    id: z.string(),
-  })).optional(),
-  geoTargeting: z.object({
-    cities: z.array(z.object({
-      countryCode: z.string(),
-      countryDartId: z.string(),
-      dartId: z.string(),
-      kind: z.string(),
-      metroCode: z.string(),
-      metroDmaId: z.string(),
-      name: z.string(),
-      regionCode: z.string(),
-      regionDartId: z.string(),
-    })),
-    countries: z.array(z.object({
-      countryCode: z.string(),
-      dartId: z.string(),
-      kind: z.string(),
-      name: z.string(),
-      sslEnabled: z.boolean(),
-      tvDataProviders: z.array(z.string()),
-    })),
-    excludeCountries: z.boolean(),
-    metros: z.array(z.object({
-      countryCode: z.string(),
-      countryDartId: z.string(),
-      dartId: z.string(),
-      dmaId: z.string(),
-      kind: z.string(),
-      metroCode: z.string(),
-      name: z.string(),
-    })),
-    postalCodes: z.array(z.object({
-      code: z.string(),
-      countryCode: z.string(),
-      countryDartId: z.string(),
+  eventTagOverrides: z.array(
+    z.object({
+      enabled: z.boolean(),
       id: z.string(),
-      kind: z.string(),
-    })),
-    regions: z.array(z.object({
-      countryCode: z.string(),
-      countryDartId: z.string(),
-      dartId: z.string(),
-      kind: z.string(),
-      name: z.string(),
-      regionCode: z.string(),
-    })),
-  }).optional(),
+    }).partial(),
+  ).optional(),
+  geoTargeting: z.object({
+    cities: z.array(
+      z.object({
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        dartId: z.string(),
+        kind: z.string(),
+        metroCode: z.string(),
+        metroDmaId: z.string(),
+        name: z.string(),
+        regionCode: z.string(),
+        regionDartId: z.string(),
+      }).partial(),
+    ),
+    countries: z.array(
+      z.object({
+        countryCode: z.string(),
+        dartId: z.string(),
+        kind: z.string(),
+        name: z.string(),
+        sslEnabled: z.boolean(),
+        tvDataProviders: z.array(z.string()),
+      }).partial(),
+    ),
+    excludeCountries: z.boolean(),
+    metros: z.array(
+      z.object({
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        dartId: z.string(),
+        dmaId: z.string(),
+        kind: z.string(),
+        metroCode: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    postalCodes: z.array(
+      z.object({
+        code: z.string(),
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        id: z.string(),
+        kind: z.string(),
+      }).partial(),
+    ),
+    regions: z.array(
+      z.object({
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        dartId: z.string(),
+        kind: z.string(),
+        name: z.string(),
+        regionCode: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   id: z.string(),
   idDimensionValue: z.object({
     dimensionName: z.string(),
@@ -1059,99 +1083,115 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   keyValueTargetingExpression: z.object({
     expression: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   languageTargeting: z.object({
-    languages: z.array(z.object({
-      id: z.string(),
-      kind: z.string(),
-      languageCode: z.string(),
-      name: z.string(),
-    })),
-  }).optional(),
+    languages: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        languageCode: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   lastModifiedInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string().optional(),
-  placementAssignments: z.array(z.object({
-    active: z.boolean(),
-    placementId: z.string(),
-    placementIdDimensionValue: z.object({
-      dimensionName: z.string(),
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      matchType: z.string(),
-      value: z.string(),
-    }),
-    sslRequired: z.boolean(),
-  })).optional(),
+  placementAssignments: z.array(
+    z.object({
+      active: z.boolean(),
+      placementId: z.string(),
+      placementIdDimensionValue: z.object({
+        dimensionName: z.string(),
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        matchType: z.string(),
+        value: z.string(),
+      }).partial(),
+      sslRequired: z.boolean(),
+    }).partial(),
+  ).optional(),
   remarketingListExpression: z.object({
     expression: z.string(),
-  }).optional(),
+  }).partial().optional(),
   size: z.object({
     height: z.number(),
     iab: z.boolean(),
     id: z.string(),
     kind: z.string(),
     width: z.number(),
-  }).optional(),
+  }).partial().optional(),
   sslCompliant: z.boolean().optional(),
   sslRequired: z.boolean().optional(),
   startTime: z.string().optional(),
   subaccountId: z.string().optional(),
   targetingTemplateId: z.string().optional(),
   technologyTargeting: z.object({
-    browsers: z.array(z.object({
-      browserVersionId: z.string(),
-      dartId: z.string(),
-      kind: z.string(),
-      majorVersion: z.string(),
-      minorVersion: z.string(),
-      name: z.string(),
-    })),
-    connectionTypes: z.array(z.object({
-      id: z.string(),
-      kind: z.string(),
-      name: z.string(),
-    })),
-    mobileCarriers: z.array(z.object({
-      countryCode: z.string(),
-      countryDartId: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      name: z.string(),
-    })),
-    operatingSystemVersions: z.array(z.object({
-      id: z.string(),
-      kind: z.string(),
-      majorVersion: z.string(),
-      minorVersion: z.string(),
-      name: z.string(),
-      operatingSystem: z.object({
+    browsers: z.array(
+      z.object({
+        browserVersionId: z.string(),
+        dartId: z.string(),
+        kind: z.string(),
+        majorVersion: z.string(),
+        minorVersion: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    connectionTypes: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    mobileCarriers: z.array(
+      z.object({
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    operatingSystemVersions: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        majorVersion: z.string(),
+        minorVersion: z.string(),
+        name: z.string(),
+        operatingSystem: z.object({
+          dartId: z.string(),
+          desktop: z.boolean(),
+          kind: z.string(),
+          mobile: z.boolean(),
+          name: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+    operatingSystems: z.array(
+      z.object({
         dartId: z.string(),
         desktop: z.boolean(),
         kind: z.string(),
         mobile: z.boolean(),
         name: z.string(),
-      }),
-    })),
-    operatingSystems: z.array(z.object({
-      dartId: z.string(),
-      desktop: z.boolean(),
-      kind: z.string(),
-      mobile: z.boolean(),
-      name: z.string(),
-    })),
-    platformTypes: z.array(z.object({
-      id: z.string(),
-      kind: z.string(),
-      name: z.string(),
-    })),
-  }).optional(),
+      }).partial(),
+    ),
+    platformTypes: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   type: z.string().optional(),
 }).passthrough();
 
@@ -1881,7 +1921,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 Ads. Registered at `@swamp/gcp/dfareporting/ads`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/ads",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2020,6 +2060,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

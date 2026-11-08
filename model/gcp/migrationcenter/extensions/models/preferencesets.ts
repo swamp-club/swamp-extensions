@@ -312,32 +312,36 @@ const StateSchema = z.object({
     computeEnginePreferences: z.object({
       licenseType: z.string(),
       machinePreferences: z.object({
-        allowedMachineSeries: z.array(z.object({
-          code: z.unknown(),
-        })),
-      }),
+        allowedMachineSeries: z.array(
+          z.object({
+            code: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       persistentDiskType: z.string(),
-    }),
+    }).partial(),
     regionPreferences: z.object({
       preferredRegions: z.array(z.string()),
-    }),
+    }).partial(),
     sizingOptimizationStrategy: z.string(),
     soleTenancyPreferences: z.object({
       commitmentPlan: z.string(),
       cpuOvercommitRatio: z.number(),
       hostMaintenancePolicy: z.string(),
-      nodeTypes: z.array(z.object({
-        nodeName: z.string(),
-      })),
-    }),
+      nodeTypes: z.array(
+        z.object({
+          nodeName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     targetProduct: z.string(),
     vmwareEnginePreferences: z.object({
       commitmentPlan: z.string(),
       cpuOvercommitRatio: z.number(),
       memoryOvercommitRatio: z.number(),
       storageDeduplicationCompressionRatio: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -508,7 +512,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Migration Center PreferenceSets. Registered at `@swamp/gcp/migrationcenter/preferencesets`. */
 export const model = {
   type: "@swamp/gcp/migrationcenter/preferencesets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -652,6 +656,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

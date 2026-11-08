@@ -185,15 +185,17 @@ const StateSchema = z.object({
   defaultBucket: z.string().optional(),
   defaultCookieExpiration: z.string().optional(),
   defaultHostname: z.string().optional(),
-  dispatchRules: z.array(z.object({
-    domain: z.string(),
-    path: z.string(),
-    service: z.string(),
-  })).optional(),
+  dispatchRules: z.array(
+    z.object({
+      domain: z.string(),
+      path: z.string(),
+      service: z.string(),
+    }).partial(),
+  ).optional(),
   featureSettings: z.object({
     splitHealthChecks: z.boolean(),
     useContainerOptimizedOs: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   gcrDomain: z.string().optional(),
   generatedCustomerMetadata: z.record(z.string(), z.unknown()).optional(),
   iap: z.object({
@@ -201,7 +203,7 @@ const StateSchema = z.object({
     oauth2ClientId: z.string(),
     oauth2ClientSecret: z.string(),
     oauth2ClientSecretSha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   locationId: z.string().optional(),
   name: z.string(),
@@ -319,7 +321,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Engine Admin Apps. Registered at `@swamp/gcp/appengine/apps`. */
 export const model = {
   type: "@swamp/gcp/appengine/apps",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -458,6 +460,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

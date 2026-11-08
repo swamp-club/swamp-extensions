@@ -137,6 +137,72 @@ const TagSchema = z.object({
   ),
 });
 
+const PaletteHeaderStateSchema = z.object({
+  Background: z.string(),
+  Text: z.string(),
+  TextHover: z.string(),
+  InvertActionsColors: z.boolean(),
+}).partial();
+
+const PaletteNavigationStateSchema = z.object({
+  Background: z.string(),
+  TextBackgroundHover: z.string(),
+  TextBackgroundActive: z.string(),
+  Text: z.string(),
+  TextHover: z.string(),
+  TextActive: z.string(),
+  InvertActionsColors: z.boolean(),
+}).partial();
+
+const PaletteCanvasStateSchema = z.object({
+  ContainerBackground: z.string(),
+  PageBackground: z.string(),
+  ActiveBackground: z.string(),
+}).partial();
+
+const PalettePrimaryStateSchema = z.object({
+  Default: z.string(),
+  Active: z.string(),
+  ContrastText: z.string(),
+}).partial();
+
+const WorkspaceThemePaletteStateSchema = z.object({
+  Header: PaletteHeaderStateSchema,
+  Navigation: PaletteNavigationStateSchema,
+  Canvas: PaletteCanvasStateSchema,
+  Primary: PalettePrimaryStateSchema,
+}).partial();
+
+const FontFamilyStateSchema = z.object({
+  Default: z.string(),
+}).partial();
+
+const WorkspaceThemeTypographyStateSchema = z.object({
+  FontFamily: FontFamilyStateSchema,
+}).partial();
+
+const WorkspaceThemeConfigStateSchema = z.object({
+  Palette: WorkspaceThemePaletteStateSchema,
+  Typography: WorkspaceThemeTypographyStateSchema,
+}).partial();
+
+const MediaItemStateSchema = z.object({
+  Type: z.string(),
+  Source: z.string(),
+}).partial();
+
+const WorkspacePageStateSchema = z.object({
+  ResourceArn: z.string(),
+  Page: z.string(),
+  Slug: z.string(),
+  InputData: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -195,16 +261,16 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   Title: z.string().optional(),
   Theme: z.object({
-    Light: WorkspaceThemeConfigSchema,
-    Dark: WorkspaceThemeConfigSchema,
-  }).optional(),
-  Media: z.array(MediaItemSchema).optional(),
-  Pages: z.array(WorkspacePageSchema).optional(),
+    Light: WorkspaceThemeConfigStateSchema,
+    Dark: WorkspaceThemeConfigStateSchema,
+  }).partial().optional(),
+  Media: z.array(MediaItemStateSchema).optional(),
+  Pages: z.array(WorkspacePageStateSchema).optional(),
   Associations: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -264,7 +330,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Workspace. Registered at `@swamp/aws/connect/workspace`. */
 export const model = {
   type: "@swamp/aws/connect/workspace",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -328,6 +394,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

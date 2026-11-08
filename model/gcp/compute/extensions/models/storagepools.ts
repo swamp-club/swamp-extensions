@@ -278,7 +278,7 @@ const StateSchema = z.object({
     capacityOptimized: z.string(),
     readOptimized: z.string(),
     writeOptimized: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   labelFingerprint: z.string().optional(),
@@ -286,7 +286,7 @@ const StateSchema = z.object({
   name: z.string(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   performanceProvisioningType: z.string().optional(),
   poolProvisionedCapacityGb: z.string().optional(),
   poolProvisionedIops: z.string().optional(),
@@ -306,12 +306,12 @@ const StateSchema = z.object({
     totalProvisionedDiskCapacityGb: z.string(),
     totalProvisionedDiskIops: z.string(),
     totalProvisionedDiskThroughput: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
   shareSettings: z.object({
     projectMap: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   status: z.object({
     diskCount: z.string(),
@@ -328,7 +328,7 @@ const StateSchema = z.object({
     totalProvisionedDiskCapacityGb: z.string(),
     totalProvisionedDiskIops: z.string(),
     totalProvisionedDiskThroughput: z.string(),
-  }).optional(),
+  }).partial().optional(),
   storagePoolType: z.string().optional(),
   zone: z.string().optional(),
 }).passthrough();
@@ -434,7 +434,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine StoragePools. Registered at `@swamp/gcp/compute/storagepools`. */
 export const model = {
   type: "@swamp/gcp/compute/storagepools",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -643,6 +643,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

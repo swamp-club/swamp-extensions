@@ -138,51 +138,59 @@ const StateSchema = z.object({
     labels: z.record(z.string(), z.unknown()),
     name: z.string(),
     namespace: z.string(),
-    ownerReferences: z.array(z.object({
-      apiVersion: z.string(),
-      blockOwnerDeletion: z.boolean(),
-      controller: z.boolean(),
-      kind: z.string(),
-      name: z.string(),
-      uid: z.string(),
-    })),
+    ownerReferences: z.array(
+      z.object({
+        apiVersion: z.string(),
+        blockOwnerDeletion: z.boolean(),
+        controller: z.boolean(),
+        kind: z.string(),
+        name: z.string(),
+        uid: z.string(),
+      }).partial(),
+    ),
     resourceVersion: z.string(),
     selfLink: z.string(),
     uid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spec: z.object({
-    traffic: z.array(z.object({
-      configurationName: z.string(),
-      latestRevision: z.boolean(),
-      percent: z.number(),
-      revisionName: z.string(),
-      tag: z.string(),
-      url: z.string(),
-    })),
-  }).optional(),
+    traffic: z.array(
+      z.object({
+        configurationName: z.string(),
+        latestRevision: z.boolean(),
+        percent: z.number(),
+        revisionName: z.string(),
+        tag: z.string(),
+        url: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   status: z.object({
     address: z.object({
       url: z.string(),
-    }),
-    conditions: z.array(z.object({
-      lastTransitionTime: z.string(),
-      message: z.string(),
-      reason: z.string(),
-      severity: z.string(),
-      status: z.string(),
-      type: z.string(),
-    })),
+    }).partial(),
+    conditions: z.array(
+      z.object({
+        lastTransitionTime: z.string(),
+        message: z.string(),
+        reason: z.string(),
+        severity: z.string(),
+        status: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     observedGeneration: z.number(),
-    traffic: z.array(z.object({
-      configurationName: z.string(),
-      latestRevision: z.boolean(),
-      percent: z.number(),
-      revisionName: z.string(),
-      tag: z.string(),
-      url: z.string(),
-    })),
+    traffic: z.array(
+      z.object({
+        configurationName: z.string(),
+        latestRevision: z.boolean(),
+        percent: z.number(),
+        revisionName: z.string(),
+        tag: z.string(),
+        url: z.string(),
+      }).partial(),
+    ),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -226,7 +234,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Routes. Registered at `@swamp/gcp/run/routes`. */
 export const model = {
   type: "@swamp/gcp/run/routes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -245,6 +253,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

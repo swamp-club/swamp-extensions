@@ -64,6 +64,24 @@ const TagSchema = z.object({
   ),
 });
 
+const MethodSettingStateSchema = z.object({
+  CacheDataEncrypted: z.boolean(),
+  CacheTtlInSeconds: z.number(),
+  CachingEnabled: z.boolean(),
+  DataTraceEnabled: z.boolean(),
+  HttpMethod: z.string(),
+  LoggingLevel: z.string(),
+  MetricsEnabled: z.boolean(),
+  ResourcePath: z.string(),
+  ThrottlingBurstLimit: z.number(),
+  ThrottlingRateLimit: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -114,7 +132,7 @@ const StateSchema = z.object({
   AccessLogSetting: z.object({
     DestinationArn: z.string(),
     Format: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CacheClusterEnabled: z.boolean().optional(),
   CacheClusterSize: z.string().optional(),
   CanarySetting: z.object({
@@ -122,20 +140,20 @@ const StateSchema = z.object({
     PercentTraffic: z.number(),
     StageVariableOverrides: z.record(z.string(), z.unknown()),
     UseStageCache: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ClientCertificateId: z.string().optional(),
   DeploymentId: z.string().optional(),
   Description: z.string().optional(),
   DocumentationVersion: z.string().optional(),
-  MethodSettings: z.array(MethodSettingSchema).optional(),
+  MethodSettings: z.array(MethodSettingStateSchema).optional(),
   RestApiId: z.string(),
   StageName: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TracingEnabled: z.boolean().optional(),
   Variables: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -192,7 +210,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGateway Stage. Registered at `@swamp/aws/apigateway/stage`. */
 export const model = {
   type: "@swamp/aws/apigateway/stage",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -256,6 +274,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -186,6 +186,80 @@ const SqsParametersSchema = z.object({
   ).optional(),
 });
 
+const DeadLetterConfigStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const RetryPolicyStateSchema = z.object({
+  MaximumEventAgeInSeconds: z.number(),
+  MaximumRetryAttempts: z.number(),
+}).partial();
+
+const AwsVpcConfigurationStateSchema = z.object({
+  Subnets: z.array(z.string()),
+  SecurityGroups: z.array(z.string()),
+  AssignPublicIp: z.string(),
+}).partial();
+
+const NetworkConfigurationStateSchema = z.object({
+  AwsvpcConfiguration: AwsVpcConfigurationStateSchema,
+}).partial();
+
+const CapacityProviderStrategyItemStateSchema = z.object({
+  CapacityProvider: z.string(),
+  Weight: z.number(),
+  Base: z.number(),
+}).partial();
+
+const PlacementConstraintStateSchema = z.object({
+  Type: z.string(),
+  Expression: z.string(),
+}).partial();
+
+const PlacementStrategyStateSchema = z.object({
+  Type: z.string(),
+  Field: z.string(),
+}).partial();
+
+const EcsParametersStateSchema = z.object({
+  TaskDefinitionArn: z.string(),
+  TaskCount: z.number(),
+  LaunchType: z.string(),
+  NetworkConfiguration: NetworkConfigurationStateSchema,
+  PlatformVersion: z.string(),
+  Group: z.string(),
+  CapacityProviderStrategy: z.array(CapacityProviderStrategyItemStateSchema),
+  EnableECSManagedTags: z.boolean(),
+  EnableExecuteCommand: z.boolean(),
+  PlacementConstraints: z.array(PlacementConstraintStateSchema),
+  PlacementStrategy: z.array(PlacementStrategyStateSchema),
+  PropagateTags: z.string(),
+  ReferenceId: z.string(),
+  Tags: z.array(z.record(z.string(), z.unknown())),
+}).partial();
+
+const EventBridgeParametersStateSchema = z.object({
+  DetailType: z.string(),
+  Source: z.string(),
+}).partial();
+
+const KinesisParametersStateSchema = z.object({
+  PartitionKey: z.string(),
+}).partial();
+
+const SageMakerPipelineParameterStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const SageMakerPipelineParametersStateSchema = z.object({
+  PipelineParameterList: z.array(SageMakerPipelineParameterStateSchema),
+}).partial();
+
+const SqsParametersStateSchema = z.object({
+  MessageGroupId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -283,7 +357,7 @@ const StateSchema = z.object({
   FlexibleTimeWindow: z.object({
     Mode: z.string(),
     MaximumWindowInMinutes: z.number(),
-  }).optional(),
+  }).partial().optional(),
   GroupName: z.string().optional(),
   KmsKeyArn: z.string().optional(),
   Name: z.string(),
@@ -294,18 +368,18 @@ const StateSchema = z.object({
   Target: z.object({
     Arn: z.string(),
     RoleArn: z.string(),
-    DeadLetterConfig: DeadLetterConfigSchema,
-    RetryPolicy: RetryPolicySchema,
+    DeadLetterConfig: DeadLetterConfigStateSchema,
+    RetryPolicy: RetryPolicyStateSchema,
     Input: z.string(),
-    EcsParameters: EcsParametersSchema,
-    EventBridgeParameters: EventBridgeParametersSchema,
-    KinesisParameters: KinesisParametersSchema,
-    SageMakerPipelineParameters: SageMakerPipelineParametersSchema,
-    SqsParameters: SqsParametersSchema,
-  }).optional(),
+    EcsParameters: EcsParametersStateSchema,
+    EventBridgeParameters: EventBridgeParametersStateSchema,
+    KinesisParameters: KinesisParametersStateSchema,
+    SageMakerPipelineParameters: SageMakerPipelineParametersStateSchema,
+    SqsParameters: SqsParametersStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -408,7 +482,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Scheduler Schedule. Registered at `@swamp/aws/scheduler/schedule`. */
 export const model = {
   type: "@swamp/aws/scheduler/schedule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -477,6 +551,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

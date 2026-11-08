@@ -43,6 +43,27 @@ const TagSchema = z.object({
   Key: z.string().describe("The tag key."),
 });
 
+const VpcEncryptionControlExclusionStateSchema = z.object({
+  State: z.string(),
+  StateMessage: z.string(),
+}).partial();
+
+const VpcEncryptionControlExclusionsStateSchema = z.object({
+  ElasticFileSystem: VpcEncryptionControlExclusionStateSchema,
+  VpcLattice: VpcEncryptionControlExclusionStateSchema,
+  VpcPeering: VpcEncryptionControlExclusionStateSchema,
+  InternetGateway: VpcEncryptionControlExclusionStateSchema,
+  EgressOnlyInternetGateway: VpcEncryptionControlExclusionStateSchema,
+  VirtualPrivateGateway: VpcEncryptionControlExclusionStateSchema,
+  NatGateway: VpcEncryptionControlExclusionStateSchema,
+  Lambda: VpcEncryptionControlExclusionStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -115,52 +136,19 @@ const StateSchema = z.object({
     EgressOnlyInternetGatewayExclusion: z.string(),
     StateMessage: z.string(),
     LambdaExclusion: z.string(),
-    ResourceExclusions: z.object({
-      ElasticFileSystem: z.object({
-        State: z.string(),
-        StateMessage: z.string(),
-      }),
-      VpcLattice: z.object({
-        State: z.string(),
-        StateMessage: z.string(),
-      }),
-      VpcPeering: z.object({
-        State: z.string(),
-        StateMessage: z.string(),
-      }),
-      InternetGateway: z.object({
-        State: z.string(),
-        StateMessage: z.string(),
-      }),
-      EgressOnlyInternetGateway: z.object({
-        State: z.string(),
-        StateMessage: z.string(),
-      }),
-      VirtualPrivateGateway: z.object({
-        State: z.string(),
-        StateMessage: z.string(),
-      }),
-      NatGateway: z.object({
-        State: z.string(),
-        StateMessage: z.string(),
-      }),
-      Lambda: z.object({
-        State: z.string(),
-        StateMessage: z.string(),
-      }),
-    }),
+    ResourceExclusions: VpcEncryptionControlExclusionsStateSchema,
     InternetGatewayExclusion: z.string(),
     VpcPeeringExclusion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DefaultNetworkAcl: z.string().optional(),
   EnableDnsSupport: z.boolean().optional(),
   Ipv6CidrBlocks: z.array(z.string()).optional(),
   DefaultSecurityGroup: z.string().optional(),
   EnableDnsHostnames: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -224,7 +212,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VPC. Registered at `@swamp/aws/ec2/vpc`. */
 export const model = {
   type: "@swamp/aws/ec2/vpc",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -293,6 +281,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

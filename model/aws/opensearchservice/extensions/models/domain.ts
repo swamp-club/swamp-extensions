@@ -119,6 +119,81 @@ const ServerlessVectorAccelerationSchema = z.object({
   ).optional(),
 });
 
+const ZoneAwarenessConfigStateSchema = z.object({
+  AvailabilityZoneCount: z.number(),
+}).partial();
+
+const ColdStorageOptionsStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const NodeConfigStateSchema = z.object({
+  Enabled: z.boolean(),
+  Type: z.string(),
+  Count: z.number(),
+}).partial();
+
+const NodeOptionStateSchema = z.object({
+  NodeType: z.string(),
+  NodeConfig: NodeConfigStateSchema,
+}).partial();
+
+const MasterUserOptionsStateSchema = z.object({
+  MasterUserPassword: z.string(),
+  MasterUserName: z.string(),
+  MasterUserARN: z.string(),
+}).partial();
+
+const IdpStateSchema = z.object({
+  MetadataContent: z.string(),
+  EntityId: z.string(),
+}).partial();
+
+const SAMLOptionsStateSchema = z.object({
+  Enabled: z.boolean(),
+  Idp: IdpStateSchema,
+  MasterUserName: z.string(),
+  MasterBackendRole: z.string(),
+  SubjectKey: z.string(),
+  RolesKey: z.string(),
+  SessionTimeoutMinutes: z.number(),
+}).partial();
+
+const JWTOptionsStateSchema = z.object({
+  Enabled: z.boolean(),
+  PublicKey: z.string(),
+  SubjectKey: z.string(),
+  RolesKey: z.string(),
+}).partial();
+
+const IAMFederationOptionsStateSchema = z.object({
+  Enabled: z.boolean(),
+  RolesKey: z.string(),
+  SubjectKey: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const WindowStartTimeStateSchema = z.object({
+  Hours: z.number(),
+  Minutes: z.number(),
+}).partial();
+
+const OffPeakWindowStateSchema = z.object({
+  WindowStartTime: WindowStartTimeStateSchema,
+}).partial();
+
+const S3VectorsEngineStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const ServerlessVectorAccelerationStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -268,16 +343,16 @@ const StateSchema = z.object({
     WarmEnabled: z.boolean(),
     WarmCount: z.number(),
     DedicatedMasterEnabled: z.boolean(),
-    ZoneAwarenessConfig: ZoneAwarenessConfigSchema,
+    ZoneAwarenessConfig: ZoneAwarenessConfigStateSchema,
     DedicatedMasterCount: z.number(),
     InstanceType: z.string(),
     WarmType: z.string(),
     ZoneAwarenessEnabled: z.boolean(),
     DedicatedMasterType: z.string(),
     MultiAZWithStandbyEnabled: z.boolean(),
-    ColdStorageOptions: ColdStorageOptionsSchema,
-    NodeOptions: z.array(NodeOptionSchema),
-  }).optional(),
+    ColdStorageOptions: ColdStorageOptionsStateSchema,
+    NodeOptions: z.array(NodeOptionStateSchema),
+  }).partial().optional(),
   DomainName: z.string(),
   AccessPolicies: z.record(z.string(), z.unknown()).optional(),
   IPAddressType: z.string().optional(),
@@ -286,38 +361,38 @@ const StateSchema = z.object({
   LogPublishingOptions: z.record(z.string(), z.unknown()).optional(),
   SnapshotOptions: z.object({
     AutomatedSnapshotStartHour: z.number(),
-  }).optional(),
+  }).partial().optional(),
   VPCOptions: z.object({
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
     EgressEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   NodeToNodeEncryptionOptions: z.object({
     Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   DomainEndpointOptions: z.object({
     CustomEndpointCertificateArn: z.string(),
     CustomEndpointEnabled: z.boolean(),
     EnforceHTTPS: z.boolean(),
     CustomEndpoint: z.string(),
     TLSSecurityPolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CognitoOptions: z.object({
     Enabled: z.boolean(),
     IdentityPoolId: z.string(),
     UserPoolId: z.string(),
     RoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AdvancedSecurityOptions: z.object({
     Enabled: z.boolean(),
-    MasterUserOptions: MasterUserOptionsSchema,
+    MasterUserOptions: MasterUserOptionsStateSchema,
     InternalUserDatabaseEnabled: z.boolean(),
     AnonymousAuthEnabled: z.boolean(),
-    SAMLOptions: SAMLOptionsSchema,
-    JWTOptions: JWTOptionsSchema,
-    IAMFederationOptions: IAMFederationOptionsSchema,
+    SAMLOptions: SAMLOptionsStateSchema,
+    JWTOptions: JWTOptionsStateSchema,
+    IAMFederationOptions: IAMFederationOptionsStateSchema,
     AnonymousAuthDisableDate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DomainEndpoint: z.string().optional(),
   DomainEndpointV2: z.string().optional(),
   DomainEndpoints: z.record(z.string(), z.unknown()).optional(),
@@ -327,7 +402,7 @@ const StateSchema = z.object({
     Iops: z.number(),
     VolumeSize: z.number(),
     Throughput: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Id: z.string().optional(),
   Arn: z.string().optional(),
   DomainArn: z.string().optional(),
@@ -335,8 +410,8 @@ const StateSchema = z.object({
     KmsKeyId: z.string(),
     Enabled: z.boolean(),
     EncryptionMode: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ServiceSoftwareOptions: z.object({
     CurrentVersion: z.string(),
     NewVersion: z.string(),
@@ -346,15 +421,15 @@ const StateSchema = z.object({
     Description: z.string(),
     AutomatedUpdateDate: z.string(),
     OptionalDeployment: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   OffPeakWindowOptions: z.object({
     Enabled: z.boolean(),
-    OffPeakWindow: OffPeakWindowSchema,
-  }).optional(),
+    OffPeakWindow: OffPeakWindowStateSchema,
+  }).partial().optional(),
   SoftwareUpdateOptions: z.object({
     AutoSoftwareUpdateEnabled: z.boolean(),
     UseLatestServiceSoftwareForBlueGreen: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   SkipShardMigrationWait: z.boolean().optional(),
   IdentityCenterOptions: z.object({
     EnabledAPIAccess: z.boolean(),
@@ -363,25 +438,25 @@ const StateSchema = z.object({
     RolesKey: z.string(),
     IdentityCenterApplicationARN: z.string(),
     IdentityStoreId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AIMLOptions: z.object({
-    S3VectorsEngine: S3VectorsEngineSchema,
-    ServerlessVectorAcceleration: ServerlessVectorAccelerationSchema,
-  }).optional(),
+    S3VectorsEngine: S3VectorsEngineStateSchema,
+    ServerlessVectorAcceleration: ServerlessVectorAccelerationStateSchema,
+  }).partial().optional(),
   DeploymentStrategyOptions: z.object({
     DeploymentStrategy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AutomatedSnapshotPauseOptions: z.object({
     Enabled: z.boolean(),
     StartTime: z.string(),
     EndTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EngineMode: z.string().optional(),
   UseCase: z.string().optional(),
   AcceptedWarnings: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -537,7 +612,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearchService Domain. Registered at `@swamp/aws/opensearchservice/domain`. */
 export const model = {
   type: "@swamp/aws/opensearchservice/domain",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -612,6 +687,11 @@ export const model = {
     {
       toVersion: "2026.10.25.1",
       description: "Added: AcceptedWarnings",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

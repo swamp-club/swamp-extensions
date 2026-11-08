@@ -131,26 +131,32 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  deliveryErrors: z.array(z.object({
-    errorClass: z.string(),
-    errorRatio: z.number(),
-    errorType: z.string(),
-  })).optional(),
+  deliveryErrors: z.array(
+    z.object({
+      errorClass: z.string(),
+      errorRatio: z.number(),
+      errorType: z.string(),
+    }).partial(),
+  ).optional(),
   dkimSuccessRatio: z.number().optional(),
   dmarcSuccessRatio: z.number().optional(),
   domainReputation: z.string().optional(),
   inboundEncryptionRatio: z.number().optional(),
-  ipReputations: z.array(z.object({
-    ipCount: z.string(),
-    reputation: z.string(),
-    sampleIps: z.array(z.string()),
-  })).optional(),
+  ipReputations: z.array(
+    z.object({
+      ipCount: z.string(),
+      reputation: z.string(),
+      sampleIps: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   outboundEncryptionRatio: z.number().optional(),
-  spammyFeedbackLoops: z.array(z.object({
-    id: z.string(),
-    spamRatio: z.number(),
-  })).optional(),
+  spammyFeedbackLoops: z.array(
+    z.object({
+      id: z.string(),
+      spamRatio: z.number(),
+    }).partial(),
+  ).optional(),
   spfSuccessRatio: z.number().optional(),
   userReportedSpamRatio: z.number().optional(),
   userReportedSpamRatioLowerBound: z.number().optional(),
@@ -198,7 +204,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Postmaster Tools Domains.TrafficStats. Registered at `@swamp/gcp/gmailpostmastertools/domains-trafficstats`. */
 export const model = {
   type: "@swamp/gcp/gmailpostmastertools/domains-trafficstats",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -217,6 +223,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

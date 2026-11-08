@@ -250,45 +250,49 @@ const StateSchema = z.object({
     automatedStoppingConfig: z.object({
       decayCurveStoppingConfig: z.object({
         useElapsedTime: z.boolean(),
-      }),
+      }).partial(),
       medianAutomatedStoppingConfig: z.object({
         useElapsedTime: z.boolean(),
-      }),
-    }),
-    metrics: z.array(z.object({
-      goal: z.string(),
-      metric: z.string(),
-    })),
-    parameters: z.array(z.object({
-      categoricalValueSpec: z.object({
-        values: z.array(z.unknown()),
-      }),
-      childParameterSpecs: z.array(z.record(z.string(), z.unknown())),
-      discreteValueSpec: z.object({
-        values: z.array(z.unknown()),
-      }),
-      doubleValueSpec: z.object({
-        maxValue: z.number(),
-        minValue: z.number(),
-      }),
-      integerValueSpec: z.object({
-        maxValue: z.string(),
-        minValue: z.string(),
-      }),
-      parameter: z.string(),
-      parentCategoricalValues: z.object({
-        values: z.array(z.unknown()),
-      }),
-      parentDiscreteValues: z.object({
-        values: z.array(z.unknown()),
-      }),
-      parentIntValues: z.object({
-        values: z.array(z.unknown()),
-      }),
-      scaleType: z.string(),
-      type: z.string(),
-    })),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+    metrics: z.array(
+      z.object({
+        goal: z.string(),
+        metric: z.string(),
+      }).partial(),
+    ),
+    parameters: z.array(
+      z.object({
+        categoricalValueSpec: z.object({
+          values: z.array(z.unknown()),
+        }).partial(),
+        childParameterSpecs: z.array(z.record(z.string(), z.unknown())),
+        discreteValueSpec: z.object({
+          values: z.array(z.unknown()),
+        }).partial(),
+        doubleValueSpec: z.object({
+          maxValue: z.number(),
+          minValue: z.number(),
+        }).partial(),
+        integerValueSpec: z.object({
+          maxValue: z.string(),
+          minValue: z.string(),
+        }).partial(),
+        parameter: z.string(),
+        parentCategoricalValues: z.object({
+          values: z.array(z.unknown()),
+        }).partial(),
+        parentDiscreteValues: z.object({
+          values: z.array(z.unknown()),
+        }).partial(),
+        parentIntValues: z.object({
+          values: z.array(z.unknown()),
+        }).partial(),
+        scaleType: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -435,7 +439,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AI Platform Training & Prediction Studies. Registered at `@swamp/gcp/ml/studies`. */
 export const model = {
   type: "@swamp/gcp/ml/studies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -584,6 +588,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

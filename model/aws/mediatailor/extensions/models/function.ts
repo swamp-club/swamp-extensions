@@ -67,6 +67,23 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const HttpRequestCacheConfigurationStateSchema = z.object({
+  TtlMinimumSeconds: z.number(),
+  TtlMaximumSeconds: z.number(),
+  Key: z.string(),
+}).partial();
+
+const FunctionRefStateSchema = z.object({
+  RunCondition: z.string(),
+  FunctionId: z.string(),
+  Alias: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -234,8 +251,8 @@ const StateSchema = z.object({
     Url: z.string(),
     Body: z.string(),
     Headers: z.record(z.string(), z.unknown()),
-    Cache: HttpRequestCacheConfigurationSchema,
-  }).optional(),
+    Cache: HttpRequestCacheConfigurationStateSchema,
+  }).partial().optional(),
   AwsServiceRequestConfiguration: z.object({
     Runtime: z.string(),
     Output: z.record(z.string(), z.unknown()),
@@ -244,27 +261,27 @@ const StateSchema = z.object({
     Url: z.string(),
     Body: z.string(),
     Headers: z.record(z.string(), z.unknown()),
-    Cache: HttpRequestCacheConfigurationSchema,
+    Cache: HttpRequestCacheConfigurationStateSchema,
     TargetService: z.string(),
     TargetRegion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CustomOutputConfiguration: z.object({
     Runtime: z.string(),
     Output: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   ConcurrentExecutorConfiguration: z.object({
     Runtime: z.string(),
     Output: z.record(z.string(), z.unknown()),
-    FunctionList: z.array(FunctionRefSchema),
+    FunctionList: z.array(FunctionRefStateSchema),
     TimeoutMilliseconds: z.number(),
     MaxConcurrency: z.number(),
-  }).optional(),
+  }).partial().optional(),
   SequentialExecutorConfiguration: z.object({
     Runtime: z.string(),
     Output: z.record(z.string(), z.unknown()),
-    FunctionList: z.array(FunctionRefSchema),
+    FunctionList: z.array(FunctionRefStateSchema),
     TimeoutMilliseconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
   VastRequestConfiguration: z.object({
     Runtime: z.string(),
     Output: z.record(z.string(), z.unknown()),
@@ -273,12 +290,12 @@ const StateSchema = z.object({
     Url: z.string(),
     Body: z.string(),
     Headers: z.record(z.string(), z.unknown()),
-    Cache: HttpRequestCacheConfigurationSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    Cache: HttpRequestCacheConfigurationStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -447,7 +464,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor Function. Registered at `@swamp/aws/mediatailor/function`. */
 export const model = {
   type: "@swamp/aws/mediatailor/function",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -487,6 +504,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

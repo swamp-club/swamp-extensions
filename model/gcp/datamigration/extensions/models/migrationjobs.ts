@@ -516,20 +516,22 @@ const StateSchema = z.object({
   conversionWorkspace: z.object({
     commitId: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   destination: z.string().optional(),
   destinationDatabase: z.object({
     engine: z.string(),
     provider: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   dumpFlags: z.object({
-    dumpFlags: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
+    dumpFlags: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   dumpPath: z.string().optional(),
   dumpType: z.string().optional(),
   duration: z.string().optional(),
@@ -538,123 +540,129 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   filter: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   mysqlHomogeneousConfig: z.object({
     isPrimaryDestination: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   objectsConfig: z.object({
     sourceObjectsConfig: z.object({
-      excludedObjectConfigs: z.array(z.object({
-        objectIdentifier: z.object({
-          database: z.unknown(),
-          schema: z.unknown(),
-          table: z.unknown(),
-          type: z.unknown(),
-        }),
-      })),
-      objectConfigs: z.array(z.object({
-        objectIdentifier: z.object({
-          database: z.unknown(),
-          schema: z.unknown(),
-          table: z.unknown(),
-          type: z.unknown(),
-        }),
-      })),
+      excludedObjectConfigs: z.array(
+        z.object({
+          objectIdentifier: z.object({
+            database: z.unknown(),
+            schema: z.unknown(),
+            table: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      objectConfigs: z.array(
+        z.object({
+          objectIdentifier: z.object({
+            database: z.unknown(),
+            schema: z.unknown(),
+            table: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       objectsSelectionType: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   oracleToPostgresConfig: z.object({
     oracleSourceConfig: z.object({
       binaryLogParser: z.object({
         logFileDirectories: z.object({
           archivedLogDirectory: z.string(),
           onlineLogDirectory: z.string(),
-        }),
-        oracleAsmLogFileAccess: z.object({}),
-      }),
+        }).partial(),
+        oracleAsmLogFileAccess: z.object({}).partial(),
+      }).partial(),
       cdcStartPosition: z.string(),
-      logMiner: z.object({}),
+      logMiner: z.object({}).partial(),
       maxConcurrentCdcConnections: z.number(),
       maxConcurrentFullDumpConnections: z.number(),
       skipFullDump: z.boolean(),
-    }),
+    }).partial(),
     postgresDestinationConfig: z.object({
       maxConcurrentConnections: z.number(),
       transactionTimeout: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   originalMigrationName: z.string().optional(),
   performanceConfig: z.object({
     dumpParallelLevel: z.string(),
     loadParallelLevel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   phase: z.string().optional(),
   postgresHomogeneousConfig: z.object({
     isNativeLogical: z.boolean(),
     maxAdditionalSubscriptions: z.number(),
-  }).optional(),
+  }).partial().optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean(),
-    }),
+    }).partial(),
     sqlserverDestinationConfig: z.object({
       maxConcurrentConnections: z.number(),
       transactionTimeout: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   purpose: z.string().optional(),
   reverseSshConnectivity: z.object({
     vm: z.string(),
     vmIp: z.string(),
     vmPort: z.number(),
     vpc: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   source: z.string().optional(),
   sourceDatabase: z.object({
     engine: z.string(),
     provider: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sqlserverHomogeneousMigrationJobConfig: z.object({
     backupFilePattern: z.string(),
     dagConfig: z.object({
       linkedServer: z.string(),
       sourceAg: z.string(),
-    }),
-    databaseBackups: z.array(z.object({
-      database: z.string(),
-      encryptionOptions: z.object({
-        certPath: z.string(),
-        pvkPassword: z.string(),
-        pvkPath: z.string(),
-      }),
-    })),
+    }).partial(),
+    databaseBackups: z.array(
+      z.object({
+        database: z.string(),
+        encryptionOptions: z.object({
+          certPath: z.string(),
+          pvkPassword: z.string(),
+          pvkPath: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     promoteWhenReady: z.boolean(),
     useDiffBackup: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   sqlserverToPostgresConfig: z.object({
     postgresDestinationConfig: z.object({
       maxConcurrentConnections: z.number(),
       transactionTimeout: z.string(),
-    }),
+    }).partial(),
     sqlserverSourceConfig: z.object({
       cdcStartPosition: z.string(),
       maxConcurrentCdcConnections: z.number(),
       maxConcurrentFullDumpConnections: z.number(),
       skipFullDump: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
-  staticIpConnectivity: z.object({}).optional(),
+  staticIpConnectivity: z.object({}).partial().optional(),
   type: z.string().optional(),
   updateTime: z.string().optional(),
   vpcPeeringConnectivity: z.object({
     vpc: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1031,7 +1039,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration MigrationJobs. Registered at `@swamp/gcp/datamigration/migrationjobs`. */
 export const model = {
   type: "@swamp/gcp/datamigration/migrationjobs",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1266,6 +1274,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

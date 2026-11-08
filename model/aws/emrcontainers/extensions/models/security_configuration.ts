@@ -158,6 +158,80 @@ const TagSchema = z.object({
   Value: z.string().describe("The value for the tag."),
 });
 
+const EksInfoStateSchema = z.object({
+  Namespace: z.string(),
+}).partial();
+
+const ContainerInfoStateSchema = z.object({
+  EksInfo: EksInfoStateSchema,
+}).partial();
+
+const SecureNamespaceInfoStateSchema = z.object({
+  ClusterId: z.string(),
+  Namespace: z.string(),
+}).partial();
+
+const LakeFormationConfigurationStateSchema = z.object({
+  AuthorizedSessionTagValue: z.string(),
+  SecureNamespaceInfo: SecureNamespaceInfoStateSchema,
+  QueryEngineRoleArn: z.string(),
+  QueryAccessControlEnabled: z.boolean(),
+}).partial();
+
+const AuthorizationConfigurationStateSchema = z.object({
+  LakeFormationConfiguration: LakeFormationConfigurationStateSchema,
+}).partial();
+
+const IdentityCenterConfigurationStateSchema = z.object({
+  EnableIdentityCenter: z.boolean(),
+  IdentityCenterApplicationAssignmentRequired: z.boolean(),
+  IdentityCenterInstanceARN: z.string(),
+}).partial();
+
+const IAMConfigurationStateSchema = z.object({
+  SystemRole: z.string(),
+}).partial();
+
+const AuthenticationConfigurationStateSchema = z.object({
+  IdentityCenterConfiguration: IdentityCenterConfigurationStateSchema,
+  IAMConfiguration: IAMConfigurationStateSchema,
+}).partial();
+
+const TLSCertificateConfigurationStateSchema = z.object({
+  CertificateProviderType: z.string(),
+  PublicKeySecretArn: z.string(),
+  PrivateKeySecretArn: z.string(),
+}).partial();
+
+const InTransitEncryptionConfigurationStateSchema = z.object({
+  TLSCertificateConfiguration: TLSCertificateConfigurationStateSchema,
+}).partial();
+
+const S3EncryptionConfigurationStateSchema = z.object({
+  EncryptionOption: z.string(),
+  KMSKeyId: z.string(),
+}).partial();
+
+const LocalDiskEncryptionConfigurationStateSchema = z.object({
+  EncryptionKeyProviderType: z.string(),
+  AwsKmsKeyId: z.string(),
+}).partial();
+
+const AtRestEncryptionConfigurationStateSchema = z.object({
+  S3EncryptionConfiguration: S3EncryptionConfigurationStateSchema,
+  LocalDiskEncryptionConfiguration: LocalDiskEncryptionConfigurationStateSchema,
+}).partial();
+
+const EncryptionConfigurationStateSchema = z.object({
+  InTransitEncryptionConfiguration: InTransitEncryptionConfigurationStateSchema,
+  AtRestEncryptionConfiguration: AtRestEncryptionConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -205,17 +279,17 @@ const StateSchema = z.object({
   ContainerProvider: z.object({
     Type: z.string(),
     Id: z.string(),
-    Info: ContainerInfoSchema,
-  }).optional(),
+    Info: ContainerInfoStateSchema,
+  }).partial().optional(),
   SecurityConfigurationData: z.object({
-    AuthorizationConfiguration: AuthorizationConfigurationSchema,
-    AuthenticationConfiguration: AuthenticationConfigurationSchema,
-    EncryptionConfiguration: EncryptionConfigurationSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    AuthorizationConfiguration: AuthorizationConfigurationStateSchema,
+    AuthenticationConfiguration: AuthenticationConfigurationStateSchema,
+    EncryptionConfiguration: EncryptionConfigurationStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -266,7 +340,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRContainers SecurityConfiguration. Registered at `@swamp/aws/emrcontainers/security-configuration`. */
 export const model = {
   type: "@swamp/aws/emrcontainers/security-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -335,6 +409,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -102,6 +102,29 @@ const TagSchema = z.object({
   ),
 });
 
+const DeploymentTargetsStateSchema = z.object({
+  Accounts: z.array(z.string()),
+  AccountsUrl: z.string(),
+  OrganizationalUnitIds: z.array(z.string()),
+  AccountFilterType: z.string(),
+}).partial();
+
+const ParameterStateSchema = z.object({
+  ParameterKey: z.string(),
+  ParameterValue: z.string(),
+}).partial();
+
+const StackInstancesStateSchema = z.object({
+  DeploymentTargets: DeploymentTargetsStateSchema,
+  Regions: z.array(z.string()),
+  ParameterOverrides: z.array(ParameterStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -562,7 +585,7 @@ const StateSchema = z.object({
     Enabled: z.boolean(),
     RetainStacksOnAccountRemoval: z.boolean(),
     DependsOn: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Capabilities: z.array(z.string()).optional(),
   Description: z.string().optional(),
   ExecutionRoleName: z.string().optional(),
@@ -574,20 +597,20 @@ const StateSchema = z.object({
     RegionOrder: z.array(z.string()),
     RegionConcurrencyType: z.string(),
     ConcurrencyMode: z.string(),
-  }).optional(),
-  StackInstancesGroup: z.array(StackInstancesSchema).optional(),
-  Parameters: z.array(ParameterSchema).optional(),
+  }).partial().optional(),
+  StackInstancesGroup: z.array(StackInstancesStateSchema).optional(),
+  Parameters: z.array(ParameterStateSchema).optional(),
   PermissionModel: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TemplateBody: z.string().optional(),
   TemplateURL: z.string().optional(),
   CallAs: z.string().optional(),
   ManagedExecution: z.object({
     Active: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -699,7 +722,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation StackSet. Registered at `@swamp/aws/cloudformation/stack-set`. */
 export const model = {
   type: "@swamp/aws/cloudformation/stack-set",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.24.1",
@@ -748,6 +771,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

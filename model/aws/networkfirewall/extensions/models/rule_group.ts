@@ -190,6 +190,112 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(255).regex(new RegExp("^.*$")),
 });
 
+const RuleVariablesStateSchema = z.object({
+  IPSets: z.record(z.string(), z.unknown()),
+  PortSets: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ReferenceSetsStateSchema = z.object({
+  IPSetReferences: z.record(z.string(), z.unknown()),
+}).partial();
+
+const RulesSourceListStateSchema = z.object({
+  Targets: z.array(z.string()),
+  TargetTypes: z.array(z.string()),
+  GeneratedRulesType: z.string(),
+}).partial();
+
+const HeaderStateSchema = z.object({
+  Protocol: z.string(),
+  Source: z.string(),
+  SourcePort: z.string(),
+  Direction: z.string(),
+  Destination: z.string(),
+  DestinationPort: z.string(),
+}).partial();
+
+const RuleOptionStateSchema = z.object({
+  Keyword: z.string(),
+  Settings: z.array(z.string()),
+}).partial();
+
+const StatefulRuleStateSchema = z.object({
+  Action: z.string(),
+  Header: HeaderStateSchema,
+  RuleOptions: z.array(RuleOptionStateSchema),
+}).partial();
+
+const AddressStateSchema = z.object({
+  AddressDefinition: z.string(),
+}).partial();
+
+const PortRangeStateSchema = z.object({
+  FromPort: z.number(),
+  ToPort: z.number(),
+}).partial();
+
+const TCPFlagFieldStateSchema = z.object({
+  Flags: z.array(z.string()),
+  Masks: z.array(z.string()),
+}).partial();
+
+const MatchAttributesStateSchema = z.object({
+  Sources: z.array(AddressStateSchema),
+  Destinations: z.array(AddressStateSchema),
+  SourcePorts: z.array(PortRangeStateSchema),
+  DestinationPorts: z.array(PortRangeStateSchema),
+  Protocols: z.array(z.number()),
+  TCPFlags: z.array(TCPFlagFieldStateSchema),
+}).partial();
+
+const RuleDefinitionStateSchema = z.object({
+  MatchAttributes: MatchAttributesStateSchema,
+  Actions: z.array(z.string()),
+}).partial();
+
+const StatelessRuleStateSchema = z.object({
+  RuleDefinition: RuleDefinitionStateSchema,
+  Priority: z.number(),
+}).partial();
+
+const DimensionStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const PublishMetricActionStateSchema = z.object({
+  Dimensions: z.array(DimensionStateSchema),
+}).partial();
+
+const ActionDefinitionStateSchema = z.object({
+  PublishMetricAction: PublishMetricActionStateSchema,
+}).partial();
+
+const CustomActionStateSchema = z.object({
+  ActionName: z.string(),
+  ActionDefinition: ActionDefinitionStateSchema,
+}).partial();
+
+const StatelessRulesAndCustomActionsStateSchema = z.object({
+  StatelessRules: z.array(StatelessRuleStateSchema),
+  CustomActions: z.array(CustomActionStateSchema),
+}).partial();
+
+const RulesSourceStateSchema = z.object({
+  RulesString: z.string(),
+  RulesSourceList: RulesSourceListStateSchema,
+  StatefulRules: z.array(StatefulRuleStateSchema),
+  StatelessRulesAndCustomActions: StatelessRulesAndCustomActionsStateSchema,
+}).partial();
+
+const StatefulRuleOptionsStateSchema = z.object({
+  RuleOrder: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -228,21 +334,21 @@ const StateSchema = z.object({
   RuleGroupArn: z.string(),
   RuleGroupId: z.string().optional(),
   RuleGroup: z.object({
-    RuleVariables: RuleVariablesSchema,
-    ReferenceSets: ReferenceSetsSchema,
-    RulesSource: RulesSourceSchema,
-    StatefulRuleOptions: StatefulRuleOptionsSchema,
-  }).optional(),
+    RuleVariables: RuleVariablesStateSchema,
+    ReferenceSets: ReferenceSetsStateSchema,
+    RulesSource: RulesSourceStateSchema,
+    StatefulRuleOptions: StatefulRuleOptionsStateSchema,
+  }).partial().optional(),
   Type: z.string().optional(),
   Capacity: z.number().optional(),
   SummaryConfiguration: z.object({
     RuleOptions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Description: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -286,7 +392,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkFirewall RuleGroup. Registered at `@swamp/aws/networkfirewall/rule-group`. */
 export const model = {
   type: "@swamp/aws/networkfirewall/rule-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -350,6 +456,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

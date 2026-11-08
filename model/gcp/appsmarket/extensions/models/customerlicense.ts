@@ -91,11 +91,13 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   applicationId: z.string().optional(),
   customerId: z.string().optional(),
-  editions: z.array(z.object({
-    assignedSeats: z.number(),
-    editionId: z.string(),
-    seatCount: z.number(),
-  })).optional(),
+  editions: z.array(
+    z.object({
+      assignedSeats: z.number(),
+      editionId: z.string(),
+      seatCount: z.number(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   state: z.string().optional(),
@@ -140,7 +142,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Workspace Marketplace CustomerLicense. Registered at `@swamp/gcp/appsmarket/customerlicense`. */
 export const model = {
   type: "@swamp/gcp/appsmarket/customerlicense",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -264,6 +266,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

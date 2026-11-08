@@ -267,13 +267,17 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   id: z.string(),
   message: z.object({
-    classificationLabelValues: z.array(z.object({
-      fields: z.array(z.object({
-        fieldId: z.unknown(),
-        selection: z.unknown(),
-      })),
-      labelId: z.string(),
-    })),
+    classificationLabelValues: z.array(
+      z.object({
+        fields: z.array(
+          z.object({
+            fieldId: z.unknown(),
+            selection: z.unknown(),
+          }).partial(),
+        ),
+        labelId: z.string(),
+      }).partial(),
+    ),
     historyId: z.string(),
     id: z.string(),
     internalDate: z.string(),
@@ -283,21 +287,23 @@ const StateSchema = z.object({
         attachmentId: z.string(),
         data: z.string(),
         size: z.number(),
-      }),
+      }).partial(),
       filename: z.string(),
-      headers: z.array(z.object({
-        name: z.string(),
-        value: z.string(),
-      })),
+      headers: z.array(
+        z.object({
+          name: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       mimeType: z.string(),
       partId: z.string(),
       parts: z.array(z.record(z.string(), z.unknown())),
-    }),
+    }).partial(),
     raw: z.string(),
     sizeEstimate: z.number(),
     snippet: z.string(),
     threadId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -415,7 +421,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Drafts. Registered at `@swamp/gcp/gmail/users-drafts`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-drafts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -594,6 +600,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

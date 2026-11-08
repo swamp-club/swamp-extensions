@@ -490,7 +490,7 @@ const StateSchema = z.object({
   advancedSiteSearchConfig: z.object({
     disableAutomaticRefresh: z.boolean(),
     disableInitialIndex: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   billingEstimation: z.object({
     structuredDataSize: z.string(),
     structuredDataUpdateTime: z.string(),
@@ -498,7 +498,7 @@ const StateSchema = z.object({
     unstructuredDataUpdateTime: z.string(),
     websiteDataSize: z.string(),
     websiteDataUpdateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cmekConfig: z.object({
     isDefault: z.boolean(),
     kmsKey: z.string(),
@@ -506,11 +506,13 @@ const StateSchema = z.object({
     lastRotationTimestampMicros: z.string(),
     name: z.string(),
     notebooklmState: z.string(),
-    singleRegionKeys: z.array(z.object({
-      kmsKey: z.string(),
-    })),
+    singleRegionKeys: z.array(
+      z.object({
+        kmsKey: z.string(),
+      }).partial(),
+    ),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   configurableBillingApproach: z.string().optional(),
   configurableBillingApproachUpdateTime: z.string().optional(),
   contentConfig: z.string().optional(),
@@ -518,8 +520,8 @@ const StateSchema = z.object({
   dataProtectionPolicy: z.object({
     sensitiveDataProtectionPolicy: z.object({
       policy: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   defaultSchemaId: z.string().optional(),
   displayName: z.string().optional(),
   documentProcessingConfig: z.object({
@@ -527,10 +529,10 @@ const StateSchema = z.object({
       layoutBasedChunkingConfig: z.object({
         chunkSize: z.number(),
         includeAncestorHeadings: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     defaultParsingConfig: z.object({
-      digitalParsingConfig: z.object({}),
+      digitalParsingConfig: z.object({}).partial(),
       layoutParsingConfig: z.object({
         enableGetProcessedDocument: z.boolean(),
         enableImageAnnotation: z.boolean(),
@@ -540,20 +542,20 @@ const StateSchema = z.object({
         excludeHtmlElements: z.array(z.string()),
         excludeHtmlIds: z.array(z.string()),
         structuredContentTypes: z.array(z.string()),
-      }),
+      }).partial(),
       ocrParsingConfig: z.object({
         enhancedDocumentElements: z.array(z.string()),
         useNativeText: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     name: z.string(),
     parsingConfigOverrides: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   federatedSearchConfig: z.object({
     alloyDbConfig: z.object({
       alloydbAiNlConfig: z.object({
         nlConfigId: z.string(),
-      }),
+      }).partial(),
       alloydbConnectionConfig: z.object({
         authMode: z.string(),
         database: z.string(),
@@ -561,23 +563,23 @@ const StateSchema = z.object({
         instance: z.string(),
         password: z.string(),
         user: z.string(),
-      }),
+      }).partial(),
       returnedFields: z.array(z.string()),
-    }),
+    }).partial(),
     notebooklmConfig: z.object({
       notebooks: z.array(z.string()),
       searchConfig: z.string(),
-    }),
+    }).partial(),
     thirdPartyOauthConfig: z.object({
       appName: z.string(),
       instanceName: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   healthcareFhirConfig: z.object({
     enableConfigurableSchema: z.boolean(),
     enableStaticIndexingForBatchIngestion: z.boolean(),
     initialFilterGroups: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   identityMappingStore: z.string().optional(),
   industryVertical: z.string().optional(),
   isInfobotFaqDataStore: z.boolean().optional(),
@@ -585,22 +587,22 @@ const StateSchema = z.object({
   name: z.string(),
   naturalLanguageQueryUnderstandingConfig: z.object({
     mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   servingConfigDataStore: z.object({
     disabledForServing: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   solutionTypes: z.array(z.string()).optional(),
   startingSchema: z.object({
     jsonSchema: z.string(),
     name: z.string(),
     structSchema: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   workspaceConfig: z.object({
     dasherCustomerId: z.string(),
     superAdminEmailAddress: z.string(),
     superAdminServiceAccount: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -954,7 +956,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine DataStores. Registered at `@swamp/gcp/discoveryengine/datastores`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/datastores",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1215,6 +1217,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

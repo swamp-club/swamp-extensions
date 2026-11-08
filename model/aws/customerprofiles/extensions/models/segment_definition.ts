@@ -277,6 +277,88 @@ const SortAttributeSchema = z.object({
   ).optional(),
 });
 
+const ProfileDimensionStateSchema = z.object({
+  DimensionType: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const ExtraLengthValueProfileDimensionStateSchema = z.object({
+  DimensionType: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const DateDimensionStateSchema = z.object({
+  DimensionType: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const AddressDimensionStateSchema = z.object({
+  City: ProfileDimensionStateSchema,
+  Country: ProfileDimensionStateSchema,
+  County: ProfileDimensionStateSchema,
+  PostalCode: ProfileDimensionStateSchema,
+  Province: ProfileDimensionStateSchema,
+  State: ProfileDimensionStateSchema,
+}).partial();
+
+const ProfileTypeDimensionStateSchema = z.object({
+  DimensionType: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const ProfileAttributesStateSchema = z.object({
+  AccountNumber: ProfileDimensionStateSchema,
+  AdditionalInformation: ExtraLengthValueProfileDimensionStateSchema,
+  FirstName: ProfileDimensionStateSchema,
+  LastName: ProfileDimensionStateSchema,
+  MiddleName: ProfileDimensionStateSchema,
+  GenderString: ProfileDimensionStateSchema,
+  PartyTypeString: ProfileDimensionStateSchema,
+  BirthDate: DateDimensionStateSchema,
+  PhoneNumber: ProfileDimensionStateSchema,
+  BusinessName: ProfileDimensionStateSchema,
+  BusinessPhoneNumber: ProfileDimensionStateSchema,
+  HomePhoneNumber: ProfileDimensionStateSchema,
+  MobilePhoneNumber: ProfileDimensionStateSchema,
+  EmailAddress: ProfileDimensionStateSchema,
+  PersonalEmailAddress: ProfileDimensionStateSchema,
+  BusinessEmailAddress: ProfileDimensionStateSchema,
+  Address: AddressDimensionStateSchema,
+  ShippingAddress: AddressDimensionStateSchema,
+  MailingAddress: AddressDimensionStateSchema,
+  BillingAddress: AddressDimensionStateSchema,
+  Attributes: z.record(z.string(), z.unknown()),
+  ProfileType: ProfileTypeDimensionStateSchema,
+}).partial();
+
+const SourceSegmentStateSchema = z.object({
+  SegmentDefinitionName: z.string(),
+}).partial();
+
+const GroupStateSchema = z.object({
+  Dimensions: z.array(
+    z.object({
+      ProfileAttributes: ProfileAttributesStateSchema,
+      CalculatedAttributes: z.record(z.string(), z.unknown()),
+    }).partial(),
+  ),
+  SourceSegments: z.array(SourceSegmentStateSchema),
+  SourceType: z.string(),
+  Type: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const SortAttributeStateSchema = z.object({
+  Name: z.string(),
+  Order: z.string(),
+  DataType: z.string(),
+  Type: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -333,19 +415,19 @@ const StateSchema = z.object({
   DomainName: z.string(),
   SegmentDefinitionName: z.string(),
   SegmentGroups: z.object({
-    Groups: z.array(GroupSchema),
+    Groups: z.array(GroupStateSchema),
     Include: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SegmentSqlQuery: z.string().optional(),
   SegmentDefinitionArn: z.string().optional(),
   SegmentType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   SegmentSort: z.object({
-    Attributes: z.array(SortAttributeSchema),
-  }).optional(),
+    Attributes: z.array(SortAttributeStateSchema),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -405,7 +487,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles SegmentDefinition. Registered at `@swamp/aws/customerprofiles/segment-definition`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/segment-definition",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -474,6 +556,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -209,20 +209,20 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   activeConference: z.object({
     conferenceRecord: z.string(),
-  }).optional(),
+  }).partial().optional(),
   config: z.object({
     accessType: z.string(),
     artifactConfig: z.object({
       recordingConfig: z.object({
         autoRecordingGeneration: z.string(),
-      }),
+      }).partial(),
       smartNotesConfig: z.object({
         autoSmartNotesGeneration: z.string(),
-      }),
+      }).partial(),
       transcriptionConfig: z.object({
         autoTranscriptionGeneration: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     attendanceReportGenerationType: z.string(),
     entryPointAccess: z.string(),
     moderation: z.string(),
@@ -231,21 +231,25 @@ const StateSchema = z.object({
       defaultJoinAsViewerType: z.string(),
       presentRestriction: z.string(),
       reactionRestriction: z.string(),
-    }),
-  }).optional(),
-  gatewaySipAccess: z.array(z.object({
-    sipAccessCode: z.string(),
-    uri: z.string(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  gatewaySipAccess: z.array(
+    z.object({
+      sipAccessCode: z.string(),
+      uri: z.string(),
+    }).partial(),
+  ).optional(),
   meetingCode: z.string().optional(),
   meetingUri: z.string().optional(),
   name: z.string(),
-  phoneAccess: z.array(z.object({
-    languageCode: z.string(),
-    phoneNumber: z.string(),
-    pin: z.string(),
-    regionCode: z.string(),
-  })).optional(),
+  phoneAccess: z.array(
+    z.object({
+      languageCode: z.string(),
+      phoneNumber: z.string(),
+      pin: z.string(),
+      regionCode: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -382,7 +386,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Meet Spaces. Registered at `@swamp/gcp/meet/spaces`. */
 export const model = {
   type: "@swamp/gcp/meet/spaces",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -521,6 +525,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -116,34 +116,42 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   kind: z.string().optional(),
   nextPageToken: z.string().optional(),
-  usageReports: z.array(z.object({
-    date: z.string(),
-    entity: z.object({
-      customerId: z.string(),
-      entityId: z.string(),
-      profileId: z.string(),
-      type: z.string(),
-      userEmail: z.string(),
-    }),
-    etag: z.string(),
-    kind: z.string(),
-    parameters: z.array(z.object({
-      boolValue: z.boolean(),
-      datetimeValue: z.string(),
-      intValue: z.string(),
-      msgValue: z.array(z.unknown()),
-      name: z.string(),
-      stringValue: z.string(),
-    })),
-  })).optional(),
-  warnings: z.array(z.object({
-    code: z.string(),
-    data: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
-    message: z.string(),
-  })).optional(),
+  usageReports: z.array(
+    z.object({
+      date: z.string(),
+      entity: z.object({
+        customerId: z.string(),
+        entityId: z.string(),
+        profileId: z.string(),
+        type: z.string(),
+        userEmail: z.string(),
+      }).partial(),
+      etag: z.string(),
+      kind: z.string(),
+      parameters: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          datetimeValue: z.string(),
+          intValue: z.string(),
+          msgValue: z.array(z.unknown()),
+          name: z.string(),
+          stringValue: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
+  warnings: z.array(
+    z.object({
+      code: z.string(),
+      data: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -187,7 +195,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK UserUsageReport. Registered at `@swamp/gcp/admin/userusagereport`. */
 export const model = {
   type: "@swamp/gcp/admin/userusagereport",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -311,6 +319,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

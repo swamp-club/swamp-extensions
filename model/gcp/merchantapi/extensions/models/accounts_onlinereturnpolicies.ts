@@ -276,15 +276,15 @@ const StateSchema = z.object({
   policy: z.object({
     days: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   processRefundDays: z.number().optional(),
   restockingFee: z.object({
     fixedFee: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     microPercent: z.number(),
-  }).optional(),
+  }).partial().optional(),
   returnLabelSource: z.string().optional(),
   returnMethods: z.array(z.string()).optional(),
   returnPolicyId: z.string().optional(),
@@ -293,28 +293,30 @@ const StateSchema = z.object({
     fixedFee: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     type: z.string(),
-  }).optional(),
-  seasonalOverrides: z.array(z.object({
-    endDate: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-    label: z.string(),
-    returnDays: z.number(),
-    returnUntilDate: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-    startDate: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  seasonalOverrides: z.array(
+    z.object({
+      endDate: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+      label: z.string(),
+      returnDays: z.number(),
+      returnUntilDate: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+      startDate: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -482,7 +484,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.OnlineReturnPolicies. Registered at `@swamp/gcp/merchantapi/accounts-onlinereturnpolicies`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-onlinereturnpolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -501,6 +503,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -227,18 +227,18 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   driveOptions: z.object({
     includeDescendants: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   eventTypes: z.array(z.string()).optional(),
   expireTime: z.string().optional(),
   name: z.string(),
   notificationEndpoint: z.object({
     pubsubTopic: z.string(),
-  }).optional(),
+  }).partial().optional(),
   payloadOptions: z.object({
     fieldMask: z.string(),
     includeResource: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
   serviceAccountAuthority: z.string().optional(),
   state: z.string().optional(),
@@ -323,7 +323,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Workspace Events Subscriptions. Registered at `@swamp/gcp/workspaceevents/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/workspaceevents/subscriptions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -497,6 +497,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

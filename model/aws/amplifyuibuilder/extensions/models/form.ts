@@ -139,6 +139,16 @@ const SectionalElementSchema = z.object({
   Excluded: z.boolean().optional(),
 });
 
+const FormButtonStateSchema = z.object({
+  Excluded: z.boolean(),
+  Children: z.string(),
+  Position: z.object({
+    Fixed: z.string(),
+    RightOf: z.string(),
+    Below: z.string(),
+  }).partial(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -194,14 +204,14 @@ const StateSchema = z.object({
   AppId: z.string(),
   Cta: z.object({
     Position: z.string(),
-    Clear: FormButtonSchema,
-    Cancel: FormButtonSchema,
-    Submit: FormButtonSchema,
-  }).optional(),
+    Clear: FormButtonStateSchema,
+    Cancel: FormButtonStateSchema,
+    Submit: FormButtonStateSchema,
+  }).partial().optional(),
   DataType: z.object({
     DataSourceType: z.string(),
     DataTypeName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EnvironmentName: z.string(),
   Fields: z.record(z.string(), z.unknown()).optional(),
   FormActionType: z.string().optional(),
@@ -214,20 +224,20 @@ const StateSchema = z.object({
     HorizontalGap: z.object({
       TokenReference: z.string(),
       Value: z.string(),
-    }),
+    }).partial(),
     VerticalGap: z.object({
       TokenReference: z.string(),
       Value: z.string(),
-    }),
+    }).partial(),
     OuterPadding: z.object({
       TokenReference: z.string(),
       Value: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -289,7 +299,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AmplifyUIBuilder Form. Registered at `@swamp/aws/amplifyuibuilder/form`. */
 export const model = {
   type: "@swamp/aws/amplifyuibuilder/form",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -354,6 +364,11 @@ export const model = {
     {
       toVersion: "2026.10.25.1",
       description: "Added: Fields",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

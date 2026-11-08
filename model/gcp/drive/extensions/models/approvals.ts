@@ -124,6 +124,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   approvalId: z.string().optional(),
+  approvedRevisionId: z.string().optional(),
   completeTime: z.string().optional(),
   createTime: z.string().optional(),
   dueTime: z.string().optional(),
@@ -135,21 +136,23 @@ const StateSchema = z.object({
     me: z.boolean(),
     permissionId: z.string(),
     photoLink: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   modifyTime: z.string().optional(),
-  reviewerResponses: z.array(z.object({
-    kind: z.string(),
-    response: z.string(),
-    reviewer: z.object({
-      displayName: z.string(),
-      emailAddress: z.string(),
+  reviewerResponses: z.array(
+    z.object({
       kind: z.string(),
-      me: z.boolean(),
-      permissionId: z.string(),
-      photoLink: z.string(),
-    }),
-  })).optional(),
+      response: z.string(),
+      reviewer: z.object({
+        displayName: z.string(),
+        emailAddress: z.string(),
+        kind: z.string(),
+        me: z.boolean(),
+        permissionId: z.string(),
+        photoLink: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   status: z.string().optional(),
   targetFileId: z.string().optional(),
 }).passthrough();
@@ -195,7 +198,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Approvals. Registered at `@swamp/gcp/drive/approvals`. */
 export const model = {
   type: "@swamp/gcp/drive/approvals",
-  version: "2026.10.23.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -359,6 +362,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -501,6 +501,201 @@ const TagSchema = z.object({
   Value: z.string().optional(),
 });
 
+const MultiviewFilterConfigurationStateSchema = z.object({
+  Layout: z.string(),
+  Sources: z.array(z.string()),
+}).partial();
+
+const FilterConfigurationStateSchema = z.object({
+  ManifestFilter: z.string(),
+  DrmSettings: z.string(),
+  Start: z.string(),
+  End: z.string(),
+  TimeDelaySeconds: z.number(),
+  ClipStartTime: z.string(),
+  Multiview: MultiviewFilterConfigurationStateSchema,
+}).partial();
+
+const ScteDashStateSchema = z.object({
+  AdMarkerDash: z.string(),
+  ScteInManifests: z.string(),
+}).partial();
+
+const DashUtcTimingStateSchema = z.object({
+  TimingMode: z.string(),
+  TimingSource: z.string(),
+}).partial();
+
+const DashBaseUrlStateSchema = z.object({
+  Url: z.string(),
+  ServiceLocation: z.string(),
+  DvbPriority: z.number(),
+  DvbWeight: z.number(),
+}).partial();
+
+const DashProgramInformationStateSchema = z.object({
+  Title: z.string(),
+  Source: z.string(),
+  Copyright: z.string(),
+  LanguageCode: z.string(),
+  MoreInformationUrl: z.string(),
+}).partial();
+
+const DashDvbFontDownloadStateSchema = z.object({
+  Url: z.string(),
+  MimeType: z.string(),
+  FontFamily: z.string(),
+}).partial();
+
+const DashDvbMetricsReportingStateSchema = z.object({
+  ReportingUrl: z.string(),
+  Probability: z.number(),
+}).partial();
+
+const DashDvbSettingsStateSchema = z.object({
+  FontDownload: DashDvbFontDownloadStateSchema,
+  ErrorMetrics: z.array(DashDvbMetricsReportingStateSchema),
+}).partial();
+
+const DashTtmlConfigurationStateSchema = z.object({
+  TtmlProfile: z.string(),
+}).partial();
+
+const DashSubtitleConfigurationStateSchema = z.object({
+  TtmlConfiguration: DashTtmlConfigurationStateSchema,
+}).partial();
+
+const DashManifestConfigurationStateSchema = z.object({
+  ManifestName: z.string(),
+  ManifestWindowSeconds: z.number(),
+  FilterConfiguration: FilterConfigurationStateSchema,
+  MinUpdatePeriodSeconds: z.number(),
+  MinBufferTimeSeconds: z.number(),
+  SuggestedPresentationDelaySeconds: z.number(),
+  SegmentTemplateFormat: z.string(),
+  PeriodTriggers: z.array(z.string()),
+  ScteDash: ScteDashStateSchema,
+  DrmSignaling: z.string(),
+  UtcTiming: DashUtcTimingStateSchema,
+  Profiles: z.array(z.string()),
+  BaseUrls: z.array(DashBaseUrlStateSchema),
+  ProgramInformation: DashProgramInformationStateSchema,
+  DvbSettings: DashDvbSettingsStateSchema,
+  Compactness: z.string(),
+  AudioTimelinePattern: z.string(),
+  SubtitleConfiguration: DashSubtitleConfigurationStateSchema,
+  UriPathType: z.string(),
+  AvailabilityStartTimeConfiguration: z.object({
+    FixedAvailabilityStartTime: z.string(),
+  }).partial(),
+}).partial();
+
+const ScteHlsStateSchema = z.object({
+  AdMarkerHls: z.string(),
+  ScteInManifests: z.string(),
+}).partial();
+
+const StartTagStateSchema = z.object({
+  TimeOffset: z.number(),
+  Precise: z.boolean(),
+}).partial();
+
+const HlsManifestConfigurationStateSchema = z.object({
+  ManifestName: z.string(),
+  Url: z.string(),
+  ChildManifestName: z.string(),
+  ManifestWindowSeconds: z.number(),
+  ProgramDateTimeIntervalSeconds: z.number(),
+  ScteHls: ScteHlsStateSchema,
+  FilterConfiguration: FilterConfigurationStateSchema,
+  StartTag: StartTagStateSchema,
+  UrlEncodeChildManifest: z.boolean(),
+  UriPathType: z.string(),
+}).partial();
+
+const LowLatencyHlsFilterConfigurationStateSchema = z.object({
+  ManifestFilter: z.string(),
+  DrmSettings: z.string(),
+  Start: z.string(),
+  End: z.string(),
+  TimeDelaySeconds: z.number(),
+  ClipStartTime: z.string(),
+}).partial();
+
+const LowLatencyHlsManifestConfigurationStateSchema = z.object({
+  ManifestName: z.string(),
+  Url: z.string(),
+  ChildManifestName: z.string(),
+  ManifestWindowSeconds: z.number(),
+  ProgramDateTimeIntervalSeconds: z.number(),
+  ScteHls: ScteHlsStateSchema,
+  FilterConfiguration: LowLatencyHlsFilterConfigurationStateSchema,
+  StartTag: StartTagStateSchema,
+  UrlEncodeChildManifest: z.boolean(),
+  UriPathType: z.string(),
+}).partial();
+
+const MssFilterConfigurationStateSchema = z.object({
+  ManifestFilter: z.string(),
+  DrmSettings: z.string(),
+  Start: z.string(),
+  End: z.string(),
+  TimeDelaySeconds: z.number(),
+  ClipStartTime: z.string(),
+}).partial();
+
+const MssManifestConfigurationStateSchema = z.object({
+  ManifestName: z.string(),
+  FilterConfiguration: MssFilterConfigurationStateSchema,
+  ManifestWindowSeconds: z.number(),
+  ManifestLayout: z.string(),
+}).partial();
+
+const ScteStateSchema = z.object({
+  ScteFilter: z.array(z.string()),
+  ScteInSegments: z.string(),
+  CustomAdTypes: z.array(z.string()),
+}).partial();
+
+const EncryptionMethodStateSchema = z.object({
+  TsEncryptionMethod: z.string(),
+  CmafEncryptionMethod: z.string(),
+  IsmEncryptionMethod: z.string(),
+}).partial();
+
+const EncryptionContractConfigurationStateSchema = z.object({
+  PresetSpeke20Audio: z.string(),
+  PresetSpeke20Video: z.string(),
+}).partial();
+
+const ContentKeyPeriodConfigurationStateSchema = z.object({
+  ContentKeyPeriodTiming: z.string(),
+}).partial();
+
+const SpekeKeyProviderStateSchema = z.object({
+  EncryptionContractConfiguration: EncryptionContractConfigurationStateSchema,
+  ResourceId: z.string(),
+  DrmSystems: z.array(z.string()),
+  RoleArn: z.string(),
+  Url: z.string(),
+  CertificateArn: z.string(),
+  SpekeVersion: z.string(),
+  ContentKeyPeriodConfiguration: ContentKeyPeriodConfigurationStateSchema,
+}).partial();
+
+const EncryptionStateSchema = z.object({
+  ConstantInitializationVector: z.string(),
+  EncryptionMethod: EncryptionMethodStateSchema,
+  KeyRotationIntervalSeconds: z.number(),
+  CmafExcludeSegmentDrmMetadata: z.boolean(),
+  SpekeKeyProvider: SpekeKeyProviderStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -593,16 +788,16 @@ const StateSchema = z.object({
   ChannelName: z.string().optional(),
   ContainerType: z.string().optional(),
   CreatedAt: z.string().optional(),
-  DashManifests: z.array(DashManifestConfigurationSchema).optional(),
+  DashManifests: z.array(DashManifestConfigurationStateSchema).optional(),
   Description: z.string().optional(),
   ForceEndpointErrorConfiguration: z.object({
     EndpointErrorConditions: z.array(z.string()),
-  }).optional(),
-  HlsManifests: z.array(HlsManifestConfigurationSchema).optional(),
-  LowLatencyHlsManifests: z.array(LowLatencyHlsManifestConfigurationSchema)
+  }).partial().optional(),
+  HlsManifests: z.array(HlsManifestConfigurationStateSchema).optional(),
+  LowLatencyHlsManifests: z.array(LowLatencyHlsManifestConfigurationStateSchema)
     .optional(),
   ModifiedAt: z.string().optional(),
-  MssManifests: z.array(MssManifestConfigurationSchema).optional(),
+  MssManifests: z.array(MssManifestConfigurationStateSchema).optional(),
   OriginEndpointName: z.string().optional(),
   Segment: z.object({
     SegmentDurationSeconds: z.number(),
@@ -610,10 +805,10 @@ const StateSchema = z.object({
     TsUseAudioRenditionGroup: z.boolean(),
     IncludeIframeOnlyStreams: z.boolean(),
     TsIncludeDvbSubtitles: z.boolean(),
-    Scte: ScteSchema,
-    Encryption: EncryptionSchema,
+    Scte: ScteStateSchema,
+    Encryption: EncryptionStateSchema,
     OutputTimestampMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   StartoverWindowSeconds: z.number().optional(),
   StreamNameOutputMode: z.string().optional(),
   UriSeparator: z.string().optional(),
@@ -621,10 +816,10 @@ const StateSchema = z.object({
   MssManifestUrls: z.array(z.string()).optional(),
   HlsManifestUrls: z.array(z.string()).optional(),
   LowLatencyHlsManifestUrls: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -721,7 +916,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackageV2 OriginEndpoint. Registered at `@swamp/aws/mediapackagev2/origin-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/origin-endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -820,6 +1015,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -118,7 +118,7 @@ const StateSchema = z.object({
   driveDestination: z.object({
     exportUri: z.string(),
     file: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endTime: z.string().optional(),
   name: z.string(),
   startTime: z.string().optional(),
@@ -166,7 +166,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Meet ConferenceRecords.Recordings. Registered at `@swamp/gcp/meet/conferencerecords-recordings`. */
 export const model = {
   type: "@swamp/gcp/meet/conferencerecords-recordings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -285,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

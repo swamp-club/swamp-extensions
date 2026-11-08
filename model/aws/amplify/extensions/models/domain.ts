@@ -49,6 +49,11 @@ const SubDomainSettingSchema = z.object({
   BranchName: z.string().min(1).max(255).regex(new RegExp(".+", "s")),
 });
 
+const SubDomainSettingStateSchema = z.object({
+  Prefix: z.string(),
+  BranchName: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -224,20 +229,20 @@ const StateSchema = z.object({
     CertificateType: z.string(),
     CertificateArn: z.string(),
     CertificateVerificationDNSRecord: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CertificateSettings: z.object({
     CertificateType: z.string(),
     CustomCertificateArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DomainName: z.string().optional(),
   DomainStatus: z.string().optional(),
   UpdateStatus: z.string().optional(),
   EnableAutoSubDomain: z.boolean().optional(),
   StatusReason: z.string().optional(),
-  SubDomainSettings: z.array(SubDomainSettingSchema).optional(),
+  SubDomainSettings: z.array(SubDomainSettingStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -293,7 +298,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Amplify Domain. Registered at `@swamp/aws/amplify/domain`. */
 export const model = {
   type: "@swamp/aws/amplify/domain",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -367,6 +372,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

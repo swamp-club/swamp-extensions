@@ -223,8 +223,8 @@ const StateSchema = z.object({
     enforcedRollouts: z.record(z.string(), z.unknown()),
     rolloutCreationScope: z.object({
       upgradeTypes: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   computedReleaseChannel: z.string().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
@@ -233,12 +233,12 @@ const StateSchema = z.object({
     enforcedRollouts: z.record(z.string(), z.unknown()),
     rolloutCreationScope: z.object({
       upgradeTypes: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   etag: z.string().optional(),
   ignoredClustersSelector: z.object({
     labelSelector: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   lastQualifiedControlPlaneVersion: z.string().optional(),
   lastQualifiedNodeVersion: z.string().optional(),
@@ -247,14 +247,16 @@ const StateSchema = z.object({
     reasons: z.array(z.string()),
     state: z.string(),
     stateChangeTime: z.string(),
-  }).optional(),
-  stages: z.array(z.object({
-    clusterSelector: z.object({
-      labelSelector: z.string(),
-    }),
-    fleetProjects: z.array(z.string()),
-    soakDuration: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  stages: z.array(
+    z.object({
+      clusterSelector: z.object({
+        labelSelector: z.string(),
+      }).partial(),
+      fleetProjects: z.array(z.string()),
+      soakDuration: z.string(),
+    }).partial(),
+  ).optional(),
   targetControlPlaneVersion: z.string().optional(),
   targetNodeVersion: z.string().optional(),
   uid: z.string().optional(),
@@ -357,7 +359,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub RolloutSequences. Registered at `@swamp/gcp/gkehub/rolloutsequences`. */
 export const model = {
   type: "@swamp/gcp/gkehub/rolloutsequences",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -391,6 +393,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

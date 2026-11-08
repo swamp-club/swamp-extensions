@@ -440,65 +440,85 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  activeTimeRanges: z.array(z.object({
-    activeTime: z.number(),
-    date: z.string(),
-  })).optional(),
+  activeTimeRanges: z.array(
+    z.object({
+      activeTime: z.number(),
+      date: z.string(),
+    }).partial(),
+  ).optional(),
   annotatedAssetId: z.string().optional(),
   annotatedLocation: z.string().optional(),
   annotatedUser: z.string().optional(),
   autoUpdateExpiration: z.string().optional(),
   autoUpdateThrough: z.string().optional(),
-  backlightInfo: z.array(z.object({
-    brightness: z.number(),
-    maxBrightness: z.number(),
-    path: z.string(),
-  })).optional(),
-  bluetoothAdapterInfo: z.array(z.object({
-    address: z.string(),
-    numConnectedDevices: z.number(),
-  })).optional(),
+  backlightInfo: z.array(
+    z.object({
+      brightness: z.number(),
+      maxBrightness: z.number(),
+      path: z.string(),
+    }).partial(),
+  ).optional(),
+  bluetoothAdapterInfo: z.array(
+    z.object({
+      address: z.string(),
+      numConnectedDevices: z.number(),
+    }).partial(),
+  ).optional(),
   bootMode: z.string().optional(),
   chromeOsType: z.string().optional(),
-  cpuInfo: z.array(z.object({
-    architecture: z.string(),
-    logicalCpus: z.array(z.object({
-      cStates: z.array(z.unknown()),
-      currentScalingFrequencyKhz: z.number(),
-      idleDuration: z.string(),
-      maxScalingFrequencyKhz: z.number(),
-    })),
-    maxClockSpeedKhz: z.number(),
-    model: z.string(),
-  })).optional(),
-  cpuStatusReports: z.array(z.object({
-    cpuTemperatureInfo: z.array(z.object({
-      label: z.string(),
-      temperature: z.number(),
-    })),
-    cpuUtilizationPercentageInfo: z.array(z.number()),
-    reportTime: z.string(),
-  })).optional(),
+  cpuInfo: z.array(
+    z.object({
+      architecture: z.string(),
+      logicalCpus: z.array(
+        z.object({
+          cStates: z.array(z.unknown()),
+          currentScalingFrequencyKhz: z.number(),
+          idleDuration: z.string(),
+          maxScalingFrequencyKhz: z.number(),
+        }).partial(),
+      ),
+      maxClockSpeedKhz: z.number(),
+      model: z.string(),
+    }).partial(),
+  ).optional(),
+  cpuStatusReports: z.array(
+    z.object({
+      cpuTemperatureInfo: z.array(
+        z.object({
+          label: z.string(),
+          temperature: z.number(),
+        }).partial(),
+      ),
+      cpuUtilizationPercentageInfo: z.array(z.number()),
+      reportTime: z.string(),
+    }).partial(),
+  ).optional(),
   deprovisionReason: z.string().optional(),
-  deviceFiles: z.array(z.object({
-    createTime: z.string(),
-    downloadUrl: z.string(),
-    name: z.string(),
-    type: z.string(),
-  })).optional(),
+  deviceFiles: z.array(
+    z.object({
+      createTime: z.string(),
+      downloadUrl: z.string(),
+      name: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   deviceId: z.string().optional(),
   deviceLicenseType: z.string().optional(),
   diskSpaceUsage: z.object({
     capacityBytes: z.string(),
     usedBytes: z.string(),
-  }).optional(),
-  diskVolumeReports: z.array(z.object({
-    volumeInfo: z.array(z.object({
-      storageFree: z.string(),
-      storageTotal: z.string(),
-      volumeId: z.string(),
-    })),
-  })).optional(),
+  }).partial().optional(),
+  diskVolumeReports: z.array(
+    z.object({
+      volumeInfo: z.array(
+        z.object({
+          storageFree: z.string(),
+          storageTotal: z.string(),
+          volumeId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   dockMacAddress: z.string().optional(),
   etag: z.string().optional(),
   ethernetMacAddress: z.string().optional(),
@@ -506,18 +526,22 @@ const StateSchema = z.object({
   extendedSupportEligible: z.boolean().optional(),
   extendedSupportEnabled: z.boolean().optional(),
   extendedSupportStart: z.string().optional(),
-  fanInfo: z.array(z.object({
-    speedRpm: z.number(),
-  })).optional(),
+  fanInfo: z.array(
+    z.object({
+      speedRpm: z.number(),
+    }).partial(),
+  ).optional(),
   firmwareVersion: z.string().optional(),
   firstEnrollmentTime: z.string().optional(),
   kind: z.string().optional(),
   lastDeprovisionTimestamp: z.string().optional(),
   lastEnrollmentTime: z.string().optional(),
-  lastKnownNetwork: z.array(z.object({
-    ipAddress: z.string(),
-    wanIpAddress: z.string(),
-  })).optional(),
+  lastKnownNetwork: z.array(
+    z.object({
+      ipAddress: z.string(),
+      wanIpAddress: z.string(),
+    }).partial(),
+  ).optional(),
   lastSync: z.string().optional(),
   macAddress: z.string().optional(),
   manufactureDate: z.string().optional(),
@@ -534,27 +558,33 @@ const StateSchema = z.object({
     targetOsVersion: z.string(),
     updateCheckTime: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   osVersion: z.string().optional(),
   osVersionCompliance: z.string().optional(),
   platformVersion: z.string().optional(),
-  recentUsers: z.array(z.object({
-    email: z.string(),
-    type: z.string(),
-  })).optional(),
-  screenshotFiles: z.array(z.object({
-    createTime: z.string(),
-    downloadUrl: z.string(),
-    name: z.string(),
-    type: z.string(),
-  })).optional(),
+  recentUsers: z.array(
+    z.object({
+      email: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
+  screenshotFiles: z.array(
+    z.object({
+      createTime: z.string(),
+      downloadUrl: z.string(),
+      name: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   serialNumber: z.string().optional(),
   status: z.string().optional(),
   supportEndDate: z.string().optional(),
-  systemRamFreeReports: z.array(z.object({
-    reportTime: z.string(),
-    systemRamFreeInfo: z.array(z.string()),
-  })).optional(),
+  systemRamFreeReports: z.array(
+    z.object({
+      reportTime: z.string(),
+      systemRamFreeInfo: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   systemRamTotal: z.string().optional(),
   tpmVersionInfo: z.object({
     family: z.string(),
@@ -563,7 +593,7 @@ const StateSchema = z.object({
     specLevel: z.string(),
     tpmModel: z.string(),
     vendorSpecific: z.string(),
-  }).optional(),
+  }).partial().optional(),
   willAutoRenew: z.boolean().optional(),
 }).passthrough();
 
@@ -891,7 +921,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Chromeosdevices. Registered at `@swamp/gcp/admin/chromeosdevices`. */
 export const model = {
   type: "@swamp/gcp/admin/chromeosdevices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -930,6 +960,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

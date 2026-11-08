@@ -105,6 +105,47 @@ const GetOutputSchema = z.object({
     .optional(),
 });
 
+const TemplateGroupStateSchema = z.object({
+  Name: z.string(),
+  TemplateUris: z.array(z.string()),
+}).partial();
+
+const CroppingConfigStateSchema = z.object({
+  TemplateGroups: z.array(TemplateGroupStateSchema),
+}).partial();
+
+const DataSourceConfigurationStateSchema = z.object({
+  FixtureId: z.string(),
+}).partial();
+
+const ClippingConfigStateSchema = z.object({
+  CallbackMetadata: z.string(),
+  DataSourceConfiguration: DataSourceConfigurationStateSchema,
+}).partial();
+
+const AspectRatioStateSchema = z.object({
+  Width: z.number(),
+  Height: z.number(),
+}).partial();
+
+const SubtitlingConfigStateSchema = z.object({
+  Language: z.string(),
+  AspectRatio: AspectRatioStateSchema,
+  Dictionary: z.string(),
+  ProfanityFilter: z.string(),
+}).partial();
+
+const GetOutputStateSchema = z.object({
+  Name: z.string(),
+  OutputConfig: z.object({
+    Cropping: CroppingConfigStateSchema,
+    Clipping: ClippingConfigStateSchema,
+    Subtitling: SubtitlingConfigStateSchema,
+  }).partial(),
+  Status: z.string(),
+  Description: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -137,11 +178,11 @@ const StateSchema = z.object({
   DataEndpoints: z.array(z.string()).optional(),
   Id: z.string(),
   Name: z.string().optional(),
-  Outputs: z.array(GetOutputSchema).optional(),
+  Outputs: z.array(GetOutputStateSchema).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -178,7 +219,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElementalInference Feed. Registered at `@swamp/aws/elementalinference/feed`. */
 export const model = {
   type: "@swamp/aws/elementalinference/feed",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -262,6 +303,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

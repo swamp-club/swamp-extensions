@@ -220,35 +220,41 @@ const StateSchema = z.object({
   configured: z.object({
     availabilitySla: z.object({
       effectiveSla: z.string(),
-      intendedSlaBlockers: z.array(z.object({
-        attachments: z.array(z.unknown()),
-        blockerType: z.string(),
-        documentationLink: z.string(),
-        explanation: z.string(),
-        metros: z.array(z.unknown()),
-        regions: z.array(z.unknown()),
-        zones: z.array(z.unknown()),
-      })),
-    }),
-  }).optional(),
+      intendedSlaBlockers: z.array(
+        z.object({
+          attachments: z.array(z.unknown()),
+          blockerType: z.string(),
+          documentationLink: z.string(),
+          explanation: z.string(),
+          metros: z.array(z.unknown()),
+          regions: z.array(z.unknown()),
+          zones: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   intent: z.object({
     availabilitySla: z.string(),
-  }).optional(),
+  }).partial().optional(),
   interconnectGroup: z.string().optional(),
   kind: z.string().optional(),
   logicalStructure: z.object({
-    regions: z.array(z.object({
-      metros: z.array(z.object({
-        facilities: z.unknown(),
-        metro: z.unknown(),
-      })),
-      region: z.string(),
-    })),
-  }).optional(),
+    regions: z.array(
+      z.object({
+        metros: z.array(
+          z.object({
+            facilities: z.unknown(),
+            metro: z.unknown(),
+          }).partial(),
+        ),
+        region: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   selfLink: z.string().optional(),
 }).passthrough();
@@ -321,7 +327,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InterconnectAttachmentGroups. Registered at `@swamp/gcp/compute/interconnectattachmentgroups`. */
 export const model = {
   type: "@swamp/gcp/compute/interconnectattachmentgroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -480,6 +486,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -66,6 +66,25 @@ const ModuleConfigurationSchema = z.object({
   ModuleParameters: z.record(z.string(), z.unknown()).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ResponderErrorMaskingForHttpCodeStateSchema = z.object({
+  HttpCode: z.string(),
+  Action: z.string(),
+  LoggingTypes: z.array(z.string()),
+  ResponseLoggingPercentage: z.number(),
+}).partial();
+
+const ModuleConfigurationStateSchema = z.object({
+  Version: z.string(),
+  Name: z.string(),
+  DependsOn: z.array(z.string()),
+  ModuleParameters: z.record(z.string(), z.unknown()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -105,14 +124,14 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LinkId: z.string().optional(),
   GatewayId: z.string().optional(),
   PeerGatewayId: z.string().optional(),
   LinkAttributes: z.object({
-    ResponderErrorMasking: z.array(ResponderErrorMaskingForHttpCodeSchema),
+    ResponderErrorMasking: z.array(ResponderErrorMaskingForHttpCodeStateSchema),
     CustomerProvidedId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LinkStatus: z.string().optional(),
   CreatedTimestamp: z.string().optional(),
   UpdatedTimestamp: z.string().optional(),
@@ -124,13 +143,13 @@ const StateSchema = z.object({
       LinkApplicationLogSampling: z.object({
         ErrorLog: z.number(),
         FilterLog: z.number(),
-      }),
-    }),
-  }).optional(),
-  ModuleConfigurationList: z.array(ModuleConfigurationSchema).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
+  ModuleConfigurationList: z.array(ModuleConfigurationStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -179,7 +198,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RTBFabric Link. Registered at `@swamp/aws/rtbfabric/link`. */
 export const model = {
   type: "@swamp/aws/rtbfabric/link",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -253,6 +272,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

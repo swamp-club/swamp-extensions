@@ -100,14 +100,16 @@ const StateSchema = z.object({
       obsolete: z.string(),
       replacement: z.string(),
       state: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     diskSizeGb: z.string(),
     enableConfidentialCompute: z.boolean(),
     family: z.string(),
-    guestOsFeatures: z.array(z.object({
-      type: z.string(),
-    })),
+    guestOsFeatures: z.array(
+      z.object({
+        type: z.string(),
+      }).partial(),
+    ),
     id: z.string(),
     imageEncryptionKey: z.object({
       kmsKeyName: z.string(),
@@ -115,7 +117,7 @@ const StateSchema = z.object({
       rawKey: z.string(),
       rsaEncryptedKey: z.string(),
       sha256: z.string(),
-    }),
+    }).partial(),
     kind: z.string(),
     labelFingerprint: z.string(),
     labels: z.record(z.string(), z.unknown()),
@@ -124,33 +126,39 @@ const StateSchema = z.object({
     name: z.string(),
     params: z.object({
       resourceManagerTags: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     rawDisk: z.object({
       containerType: z.string(),
       sha1Checksum: z.string(),
       source: z.string(),
-    }),
+    }).partial(),
     satisfiesPzi: z.boolean(),
     satisfiesPzs: z.boolean(),
     selfLink: z.string(),
     shieldedInstanceInitialState: z.object({
-      dbs: z.array(z.object({
-        content: z.string(),
-        fileType: z.string(),
-      })),
-      dbxs: z.array(z.object({
-        content: z.string(),
-        fileType: z.string(),
-      })),
-      keks: z.array(z.object({
-        content: z.string(),
-        fileType: z.string(),
-      })),
+      dbs: z.array(
+        z.object({
+          content: z.string(),
+          fileType: z.string(),
+        }).partial(),
+      ),
+      dbxs: z.array(
+        z.object({
+          content: z.string(),
+          fileType: z.string(),
+        }).partial(),
+      ),
+      keks: z.array(
+        z.object({
+          content: z.string(),
+          fileType: z.string(),
+        }).partial(),
+      ),
       pk: z.object({
         content: z.string(),
         fileType: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sourceDisk: z.string(),
     sourceDiskEncryptionKey: z.object({
       kmsKeyName: z.string(),
@@ -158,7 +166,7 @@ const StateSchema = z.object({
       rawKey: z.string(),
       rsaEncryptedKey: z.string(),
       sha256: z.string(),
-    }),
+    }).partial(),
     sourceDiskId: z.string(),
     sourceImage: z.string(),
     sourceImageEncryptionKey: z.object({
@@ -167,7 +175,7 @@ const StateSchema = z.object({
       rawKey: z.string(),
       rsaEncryptedKey: z.string(),
       sha256: z.string(),
-    }),
+    }).partial(),
     sourceImageId: z.string(),
     sourceSnapshot: z.string(),
     sourceSnapshotEncryptionKey: z.object({
@@ -176,12 +184,12 @@ const StateSchema = z.object({
       rawKey: z.string(),
       rsaEncryptedKey: z.string(),
       sha256: z.string(),
-    }),
+    }).partial(),
     sourceSnapshotId: z.string(),
     sourceType: z.string(),
     status: z.string(),
     storageLocations: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -224,7 +232,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ImageFamilyViews. Registered at `@swamp/gcp/compute/imagefamilyviews`. */
 export const model = {
   type: "@swamp/gcp/compute/imagefamilyviews",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -348,6 +356,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

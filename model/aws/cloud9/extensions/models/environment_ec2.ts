@@ -52,6 +52,16 @@ const TagSchema = z.object({
   Key: z.string().min(1).max(128),
 });
 
+const RepositoryStateSchema = z.object({
+  RepositoryUrl: z.string(),
+  PathComponent: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -100,7 +110,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Repositories: z.array(RepositorySchema).optional(),
+  Repositories: z.array(RepositoryStateSchema).optional(),
   OwnerArn: z.string().optional(),
   Description: z.string().optional(),
   ConnectionType: z.string().optional(),
@@ -110,11 +120,11 @@ const StateSchema = z.object({
   EnvironmentId: z.string(),
   Arn: z.string().optional(),
   InstanceType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Name: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -172,7 +182,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cloud9 EnvironmentEC2. Registered at `@swamp/aws/cloud9/environment-ec2`. */
 export const model = {
   type: "@swamp/aws/cloud9/environment-ec2",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -181,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

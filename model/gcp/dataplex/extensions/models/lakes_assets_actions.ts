@@ -98,29 +98,29 @@ const StateSchema = z.object({
   detectTime: z.string().optional(),
   failedSecurityPolicyApply: z.object({
     asset: z.string(),
-  }).optional(),
+  }).partial().optional(),
   incompatibleDataSchema: z.object({
     existingSchema: z.string(),
     newSchema: z.string(),
     sampledDataLocations: z.array(z.string()),
     schemaChange: z.string(),
     table: z.string(),
-  }).optional(),
+  }).partial().optional(),
   invalidDataFormat: z.object({
     expectedFormat: z.string(),
     newFormat: z.string(),
     sampledDataLocations: z.array(z.string()),
-  }).optional(),
-  invalidDataOrganization: z.object({}).optional(),
+  }).partial().optional(),
+  invalidDataOrganization: z.object({}).partial().optional(),
   invalidDataPartition: z.object({
     expectedStructure: z.string(),
-  }).optional(),
+  }).partial().optional(),
   issue: z.string().optional(),
   lake: z.string().optional(),
-  missingData: z.object({}).optional(),
-  missingResource: z.object({}).optional(),
+  missingData: z.object({}).partial().optional(),
+  missingResource: z.object({}).partial().optional(),
   name: z.string(),
-  unauthorizedResource: z.object({}).optional(),
+  unauthorizedResource: z.object({}).partial().optional(),
   zone: z.string().optional(),
 }).passthrough();
 
@@ -168,7 +168,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex Lakes.Assets.Actions. Registered at `@swamp/gcp/dataplex/lakes-assets-actions`. */
 export const model = {
   type: "@swamp/gcp/dataplex/lakes-assets-actions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -292,6 +292,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

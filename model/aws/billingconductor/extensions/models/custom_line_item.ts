@@ -67,6 +67,27 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const CustomLineItemFlatChargeDetailsStateSchema = z.object({
+  ChargeValue: z.number(),
+}).partial();
+
+const CustomLineItemPercentageChargeDetailsStateSchema = z.object({
+  ChildAssociatedResources: z.array(z.string()),
+  PercentageValue: z.number(),
+}).partial();
+
+const LineItemFilterStateSchema = z.object({
+  Attribute: z.string(),
+  MatchOption: z.string(),
+  Values: z.array(z.string()),
+  AttributeValues: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -122,19 +143,19 @@ const StateSchema = z.object({
   ComputationRule: z.string().optional(),
   PresentationDetails: z.object({
     Service: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Description: z.string().optional(),
   CustomLineItemChargeDetails: z.object({
-    Flat: CustomLineItemFlatChargeDetailsSchema,
-    Percentage: CustomLineItemPercentageChargeDetailsSchema,
+    Flat: CustomLineItemFlatChargeDetailsStateSchema,
+    Percentage: CustomLineItemPercentageChargeDetailsStateSchema,
     Type: z.string(),
-    LineItemFilters: z.array(LineItemFilterSchema),
-  }).optional(),
+    LineItemFilters: z.array(LineItemFilterStateSchema),
+  }).partial().optional(),
   BillingGroupArn: z.string().optional(),
   BillingPeriodRange: z.object({
     InclusiveStartBillingPeriod: z.string(),
     ExclusiveEndBillingPeriod: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string(),
   CreationTime: z.number().optional(),
   LastModifiedTime: z.number().optional(),
@@ -142,10 +163,10 @@ const StateSchema = z.object({
   ProductCode: z.string().optional(),
   CurrencyCode: z.string().optional(),
   AccountId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -206,7 +227,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BillingConductor CustomLineItem. Registered at `@swamp/aws/billingconductor/custom-line-item`. */
 export const model = {
   type: "@swamp/aws/billingconductor/custom-line-item",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -275,6 +296,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

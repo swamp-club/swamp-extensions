@@ -87,16 +87,20 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   appPricing: z.string().optional(),
-  appTracks: z.array(z.object({
-    trackAlias: z.string(),
-    trackId: z.string(),
-  })).optional(),
-  appVersions: z.array(z.object({
-    production: z.boolean(),
-    trackIds: z.array(z.string()),
-    versionCode: z.number(),
-    versionString: z.string(),
-  })).optional(),
+  appTracks: z.array(
+    z.object({
+      trackAlias: z.string(),
+      trackId: z.string(),
+    }).partial(),
+  ).optional(),
+  appVersions: z.array(
+    z.object({
+      production: z.boolean(),
+      trackIds: z.array(z.string()),
+      versionCode: z.number(),
+      versionString: z.string(),
+    }).partial(),
+  ).optional(),
   author: z.string().optional(),
   availableCountries: z.array(z.string()).optional(),
   category: z.string().optional(),
@@ -106,25 +110,31 @@ const StateSchema = z.object({
   features: z.array(z.string()).optional(),
   fullDescription: z.string().optional(),
   iconUrl: z.string().optional(),
-  managedProperties: z.array(z.object({
-    defaultValue: z.string(),
-    description: z.string(),
-    entries: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
-    key: z.string(),
-    nestedProperties: z.array(z.record(z.string(), z.unknown())),
-    title: z.string(),
-    type: z.string(),
-  })).optional(),
+  managedProperties: z.array(
+    z.object({
+      defaultValue: z.string(),
+      description: z.string(),
+      entries: z.array(
+        z.object({
+          name: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      key: z.string(),
+      nestedProperties: z.array(z.record(z.string(), z.unknown())),
+      title: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   minAndroidSdkVersion: z.number().optional(),
   name: z.string(),
-  permissions: z.array(z.object({
-    description: z.string(),
-    name: z.string(),
-    permissionId: z.string(),
-  })).optional(),
+  permissions: z.array(
+    z.object({
+      description: z.string(),
+      name: z.string(),
+      permissionId: z.string(),
+    }).partial(),
+  ).optional(),
   playStoreUrl: z.string().optional(),
   recentChanges: z.string().optional(),
   screenshotUrls: z.array(z.string()).optional(),
@@ -171,7 +181,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Applications. Registered at `@swamp/gcp/androidmanagement/enterprises-applications`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-applications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -290,6 +300,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

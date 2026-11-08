@@ -347,6 +347,231 @@ const CapacityReservationTargetRequestSchema = z.object({
   CapacityReservationResourceGroupArns: z.array(z.string()).optional(),
 });
 
+const CapacityReservationOptionsRequestStateSchema = z.object({
+  UsageStrategy: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const TagSpecificationStateSchema = z.object({
+  ResourceType: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const CapacityRebalanceStateSchema = z.object({
+  TerminationDelay: z.number(),
+  ReplacementStrategy: z.string(),
+}).partial();
+
+const MaintenanceStrategiesStateSchema = z.object({
+  CapacityRebalance: CapacityRebalanceStateSchema,
+}).partial();
+
+const FleetLaunchTemplateSpecificationRequestStateSchema = z.object({
+  LaunchTemplateName: z.string(),
+  Version: z.string(),
+  LaunchTemplateId: z.string(),
+  LaunchTemplateSpecificationUserData: z.string(),
+}).partial();
+
+const InstanceMetadataOptionsRequestStateSchema = z.object({
+  HttpPutResponseHopLimit: z.number(),
+  HttpTokens: z.string(),
+  HttpEndpoint: z.string(),
+}).partial();
+
+const StandbyAvailabilityZoneStateSchema = z.object({
+  AvailabilityZoneId: z.string(),
+  AvailabilityZone: z.string(),
+}).partial();
+
+const MultiAvailabilityZoneConfigurationStateSchema = z.object({
+  ConfigurationType: z.string(),
+  StandbyAvailabilityZones: z.array(StandbyAvailabilityZoneStateSchema),
+}).partial();
+
+const EbsBlockDeviceStateSchema = z.object({
+  SnapshotId: z.string(),
+  VolumeType: z.string(),
+  KmsKeyId: z.string(),
+  Encrypted: z.boolean(),
+  MultiAvailabilityZoneConfiguration:
+    MultiAvailabilityZoneConfigurationStateSchema,
+  Iops: z.number(),
+  VolumeSize: z.number(),
+  DeleteOnTermination: z.boolean(),
+}).partial();
+
+const BlockDeviceMappingStateSchema = z.object({
+  Ebs: EbsBlockDeviceStateSchema,
+  NoDevice: z.string(),
+  VirtualName: z.string(),
+  DeviceName: z.string(),
+}).partial();
+
+const IamInstanceProfileSpecificationStateSchema = z.object({
+  Arn: z.string(),
+  Name: z.string(),
+}).partial();
+
+const PlacementStateSchema = z.object({
+  GroupName: z.string(),
+  Tenancy: z.string(),
+  SpreadDomain: z.string(),
+  PartitionNumber: z.number(),
+  AvailabilityZone: z.string(),
+  Affinity: z.string(),
+  HostId: z.string(),
+  HostResourceGroupArn: z.string(),
+}).partial();
+
+const PrivateIpAddressSpecificationRequestStateSchema = z.object({
+  PrivateIpAddress: z.string(),
+  Primary: z.boolean(),
+}).partial();
+
+const Ipv6AddressRequestStateSchema = z.object({
+  Ipv6Address: z.string(),
+}).partial();
+
+const NetworkInterfaceSpecificationRequestStateSchema = z.object({
+  Description: z.string(),
+  PrivateIpAddress: z.string(),
+  PrivateIpAddresses: z.array(PrivateIpAddressSpecificationRequestStateSchema),
+  SecondaryPrivateIpAddressCount: z.number(),
+  DeviceIndex: z.number(),
+  Ipv6Addresses: z.array(Ipv6AddressRequestStateSchema),
+  SubnetId: z.string(),
+  AssociatePublicIpAddress: z.boolean(),
+  NetworkCardIndex: z.number(),
+  NetworkInterfaceId: z.string(),
+  InterfaceType: z.string(),
+  Groups: z.array(z.string()),
+  Ipv6AddressCount: z.number(),
+  DeleteOnTermination: z.boolean(),
+}).partial();
+
+const MemoryGiBPerVCpuRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const VCpuCountRangeRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const MemoryMiBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const NetworkInterfaceCountRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const NetworkBandwidthGbpsRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorCountRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const PerformanceFactorReferenceRequestStateSchema = z.object({
+  InstanceFamily: z.string(),
+}).partial();
+
+const CpuPerformanceFactorRequestStateSchema = z.object({
+  References: z.array(PerformanceFactorReferenceRequestStateSchema),
+}).partial();
+
+const BaselinePerformanceFactorsRequestStateSchema = z.object({
+  Cpu: CpuPerformanceFactorRequestStateSchema,
+}).partial();
+
+const BaselineEbsBandwidthMbpsRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorTotalMemoryMiBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const TotalLocalStorageGBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const InstanceRequirementsRequestStateSchema = z.object({
+  InstanceGenerations: z.array(z.string()),
+  RequireEncryptionInTransit: z.boolean(),
+  MemoryGiBPerVCpu: MemoryGiBPerVCpuRequestStateSchema,
+  AcceleratorTypes: z.array(z.string()),
+  VCpuCount: VCpuCountRangeRequestStateSchema,
+  AcceleratorManufacturers: z.array(z.string()),
+  LocalStorage: z.string(),
+  CpuManufacturers: z.array(z.string()),
+  BareMetal: z.string(),
+  RequireHibernateSupport: z.boolean(),
+  MaxSpotPriceAsPercentageOfOptimalOnDemandPrice: z.number(),
+  OnDemandMaxPricePercentageOverLowestPrice: z.number(),
+  MemoryMiB: MemoryMiBRequestStateSchema,
+  LocalStorageTypes: z.array(z.string()),
+  NetworkInterfaceCount: NetworkInterfaceCountRequestStateSchema,
+  ExcludedInstanceTypes: z.array(z.string()),
+  AllowedInstanceTypes: z.array(z.string()),
+  NetworkBandwidthGbps: NetworkBandwidthGbpsRequestStateSchema,
+  AcceleratorCount: AcceleratorCountRequestStateSchema,
+  BaselinePerformanceFactors: BaselinePerformanceFactorsRequestStateSchema,
+  SpotMaxPricePercentageOverLowestPrice: z.number(),
+  BaselineEbsBandwidthMbps: BaselineEbsBandwidthMbpsRequestStateSchema,
+  AcceleratorNames: z.array(z.string()),
+  AcceleratorTotalMemoryMiB: AcceleratorTotalMemoryMiBRequestStateSchema,
+  BurstablePerformance: z.string(),
+  TotalLocalStorageGB: TotalLocalStorageGBRequestStateSchema,
+}).partial();
+
+const FleetLaunchTemplateOverridesRequestStateSchema = z.object({
+  MetadataOptions: InstanceMetadataOptionsRequestStateSchema,
+  Priority: z.number(),
+  AvailabilityZoneId: z.string(),
+  BlockDeviceMappings: z.array(BlockDeviceMappingStateSchema),
+  AvailabilityZone: z.string(),
+  IamInstanceProfile: IamInstanceProfileSpecificationStateSchema,
+  SubnetId: z.string(),
+  KeyName: z.string(),
+  WeightedCapacity: z.number(),
+  Placement: PlacementStateSchema,
+  NetworkInterfaces: z.array(NetworkInterfaceSpecificationRequestStateSchema),
+  InstanceRequirements: InstanceRequirementsRequestStateSchema,
+  InstanceType: z.string(),
+  MaxPrice: z.string(),
+}).partial();
+
+const FleetLaunchTemplateConfigRequestStateSchema = z.object({
+  LaunchTemplateSpecification:
+    FleetLaunchTemplateSpecificationRequestStateSchema,
+  Overrides: z.array(FleetLaunchTemplateOverridesRequestStateSchema),
+}).partial();
+
+const ReservedCapacityFallbackOptionsRequestStateSchema = z.object({
+  MarketTypes: z.array(z.string()),
+}).partial();
+
+const CapacityReservationTargetRequestStateSchema = z.object({
+  CapacityReservationIds: z.array(z.string()),
+  CapacityReservationResourceGroupArns: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -440,28 +665,28 @@ const StateSchema = z.object({
     OnDemandTargetCapacity: z.number(),
     SpotTargetCapacity: z.number(),
     TargetCapacityUnitType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OnDemandOptions: z.object({
     SingleAvailabilityZone: z.boolean(),
     AllocationStrategy: z.string(),
     SingleInstanceType: z.boolean(),
     MinTargetCapacity: z.number(),
     MaxTotalPrice: z.string(),
-    CapacityReservationOptions: CapacityReservationOptionsRequestSchema,
-  }).optional(),
+    CapacityReservationOptions: CapacityReservationOptionsRequestStateSchema,
+  }).partial().optional(),
   ExcessCapacityTerminationPolicy: z.string().optional(),
-  TagSpecifications: z.array(TagSpecificationSchema).optional(),
+  TagSpecifications: z.array(TagSpecificationStateSchema).optional(),
   SpotOptions: z.object({
     SingleAvailabilityZone: z.boolean(),
     AllocationStrategy: z.string(),
     SingleInstanceType: z.boolean(),
     MinTargetCapacity: z.number(),
     MaxTotalPrice: z.string(),
-    MaintenanceStrategies: MaintenanceStrategiesSchema,
+    MaintenanceStrategies: MaintenanceStrategiesStateSchema,
     InstanceInterruptionBehavior: z.string(),
     InstancePoolsToUseCount: z.number(),
-  }).optional(),
-  LaunchTemplateConfigs: z.array(FleetLaunchTemplateConfigRequestSchema)
+  }).partial().optional(),
+  LaunchTemplateConfigs: z.array(FleetLaunchTemplateConfigRequestStateSchema)
     .optional(),
   TerminateInstancesWithExpiration: z.boolean().optional(),
   ValidUntil: z.string().optional(),
@@ -469,16 +694,16 @@ const StateSchema = z.object({
   ReservedCapacityOptions: z.object({
     AllocationStrategy: z.string(),
     ReservedCapacityFallbackOptions:
-      ReservedCapacityFallbackOptionsRequestSchema,
+      ReservedCapacityFallbackOptionsRequestStateSchema,
     ReservationTypes: z.array(z.string()),
-    CapacityReservationTarget: CapacityReservationTargetRequestSchema,
-  }).optional(),
+    CapacityReservationTarget: CapacityReservationTargetRequestStateSchema,
+  }).partial().optional(),
   FleetId: z.string(),
   ValidFrom: z.string().optional(),
   ReplaceUnhealthyInstances: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -574,7 +799,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 EC2Fleet. Registered at `@swamp/aws/ec2/ec2fleet`. */
 export const model = {
   type: "@swamp/aws/ec2/ec2fleet",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -668,6 +893,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

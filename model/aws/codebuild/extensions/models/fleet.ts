@@ -61,6 +61,22 @@ const TargetTrackingScalingConfigurationSchema = z.object({
   TargetValue: z.number().optional(),
 });
 
+const FleetProxyRuleStateSchema = z.object({
+  Type: z.string(),
+  Effect: z.string(),
+  Entities: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TargetTrackingScalingConfigurationStateSchema = z.object({
+  MetricType: z.string(),
+  TargetValue: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -144,31 +160,31 @@ const StateSchema = z.object({
     VpcId: z.string(),
     Subnets: z.array(z.string()),
     SecurityGroupIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   FleetProxyConfiguration: z.object({
     DefaultBehavior: z.string(),
-    OrderedProxyRules: z.array(FleetProxyRuleSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    OrderedProxyRules: z.array(FleetProxyRuleStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Arn: z.string(),
   ImageId: z.string().optional(),
   ScalingConfiguration: z.object({
     MaxCapacity: z.number(),
     ScalingType: z.string(),
     TargetTrackingScalingConfigs: z.array(
-      TargetTrackingScalingConfigurationSchema,
+      TargetTrackingScalingConfigurationStateSchema,
     ),
-  }).optional(),
+  }).partial().optional(),
   ComputeConfiguration: z.object({
     vCpu: z.number(),
     memory: z.number(),
     disk: z.number(),
     machineType: z.string(),
     instanceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -251,7 +267,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeBuild Fleet. Registered at `@swamp/aws/codebuild/fleet`. */
 export const model = {
   type: "@swamp/aws/codebuild/fleet",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -315,6 +331,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

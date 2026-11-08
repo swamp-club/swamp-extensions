@@ -119,11 +119,13 @@ const StateSchema = z.object({
   address: z.string().optional(),
   attachmentConfigurationConstraints: z.object({
     bgpMd5: z.string(),
-    bgpPeerAsnRanges: z.array(z.object({
-      max: z.number(),
-      min: z.number(),
-    })),
-  }).optional(),
+    bgpPeerAsnRanges: z.array(
+      z.object({
+        max: z.number(),
+        min: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   city: z.string().optional(),
   constraints: z.object({
     portPairRemoteLocation: z.string(),
@@ -131,8 +133,8 @@ const StateSchema = z.object({
     subnetLengthRange: z.object({
       max: z.number(),
       min: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   continent: z.string().optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
@@ -146,9 +148,11 @@ const StateSchema = z.object({
   maxLagSize400Gbps: z.number().optional(),
   name: z.string(),
   peeringdbFacilityId: z.string().optional(),
-  permittedConnections: z.array(z.object({
-    interconnectLocation: z.string(),
-  })).optional(),
+  permittedConnections: z.array(
+    z.object({
+      interconnectLocation: z.string(),
+    }).partial(),
+  ).optional(),
   remoteService: z.string().optional(),
   selfLink: z.string().optional(),
   status: z.string().optional(),
@@ -192,7 +196,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InterconnectRemoteLocations. Registered at `@swamp/gcp/compute/interconnectremotelocations`. */
 export const model = {
   type: "@swamp/gcp/compute/interconnectremotelocations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -326,6 +330,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

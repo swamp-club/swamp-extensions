@@ -129,7 +129,7 @@ const StateSchema = z.object({
       level: z.number(),
       maxExperiencePoints: z.string(),
       minExperiencePoints: z.string(),
-    }),
+    }).partial(),
     kind: z.string(),
     lastLevelUpTimestampMillis: z.string(),
     nextLevel: z.object({
@@ -137,22 +137,22 @@ const StateSchema = z.object({
       level: z.number(),
       maxExperiencePoints: z.string(),
       minExperiencePoints: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   friendStatus: z.string().optional(),
   gamePlayerId: z.string().optional(),
   kind: z.string().optional(),
   name: z.object({
     familyName: z.string(),
     givenName: z.string(),
-  }),
+  }).partial(),
   originalPlayerId: z.string().optional(),
   playerId: z.string().optional(),
   profileSettings: z.object({
     friendsListVisibility: z.string(),
     kind: z.string(),
     profileVisible: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   title: z.string().optional(),
 }).passthrough();
 
@@ -196,7 +196,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Games Services Players. Registered at `@swamp/gcp/games/players`. */
 export const model = {
   type: "@swamp/gcp/games/players",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -325,6 +325,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

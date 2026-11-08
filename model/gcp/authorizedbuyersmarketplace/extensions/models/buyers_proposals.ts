@@ -219,32 +219,38 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   billedBuyer: z.string().optional(),
   buyer: z.string().optional(),
-  buyerContacts: z.array(z.object({
-    displayName: z.string(),
-    email: z.string(),
-  })).optional(),
+  buyerContacts: z.array(
+    z.object({
+      displayName: z.string(),
+      email: z.string(),
+    }).partial(),
+  ).optional(),
   buyerPrivateData: z.object({
     referenceId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   client: z.string().optional(),
   dealType: z.string().optional(),
   displayName: z.string().optional(),
   isRenegotiating: z.boolean().optional(),
   lastUpdaterOrCommentorRole: z.string().optional(),
   name: z.string(),
-  notes: z.array(z.object({
-    createTime: z.string(),
-    creatorRole: z.string(),
-    note: z.string(),
-  })).optional(),
+  notes: z.array(
+    z.object({
+      createTime: z.string(),
+      creatorRole: z.string(),
+      note: z.string(),
+    }).partial(),
+  ).optional(),
   originatorRole: z.string().optional(),
   pausingConsented: z.boolean().optional(),
   proposalRevision: z.string().optional(),
   publisherProfile: z.string().optional(),
-  sellerContacts: z.array(z.object({
-    displayName: z.string(),
-    email: z.string(),
-  })).optional(),
+  sellerContacts: z.array(
+    z.object({
+      displayName: z.string(),
+      email: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   termsAndConditions: z.string().optional(),
   updateTime: z.string().optional(),
@@ -374,7 +380,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Authorized Buyers Marketplace Buyers.Proposals. Registered at `@swamp/gcp/authorizedbuyersmarketplace/buyers-proposals`. */
 export const model = {
   type: "@swamp/gcp/authorizedbuyersmarketplace/buyers-proposals",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -503,6 +509,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

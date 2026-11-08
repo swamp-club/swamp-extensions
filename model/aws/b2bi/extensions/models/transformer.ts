@@ -445,6 +445,62 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const X12DetailsStateSchema = z.object({
+  TransactionSet: z.string(),
+  Version: z.string(),
+}).partial();
+
+const X12SplitOptionsStateSchema = z.object({
+  SplitBy: z.string(),
+}).partial();
+
+const X12CodeListValidationRuleStateSchema = z.object({
+  ElementId: z.string(),
+  CodesToAdd: z.array(z.string()),
+  CodesToRemove: z.array(z.string()),
+}).partial();
+
+const X12ElementLengthValidationRuleStateSchema = z.object({
+  ElementId: z.string(),
+  MaxLength: z.number(),
+  MinLength: z.number(),
+}).partial();
+
+const X12ElementRequirementValidationRuleStateSchema = z.object({
+  ElementPosition: z.string(),
+  Requirement: z.string(),
+}).partial();
+
+const X12ValidationOptionsStateSchema = z.object({
+  ValidationRules: z.array(
+    z.object({
+      CodeListValidationRule: X12CodeListValidationRuleStateSchema,
+      ElementLengthValidationRule: X12ElementLengthValidationRuleStateSchema,
+      ElementRequirementValidationRule:
+        X12ElementRequirementValidationRuleStateSchema,
+    }).partial(),
+  ),
+}).partial();
+
+const X12AdvancedOptionsStateSchema = z.object({
+  SplitOptions: X12SplitOptionsStateSchema,
+  ValidationOptions: X12ValidationOptionsStateSchema,
+}).partial();
+
+const AdvancedOptionsStateSchema = z.object({
+  X12: X12AdvancedOptionsStateSchema,
+}).partial();
+
+const SampleDocumentKeysStateSchema = z.object({
+  Input: z.string(),
+  Output: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -502,42 +558,42 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   CreatedAt: z.string().optional(),
   EdiType: z.object({
-    X12Details: X12DetailsSchema,
-  }).optional(),
+    X12Details: X12DetailsStateSchema,
+  }).partial().optional(),
   FileFormat: z.string().optional(),
   InputConversion: z.object({
     FromFormat: z.string(),
     FormatOptions: z.object({
-      X12: X12DetailsSchema,
-    }),
-    AdvancedOptions: AdvancedOptionsSchema,
-  }).optional(),
+      X12: X12DetailsStateSchema,
+    }).partial(),
+    AdvancedOptions: AdvancedOptionsStateSchema,
+  }).partial().optional(),
   Mapping: z.object({
     TemplateLanguage: z.string(),
     Template: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MappingTemplate: z.string().optional(),
   ModifiedAt: z.string().optional(),
   Name: z.string().optional(),
   OutputConversion: z.object({
     ToFormat: z.string(),
     FormatOptions: z.object({
-      X12: X12DetailsSchema,
-    }),
-    AdvancedOptions: AdvancedOptionsSchema,
-  }).optional(),
+      X12: X12DetailsStateSchema,
+    }).partial(),
+    AdvancedOptions: AdvancedOptionsStateSchema,
+  }).partial().optional(),
   SampleDocument: z.string().optional(),
   SampleDocuments: z.object({
     BucketName: z.string(),
-    Keys: z.array(SampleDocumentKeysSchema),
-  }).optional(),
+    Keys: z.array(SampleDocumentKeysStateSchema),
+  }).partial().optional(),
   Status: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TransformerArn: z.string().optional(),
   TransformerId: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -602,7 +658,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for B2BI Transformer. Registered at `@swamp/aws/b2bi/transformer`. */
 export const model = {
   type: "@swamp/aws/b2bi/transformer",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -666,6 +722,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -821,122 +821,136 @@ const StateSchema = z.object({
   baseModelSource: z.object({
     genieSource: z.object({
       baseModelUri: z.string(),
-    }),
+    }).partial(),
     modelGardenSource: z.object({
       publicModelName: z.string(),
       skipHfModelCache: z.boolean(),
       versionId: z.string(),
-    }),
-  }).optional(),
-  checkpoints: z.array(z.object({
-    checkpointId: z.string(),
-    epoch: z.string(),
-    step: z.string(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  checkpoints: z.array(
+    z.object({
+      checkpointId: z.string(),
+      epoch: z.string(),
+      step: z.string(),
+    }).partial(),
+  ).optional(),
   containerSpec: z.object({
     args: z.array(z.string()),
     command: z.array(z.string()),
     deploymentTimeout: z.string(),
-    env: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
-    grpcPorts: z.array(z.object({
-      containerPort: z.number(),
-    })),
+    env: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+    grpcPorts: z.array(
+      z.object({
+        containerPort: z.number(),
+      }).partial(),
+    ),
     healthProbe: z.object({
       exec: z.object({
         command: z.array(z.string()),
-      }),
+      }).partial(),
       failureThreshold: z.number(),
       grpc: z.object({
         port: z.number(),
         service: z.string(),
-      }),
+      }).partial(),
       httpGet: z.object({
         host: z.string(),
-        httpHeaders: z.array(z.object({
-          name: z.unknown(),
-          value: z.unknown(),
-        })),
+        httpHeaders: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
         path: z.string(),
         port: z.number(),
         scheme: z.string(),
-      }),
+      }).partial(),
       initialDelaySeconds: z.number(),
       periodSeconds: z.number(),
       successThreshold: z.number(),
       tcpSocket: z.object({
         host: z.string(),
         port: z.number(),
-      }),
+      }).partial(),
       timeoutSeconds: z.number(),
-    }),
+    }).partial(),
     healthRoute: z.string(),
     imageUri: z.string(),
     invokeRoutePrefix: z.string(),
     livenessProbe: z.object({
       exec: z.object({
         command: z.array(z.string()),
-      }),
+      }).partial(),
       failureThreshold: z.number(),
       grpc: z.object({
         port: z.number(),
         service: z.string(),
-      }),
+      }).partial(),
       httpGet: z.object({
         host: z.string(),
-        httpHeaders: z.array(z.object({
-          name: z.unknown(),
-          value: z.unknown(),
-        })),
+        httpHeaders: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
         path: z.string(),
         port: z.number(),
         scheme: z.string(),
-      }),
+      }).partial(),
       initialDelaySeconds: z.number(),
       periodSeconds: z.number(),
       successThreshold: z.number(),
       tcpSocket: z.object({
         host: z.string(),
         port: z.number(),
-      }),
+      }).partial(),
       timeoutSeconds: z.number(),
-    }),
-    ports: z.array(z.object({
-      containerPort: z.number(),
-    })),
+    }).partial(),
+    ports: z.array(
+      z.object({
+        containerPort: z.number(),
+      }).partial(),
+    ),
     predictRoute: z.string(),
     sharedMemorySizeMb: z.string(),
     startupProbe: z.object({
       exec: z.object({
         command: z.array(z.string()),
-      }),
+      }).partial(),
       failureThreshold: z.number(),
       grpc: z.object({
         port: z.number(),
         service: z.string(),
-      }),
+      }).partial(),
       httpGet: z.object({
         host: z.string(),
-        httpHeaders: z.array(z.object({
-          name: z.unknown(),
-          value: z.unknown(),
-        })),
+        httpHeaders: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
         path: z.string(),
         port: z.number(),
         scheme: z.string(),
-      }),
+      }).partial(),
       initialDelaySeconds: z.number(),
       periodSeconds: z.number(),
       successThreshold: z.number(),
       tcpSocket: z.object({
         host: z.string(),
         port: z.number(),
-      }),
+      }).partial(),
       timeoutSeconds: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dataStats: z.object({
     testAnnotationsCount: z.string(),
@@ -945,18 +959,20 @@ const StateSchema = z.object({
     trainingDataItemsCount: z.string(),
     validationAnnotationsCount: z.string(),
     validationDataItemsCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   defaultCheckpointId: z.string().optional(),
-  deployedModels: z.array(z.object({
-    checkpointId: z.string(),
-    deployedModelId: z.string(),
-    endpoint: z.string(),
-  })).optional(),
+  deployedModels: z.array(
+    z.object({
+      checkpointId: z.string(),
+      deployedModelId: z.string(),
+      endpoint: z.string(),
+    }).partial(),
+  ).optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   explanationSpec: z.object({
     metadata: z.object({
@@ -964,55 +980,55 @@ const StateSchema = z.object({
       inputs: z.record(z.string(), z.unknown()),
       latentSpaceSource: z.string(),
       outputs: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     parameters: z.object({
       examples: z.object({
         exampleGcsSource: z.object({
           dataFormat: z.string(),
           gcsSource: z.object({
             uris: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         nearestNeighborSearchConfig: z.string(),
         neighborCount: z.number(),
         presets: z.object({
           modality: z.string(),
           query: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       integratedGradientsAttribution: z.object({
         blurBaselineConfig: z.object({
           maxBlurSigma: z.number(),
-        }),
+        }).partial(),
         smoothGradConfig: z.object({
           featureNoiseSigma: z.object({
             noiseSigma: z.unknown(),
-          }),
+          }).partial(),
           noiseSigma: z.number(),
           noisySampleCount: z.number(),
-        }),
+        }).partial(),
         stepCount: z.number(),
-      }),
+      }).partial(),
       outputIndices: z.array(z.string()),
       sampledShapleyAttribution: z.object({
         pathCount: z.number(),
-      }),
+      }).partial(),
       topK: z.number(),
       xraiAttribution: z.object({
         blurBaselineConfig: z.object({
           maxBlurSigma: z.number(),
-        }),
+        }).partial(),
         smoothGradConfig: z.object({
           featureNoiseSigma: z.object({
             noiseSigma: z.unknown(),
-          }),
+          }).partial(),
           noiseSigma: z.number(),
           noisySampleCount: z.number(),
-        }),
+        }).partial(),
         stepCount: z.number(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   metadata: z.string().optional(),
   metadataArtifact: z.string().optional(),
@@ -1020,24 +1036,26 @@ const StateSchema = z.object({
   modelSourceInfo: z.object({
     copy: z.boolean(),
     sourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   originalModelInfo: z.object({
     model: z.string(),
-  }).optional(),
+  }).partial().optional(),
   pipelineJob: z.string().optional(),
   predictSchemata: z.object({
     instanceSchemaUri: z.string(),
     parametersSchemaUri: z.string(),
     predictionSchemaUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   supportedDeploymentResourcesTypes: z.array(z.string()).optional(),
-  supportedExportFormats: z.array(z.object({
-    exportableContents: z.array(z.string()),
-    id: z.string(),
-  })).optional(),
+  supportedExportFormats: z.array(
+    z.object({
+      exportableContents: z.array(z.string()),
+      id: z.string(),
+    }).partial(),
+  ).optional(),
   supportedInputStorageFormats: z.array(z.string()).optional(),
   supportedOutputStorageFormats: z.array(z.string()).optional(),
   trainingPipeline: z.string().optional(),
@@ -1755,7 +1773,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Models. Registered at `@swamp/gcp/aiplatform/models`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/models",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2063,6 +2081,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

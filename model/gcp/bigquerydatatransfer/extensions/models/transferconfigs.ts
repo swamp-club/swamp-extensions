@@ -290,48 +290,48 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   emailPreferences: z.object({
     enableFailureEmail: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   encryptionConfiguration: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   managedTableType: z.string().optional(),
   metadataDestination: z.object({
     dataplexConfiguration: z.object({
       entryGroup: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   nextRunTime: z.string().optional(),
   notificationPubsubTopic: z.string().optional(),
   ownerInfo: z.object({
     email: z.string(),
-  }).optional(),
+  }).partial().optional(),
   paramConfig: z.object({
     secretManagerManagedParams: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   params: z.record(z.string(), z.unknown()).optional(),
   schedule: z.string().optional(),
   scheduleOptions: z.object({
     disableAutoScheduling: z.boolean(),
     endTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   scheduleOptionsV2: z.object({
     eventDrivenSchedule: z.object({
       pubsubSubscription: z.string(),
-    }),
-    manualSchedule: z.object({}),
+    }).partial(),
+    manualSchedule: z.object({}).partial(),
     timeBasedSchedule: z.object({
       endTime: z.string(),
       schedule: z.string(),
       startTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
   userId: z.string().optional(),
@@ -481,7 +481,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Data Transfer TransferConfigs. Registered at `@swamp/gcp/bigquerydatatransfer/transferconfigs`. */
 export const model = {
   type: "@swamp/gcp/bigquerydatatransfer/transferconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -629,6 +629,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

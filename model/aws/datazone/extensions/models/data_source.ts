@@ -151,6 +151,61 @@ const SageMakerRunConfigurationInputSchema = z.object({
   ).describe("The tracking assets of the Amazon SageMaker run."),
 });
 
+const FormInputStateSchema = z.object({
+  FormName: z.string(),
+  TypeIdentifier: z.string(),
+  TypeRevision: z.string(),
+  Content: z.string(),
+}).partial();
+
+const FilterExpressionStateSchema = z.object({
+  Type: z.string(),
+  Expression: z.string(),
+}).partial();
+
+const RelationalFilterConfigurationStateSchema = z.object({
+  DatabaseName: z.string(),
+  SchemaName: z.string(),
+  FilterExpressions: z.array(FilterExpressionStateSchema),
+}).partial();
+
+const GlueRunConfigurationInputStateSchema = z.object({
+  AutoImportDataQualityResult: z.boolean(),
+  CatalogName: z.string(),
+  DataAccessRole: z.string(),
+  RelationalFilterConfigurations: z.array(
+    RelationalFilterConfigurationStateSchema,
+  ),
+}).partial();
+
+const RedshiftCredentialConfigurationStateSchema = z.object({
+  SecretManagerArn: z.string(),
+}).partial();
+
+const RedshiftClusterStorageStateSchema = z.object({
+  ClusterName: z.string(),
+}).partial();
+
+const RedshiftServerlessStorageStateSchema = z.object({
+  WorkgroupName: z.string(),
+}).partial();
+
+const RedshiftRunConfigurationInputStateSchema = z.object({
+  DataAccessRole: z.string(),
+  RelationalFilterConfigurations: z.array(
+    RelationalFilterConfigurationStateSchema,
+  ),
+  RedshiftCredentialConfiguration: RedshiftCredentialConfigurationStateSchema,
+  RedshiftStorage: z.object({
+    RedshiftClusterSource: RedshiftClusterStorageStateSchema,
+    RedshiftServerlessSource: RedshiftServerlessStorageStateSchema,
+  }).partial(),
+}).partial();
+
+const SageMakerRunConfigurationInputStateSchema = z.object({
+  TrackingAssets: z.record(z.string(), z.unknown()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -226,7 +281,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  AssetFormsInput: z.array(FormInputSchema).optional(),
+  AssetFormsInput: z.array(FormInputStateSchema).optional(),
   ConnectionId: z.string().optional(),
   ConnectionIdentifier: z.string().optional(),
   CreatedAt: z.string().optional(),
@@ -238,10 +293,10 @@ const StateSchema = z.object({
   EnvironmentIdentifier: z.string().optional(),
   Id: z.string(),
   Configuration: z.object({
-    GlueRunConfiguration: GlueRunConfigurationInputSchema,
-    RedshiftRunConfiguration: RedshiftRunConfigurationInputSchema,
-    SageMakerRunConfiguration: SageMakerRunConfigurationInputSchema,
-  }).optional(),
+    GlueRunConfiguration: GlueRunConfigurationInputStateSchema,
+    RedshiftRunConfiguration: RedshiftRunConfigurationInputStateSchema,
+    SageMakerRunConfiguration: SageMakerRunConfigurationInputStateSchema,
+  }).partial().optional(),
   LastRunAssetCount: z.number().optional(),
   LastRunAt: z.string().optional(),
   LastRunStatus: z.string().optional(),
@@ -251,17 +306,17 @@ const StateSchema = z.object({
   PublishOnImport: z.boolean().optional(),
   Recommendation: z.object({
     EnableBusinessNameGeneration: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   Schedule: z.object({
     Timezone: z.string(),
     Schedule: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   Type: z.string().optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -346,7 +401,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone DataSource. Registered at `@swamp/aws/datazone/data-source`. */
 export const model = {
   type: "@swamp/aws/datazone/data-source",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -410,6 +465,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

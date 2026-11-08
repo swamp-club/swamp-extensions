@@ -187,9 +187,11 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   displayMode: z.string().optional(),
-  icons: z.array(z.object({
-    imageData: z.string(),
-  })).optional(),
+  icons: z.array(
+    z.object({
+      imageData: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   startUrl: z.string().optional(),
   title: z.string().optional(),
@@ -261,7 +263,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.WebApps. Registered at `@swamp/gcp/androidmanagement/enterprises-webapps`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-webapps",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -385,6 +387,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

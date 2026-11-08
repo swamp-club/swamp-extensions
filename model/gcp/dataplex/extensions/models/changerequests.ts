@@ -956,82 +956,84 @@ const StateSchema = z.object({
   approver: z.string().optional(),
   author: z.string().optional(),
   batchChangeMetadataRequest: z.object({
-    changes: z.array(z.object({
-      createEntryLinkRequest: z.object({
-        entryLink: z.object({
-          aspects: z.unknown(),
-          createTime: z.unknown(),
-          entryLinkType: z.unknown(),
-          entryReferences: z.unknown(),
-          name: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        entryLinkId: z.string(),
-        parent: z.string(),
-      }),
-      createEntryRequest: z.object({
-        entry: z.object({
-          aspects: z.unknown(),
-          createTime: z.unknown(),
-          entryGroupType: z.unknown(),
-          entrySource: z.unknown(),
-          entryType: z.unknown(),
-          fullyQualifiedName: z.unknown(),
-          name: z.unknown(),
-          parentEntry: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        entryId: z.string(),
-        parent: z.string(),
-      }),
-      deleteEntryLinkRequest: z.object({
-        name: z.string(),
-      }),
-      deleteEntryRequest: z.object({
-        name: z.string(),
-      }),
-      updateEntryLinkRequest: z.object({
-        allowMissing: z.boolean(),
-        aspectKeys: z.array(z.unknown()),
-        entryLink: z.object({
-          aspects: z.unknown(),
-          createTime: z.unknown(),
-          entryLinkType: z.unknown(),
-          entryReferences: z.unknown(),
-          name: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-      }),
-      updateEntryRequest: z.object({
-        allowMissing: z.boolean(),
-        aspectKeys: z.array(z.unknown()),
-        deleteMissingAspects: z.boolean(),
-        entry: z.object({
-          aspects: z.unknown(),
-          createTime: z.unknown(),
-          entryGroupType: z.unknown(),
-          entrySource: z.unknown(),
-          entryType: z.unknown(),
-          fullyQualifiedName: z.unknown(),
-          name: z.unknown(),
-          parentEntry: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        updateMask: z.string(),
-      }),
-    })),
+    changes: z.array(
+      z.object({
+        createEntryLinkRequest: z.object({
+          entryLink: z.object({
+            aspects: z.unknown(),
+            createTime: z.unknown(),
+            entryLinkType: z.unknown(),
+            entryReferences: z.unknown(),
+            name: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          entryLinkId: z.string(),
+          parent: z.string(),
+        }).partial(),
+        createEntryRequest: z.object({
+          entry: z.object({
+            aspects: z.unknown(),
+            createTime: z.unknown(),
+            entryGroupType: z.unknown(),
+            entrySource: z.unknown(),
+            entryType: z.unknown(),
+            fullyQualifiedName: z.unknown(),
+            name: z.unknown(),
+            parentEntry: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          entryId: z.string(),
+          parent: z.string(),
+        }).partial(),
+        deleteEntryLinkRequest: z.object({
+          name: z.string(),
+        }).partial(),
+        deleteEntryRequest: z.object({
+          name: z.string(),
+        }).partial(),
+        updateEntryLinkRequest: z.object({
+          allowMissing: z.boolean(),
+          aspectKeys: z.array(z.unknown()),
+          entryLink: z.object({
+            aspects: z.unknown(),
+            createTime: z.unknown(),
+            entryLinkType: z.unknown(),
+            entryReferences: z.unknown(),
+            name: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+        }).partial(),
+        updateEntryRequest: z.object({
+          allowMissing: z.boolean(),
+          aspectKeys: z.array(z.unknown()),
+          deleteMissingAspects: z.boolean(),
+          entry: z.object({
+            aspects: z.unknown(),
+            createTime: z.unknown(),
+            entryGroupType: z.unknown(),
+            entrySource: z.unknown(),
+            entryType: z.unknown(),
+            fullyQualifiedName: z.unknown(),
+            name: z.unknown(),
+            parentEntry: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          updateMask: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     description: z.object({
       content: z.string(),
       job: z.object({
         name: z.string(),
         runTime: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   batchChangeMetadataResponse: z.object({
     failedRequests: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   changeType: z.string().optional(),
   createEntry: z.object({
     entry: z.object({
@@ -1039,10 +1041,12 @@ const StateSchema = z.object({
       createTime: z.string(),
       entryGroupType: z.string(),
       entrySource: z.object({
-        ancestors: z.array(z.object({
-          name: z.unknown(),
-          type: z.unknown(),
-        })),
+        ancestors: z.array(
+          z.object({
+            name: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
         createTime: z.string(),
         description: z.string(),
         displayName: z.string(),
@@ -1052,32 +1056,34 @@ const StateSchema = z.object({
         resource: z.string(),
         system: z.string(),
         updateTime: z.string(),
-      }),
+      }).partial(),
       entryType: z.string(),
       fullyQualifiedName: z.string(),
       name: z.string(),
       parentEntry: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     entryId: z.string(),
     parent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createEntryLink: z.object({
     entryLink: z.object({
       aspects: z.record(z.string(), z.unknown()),
       createTime: z.string(),
       entryLinkType: z.string(),
-      entryReferences: z.array(z.object({
-        name: z.string(),
-        path: z.string(),
-        type: z.string(),
-      })),
+      entryReferences: z.array(
+        z.object({
+          name: z.string(),
+          path: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
       name: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     entryLinkId: z.string(),
     parent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createGlossary: z.object({
     glossary: z.object({
       categoryCount: z.number(),
@@ -1090,11 +1096,11 @@ const StateSchema = z.object({
       termCount: z.number(),
       uid: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     glossaryId: z.string(),
     parent: z.string(),
     validateOnly: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   createGlossaryCategory: z.object({
     category: z.object({
       createTime: z.string(),
@@ -1105,10 +1111,10 @@ const StateSchema = z.object({
       parent: z.string(),
       uid: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     categoryId: z.string(),
     parent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createGlossaryTerm: z.object({
     parent: z.string(),
     term: z.object({
@@ -1120,32 +1126,32 @@ const StateSchema = z.object({
       parent: z.string(),
       uid: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     termId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dataProductAccessRequest: z.object({
     accessGroupDisplayName: z.string(),
     accessGroupId: z.string(),
     parent: z.string(),
     requestedPrincipal: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deleteEntry: z.object({
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deleteEntryLink: z.object({
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deleteGlossary: z.object({
     etag: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deleteGlossaryCategory: z.object({
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deleteGlossaryTerm: z.object({
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   justification: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -1164,10 +1170,12 @@ const StateSchema = z.object({
       createTime: z.string(),
       entryGroupType: z.string(),
       entrySource: z.object({
-        ancestors: z.array(z.object({
-          name: z.unknown(),
-          type: z.unknown(),
-        })),
+        ancestors: z.array(
+          z.object({
+            name: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
         createTime: z.string(),
         description: z.string(),
         displayName: z.string(),
@@ -1177,15 +1185,15 @@ const StateSchema = z.object({
         resource: z.string(),
         system: z.string(),
         updateTime: z.string(),
-      }),
+      }).partial(),
       entryType: z.string(),
       fullyQualifiedName: z.string(),
       name: z.string(),
       parentEntry: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     updateMask: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateGlossary: z.object({
     glossary: z.object({
       categoryCount: z.number(),
@@ -1198,10 +1206,10 @@ const StateSchema = z.object({
       termCount: z.number(),
       uid: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     updateMask: z.string(),
     validateOnly: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   updateGlossaryCategory: z.object({
     category: z.object({
       createTime: z.string(),
@@ -1212,9 +1220,9 @@ const StateSchema = z.object({
       parent: z.string(),
       uid: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     updateMask: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateGlossaryTerm: z.object({
     term: z.object({
       createTime: z.string(),
@@ -1225,9 +1233,9 @@ const StateSchema = z.object({
       parent: z.string(),
       uid: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     updateMask: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -2073,7 +2081,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex ChangeRequests. Registered at `@swamp/gcp/dataplex/changerequests`. */
 export const model = {
   type: "@swamp/gcp/dataplex/changerequests",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -2158,6 +2166,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

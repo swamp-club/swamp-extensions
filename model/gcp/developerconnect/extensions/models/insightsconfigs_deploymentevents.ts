@@ -120,16 +120,18 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  artifactDeployments: z.array(z.object({
-    artifactAlias: z.string(),
-    artifactReference: z.string(),
-    containerStatusSummary: z.string(),
-    deployTime: z.string(),
-    id: z.string(),
-    sourceCodeUris: z.array(z.string()),
-    sourceCommitUris: z.array(z.string()),
-    undeployTime: z.string(),
-  })).optional(),
+  artifactDeployments: z.array(
+    z.object({
+      artifactAlias: z.string(),
+      artifactReference: z.string(),
+      containerStatusSummary: z.string(),
+      deployTime: z.string(),
+      id: z.string(),
+      sourceCodeUris: z.array(z.string()),
+      sourceCommitUris: z.array(z.string()),
+      undeployTime: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   deployTime: z.string().optional(),
   name: z.string(),
@@ -138,22 +140,22 @@ const StateSchema = z.object({
       apphubService: z.string(),
       criticality: z.string(),
       environment: z.string(),
-    }),
+    }).partial(),
     appHubWorkload: z.object({
       criticality: z.string(),
       environment: z.string(),
       workload: z.string(),
-    }),
+    }).partial(),
     gkeWorkload: z.object({
       cluster: z.string(),
       deployment: z.string(),
-    }),
+    }).partial(),
     googleCloudRun: z.object({
       serviceUri: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   runtimeDeploymentUri: z.string().optional(),
   state: z.string().optional(),
   undeployTime: z.string().optional(),
@@ -204,7 +206,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Developer Connect InsightsConfigs.DeploymentEvents. Registered at `@swamp/gcp/developerconnect/insightsconfigs-deploymentevents`. */
 export const model = {
   type: "@swamp/gcp/developerconnect/insightsconfigs-deploymentevents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -353,6 +355,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

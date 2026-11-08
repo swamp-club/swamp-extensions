@@ -64,6 +64,36 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const EventParametersStateSchema = z.object({
+  EventType: z.string(),
+  EventValueThreshold: z.number(),
+}).partial();
+
+const EventsConfigStateSchema = z.object({
+  EventParametersList: z.array(EventParametersStateSchema),
+}).partial();
+
+const RecommenderConfigStateSchema = z.object({
+  EventsConfig: EventsConfigStateSchema,
+}).partial();
+
+const TrainingMetricsStateSchema = z.object({
+  Time: z.string(),
+  Metrics: z.object({
+    hit: z.number(),
+    coverage: z.number(),
+    recall: z.number(),
+    popularity: z.number(),
+    freshness: z.number(),
+    similarity: z.number(),
+  }).partial(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -130,7 +160,9 @@ const StateSchema = z.object({
   DomainName: z.string(),
   RecommenderName: z.string(),
   RecommenderRecipeName: z.string().optional(),
-  RecommenderConfig: RecommenderConfigSchema.optional(),
+  RecommenderConfig: z.object({
+    EventsConfig: EventsConfigStateSchema,
+  }).partial().optional(),
   Description: z.string().optional(),
   RecommenderArn: z.string().optional(),
   Status: z.string().optional(),
@@ -138,27 +170,17 @@ const StateSchema = z.object({
   LastUpdatedAt: z.string().optional(),
   FailureReason: z.string().optional(),
   LatestRecommenderUpdate: z.object({
-    RecommenderConfig: RecommenderConfigSchema,
+    RecommenderConfig: RecommenderConfigStateSchema,
     Status: z.string(),
     CreationDateTime: z.string(),
     LastUpdatedDateTime: z.string(),
     FailureReason: z.string(),
-  }).optional(),
-  TrainingMetrics: z.array(z.object({
-    Time: z.string(),
-    Metrics: z.object({
-      hit: z.number(),
-      coverage: z.number(),
-      recall: z.number(),
-      popularity: z.number(),
-      freshness: z.number(),
-      similarity: z.number(),
-    }),
-  })).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  TrainingMetrics: z.array(TrainingMetricsStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -231,7 +253,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles Recommender. Registered at `@swamp/aws/customerprofiles/recommender`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/recommender",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -300,6 +322,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

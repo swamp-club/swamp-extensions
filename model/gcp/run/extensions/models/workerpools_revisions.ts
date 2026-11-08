@@ -140,146 +140,158 @@ const StateSchema = z.object({
   ambientNetworking: z.object({
     ambientScope: z.string(),
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   annotations: z.record(z.string(), z.unknown()).optional(),
   client: z.string().optional(),
   clientVersion: z.string().optional(),
-  conditions: z.array(z.object({
-    executionReason: z.string(),
-    instanceReason: z.string(),
-    lastTransitionTime: z.string(),
-    message: z.string(),
-    reason: z.string(),
-    revisionReason: z.string(),
-    severity: z.string(),
-    state: z.string(),
-    type: z.string(),
-  })).optional(),
-  containerStatuses: z.array(z.object({
-    buildStatus: z.object({
-      cloudBuildLogUrl: z.string(),
+  conditions: z.array(
+    z.object({
+      executionReason: z.string(),
+      instanceReason: z.string(),
+      lastTransitionTime: z.string(),
       message: z.string(),
-      status: z.string(),
-    }),
-    imageDigest: z.string(),
-    name: z.string(),
-  })).optional(),
-  containers: z.array(z.object({
-    args: z.array(z.string()),
-    baseImageUri: z.string(),
-    buildConfig: z.object({
-      buildpacksBuild: z.object({
-        buildBaseImageUri: z.string(),
-        cacheImageUri: z.string(),
-        environmentVariables: z.record(z.string(), z.unknown()),
-      }),
-      dockerBuild: z.object({}),
-      imageRepositoryUri: z.string(),
-      serviceAccount: z.string(),
-      tags: z.array(z.string()),
-      workerConfiguration: z.object({
-        cloudBuildWorkerConfiguration: z.object({
-          machineType: z.unknown(),
-          workerPool: z.unknown(),
-        }),
-      }),
-    }),
-    buildInfo: z.object({
-      functionTarget: z.string(),
-      sourceLocation: z.string(),
-    }),
-    command: z.array(z.string()),
-    dependsOn: z.array(z.string()),
-    env: z.array(z.object({
+      reason: z.string(),
+      revisionReason: z.string(),
+      severity: z.string(),
+      state: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
+  containerStatuses: z.array(
+    z.object({
+      buildStatus: z.object({
+        cloudBuildLogUrl: z.string(),
+        message: z.string(),
+        status: z.string(),
+      }).partial(),
+      imageDigest: z.string(),
       name: z.string(),
-      value: z.string(),
-      valueSource: z.object({
-        secretKeyRef: z.unknown(),
-      }),
-    })),
-    image: z.string(),
-    livenessProbe: z.object({
-      failureThreshold: z.number(),
-      grpc: z.object({
-        port: z.number(),
-        service: z.string(),
-      }),
-      httpGet: z.object({
-        httpHeaders: z.array(z.unknown()),
-        path: z.string(),
-        port: z.number(),
-      }),
-      initialDelaySeconds: z.number(),
-      periodSeconds: z.number(),
-      tcpSocket: z.object({
-        port: z.number(),
-      }),
-      timeoutSeconds: z.number(),
-    }),
-    name: z.string(),
-    ports: z.array(z.object({
-      containerPort: z.number(),
+    }).partial(),
+  ).optional(),
+  containers: z.array(
+    z.object({
+      args: z.array(z.string()),
+      baseImageUri: z.string(),
+      buildConfig: z.object({
+        buildpacksBuild: z.object({
+          buildBaseImageUri: z.string(),
+          cacheImageUri: z.string(),
+          environmentVariables: z.record(z.string(), z.unknown()),
+        }).partial(),
+        dockerBuild: z.object({}).partial(),
+        imageRepositoryUri: z.string(),
+        serviceAccount: z.string(),
+        tags: z.array(z.string()),
+        workerConfiguration: z.object({
+          cloudBuildWorkerConfiguration: z.object({
+            machineType: z.unknown(),
+            workerPool: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      buildInfo: z.object({
+        functionTarget: z.string(),
+        sourceLocation: z.string(),
+      }).partial(),
+      command: z.array(z.string()),
+      dependsOn: z.array(z.string()),
+      env: z.array(
+        z.object({
+          name: z.string(),
+          value: z.string(),
+          valueSource: z.object({
+            secretKeyRef: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      image: z.string(),
+      livenessProbe: z.object({
+        failureThreshold: z.number(),
+        grpc: z.object({
+          port: z.number(),
+          service: z.string(),
+        }).partial(),
+        httpGet: z.object({
+          httpHeaders: z.array(z.unknown()),
+          path: z.string(),
+          port: z.number(),
+        }).partial(),
+        initialDelaySeconds: z.number(),
+        periodSeconds: z.number(),
+        tcpSocket: z.object({
+          port: z.number(),
+        }).partial(),
+        timeoutSeconds: z.number(),
+      }).partial(),
       name: z.string(),
-    })),
-    readinessProbe: z.object({
-      failureThreshold: z.number(),
-      grpc: z.object({
-        port: z.number(),
-        service: z.string(),
-      }),
-      httpGet: z.object({
-        httpHeaders: z.array(z.unknown()),
-        path: z.string(),
-        port: z.number(),
-      }),
-      initialDelaySeconds: z.number(),
-      periodSeconds: z.number(),
-      tcpSocket: z.object({
-        port: z.number(),
-      }),
-      timeoutSeconds: z.number(),
-    }),
-    resources: z.object({
-      cpuIdle: z.boolean(),
-      limits: z.record(z.string(), z.unknown()),
-      startupCpuBoost: z.boolean(),
-    }),
-    sandboxLauncher: z.boolean(),
-    sourceCode: z.object({
-      cloudStorageSource: z.object({
-        bucket: z.string(),
-        generation: z.string(),
-        object: z.string(),
-      }),
-      inlinedSource: z.object({
-        sources: z.array(z.unknown()),
-      }),
-    }),
-    startupProbe: z.object({
-      failureThreshold: z.number(),
-      grpc: z.object({
-        port: z.number(),
-        service: z.string(),
-      }),
-      httpGet: z.object({
-        httpHeaders: z.array(z.unknown()),
-        path: z.string(),
-        port: z.number(),
-      }),
-      initialDelaySeconds: z.number(),
-      periodSeconds: z.number(),
-      tcpSocket: z.object({
-        port: z.number(),
-      }),
-      timeoutSeconds: z.number(),
-    }),
-    volumeMounts: z.array(z.object({
-      mountPath: z.string(),
-      name: z.string(),
-      subPath: z.string(),
-    })),
-    workingDir: z.string(),
-  })).optional(),
+      ports: z.array(
+        z.object({
+          containerPort: z.number(),
+          name: z.string(),
+        }).partial(),
+      ),
+      readinessProbe: z.object({
+        failureThreshold: z.number(),
+        grpc: z.object({
+          port: z.number(),
+          service: z.string(),
+        }).partial(),
+        httpGet: z.object({
+          httpHeaders: z.array(z.unknown()),
+          path: z.string(),
+          port: z.number(),
+        }).partial(),
+        initialDelaySeconds: z.number(),
+        periodSeconds: z.number(),
+        tcpSocket: z.object({
+          port: z.number(),
+        }).partial(),
+        timeoutSeconds: z.number(),
+      }).partial(),
+      resources: z.object({
+        cpuIdle: z.boolean(),
+        limits: z.record(z.string(), z.unknown()),
+        startupCpuBoost: z.boolean(),
+      }).partial(),
+      sandboxLauncher: z.boolean(),
+      sourceCode: z.object({
+        cloudStorageSource: z.object({
+          bucket: z.string(),
+          generation: z.string(),
+          object: z.string(),
+        }).partial(),
+        inlinedSource: z.object({
+          sources: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+      startupProbe: z.object({
+        failureThreshold: z.number(),
+        grpc: z.object({
+          port: z.number(),
+          service: z.string(),
+        }).partial(),
+        httpGet: z.object({
+          httpHeaders: z.array(z.unknown()),
+          path: z.string(),
+          port: z.number(),
+        }).partial(),
+        initialDelaySeconds: z.number(),
+        periodSeconds: z.number(),
+        tcpSocket: z.object({
+          port: z.number(),
+        }).partial(),
+        timeoutSeconds: z.number(),
+      }).partial(),
+      volumeMounts: z.array(
+        z.object({
+          mountPath: z.string(),
+          name: z.string(),
+          subPath: z.string(),
+        }).partial(),
+      ),
+      workingDir: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   creator: z.string().optional(),
   deleteTime: z.string().optional(),
@@ -298,93 +310,105 @@ const StateSchema = z.object({
   name: z.string(),
   nodeSelector: z.object({
     accelerator: z.string(),
-  }).optional(),
+  }).partial().optional(),
   observedGeneration: z.string().optional(),
   reconciling: z.boolean().optional(),
   sandboxes: z.object({
-    templates: z.array(z.object({
-      args: z.array(z.string()),
-      command: z.array(z.string()),
-      env: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-        valueSource: z.unknown(),
-      })),
-      image: z.string(),
-      name: z.string(),
-      volumeMounts: z.array(z.object({
-        mountPath: z.unknown(),
-        name: z.unknown(),
-        subPath: z.unknown(),
-      })),
-      workingDir: z.string(),
-    })),
-  }).optional(),
+    templates: z.array(
+      z.object({
+        args: z.array(z.string()),
+        command: z.array(z.string()),
+        env: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+            valueSource: z.unknown(),
+          }).partial(),
+        ),
+        image: z.string(),
+        name: z.string(),
+        volumeMounts: z.array(
+          z.object({
+            mountPath: z.unknown(),
+            name: z.unknown(),
+            subPath: z.unknown(),
+          }).partial(),
+        ),
+        workingDir: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   satisfiesPzs: z.boolean().optional(),
   scaling: z.object({
     concurrencyUtilization: z.number(),
     cpuUtilization: z.number(),
     maxInstanceCount: z.number(),
     minInstanceCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   scalingStatus: z.object({
     desiredMinInstanceCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   service: z.string().optional(),
   serviceAccount: z.string().optional(),
   serviceMesh: z.object({
     mesh: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sessionAffinity: z.boolean().optional(),
   timeout: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
-  volumes: z.array(z.object({
-    cloudSqlInstance: z.object({
-      instances: z.array(z.string()),
-    }),
-    emptyDir: z.object({
-      medium: z.string(),
-      sizeLimit: z.string(),
-    }),
-    filestore: z.object({
-      volume: z.string(),
-    }),
-    gcs: z.object({
-      bucket: z.string(),
-      mountOptions: z.array(z.string()),
-      readOnly: z.boolean(),
-    }),
-    name: z.string(),
-    nfs: z.object({
-      path: z.string(),
-      readOnly: z.boolean(),
-      server: z.string(),
-    }),
-    secret: z.object({
-      defaultMode: z.number(),
-      items: z.array(z.object({
-        mode: z.unknown(),
-        path: z.unknown(),
-        version: z.unknown(),
-      })),
-      secret: z.string(),
-    }),
-  })).optional(),
+  volumes: z.array(
+    z.object({
+      cloudSqlInstance: z.object({
+        instances: z.array(z.string()),
+      }).partial(),
+      emptyDir: z.object({
+        medium: z.string(),
+        sizeLimit: z.string(),
+      }).partial(),
+      filestore: z.object({
+        volume: z.string(),
+      }).partial(),
+      gcs: z.object({
+        bucket: z.string(),
+        mountOptions: z.array(z.string()),
+        readOnly: z.boolean(),
+      }).partial(),
+      name: z.string(),
+      nfs: z.object({
+        path: z.string(),
+        readOnly: z.boolean(),
+        server: z.string(),
+      }).partial(),
+      secret: z.object({
+        defaultMode: z.number(),
+        items: z.array(
+          z.object({
+            mode: z.unknown(),
+            path: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+        ),
+        secret: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   vpcAccess: z.object({
     connector: z.string(),
     egress: z.string(),
-    networkInterfaces: z.array(z.object({
-      network: z.string(),
-      subnetwork: z.string(),
-      tags: z.array(z.string()),
-    })),
-  }).optional(),
+    networkInterfaces: z.array(
+      z.object({
+        network: z.string(),
+        subnetwork: z.string(),
+        tags: z.array(z.string()),
+      }).partial(),
+    ),
+  }).partial().optional(),
   workloadIdentityConfig: z.object({
     identity: z.string(),
     identityCertificateEnabled: z.boolean(),
     identityType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -431,7 +455,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin WorkerPools.Revisions. Registered at `@swamp/gcp/run/workerpools-revisions`. */
 export const model = {
   type: "@swamp/gcp/run/workerpools-revisions",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -610,6 +634,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

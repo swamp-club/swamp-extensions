@@ -192,8 +192,8 @@ const StateSchema = z.object({
       keyId: z.string(),
       privateKey: z.string(),
       teamId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   clientId: z.string().optional(),
   clientSecret: z.string().optional(),
   enabled: z.boolean().optional(),
@@ -266,7 +266,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity Toolkit Tenants.DefaultSupportedIdpConfigs. Registered at `@swamp/gcp/identitytoolkit/tenants-defaultsupportedidpconfigs`. */
 export const model = {
   type: "@swamp/gcp/identitytoolkit/tenants-defaultsupportedidpconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -335,6 +335,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

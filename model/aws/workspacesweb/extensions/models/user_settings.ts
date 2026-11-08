@@ -76,6 +76,23 @@ const TagSchema = z.object({
   ),
 });
 
+const ImageMetadataStateSchema = z.object({
+  MimeType: z.string(),
+  FileExtension: z.string(),
+  LastUploadTimestamp: z.string(),
+}).partial();
+
+const CookieSpecificationStateSchema = z.object({
+  Domain: z.string(),
+  Name: z.string(),
+  Path: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -165,17 +182,17 @@ const StateSchema = z.object({
     Logo: z.string(),
     Wallpaper: z.string(),
     Favicon: z.string(),
-    LogoMetadata: ImageMetadataSchema,
-    WallpaperMetadata: ImageMetadataSchema,
-    FaviconMetadata: ImageMetadataSchema,
+    LogoMetadata: ImageMetadataStateSchema,
+    WallpaperMetadata: ImageMetadataStateSchema,
+    FaviconMetadata: ImageMetadataStateSchema,
     LocalizedStrings: z.record(z.string(), z.unknown()),
     ColorTheme: z.string(),
     TermsOfService: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CookieSynchronizationConfiguration: z.object({
-    Allowlist: z.array(CookieSpecificationSchema),
-    Blocklist: z.array(CookieSpecificationSchema),
-  }).optional(),
+    Allowlist: z.array(CookieSpecificationStateSchema),
+    Blocklist: z.array(CookieSpecificationStateSchema),
+  }).partial().optional(),
   CopyAllowed: z.string().optional(),
   CustomerManagedKey: z.string().optional(),
   DisconnectTimeoutInMinutes: z.number().optional(),
@@ -183,20 +200,20 @@ const StateSchema = z.object({
   IdleDisconnectTimeoutInMinutes: z.number().optional(),
   PasteAllowed: z.string().optional(),
   PrintAllowed: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ToolbarConfiguration: z.object({
     ToolbarType: z.string(),
     VisualMode: z.string(),
     HiddenToolbarItems: z.array(z.string()),
     MaxDisplayResolution: z.string(),
-  }).optional(),
+  }).partial().optional(),
   UploadAllowed: z.string().optional(),
   UserSettingsArn: z.string(),
   DeepLinkAllowed: z.string().optional(),
   WebAuthnAllowed: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -289,7 +306,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WorkSpacesWeb UserSettings. Registered at `@swamp/aws/workspacesweb/user-settings`. */
 export const model = {
   type: "@swamp/aws/workspacesweb/user-settings",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -353,6 +370,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

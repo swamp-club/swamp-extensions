@@ -173,18 +173,20 @@ const StateSchema = z.object({
     androidVersionId: z.string(),
     locale: z.string(),
     orientation: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   expireTime: z.string().optional(),
   inactivityTimeout: z.string().optional(),
   name: z.string(),
   state: z.string().optional(),
-  stateHistories: z.array(z.object({
-    eventTime: z.string(),
-    sessionState: z.string(),
-    stateMessage: z.string(),
-  })).optional(),
+  stateHistories: z.array(
+    z.object({
+      eventTime: z.string(),
+      sessionState: z.string(),
+      stateMessage: z.string(),
+    }).partial(),
+  ).optional(),
   ttl: z.string().optional(),
 }).passthrough();
 
@@ -251,7 +253,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Testing DeviceSessions. Registered at `@swamp/gcp/testing/devicesessions`. */
 export const model = {
   type: "@swamp/gcp/testing/devicesessions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -395,6 +397,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

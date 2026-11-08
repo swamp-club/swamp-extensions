@@ -51,6 +51,16 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const EgressEndpointStateSchema = z.object({
+  PackagingConfigurationId: z.string(),
+  Url: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -86,16 +96,16 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Arn: z.string().optional(),
   CreatedAt: z.string().optional(),
-  EgressEndpoints: z.array(EgressEndpointSchema).optional(),
+  EgressEndpoints: z.array(EgressEndpointStateSchema).optional(),
   Id: z.string(),
   PackagingGroupId: z.string().optional(),
   ResourceId: z.string().optional(),
   SourceArn: z.string().optional(),
   SourceRoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -140,7 +150,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackage Asset. Registered at `@swamp/aws/mediapackage/asset`. */
 export const model = {
   type: "@swamp/aws/mediapackage/asset",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +214,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

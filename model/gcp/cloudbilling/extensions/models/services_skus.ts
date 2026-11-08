@@ -103,35 +103,39 @@ const StateSchema = z.object({
     resourceGroup: z.string(),
     serviceDisplayName: z.string(),
     usageType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   geoTaxonomy: z.object({
     regions: z.array(z.string()),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  pricingInfo: z.array(z.object({
-    aggregationInfo: z.object({
-      aggregationCount: z.number(),
-      aggregationInterval: z.string(),
-      aggregationLevel: z.string(),
-    }),
-    currencyConversionRate: z.number(),
-    effectiveTime: z.string(),
-    pricingExpression: z.object({
-      baseUnit: z.string(),
-      baseUnitConversionFactor: z.number(),
-      baseUnitDescription: z.string(),
-      displayQuantity: z.number(),
-      tieredRates: z.array(z.object({
-        startUsageAmount: z.unknown(),
-        unitPrice: z.unknown(),
-      })),
-      usageUnit: z.string(),
-      usageUnitDescription: z.string(),
-    }),
-    summary: z.string(),
-  })).optional(),
+  pricingInfo: z.array(
+    z.object({
+      aggregationInfo: z.object({
+        aggregationCount: z.number(),
+        aggregationInterval: z.string(),
+        aggregationLevel: z.string(),
+      }).partial(),
+      currencyConversionRate: z.number(),
+      effectiveTime: z.string(),
+      pricingExpression: z.object({
+        baseUnit: z.string(),
+        baseUnitConversionFactor: z.number(),
+        baseUnitDescription: z.string(),
+        displayQuantity: z.number(),
+        tieredRates: z.array(
+          z.object({
+            startUsageAmount: z.unknown(),
+            unitPrice: z.unknown(),
+          }).partial(),
+        ),
+        usageUnit: z.string(),
+        usageUnitDescription: z.string(),
+      }).partial(),
+      summary: z.string(),
+    }).partial(),
+  ).optional(),
   serviceProviderName: z.string().optional(),
   serviceRegions: z.array(z.string()).optional(),
   skuId: z.string().optional(),
@@ -178,7 +182,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Billing Services.Skus. Registered at `@swamp/gcp/cloudbilling/services-skus`. */
 export const model = {
   type: "@swamp/gcp/cloudbilling/services-skus",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -302,6 +306,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

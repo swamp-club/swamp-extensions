@@ -92,14 +92,16 @@ const StateSchema = z.object({
   id: z.string().optional(),
   incompatibleLicenses: z.array(z.string()).optional(),
   kind: z.string().optional(),
-  licenseAlias: z.array(z.object({
-    description: z.string(),
-    selfLink: z.string(),
-  })).optional(),
+  licenseAlias: z.array(
+    z.object({
+      description: z.string(),
+      selfLink: z.string(),
+    }).partial(),
+  ).optional(),
   minimumRetention: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   multiTenantOnly: z.boolean().optional(),
   name: z.string(),
   osLicense: z.boolean().optional(),
@@ -150,7 +152,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine LicenseCodes. Registered at `@swamp/gcp/compute/licensecodes`. */
 export const model = {
   type: "@swamp/gcp/compute/licensecodes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -319,6 +321,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -125,31 +125,31 @@ const StateSchema = z.object({
       googlePublicKeyPem: z.string(),
       serializedApprovalRequest: z.string(),
       signature: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   dismiss: z.object({
     dismissTime: z.string(),
     implicit: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   requestTime: z.string().optional(),
   requestedAugmentedInfo: z.object({
     command: z.string(),
-  }).optional(),
+  }).partial().optional(),
   requestedDuration: z.string().optional(),
   requestedExpiration: z.string().optional(),
   requestedLocations: z.object({
     principalOfficeCountry: z.string(),
     principalPhysicalLocationCountry: z.string(),
-  }).optional(),
+  }).partial().optional(),
   requestedReason: z.object({
     detail: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   requestedResourceName: z.string().optional(),
   requestedResourceProperties: z.object({
     excludesDescendants: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -193,7 +193,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Approval ApprovalRequests. Registered at `@swamp/gcp/accessapproval/approvalrequests`. */
 export const model = {
   type: "@swamp/gcp/accessapproval/approvalrequests",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -317,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

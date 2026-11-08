@@ -143,6 +143,111 @@ const PredefinedMetricSpecificationSchema = z.object({
   PredefinedMetricType: z.string(),
 });
 
+const MetricDimensionStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const MetricStateSchema = z.object({
+  MetricName: z.string(),
+  Dimensions: z.array(MetricDimensionStateSchema),
+  Namespace: z.string(),
+}).partial();
+
+const MetricStatStateSchema = z.object({
+  Metric: MetricStateSchema,
+  Stat: z.string(),
+  Unit: z.string(),
+}).partial();
+
+const MetricDataQueryStateSchema = z.object({
+  Label: z.string(),
+  MetricStat: MetricStatStateSchema,
+  Id: z.string(),
+  ReturnData: z.boolean(),
+  Expression: z.string(),
+}).partial();
+
+const PredictiveScalingCustomizedCapacityMetricStateSchema = z.object({
+  MetricDataQueries: z.array(MetricDataQueryStateSchema),
+}).partial();
+
+const PredictiveScalingCustomizedLoadMetricStateSchema = z.object({
+  MetricDataQueries: z.array(MetricDataQueryStateSchema),
+}).partial();
+
+const PredictiveScalingCustomizedScalingMetricStateSchema = z.object({
+  MetricDataQueries: z.array(MetricDataQueryStateSchema),
+}).partial();
+
+const PredictiveScalingPredefinedLoadMetricStateSchema = z.object({
+  ResourceLabel: z.string(),
+  PredefinedMetricType: z.string(),
+}).partial();
+
+const PredictiveScalingPredefinedScalingMetricStateSchema = z.object({
+  ResourceLabel: z.string(),
+  PredefinedMetricType: z.string(),
+}).partial();
+
+const PredictiveScalingPredefinedMetricPairStateSchema = z.object({
+  ResourceLabel: z.string(),
+  PredefinedMetricType: z.string(),
+}).partial();
+
+const PredictiveScalingMetricSpecificationStateSchema = z.object({
+  CustomizedCapacityMetricSpecification:
+    PredictiveScalingCustomizedCapacityMetricStateSchema,
+  CustomizedLoadMetricSpecification:
+    PredictiveScalingCustomizedLoadMetricStateSchema,
+  CustomizedScalingMetricSpecification:
+    PredictiveScalingCustomizedScalingMetricStateSchema,
+  PredefinedLoadMetricSpecification:
+    PredictiveScalingPredefinedLoadMetricStateSchema,
+  TargetValue: z.number(),
+  PredefinedScalingMetricSpecification:
+    PredictiveScalingPredefinedScalingMetricStateSchema,
+  PredefinedMetricPairSpecification:
+    PredictiveScalingPredefinedMetricPairStateSchema,
+}).partial();
+
+const StepAdjustmentStateSchema = z.object({
+  MetricIntervalUpperBound: z.number(),
+  MetricIntervalLowerBound: z.number(),
+  ScalingAdjustment: z.number(),
+}).partial();
+
+const TargetTrackingMetricStatStateSchema = z.object({
+  Metric: MetricStateSchema,
+  Stat: z.string(),
+  Unit: z.string(),
+  Period: z.number(),
+}).partial();
+
+const TargetTrackingMetricDataQueryStateSchema = z.object({
+  Label: z.string(),
+  MetricStat: TargetTrackingMetricStatStateSchema,
+  Id: z.string(),
+  ReturnData: z.boolean(),
+  Expression: z.string(),
+  Period: z.number(),
+}).partial();
+
+const CustomizedMetricSpecificationStateSchema = z.object({
+  MetricName: z.string(),
+  Dimensions: z.array(MetricDimensionStateSchema),
+  Metrics: z.array(TargetTrackingMetricDataQueryStateSchema),
+  Statistic: z.string(),
+  Unit: z.string(),
+  Namespace: z.string(),
+  Period: z.number(),
+}).partial();
+
+const PredefinedMetricSpecificationStateSchema = z.object({
+  ResourceLabel: z.string(),
+  PredefinedMetricType: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -212,29 +317,31 @@ const StateSchema = z.object({
   PolicyName: z.string().optional(),
   PolicyType: z.string().optional(),
   PredictiveScalingConfiguration: z.object({
-    MetricSpecifications: z.array(PredictiveScalingMetricSpecificationSchema),
+    MetricSpecifications: z.array(
+      PredictiveScalingMetricSpecificationStateSchema,
+    ),
     MaxCapacityBreachBehavior: z.string(),
     MaxCapacityBuffer: z.number(),
     SchedulingBufferTime: z.number(),
     Mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ScalingAdjustment: z.number().optional(),
   Cooldown: z.string().optional(),
-  StepAdjustments: z.array(StepAdjustmentSchema).optional(),
+  StepAdjustments: z.array(StepAdjustmentStateSchema).optional(),
   AutoScalingGroupName: z.string().optional(),
   MinAdjustmentMagnitude: z.number().optional(),
   TargetTrackingConfiguration: z.object({
-    CustomizedMetricSpecification: CustomizedMetricSpecificationSchema,
+    CustomizedMetricSpecification: CustomizedMetricSpecificationStateSchema,
     TargetValue: z.number(),
     DisableScaleIn: z.boolean(),
-    PredefinedMetricSpecification: PredefinedMetricSpecificationSchema,
-  }).optional(),
+    PredefinedMetricSpecification: PredefinedMetricSpecificationStateSchema,
+  }).partial().optional(),
   EstimatedInstanceWarmup: z.number().optional(),
   AdjustmentType: z.string().optional(),
   Arn: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -310,7 +417,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AutoScaling ScalingPolicy. Registered at `@swamp/aws/autoscaling/scaling-policy`. */
 export const model = {
   type: "@swamp/aws/autoscaling/scaling-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -374,6 +481,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

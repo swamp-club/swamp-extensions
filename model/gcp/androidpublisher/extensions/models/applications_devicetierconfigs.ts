@@ -178,31 +178,39 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  deviceGroups: z.array(z.object({
-    deviceSelectors: z.array(z.object({
-      deviceRam: z.object({
-        maxBytes: z.unknown(),
-        minBytes: z.unknown(),
-      }),
-      excludedDeviceIds: z.array(z.unknown()),
-      forbiddenSystemFeatures: z.array(z.unknown()),
-      includedDeviceIds: z.array(z.unknown()),
-      requiredSystemFeatures: z.array(z.unknown()),
-      systemOnChips: z.array(z.unknown()),
-    })),
-    name: z.string(),
-  })).optional(),
+  deviceGroups: z.array(
+    z.object({
+      deviceSelectors: z.array(
+        z.object({
+          deviceRam: z.object({
+            maxBytes: z.unknown(),
+            minBytes: z.unknown(),
+          }).partial(),
+          excludedDeviceIds: z.array(z.unknown()),
+          forbiddenSystemFeatures: z.array(z.unknown()),
+          includedDeviceIds: z.array(z.unknown()),
+          requiredSystemFeatures: z.array(z.unknown()),
+          systemOnChips: z.array(z.unknown()),
+        }).partial(),
+      ),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   deviceTierConfigId: z.string().optional(),
   deviceTierSet: z.object({
-    deviceTiers: z.array(z.object({
-      deviceGroupNames: z.array(z.string()),
-      level: z.number(),
-    })),
-  }).optional(),
-  userCountrySets: z.array(z.object({
-    countryCodes: z.array(z.string()),
-    name: z.string(),
-  })).optional(),
+    deviceTiers: z.array(
+      z.object({
+        deviceGroupNames: z.array(z.string()),
+        level: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  userCountrySets: z.array(
+    z.object({
+      countryCodes: z.array(z.string()),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -291,7 +299,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Applications.DeviceTierConfigs. Registered at `@swamp/gcp/androidpublisher/applications-devicetierconfigs`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/applications-devicetierconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -425,6 +433,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

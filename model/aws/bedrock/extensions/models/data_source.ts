@@ -488,6 +488,251 @@ const ContextEnrichmentConfigurationSchema = z.object({
     ).optional(),
 });
 
+const S3DataSourceConfigurationStateSchema = z.object({
+  BucketArn: z.string(),
+  InclusionPrefixes: z.array(z.string()),
+  BucketOwnerAccountId: z.string(),
+}).partial();
+
+const ConfluenceSourceConfigurationStateSchema = z.object({
+  HostUrl: z.string(),
+  HostType: z.string(),
+  AuthType: z.string(),
+  CredentialsSecretArn: z.string(),
+}).partial();
+
+const PatternObjectFilterStateSchema = z.object({
+  ObjectType: z.string(),
+  InclusionFilters: z.array(z.string()),
+  ExclusionFilters: z.array(z.string()),
+}).partial();
+
+const PatternObjectFilterConfigurationStateSchema = z.object({
+  Filters: z.array(PatternObjectFilterStateSchema),
+}).partial();
+
+const CrawlFilterConfigurationStateSchema = z.object({
+  Type: z.string(),
+  PatternObjectFilter: PatternObjectFilterConfigurationStateSchema,
+}).partial();
+
+const ConfluenceCrawlerConfigurationStateSchema = z.object({
+  FilterConfiguration: CrawlFilterConfigurationStateSchema,
+}).partial();
+
+const ConfluenceDataSourceConfigurationStateSchema = z.object({
+  SourceConfiguration: ConfluenceSourceConfigurationStateSchema,
+  CrawlerConfiguration: ConfluenceCrawlerConfigurationStateSchema,
+}).partial();
+
+const SalesforceSourceConfigurationStateSchema = z.object({
+  HostUrl: z.string(),
+  AuthType: z.string(),
+  CredentialsSecretArn: z.string(),
+}).partial();
+
+const SalesforceCrawlerConfigurationStateSchema = z.object({
+  FilterConfiguration: CrawlFilterConfigurationStateSchema,
+}).partial();
+
+const SalesforceDataSourceConfigurationStateSchema = z.object({
+  SourceConfiguration: SalesforceSourceConfigurationStateSchema,
+  CrawlerConfiguration: SalesforceCrawlerConfigurationStateSchema,
+}).partial();
+
+const SharePointSourceConfigurationStateSchema = z.object({
+  SiteUrls: z.array(z.string()),
+  HostType: z.string(),
+  AuthType: z.string(),
+  CredentialsSecretArn: z.string(),
+  TenantId: z.string(),
+  Domain: z.string(),
+}).partial();
+
+const SharePointCrawlerConfigurationStateSchema = z.object({
+  FilterConfiguration: CrawlFilterConfigurationStateSchema,
+}).partial();
+
+const SharePointDataSourceConfigurationStateSchema = z.object({
+  SourceConfiguration: SharePointSourceConfigurationStateSchema,
+  CrawlerConfiguration: SharePointCrawlerConfigurationStateSchema,
+}).partial();
+
+const SeedUrlStateSchema = z.object({
+  Url: z.string(),
+}).partial();
+
+const UrlConfigurationStateSchema = z.object({
+  SeedUrls: z.array(SeedUrlStateSchema),
+}).partial();
+
+const WebSourceConfigurationStateSchema = z.object({
+  UrlConfiguration: UrlConfigurationStateSchema,
+}).partial();
+
+const WebCrawlerLimitsStateSchema = z.object({
+  RateLimit: z.number(),
+  MaxPages: z.number(),
+}).partial();
+
+const WebCrawlerConfigurationStateSchema = z.object({
+  CrawlerLimits: WebCrawlerLimitsStateSchema,
+  InclusionFilters: z.array(z.string()),
+  ExclusionFilters: z.array(z.string()),
+  Scope: z.string(),
+  UserAgent: z.string(),
+  UserAgentHeader: z.string(),
+}).partial();
+
+const WebDataSourceConfigurationStateSchema = z.object({
+  SourceConfiguration: WebSourceConfigurationStateSchema,
+  CrawlerConfiguration: WebCrawlerConfigurationStateSchema,
+}).partial();
+
+const DeletionProtectionConfigurationStateSchema = z.object({
+  DeletionProtectionStatus: z.string(),
+  DeletionProtectionThreshold: z.number(),
+}).partial();
+
+const ImageExtractionConfigurationStateSchema = z.object({
+  ImageExtractionStatus: z.string(),
+}).partial();
+
+const AudioExtractionConfigurationStateSchema = z.object({
+  AudioExtractionStatus: z.string(),
+}).partial();
+
+const VideoExtractionConfigurationStateSchema = z.object({
+  VideoExtractionStatus: z.string(),
+}).partial();
+
+const MediaExtractionConfigurationStateSchema = z.object({
+  ImageExtractionConfiguration: ImageExtractionConfigurationStateSchema,
+  AudioExtractionConfiguration: AudioExtractionConfigurationStateSchema,
+  VideoExtractionConfiguration: VideoExtractionConfigurationStateSchema,
+}).partial();
+
+const WeeklyScheduleStateSchema = z.object({
+  DayOfWeek: z.string(),
+}).partial();
+
+const DayOfMonthStateSchema = z.object({
+  DayNumber: z.number(),
+  LastDayOfMonth: z.record(z.string(), z.unknown()),
+}).partial();
+
+const MonthlyScheduleStateSchema = z.object({
+  DayOfMonth: DayOfMonthStateSchema,
+}).partial();
+
+const SyncScheduleStateSchema = z.object({
+  Daily: z.record(z.string(), z.unknown()),
+  Weekly: WeeklyScheduleStateSchema,
+  Monthly: MonthlyScheduleStateSchema,
+}).partial();
+
+const ManagedKnowledgeBaseConnectorConfigurationStateSchema = z.object({
+  DeletionProtectionConfiguration: DeletionProtectionConfigurationStateSchema,
+  MediaExtractionConfiguration: MediaExtractionConfigurationStateSchema,
+  ConnectorParameters: z.record(z.string(), z.unknown()),
+  SyncSchedule: SyncScheduleStateSchema,
+}).partial();
+
+const FixedSizeChunkingConfigurationStateSchema = z.object({
+  MaxTokens: z.number(),
+  OverlapPercentage: z.number(),
+}).partial();
+
+const HierarchicalChunkingLevelConfigurationStateSchema = z.object({
+  MaxTokens: z.number(),
+}).partial();
+
+const HierarchicalChunkingConfigurationStateSchema = z.object({
+  LevelConfigurations: z.array(
+    HierarchicalChunkingLevelConfigurationStateSchema,
+  ),
+  OverlapTokens: z.number(),
+}).partial();
+
+const SemanticChunkingConfigurationStateSchema = z.object({
+  BreakpointPercentileThreshold: z.number(),
+  BufferSize: z.number(),
+  MaxTokens: z.number(),
+}).partial();
+
+const ChunkingConfigurationStateSchema = z.object({
+  ChunkingStrategy: z.string(),
+  FixedSizeChunkingConfiguration: FixedSizeChunkingConfigurationStateSchema,
+  HierarchicalChunkingConfiguration:
+    HierarchicalChunkingConfigurationStateSchema,
+  SemanticChunkingConfiguration: SemanticChunkingConfigurationStateSchema,
+}).partial();
+
+const S3LocationStateSchema = z.object({
+  URI: z.string(),
+}).partial();
+
+const IntermediateStorageStateSchema = z.object({
+  S3Location: S3LocationStateSchema,
+}).partial();
+
+const TransformationLambdaConfigurationStateSchema = z.object({
+  LambdaArn: z.string(),
+}).partial();
+
+const TransformationFunctionStateSchema = z.object({
+  TransformationLambdaConfiguration:
+    TransformationLambdaConfigurationStateSchema,
+}).partial();
+
+const TransformationStateSchema = z.object({
+  StepToApply: z.string(),
+  TransformationFunction: TransformationFunctionStateSchema,
+}).partial();
+
+const CustomTransformationConfigurationStateSchema = z.object({
+  IntermediateStorage: IntermediateStorageStateSchema,
+  Transformations: z.array(TransformationStateSchema),
+}).partial();
+
+const ParsingPromptStateSchema = z.object({
+  ParsingPromptText: z.string(),
+}).partial();
+
+const BedrockFoundationModelConfigurationStateSchema = z.object({
+  ModelArn: z.string(),
+  ParsingPrompt: ParsingPromptStateSchema,
+  ParsingModality: z.string(),
+}).partial();
+
+const BedrockDataAutomationConfigurationStateSchema = z.object({
+  ParsingModality: z.string(),
+}).partial();
+
+const ParsingConfigurationStateSchema = z.object({
+  ParsingStrategy: z.string(),
+  BedrockFoundationModelConfiguration:
+    BedrockFoundationModelConfigurationStateSchema,
+  BedrockDataAutomationConfiguration:
+    BedrockDataAutomationConfigurationStateSchema,
+}).partial();
+
+const EnrichmentStrategyConfigurationStateSchema = z.object({
+  Method: z.string(),
+}).partial();
+
+const BedrockFoundationModelContextEnrichmentConfigurationStateSchema = z
+  .object({
+    EnrichmentStrategyConfiguration: EnrichmentStrategyConfigurationStateSchema,
+    ModelArn: z.string(),
+  }).partial();
+
+const ContextEnrichmentConfigurationStateSchema = z.object({
+  Type: z.string(),
+  BedrockFoundationModelConfiguration:
+    BedrockFoundationModelContextEnrichmentConfigurationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -580,14 +825,14 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   DataSourceConfiguration: z.object({
     Type: z.string(),
-    S3Configuration: S3DataSourceConfigurationSchema,
-    ConfluenceConfiguration: ConfluenceDataSourceConfigurationSchema,
-    SalesforceConfiguration: SalesforceDataSourceConfigurationSchema,
-    SharePointConfiguration: SharePointDataSourceConfigurationSchema,
-    WebConfiguration: WebDataSourceConfigurationSchema,
+    S3Configuration: S3DataSourceConfigurationStateSchema,
+    ConfluenceConfiguration: ConfluenceDataSourceConfigurationStateSchema,
+    SalesforceConfiguration: SalesforceDataSourceConfigurationStateSchema,
+    SharePointConfiguration: SharePointDataSourceConfigurationStateSchema,
+    WebConfiguration: WebDataSourceConfigurationStateSchema,
     ManagedKnowledgeBaseConnectorConfiguration:
-      ManagedKnowledgeBaseConnectorConfigurationSchema,
-  }).optional(),
+      ManagedKnowledgeBaseConnectorConfigurationStateSchema,
+  }).partial().optional(),
   DataSourceId: z.string(),
   Description: z.string().optional(),
   KnowledgeBaseId: z.string(),
@@ -595,20 +840,21 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   ServerSideEncryptionConfiguration: z.object({
     KmsKeyArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   VectorIngestionConfiguration: z.object({
-    ChunkingConfiguration: ChunkingConfigurationSchema,
-    CustomTransformationConfiguration: CustomTransformationConfigurationSchema,
-    ParsingConfiguration: ParsingConfigurationSchema,
-    ContextEnrichmentConfiguration: ContextEnrichmentConfigurationSchema,
-  }).optional(),
+    ChunkingConfiguration: ChunkingConfigurationStateSchema,
+    CustomTransformationConfiguration:
+      CustomTransformationConfigurationStateSchema,
+    ParsingConfiguration: ParsingConfigurationStateSchema,
+    ContextEnrichmentConfiguration: ContextEnrichmentConfigurationStateSchema,
+  }).partial().optional(),
   DataDeletionPolicy: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   FailureReasons: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -708,7 +954,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock DataSource. Registered at `@swamp/aws/bedrock/data-source`. */
 export const model = {
   type: "@swamp/aws/bedrock/data-source",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -792,6 +1038,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

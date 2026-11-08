@@ -130,6 +130,32 @@ const TagSchema = z.object({
   ),
 });
 
+const StringCriteriaConditionStateSchema = z.object({
+  Comparison: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const IntegerCriteriaConditionStateSchema = z.object({
+  Comparison: z.string(),
+  Values: z.array(z.number()),
+}).partial();
+
+const DoubleCriteriaConditionStateSchema = z.object({
+  Comparison: z.string(),
+  Values: z.array(z.number()),
+}).partial();
+
+const ResourceTagsCriteriaConditionStateSchema = z.object({
+  Comparison: z.string(),
+  Key: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -208,7 +234,7 @@ const StateSchema = z.object({
   OrganizationConfiguration: z.object({
     RuleApplyOrder: z.string(),
     AccountIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   RecommendedActionTypes: z.array(z.string()).optional(),
   AccountId: z.string().optional(),
   Priority: z.string().optional(),
@@ -216,24 +242,24 @@ const StateSchema = z.object({
     ScheduleExpression: z.string(),
     ScheduleExpressionTimezone: z.string(),
     ExecutionWindowInMinutes: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Criteria: z.object({
-    Region: z.array(StringCriteriaConditionSchema),
-    ResourceArn: z.array(StringCriteriaConditionSchema),
-    EbsVolumeType: z.array(StringCriteriaConditionSchema),
-    EbsVolumeSizeInGib: z.array(IntegerCriteriaConditionSchema),
-    EstimatedMonthlySavings: z.array(DoubleCriteriaConditionSchema),
-    ResourceTag: z.array(ResourceTagsCriteriaConditionSchema),
-    LookBackPeriodInDays: z.array(IntegerCriteriaConditionSchema),
-    RestartNeeded: z.array(StringCriteriaConditionSchema),
-  }).optional(),
+    Region: z.array(StringCriteriaConditionStateSchema),
+    ResourceArn: z.array(StringCriteriaConditionStateSchema),
+    EbsVolumeType: z.array(StringCriteriaConditionStateSchema),
+    EbsVolumeSizeInGib: z.array(IntegerCriteriaConditionStateSchema),
+    EstimatedMonthlySavings: z.array(DoubleCriteriaConditionStateSchema),
+    ResourceTag: z.array(ResourceTagsCriteriaConditionStateSchema),
+    LookBackPeriodInDays: z.array(IntegerCriteriaConditionStateSchema),
+    RestartNeeded: z.array(StringCriteriaConditionStateSchema),
+  }).partial().optional(),
   Status: z.string().optional(),
   CreatedTimestamp: z.string().optional(),
   LastUpdatedTimestamp: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -312,7 +338,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ComputeOptimizer AutomationRule. Registered at `@swamp/aws/computeoptimizer/automation-rule`. */
 export const model = {
   type: "@swamp/aws/computeoptimizer/automation-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -376,6 +402,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

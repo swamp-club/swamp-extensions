@@ -194,22 +194,24 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   createTime: z.string().optional(),
-  deployedIndexes: z.array(z.object({
-    deployedIndexId: z.string(),
-    displayName: z.string(),
-    indexEndpoint: z.string(),
-  })).optional(),
+  deployedIndexes: z.array(
+    z.object({
+      deployedIndexId: z.string(),
+      displayName: z.string(),
+      indexEndpoint: z.string(),
+    }).partial(),
+  ).optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   indexStats: z.object({
     shardsCount: z.number(),
     sparseVectorsCount: z.string(),
     vectorsCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   indexUpdateMethod: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   metadata: z.string().optional(),
@@ -288,7 +290,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Indexes. Registered at `@swamp/gcp/aiplatform/indexes`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/indexes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -460,6 +462,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

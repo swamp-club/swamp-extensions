@@ -419,91 +419,97 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   meshes: z.array(z.string()).optional(),
   name: z.string(),
-  rules: z.array(z.object({
-    action: z.object({
-      corsPolicy: z.object({
-        allowCredentials: z.boolean(),
-        allowHeaders: z.array(z.unknown()),
-        allowMethods: z.array(z.unknown()),
-        allowOriginRegexes: z.array(z.unknown()),
-        allowOrigins: z.array(z.unknown()),
-        disabled: z.boolean(),
-        exposeHeaders: z.array(z.unknown()),
-        maxAge: z.string(),
-      }),
-      destinations: z.array(z.object({
-        requestHeaderModifier: z.unknown(),
-        responseHeaderModifier: z.unknown(),
-        serviceName: z.unknown(),
-        weight: z.unknown(),
-      })),
-      directResponse: z.object({
-        bytesBody: z.string(),
-        status: z.number(),
-        stringBody: z.string(),
-      }),
-      faultInjectionPolicy: z.object({
-        abort: z.object({
-          httpStatus: z.unknown(),
-          percentage: z.unknown(),
-        }),
-        delay: z.object({
-          fixedDelay: z.unknown(),
-          percentage: z.unknown(),
-        }),
-      }),
-      idleTimeout: z.string(),
-      redirect: z.object({
-        hostRedirect: z.string(),
-        httpsRedirect: z.boolean(),
-        pathRedirect: z.string(),
-        portRedirect: z.number(),
-        prefixRewrite: z.string(),
-        responseCode: z.string(),
-        stripQuery: z.boolean(),
-      }),
-      requestHeaderModifier: z.object({
-        add: z.record(z.string(), z.unknown()),
-        remove: z.array(z.unknown()),
-        set: z.record(z.string(), z.unknown()),
-      }),
-      requestMirrorPolicy: z.object({
-        destination: z.object({
-          requestHeaderModifier: z.unknown(),
-          responseHeaderModifier: z.unknown(),
-          serviceName: z.unknown(),
-          weight: z.unknown(),
-        }),
-        mirrorPercent: z.number(),
-      }),
-      responseHeaderModifier: z.object({
-        add: z.record(z.string(), z.unknown()),
-        remove: z.array(z.unknown()),
-        set: z.record(z.string(), z.unknown()),
-      }),
-      retryPolicy: z.object({
-        numRetries: z.number(),
-        perTryTimeout: z.string(),
-        retryConditions: z.array(z.unknown()),
-      }),
-      statefulSessionAffinity: z.object({
-        cookieTtl: z.string(),
-      }),
-      timeout: z.string(),
-      urlRewrite: z.object({
-        hostRewrite: z.string(),
-        pathPrefixRewrite: z.string(),
-      }),
-    }),
-    matches: z.array(z.object({
-      fullPathMatch: z.string(),
-      headers: z.array(z.unknown()),
-      ignoreCase: z.boolean(),
-      prefixMatch: z.string(),
-      queryParameters: z.array(z.unknown()),
-      regexMatch: z.string(),
-    })),
-  })).optional(),
+  rules: z.array(
+    z.object({
+      action: z.object({
+        corsPolicy: z.object({
+          allowCredentials: z.boolean(),
+          allowHeaders: z.array(z.unknown()),
+          allowMethods: z.array(z.unknown()),
+          allowOriginRegexes: z.array(z.unknown()),
+          allowOrigins: z.array(z.unknown()),
+          disabled: z.boolean(),
+          exposeHeaders: z.array(z.unknown()),
+          maxAge: z.string(),
+        }).partial(),
+        destinations: z.array(
+          z.object({
+            requestHeaderModifier: z.unknown(),
+            responseHeaderModifier: z.unknown(),
+            serviceName: z.unknown(),
+            weight: z.unknown(),
+          }).partial(),
+        ),
+        directResponse: z.object({
+          bytesBody: z.string(),
+          status: z.number(),
+          stringBody: z.string(),
+        }).partial(),
+        faultInjectionPolicy: z.object({
+          abort: z.object({
+            httpStatus: z.unknown(),
+            percentage: z.unknown(),
+          }).partial(),
+          delay: z.object({
+            fixedDelay: z.unknown(),
+            percentage: z.unknown(),
+          }).partial(),
+        }).partial(),
+        idleTimeout: z.string(),
+        redirect: z.object({
+          hostRedirect: z.string(),
+          httpsRedirect: z.boolean(),
+          pathRedirect: z.string(),
+          portRedirect: z.number(),
+          prefixRewrite: z.string(),
+          responseCode: z.string(),
+          stripQuery: z.boolean(),
+        }).partial(),
+        requestHeaderModifier: z.object({
+          add: z.record(z.string(), z.unknown()),
+          remove: z.array(z.unknown()),
+          set: z.record(z.string(), z.unknown()),
+        }).partial(),
+        requestMirrorPolicy: z.object({
+          destination: z.object({
+            requestHeaderModifier: z.unknown(),
+            responseHeaderModifier: z.unknown(),
+            serviceName: z.unknown(),
+            weight: z.unknown(),
+          }).partial(),
+          mirrorPercent: z.number(),
+        }).partial(),
+        responseHeaderModifier: z.object({
+          add: z.record(z.string(), z.unknown()),
+          remove: z.array(z.unknown()),
+          set: z.record(z.string(), z.unknown()),
+        }).partial(),
+        retryPolicy: z.object({
+          numRetries: z.number(),
+          perTryTimeout: z.string(),
+          retryConditions: z.array(z.unknown()),
+        }).partial(),
+        statefulSessionAffinity: z.object({
+          cookieTtl: z.string(),
+        }).partial(),
+        timeout: z.string(),
+        urlRewrite: z.object({
+          hostRewrite: z.string(),
+          pathPrefixRewrite: z.string(),
+        }).partial(),
+      }).partial(),
+      matches: z.array(
+        z.object({
+          fullPathMatch: z.string(),
+          headers: z.array(z.unknown()),
+          ignoreCase: z.boolean(),
+          prefixMatch: z.string(),
+          queryParameters: z.array(z.unknown()),
+          regexMatch: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   selfLink: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -791,7 +797,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services HttpRoutes. Registered at `@swamp/gcp/networkservices/httproutes`. */
 export const model = {
   type: "@swamp/gcp/networkservices/httproutes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -940,6 +946,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -120,7 +120,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   customerManagedEncryption: z.object({
     kmsKeyVersionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   destroyTime: z.string().optional(),
   etag: z.string().optional(),
   name: z.string(),
@@ -128,17 +128,19 @@ const StateSchema = z.object({
     automatic: z.object({
       customerManagedEncryption: z.object({
         kmsKeyVersionName: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     userManaged: z.object({
-      replicas: z.array(z.object({
-        customerManagedEncryption: z.object({
-          kmsKeyVersionName: z.unknown(),
-        }),
-        location: z.string(),
-      })),
-    }),
-  }).optional(),
+      replicas: z.array(
+        z.object({
+          customerManagedEncryption: z.object({
+            kmsKeyVersionName: z.unknown(),
+          }).partial(),
+          location: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   scheduledDestroyTime: z.string().optional(),
   state: z.string().optional(),
 }).passthrough();
@@ -187,7 +189,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Secret Manager Secrets.Versions. Registered at `@swamp/gcp/secretmanager/secrets-versions`. */
 export const model = {
   type: "@swamp/gcp/secretmanager/secrets-versions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -321,6 +323,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

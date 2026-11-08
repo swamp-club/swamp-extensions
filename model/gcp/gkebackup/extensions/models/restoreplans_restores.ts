@@ -270,25 +270,29 @@ const StateSchema = z.object({
   description: z.string().optional(),
   etag: z.string().optional(),
   filter: z.object({
-    exclusionFilters: z.array(z.object({
-      groupKind: z.object({
-        resourceGroup: z.string(),
-        resourceKind: z.string(),
-      }),
-      labels: z.record(z.string(), z.unknown()),
-      name: z.string(),
-      namespace: z.string(),
-    })),
-    inclusionFilters: z.array(z.object({
-      groupKind: z.object({
-        resourceGroup: z.string(),
-        resourceKind: z.string(),
-      }),
-      labels: z.record(z.string(), z.unknown()),
-      name: z.string(),
-      namespace: z.string(),
-    })),
-  }).optional(),
+    exclusionFilters: z.array(
+      z.object({
+        groupKind: z.object({
+          resourceGroup: z.string(),
+          resourceKind: z.string(),
+        }).partial(),
+        labels: z.record(z.string(), z.unknown()),
+        name: z.string(),
+        namespace: z.string(),
+      }).partial(),
+    ),
+    inclusionFilters: z.array(
+      z.object({
+        groupKind: z.object({
+          resourceGroup: z.string(),
+          resourceKind: z.string(),
+        }).partial(),
+        labels: z.record(z.string(), z.unknown()),
+        name: z.string(),
+        namespace: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   resourcesExcludedCount: z.number().optional(),
@@ -299,89 +303,111 @@ const StateSchema = z.object({
     clusterResourceConflictPolicy: z.string(),
     clusterResourceRestoreScope: z.object({
       allGroupKinds: z.boolean(),
-      excludedGroupKinds: z.array(z.object({
-        resourceGroup: z.string(),
-        resourceKind: z.string(),
-      })),
+      excludedGroupKinds: z.array(
+        z.object({
+          resourceGroup: z.string(),
+          resourceKind: z.string(),
+        }).partial(),
+      ),
       noGroupKinds: z.boolean(),
-      selectedGroupKinds: z.array(z.object({
-        resourceGroup: z.string(),
-        resourceKind: z.string(),
-      })),
-    }),
+      selectedGroupKinds: z.array(
+        z.object({
+          resourceGroup: z.string(),
+          resourceKind: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     excludedNamespaces: z.object({
       namespaces: z.array(z.string()),
-    }),
+    }).partial(),
     namespacedResourceRestoreMode: z.string(),
     noNamespaces: z.boolean(),
     restoreOrder: z.object({
-      groupKindDependencies: z.array(z.object({
-        requiring: z.object({
-          resourceGroup: z.unknown(),
-          resourceKind: z.unknown(),
-        }),
-        satisfying: z.object({
-          resourceGroup: z.unknown(),
-          resourceKind: z.unknown(),
-        }),
-      })),
-    }),
+      groupKindDependencies: z.array(
+        z.object({
+          requiring: z.object({
+            resourceGroup: z.unknown(),
+            resourceKind: z.unknown(),
+          }).partial(),
+          satisfying: z.object({
+            resourceGroup: z.unknown(),
+            resourceKind: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     selectedApplications: z.object({
-      namespacedNames: z.array(z.object({
-        name: z.string(),
-        namespace: z.string(),
-      })),
-    }),
+      namespacedNames: z.array(
+        z.object({
+          name: z.string(),
+          namespace: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     selectedNamespaces: z.object({
       namespaces: z.array(z.string()),
-    }),
-    substitutionRules: z.array(z.object({
-      newValue: z.string(),
-      originalValuePattern: z.string(),
-      targetGroupKinds: z.array(z.object({
-        resourceGroup: z.unknown(),
-        resourceKind: z.unknown(),
-      })),
-      targetJsonPath: z.string(),
-      targetNamespaces: z.array(z.string()),
-    })),
-    transformationRules: z.array(z.object({
-      description: z.string(),
-      fieldActions: z.array(z.object({
-        fromPath: z.unknown(),
-        op: z.unknown(),
-        path: z.unknown(),
-        value: z.unknown(),
-      })),
-      resourceFilter: z.object({
-        groupKinds: z.array(z.unknown()),
-        jsonPath: z.string(),
-        namespaces: z.array(z.unknown()),
-      }),
-    })),
+    }).partial(),
+    substitutionRules: z.array(
+      z.object({
+        newValue: z.string(),
+        originalValuePattern: z.string(),
+        targetGroupKinds: z.array(
+          z.object({
+            resourceGroup: z.unknown(),
+            resourceKind: z.unknown(),
+          }).partial(),
+        ),
+        targetJsonPath: z.string(),
+        targetNamespaces: z.array(z.string()),
+      }).partial(),
+    ),
+    transformationRules: z.array(
+      z.object({
+        description: z.string(),
+        fieldActions: z.array(
+          z.object({
+            fromPath: z.unknown(),
+            op: z.unknown(),
+            path: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        resourceFilter: z.object({
+          groupKinds: z.array(z.unknown()),
+          jsonPath: z.string(),
+          namespaces: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    ),
     volumeDataRestorePolicy: z.string(),
-    volumeDataRestorePolicyBindings: z.array(z.object({
-      policy: z.string(),
-      volumeType: z.string(),
-    })),
-  }).optional(),
+    volumeDataRestorePolicyBindings: z.array(
+      z.object({
+        policy: z.string(),
+        volumeType: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   state: z.string().optional(),
   stateReason: z.string().optional(),
   troubleshootingInfo: z.object({
     stateReasonCode: z.string(),
     stateReasonUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
-  volumeDataRestorePolicyOverrides: z.array(z.object({
-    policy: z.string(),
-    selectedPvcs: z.object({
-      namespacedNames: z.array(z.object({
-        name: z.unknown(),
-        namespace: z.unknown(),
-      })),
-    }),
-  })).optional(),
+  volumeDataRestorePolicyOverrides: z.array(
+    z.object({
+      policy: z.string(),
+      selectedPvcs: z.object({
+        namespacedNames: z.array(
+          z.object({
+            name: z.unknown(),
+            namespace: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   volumesRestoredCount: z.number().optional(),
 }).passthrough();
 
@@ -514,7 +540,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup for GKE RestorePlans.Restores. Registered at `@swamp/gcp/gkebackup/restoreplans-restores`. */
 export const model = {
   type: "@swamp/gcp/gkebackup/restoreplans-restores",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -690,6 +716,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

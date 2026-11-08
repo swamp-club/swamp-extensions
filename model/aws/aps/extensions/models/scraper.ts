@@ -70,6 +70,28 @@ const TagSchema = z.object({
   ),
 });
 
+const ComponentConfigStateSchema = z.object({
+  Options: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ScraperComponentStateSchema = z.object({
+  Type: z.string(),
+  Config: ComponentConfigStateSchema,
+}).partial();
+
+const CloudWatchLogDestinationStateSchema = z.object({
+  LogGroupArn: z.string(),
+}).partial();
+
+const ScraperLoggingDestinationStateSchema = z.object({
+  CloudWatchLogs: CloudWatchLogDestinationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -149,39 +171,39 @@ const StateSchema = z.object({
   Arn: z.string(),
   RoleArn: z.string().optional(),
   ScraperLoggingConfiguration: z.object({
-    ScraperComponents: z.array(ScraperComponentSchema),
-    LoggingDestination: ScraperLoggingDestinationSchema,
-  }).optional(),
+    ScraperComponents: z.array(ScraperComponentStateSchema),
+    LoggingDestination: ScraperLoggingDestinationStateSchema,
+  }).partial().optional(),
   ScrapeConfiguration: z.object({
     ConfigurationBlob: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RoleConfiguration: z.object({
     SourceRoleArn: z.string(),
     TargetRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Source: z.object({
     EksConfiguration: z.object({
       ClusterArn: z.string(),
       SecurityGroupIds: z.array(z.string()),
       SubnetIds: z.array(z.string()),
-    }),
+    }).partial(),
     VpcConfiguration: z.object({
       SecurityGroupIds: z.array(z.string()),
       SubnetIds: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   Destination: z.object({
     AmpConfiguration: z.object({
       WorkspaceArn: z.string(),
-    }),
+    }).partial(),
     CloudWatchConfiguration: z.object({
       DatasetArn: z.string(),
-    }),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    }).partial(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -265,7 +287,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for APS Scraper. Registered at `@swamp/aws/aps/scraper`. */
 export const model = {
   type: "@swamp/aws/aps/scraper",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -334,6 +356,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

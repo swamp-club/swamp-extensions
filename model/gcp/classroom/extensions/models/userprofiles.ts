@@ -112,10 +112,12 @@ const StateSchema = z.object({
     familyName: z.string(),
     fullName: z.string(),
     givenName: z.string(),
-  }),
-  permissions: z.array(z.object({
-    permission: z.string(),
-  })).optional(),
+  }).partial(),
+  permissions: z.array(
+    z.object({
+      permission: z.string(),
+    }).partial(),
+  ).optional(),
   photoUrl: z.string().optional(),
   verifiedTeacher: z.boolean().optional(),
 }).passthrough();
@@ -158,7 +160,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Classroom UserProfiles. Registered at `@swamp/gcp/classroom/userprofiles`. */
 export const model = {
   type: "@swamp/gcp/classroom/userprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -277,6 +279,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

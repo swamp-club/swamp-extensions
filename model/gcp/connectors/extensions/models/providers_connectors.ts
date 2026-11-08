@@ -131,7 +131,7 @@ const StateSchema = z.object({
     searchTags: z.array(z.string()),
     subscriptionType: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   externalUri: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   launchStage: z.string().optional(),
@@ -140,7 +140,7 @@ const StateSchema = z.object({
     marketplaceProductId: z.string(),
     marketplaceProductUri: z.string(),
     partner: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   tags: z.array(z.string()).optional(),
   updateTime: z.string().optional(),
@@ -191,7 +191,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Connectors Providers.Connectors. Registered at `@swamp/gcp/connectors/providers-connectors`. */
 export const model = {
   type: "@swamp/gcp/connectors/providers-connectors",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -210,6 +210,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

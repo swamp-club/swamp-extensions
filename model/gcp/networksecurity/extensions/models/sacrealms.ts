@@ -176,7 +176,7 @@ const StateSchema = z.object({
   pairingKey: z.object({
     expireTime: z.string(),
     key: z.string(),
-  }).optional(),
+  }).partial().optional(),
   securityService: z.string().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
@@ -239,7 +239,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security SacRealms. Registered at `@swamp/gcp/networksecurity/sacrealms`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/sacrealms",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -258,6 +258,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -208,6 +208,111 @@ const TagSchema = z.object({
   ).describe("The value of the tag."),
 });
 
+const McpToolsDescriptorStateSchema = z.object({
+  Data: z.string(),
+  DataSchemaVersion: z.string(),
+}).partial();
+
+const McpServerAdditionalDataStateSchema = z.object({
+  Tools: McpToolsDescriptorStateSchema,
+}).partial();
+
+const RegistryRecordOAuthCredentialProviderStateSchema = z.object({
+  ProviderArn: z.string(),
+  GrantType: z.string(),
+  Scopes: z.array(z.string()),
+  CustomParameters: z.record(z.string(), z.unknown()),
+}).partial();
+
+const RegistryRecordIamCredentialProviderStateSchema = z.object({
+  RoleArn: z.string(),
+  Service: z.string(),
+  Region: z.string(),
+}).partial();
+
+const RegistryRecordCredentialProviderUnionStateSchema = z.object({
+  OauthCredentialProvider: RegistryRecordOAuthCredentialProviderStateSchema,
+  IamCredentialProvider: RegistryRecordIamCredentialProviderStateSchema,
+}).partial();
+
+const RegistryRecordCredentialProviderConfigurationStateSchema = z.object({
+  CredentialProviderType: z.string(),
+  CredentialProvider: RegistryRecordCredentialProviderUnionStateSchema,
+}).partial();
+
+const DescriptorSourceFromUrlStateSchema = z.object({
+  Url: z.string(),
+  CredentialProviderConfigurations: z.array(
+    RegistryRecordCredentialProviderConfigurationStateSchema,
+  ),
+}).partial();
+
+const DescriptorSourceStateSchema = z.object({
+  FromUrl: DescriptorSourceFromUrlStateSchema,
+}).partial();
+
+const McpServerDescriptorStateSchema = z.object({
+  Data: z.string(),
+  DataSchemaVersion: z.string(),
+  AdditionalData: McpServerAdditionalDataStateSchema,
+  Source: DescriptorSourceStateSchema,
+}).partial();
+
+const A2aAgentCardDescriptorStateSchema = z.object({
+  Data: z.string(),
+  DataSchemaVersion: z.string(),
+  Source: DescriptorSourceStateSchema,
+}).partial();
+
+const SkillMdSourceFromUrlStateSchema = z.object({
+  Url: z.string(),
+}).partial();
+
+const SkillMdSourceStateSchema = z.object({
+  FromUrl: SkillMdSourceFromUrlStateSchema,
+}).partial();
+
+const AgentSkillsMdDescriptorStateSchema = z.object({
+  Source: SkillMdSourceStateSchema,
+  Data: z.string(),
+  DataSchemaVersion: z.string(),
+}).partial();
+
+const AgentSkillsAdditionalDataStateSchema = z.object({
+  SkillMd: AgentSkillsMdDescriptorStateSchema,
+}).partial();
+
+const AgentSkillsDefinitionDescriptorStateSchema = z.object({
+  Data: z.string(),
+  DataSchemaVersion: z.string(),
+  AdditionalData: AgentSkillsAdditionalDataStateSchema,
+}).partial();
+
+const CustomDescriptorStateSchema = z.object({
+  Data: z.string(),
+}).partial();
+
+const SourceOnlyDescriptorSourceFromUrlStateSchema = z.object({
+  Url: z.string(),
+}).partial();
+
+const SourceOnlyDescriptorSourceStateSchema = z.object({
+  FromUrl: SourceOnlyDescriptorSourceFromUrlStateSchema,
+}).partial();
+
+const HttpDescriptorStateSchema = z.object({
+  Source: SourceOnlyDescriptorSourceStateSchema,
+}).partial();
+
+const AgUiDescriptorStateSchema = z.object({
+  Source: SourceOnlyDescriptorSourceStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -285,23 +390,23 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   RecordType: z.string().optional(),
   Descriptors: z.object({
-    McpServer: McpServerDescriptorSchema,
-    A2aAgentCard: A2aAgentCardDescriptorSchema,
-    AgentSkillsDefinition: AgentSkillsDefinitionDescriptorSchema,
-    Custom: CustomDescriptorSchema,
-    Http: HttpDescriptorSchema,
-    Agui: AgUiDescriptorSchema,
-  }).optional(),
+    McpServer: McpServerDescriptorStateSchema,
+    A2aAgentCard: A2aAgentCardDescriptorStateSchema,
+    AgentSkillsDefinition: AgentSkillsDefinitionDescriptorStateSchema,
+    Custom: CustomDescriptorStateSchema,
+    Http: HttpDescriptorStateSchema,
+    Agui: AgUiDescriptorStateSchema,
+  }).partial().optional(),
   RecordVersion: z.string().optional(),
   Status: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CreatedBy: z.string().optional(),
   CustomMetadata: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -379,7 +484,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry RegistryRecord. Registered at `@swamp/aws/agentregistry/registry-record`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry-record",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.28.1",
@@ -418,6 +523,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

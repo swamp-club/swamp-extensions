@@ -60,6 +60,28 @@ const TagSchema = z.object({
   Key: z.string(),
 });
 
+const PrivateIpAddressSpecificationStateSchema = z.object({
+  PrivateIpAddress: z.string(),
+  Primary: z.boolean(),
+}).partial();
+
+const Ipv4PrefixSpecificationStateSchema = z.object({
+  Ipv4Prefix: z.string(),
+}).partial();
+
+const InstanceIpv6AddressStateSchema = z.object({
+  Ipv6Address: z.string(),
+}).partial();
+
+const Ipv6PrefixSpecificationStateSchema = z.object({
+  Ipv6Prefix: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -145,14 +167,15 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Description: z.string().optional(),
   PrivateIpAddress: z.string().optional(),
-  PrivateIpAddresses: z.array(PrivateIpAddressSpecificationSchema).optional(),
+  PrivateIpAddresses: z.array(PrivateIpAddressSpecificationStateSchema)
+    .optional(),
   SecondaryPrivateIpAddressCount: z.number().optional(),
   PrimaryPrivateIpAddress: z.string().optional(),
-  Ipv4Prefixes: z.array(Ipv4PrefixSpecificationSchema).optional(),
+  Ipv4Prefixes: z.array(Ipv4PrefixSpecificationStateSchema).optional(),
   Ipv4PrefixCount: z.number().optional(),
   GroupSet: z.array(z.string()).optional(),
-  Ipv6Addresses: z.array(InstanceIpv6AddressSchema).optional(),
-  Ipv6Prefixes: z.array(Ipv6PrefixSpecificationSchema).optional(),
+  Ipv6Addresses: z.array(InstanceIpv6AddressStateSchema).optional(),
+  Ipv6Prefixes: z.array(Ipv6PrefixSpecificationStateSchema).optional(),
   Ipv6PrefixCount: z.number().optional(),
   SubnetId: z.string().optional(),
   SourceDestCheck: z.boolean().optional(),
@@ -165,9 +188,9 @@ const StateSchema = z.object({
     TcpEstablishedTimeout: z.number(),
     UdpStreamTimeout: z.number(),
     UdpTimeout: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Id: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   VpcId: z.string().optional(),
   PublicIpDnsHostnameTypeSpecification: z.string().optional(),
   PublicIpDnsNameOptions: z.object({
@@ -175,10 +198,10 @@ const StateSchema = z.object({
     PublicIpv4DnsName: z.string(),
     PublicIpv6DnsName: z.string(),
     PublicDualStackDnsName: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -271,7 +294,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 NetworkInterface. Registered at `@swamp/aws/ec2/network-interface`. */
 export const model = {
   type: "@swamp/aws/ec2/network-interface",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -335,6 +358,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

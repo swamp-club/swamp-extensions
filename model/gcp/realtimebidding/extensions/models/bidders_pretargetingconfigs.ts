@@ -301,23 +301,25 @@ const StateSchema = z.object({
     mobileAppCategoryTargeting: z.object({
       excludedIds: z.array(z.string()),
       includedIds: z.array(z.string()),
-    }),
+    }).partial(),
     mobileAppTargeting: z.object({
       targetingMode: z.string(),
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   billingId: z.string().optional(),
   displayName: z.string().optional(),
   excludedContentLabelIds: z.array(z.string()).optional(),
   geoTargeting: z.object({
     excludedIds: z.array(z.string()),
     includedIds: z.array(z.string()),
-  }).optional(),
-  includedCreativeDimensions: z.array(z.object({
-    height: z.string(),
-    width: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  includedCreativeDimensions: z.array(
+    z.object({
+      height: z.string(),
+      width: z.string(),
+    }).partial(),
+  ).optional(),
   includedEnvironments: z.array(z.string()).optional(),
   includedFormats: z.array(z.string()).optional(),
   includedLanguages: z.array(z.string()).optional(),
@@ -332,20 +334,20 @@ const StateSchema = z.object({
   publisherTargeting: z.object({
     targetingMode: z.string(),
     values: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   userListTargeting: z.object({
     excludedIds: z.array(z.string()),
     includedIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   verticalTargeting: z.object({
     excludedIds: z.array(z.string()),
     includedIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   webTargeting: z.object({
     targetingMode: z.string(),
     values: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -521,7 +523,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Real-time Bidding Bidders.PretargetingConfigs. Registered at `@swamp/gcp/realtimebidding/bidders-pretargetingconfigs`. */
 export const model = {
   type: "@swamp/gcp/realtimebidding/bidders-pretargetingconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -678,6 +680,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -62,6 +62,14 @@ const AssetTypeSchema = z.object({
     .optional(),
 });
 
+const AssetTypeStateSchema = z.object({
+  Category: z.string(),
+  ColorMode: z.string(),
+  Extension: z.string(),
+  Bytes: z.string(),
+  ResourceId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -91,12 +99,12 @@ const StateSchema = z.object({
   ClientId: z.string().optional(),
   UseCognitoProvidedValues: z.boolean().optional(),
   Settings: z.record(z.string(), z.unknown()).optional(),
-  Assets: z.array(AssetTypeSchema).optional(),
+  Assets: z.array(AssetTypeStateSchema).optional(),
   ManagedLoginBrandingId: z.string(),
   ReturnMergedResources: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -131,7 +139,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito ManagedLoginBranding. Registered at `@swamp/aws/cognito/managed-login-branding`. */
 export const model = {
   type: "@swamp/aws/cognito/managed-login-branding",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +203,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

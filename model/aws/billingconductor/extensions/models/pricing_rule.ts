@@ -59,6 +59,21 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const FreeTierStateSchema = z.object({
+  Activated: z.boolean(),
+}).partial();
+
+const CustomTierStateSchema = z.object({
+  BeginRangeInclusive: z.number(),
+  EndRangeExclusive: z.number(),
+  RateValue: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -121,18 +136,18 @@ const StateSchema = z.object({
   Service: z.string().optional(),
   BillingEntity: z.string().optional(),
   Tiering: z.object({
-    FreeTier: FreeTierSchema,
-    CustomTiers: z.array(CustomTierSchema),
-  }).optional(),
+    FreeTier: FreeTierStateSchema,
+    CustomTiers: z.array(CustomTierStateSchema),
+  }).partial().optional(),
   UsageType: z.string().optional(),
   Operation: z.string().optional(),
   AssociatedPricingPlanCount: z.number().optional(),
   CreationTime: z.number().optional(),
   LastModifiedTime: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -195,7 +210,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BillingConductor PricingRule. Registered at `@swamp/aws/billingconductor/pricing-rule`. */
 export const model = {
   type: "@swamp/aws/billingconductor/pricing-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -264,6 +279,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -227,18 +227,20 @@ const StateSchema = z.object({
   kmsKey: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  persistentDirectories: z.array(z.object({
-    mountPath: z.string(),
-    sizeGb: z.number(),
-  })).optional(),
+  persistentDirectories: z.array(
+    z.object({
+      mountPath: z.string(),
+      sizeGb: z.number(),
+    }).partial(),
+  ).optional(),
   reconciling: z.boolean().optional(),
   runtimeHost: z.object({
     gceInstanceHost: z.object({
       id: z.string(),
       name: z.string(),
       zone: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   sourceWorkstation: z.string().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
@@ -321,7 +323,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/workstations/workstationclusters-workstationconfigs-workstations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -486,6 +488,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

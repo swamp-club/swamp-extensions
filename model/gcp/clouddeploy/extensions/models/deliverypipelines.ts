@@ -285,46 +285,50 @@ const StateSchema = z.object({
     pipelineReadyCondition: z.object({
       status: z.boolean(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     targetsPresentCondition: z.object({
       missingTargets: z.array(z.string()),
       status: z.boolean(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     targetsTypeCondition: z.object({
       errorDetails: z.string(),
       status: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   serialPipeline: z.object({
-    stages: z.array(z.object({
-      deployParameters: z.array(z.object({
-        matchTargetLabels: z.unknown(),
-        values: z.unknown(),
-      })),
-      profiles: z.array(z.string()),
-      strategy: z.object({
-        canary: z.object({
-          canaryDeployment: z.unknown(),
-          customCanaryDeployment: z.unknown(),
-          runtimeConfig: z.unknown(),
-        }),
-        standard: z.object({
-          analysis: z.unknown(),
-          postdeploy: z.unknown(),
-          predeploy: z.unknown(),
-          verify: z.unknown(),
-          verifyConfig: z.unknown(),
-        }),
-      }),
-      targetId: z.string(),
-    })),
-  }).optional(),
+    stages: z.array(
+      z.object({
+        deployParameters: z.array(
+          z.object({
+            matchTargetLabels: z.unknown(),
+            values: z.unknown(),
+          }).partial(),
+        ),
+        profiles: z.array(z.string()),
+        strategy: z.object({
+          canary: z.object({
+            canaryDeployment: z.unknown(),
+            customCanaryDeployment: z.unknown(),
+            runtimeConfig: z.unknown(),
+          }).partial(),
+          standard: z.object({
+            analysis: z.unknown(),
+            postdeploy: z.unknown(),
+            predeploy: z.unknown(),
+            verify: z.unknown(),
+            verifyConfig: z.unknown(),
+          }).partial(),
+        }).partial(),
+        targetId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   suspended: z.boolean().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -454,7 +458,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deploy DeliveryPipelines. Registered at `@swamp/gcp/clouddeploy/deliverypipelines`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/deliverypipelines",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -649,6 +653,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -53,6 +53,17 @@ const TagSchema = z.object({
   ),
 });
 
+const CognitoIdentityProviderStateSchema = z.object({
+  ServerSideTokenCheck: z.boolean(),
+  ProviderName: z.string(),
+  ClientId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -96,14 +107,15 @@ const StateSchema = z.object({
   PushSync: z.object({
     ApplicationArns: z.array(z.string()),
     RoleArn: z.string(),
-  }).optional(),
-  CognitoIdentityProviders: z.array(CognitoIdentityProviderSchema).optional(),
+  }).partial().optional(),
+  CognitoIdentityProviders: z.array(CognitoIdentityProviderStateSchema)
+    .optional(),
   DeveloperProviderName: z.string().optional(),
   CognitoStreams: z.object({
     StreamingStatus: z.string(),
     StreamName: z.string(),
     RoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SupportedLoginProviders: z.record(z.string(), z.unknown()).optional(),
   Name: z.string().optional(),
   CognitoEvents: z.record(z.string(), z.unknown()).optional(),
@@ -113,10 +125,10 @@ const StateSchema = z.object({
   SamlProviderARNs: z.array(z.string()).optional(),
   OpenIdConnectProviderARNs: z.array(z.string()).optional(),
   AllowClassicFlow: z.boolean().optional(),
-  IdentityPoolTags: z.array(TagSchema).optional(),
+  IdentityPoolTags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -166,7 +178,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito IdentityPool. Registered at `@swamp/aws/cognito/identity-pool`. */
 export const model = {
   type: "@swamp/aws/cognito/identity-pool",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +247,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

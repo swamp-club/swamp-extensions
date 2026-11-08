@@ -48,6 +48,12 @@ const NatRuleSchema = z.object({
   ),
 });
 
+const NatRuleStateSchema = z.object({
+  RuleNumber: z.number(),
+  MatchSourceCidr: z.string(),
+  NatCidr: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -82,12 +88,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Arn: z.string(),
   TransitGatewayAttachmentId: z.string().optional(),
-  NatGatewayRules: z.array(NatRuleSchema).optional(),
+  NatGatewayRules: z.array(NatRuleStateSchema).optional(),
   NatGatewaySupport: z.string().optional(),
   NatSystemRouteSupport: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -129,7 +135,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TransitGatewayAttachmentNatConfiguration. Registered at `@swamp/aws/ec2/transit-gateway-attachment-nat-configuration`. */
 export const model = {
   type: "@swamp/aws/ec2/transit-gateway-attachment-nat-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.23.2",
@@ -138,6 +144,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

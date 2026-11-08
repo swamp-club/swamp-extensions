@@ -221,20 +221,24 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   extensionProcessor: z.string().optional(),
-  extensions: z.array(z.object({
-    failOpen: z.boolean(),
-    hostname: z.string(),
-    matchCondition: z.string(),
-    name: z.string(),
-    supportedEvents: z.array(z.string()),
-  })).optional(),
+  extensions: z.array(
+    z.object({
+      failOpen: z.boolean(),
+      hostname: z.string(),
+      matchCondition: z.string(),
+      name: z.string(),
+      supportedEvents: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   lbForwardingRule: z.string().optional(),
   name: z.string(),
   network: z.string().optional(),
-  networkConfigs: z.array(z.object({
-    region: z.string(),
-    subnet: z.string(),
-  })).optional(),
+  networkConfigs: z.array(
+    z.object({
+      region: z.string(),
+      subnet: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -335,7 +339,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee ApimServiceExtensions. Registered at `@swamp/gcp/apigee/apimserviceextensions`. */
 export const model = {
   type: "@swamp/gcp/apigee/apimserviceextensions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -469,6 +473,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

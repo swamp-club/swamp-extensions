@@ -238,7 +238,7 @@ const GlobalArgsSchema = z.object({
           'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
         ).optional(),
         color: z.unknown().describe(
-          'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+          'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
         ).optional(),
         disabled: z.unknown().describe(
           "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -290,7 +290,7 @@ const GlobalArgsSchema = z.object({
       dialog: z.object({
         body: z.object({
           cardActions: z.array(z.unknown()).describe(
-            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "cardActions": [ { "actionLabel": "Settings", "onClick": { "action": { "function": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
           ).optional(),
           displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
             .describe(
@@ -452,7 +452,7 @@ const GlobalArgsSchema = z.object({
           "The `onClick` action for this action item.",
         ).optional(),
       })).describe(
-        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "cardActions": [ { "actionLabel": "Settings", "onClick": { "action": { "function": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
       ).optional(),
       displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
         .describe(
@@ -478,7 +478,7 @@ const GlobalArgsSchema = z.object({
             'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
           ).optional(),
           color: z.unknown().describe(
-            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
           ).optional(),
           disabled: z.unknown().describe(
             "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -502,7 +502,7 @@ const GlobalArgsSchema = z.object({
             'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
           ).optional(),
           color: z.unknown().describe(
-            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
           ).optional(),
           disabled: z.unknown().describe(
             "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -854,25 +854,29 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  accessoryWidgets: z.array(z.object({
-    buttonList: z.object({
-      buttons: z.array(z.object({
-        altText: z.unknown(),
-        color: z.unknown(),
-        disabled: z.unknown(),
-        icon: z.unknown(),
-        onClick: z.unknown(),
-        text: z.unknown(),
-        type: z.unknown(),
-      })),
-    }),
-  })).optional(),
+  accessoryWidgets: z.array(
+    z.object({
+      buttonList: z.object({
+        buttons: z.array(
+          z.object({
+            altText: z.unknown(),
+            color: z.unknown(),
+            disabled: z.unknown(),
+            icon: z.unknown(),
+            onClick: z.unknown(),
+            text: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   actionResponse: z.object({
     dialogAction: z.object({
       actionStatus: z.object({
         statusCode: z.string(),
         userFacingMessage: z.string(),
-      }),
+      }).partial(),
       dialog: z.object({
         body: z.object({
           cardActions: z.array(z.unknown()),
@@ -881,14 +885,14 @@ const StateSchema = z.object({
           fixedFooter: z.object({
             primaryButton: z.unknown(),
             secondaryButton: z.unknown(),
-          }),
+          }).partial(),
           header: z.object({
             imageAltText: z.unknown(),
             imageType: z.unknown(),
             imageUrl: z.unknown(),
             subtitle: z.unknown(),
             title: z.unknown(),
-          }),
+          }).partial(),
           name: z.string(),
           peekCardHeader: z.object({
             imageAltText: z.unknown(),
@@ -896,256 +900,286 @@ const StateSchema = z.object({
             imageUrl: z.unknown(),
             subtitle: z.unknown(),
             title: z.unknown(),
-          }),
+          }).partial(),
           sectionDividerStyle: z.string(),
           sections: z.array(z.unknown()),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     type: z.string(),
     updatedWidget: z.object({
       suggestions: z.object({
-        items: z.array(z.object({
-          bottomText: z.unknown(),
-          selected: z.unknown(),
-          startIconUri: z.unknown(),
-          text: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        items: z.array(
+          z.object({
+            bottomText: z.unknown(),
+            selected: z.unknown(),
+            startIconUri: z.unknown(),
+            text: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       widget: z.string(),
-    }),
+    }).partial(),
     url: z.string(),
-  }).optional(),
-  annotations: z.array(z.object({
-    customEmojiMetadata: z.object({
-      customEmoji: z.object({
-        emojiName: z.string(),
-        name: z.string(),
-        payload: z.object({
-          fileContent: z.unknown(),
-          filename: z.unknown(),
-        }),
-        temporaryImageUri: z.string(),
-        uid: z.string(),
-      }),
-    }),
-    length: z.number(),
-    richLinkMetadata: z.object({
-      calendarEventLinkData: z.object({
-        calendarId: z.string(),
-        eventId: z.string(),
-      }),
-      chatSpaceLinkData: z.object({
-        message: z.string(),
-        space: z.string(),
-        thread: z.string(),
-      }),
-      driveLinkData: z.object({
-        driveDataRef: z.object({
-          driveFileId: z.unknown(),
-        }),
-        mimeType: z.string(),
-      }),
-      meetSpaceLinkData: z.object({
-        huddleStatus: z.string(),
-        meetingCode: z.string(),
+  }).partial().optional(),
+  annotations: z.array(
+    z.object({
+      customEmojiMetadata: z.object({
+        customEmoji: z.object({
+          emojiName: z.string(),
+          name: z.string(),
+          payload: z.object({
+            fileContent: z.unknown(),
+            filename: z.unknown(),
+          }).partial(),
+          temporaryImageUri: z.string(),
+          uid: z.string(),
+        }).partial(),
+      }).partial(),
+      length: z.number(),
+      richLinkMetadata: z.object({
+        calendarEventLinkData: z.object({
+          calendarId: z.string(),
+          eventId: z.string(),
+        }).partial(),
+        chatSpaceLinkData: z.object({
+          message: z.string(),
+          space: z.string(),
+          thread: z.string(),
+        }).partial(),
+        driveLinkData: z.object({
+          driveDataRef: z.object({
+            driveFileId: z.unknown(),
+          }).partial(),
+          mimeType: z.string(),
+        }).partial(),
+        meetSpaceLinkData: z.object({
+          huddleStatus: z.string(),
+          meetingCode: z.string(),
+          type: z.string(),
+        }).partial(),
+        richLinkType: z.string(),
+        uri: z.string(),
+      }).partial(),
+      slashCommand: z.object({
+        bot: z.object({
+          avatarUrl: z.string(),
+          displayName: z.string(),
+          domainId: z.string(),
+          email: z.string(),
+          isAnonymous: z.boolean(),
+          name: z.string(),
+          type: z.string(),
+        }).partial(),
+        commandId: z.string(),
+        commandName: z.string(),
+        triggersDialog: z.boolean(),
         type: z.string(),
-      }),
-      richLinkType: z.string(),
-      uri: z.string(),
-    }),
-    slashCommand: z.object({
-      bot: z.object({
-        avatarUrl: z.string(),
-        displayName: z.string(),
-        domainId: z.string(),
-        email: z.string(),
-        isAnonymous: z.boolean(),
-        name: z.string(),
-        type: z.string(),
-      }),
-      commandId: z.string(),
-      commandName: z.string(),
-      triggersDialog: z.boolean(),
+      }).partial(),
+      startIndex: z.number(),
       type: z.string(),
-    }),
-    startIndex: z.number(),
-    type: z.string(),
-    userMention: z.object({
-      type: z.string(),
-      user: z.object({
-        avatarUrl: z.string(),
-        displayName: z.string(),
-        domainId: z.string(),
-        email: z.string(),
-        isAnonymous: z.boolean(),
-        name: z.string(),
+      userMention: z.object({
         type: z.string(),
-      }),
-    }),
-  })).optional(),
+        user: z.object({
+          avatarUrl: z.string(),
+          displayName: z.string(),
+          domainId: z.string(),
+          email: z.string(),
+          isAnonymous: z.boolean(),
+          name: z.string(),
+          type: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   argumentText: z.string().optional(),
-  attachedGifs: z.array(z.object({
-    uri: z.string(),
-  })).optional(),
-  attachment: z.array(z.object({
-    attachmentDataRef: z.object({
-      attachmentUploadToken: z.string(),
-      resourceName: z.string(),
-    }),
-    contentName: z.string(),
-    contentType: z.string(),
-    downloadUri: z.string(),
-    driveDataRef: z.object({
-      driveFileId: z.string(),
-    }),
-    name: z.string(),
-    source: z.string(),
-    thumbnailUri: z.string(),
-  })).optional(),
-  cards: z.array(z.object({
-    cardActions: z.array(z.object({
-      actionLabel: z.string(),
-      onClick: z.object({
-        action: z.unknown(),
-        openLink: z.unknown(),
-      }),
-    })),
-    header: z.object({
-      imageStyle: z.string(),
-      imageUrl: z.string(),
-      subtitle: z.string(),
-      title: z.string(),
-    }),
-    name: z.string(),
-    sections: z.array(z.object({
-      header: z.string(),
-      widgets: z.array(z.unknown()),
-    })),
-  })).optional(),
-  cardsV2: z.array(z.object({
-    card: z.object({
-      cardActions: z.array(z.object({
-        actionLabel: z.unknown(),
-        onClick: z.unknown(),
-      })),
-      displayStyle: z.string(),
-      expressionData: z.array(z.object({
-        conditions: z.unknown(),
-        eventActions: z.unknown(),
-        expression: z.unknown(),
-        id: z.unknown(),
-      })),
-      fixedFooter: z.object({
-        primaryButton: z.object({
-          altText: z.unknown(),
-          color: z.unknown(),
-          disabled: z.unknown(),
-          icon: z.unknown(),
-          onClick: z.unknown(),
-          text: z.unknown(),
-          type: z.unknown(),
-        }),
-        secondaryButton: z.object({
-          altText: z.unknown(),
-          color: z.unknown(),
-          disabled: z.unknown(),
-          icon: z.unknown(),
-          onClick: z.unknown(),
-          text: z.unknown(),
-          type: z.unknown(),
-        }),
-      }),
+  attachedGifs: z.array(
+    z.object({
+      uri: z.string(),
+    }).partial(),
+  ).optional(),
+  attachment: z.array(
+    z.object({
+      attachmentDataRef: z.object({
+        attachmentUploadToken: z.string(),
+        resourceName: z.string(),
+      }).partial(),
+      contentName: z.string(),
+      contentType: z.string(),
+      downloadUri: z.string(),
+      driveDataRef: z.object({
+        driveFileId: z.string(),
+      }).partial(),
+      name: z.string(),
+      source: z.string(),
+      thumbnailUri: z.string(),
+    }).partial(),
+  ).optional(),
+  cards: z.array(
+    z.object({
+      cardActions: z.array(
+        z.object({
+          actionLabel: z.string(),
+          onClick: z.object({
+            action: z.unknown(),
+            openLink: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       header: z.object({
-        imageAltText: z.string(),
-        imageType: z.string(),
+        imageStyle: z.string(),
         imageUrl: z.string(),
         subtitle: z.string(),
         title: z.string(),
-      }),
+      }).partial(),
       name: z.string(),
-      peekCardHeader: z.object({
-        imageAltText: z.string(),
-        imageType: z.string(),
-        imageUrl: z.string(),
-        subtitle: z.string(),
-        title: z.string(),
-      }),
-      sectionDividerStyle: z.string(),
-      sections: z.array(z.object({
-        collapseControl: z.unknown(),
-        collapsible: z.unknown(),
-        header: z.unknown(),
-        id: z.unknown(),
-        uncollapsibleWidgetsCount: z.unknown(),
-        widgets: z.unknown(),
-      })),
-    }),
-    cardId: z.string(),
-    ownerUser: z.object({
-      avatarUrl: z.string(),
-      displayName: z.string(),
-      domainId: z.string(),
-      email: z.string(),
-      isAnonymous: z.boolean(),
-      name: z.string(),
-      type: z.string(),
-    }),
-  })).optional(),
+      sections: z.array(
+        z.object({
+          header: z.string(),
+          widgets: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
+  cardsV2: z.array(
+    z.object({
+      card: z.object({
+        cardActions: z.array(
+          z.object({
+            actionLabel: z.unknown(),
+            onClick: z.unknown(),
+          }).partial(),
+        ),
+        displayStyle: z.string(),
+        expressionData: z.array(
+          z.object({
+            conditions: z.unknown(),
+            eventActions: z.unknown(),
+            expression: z.unknown(),
+            id: z.unknown(),
+          }).partial(),
+        ),
+        fixedFooter: z.object({
+          primaryButton: z.object({
+            altText: z.unknown(),
+            color: z.unknown(),
+            disabled: z.unknown(),
+            icon: z.unknown(),
+            onClick: z.unknown(),
+            text: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          secondaryButton: z.object({
+            altText: z.unknown(),
+            color: z.unknown(),
+            disabled: z.unknown(),
+            icon: z.unknown(),
+            onClick: z.unknown(),
+            text: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        }).partial(),
+        header: z.object({
+          imageAltText: z.string(),
+          imageType: z.string(),
+          imageUrl: z.string(),
+          subtitle: z.string(),
+          title: z.string(),
+        }).partial(),
+        name: z.string(),
+        peekCardHeader: z.object({
+          imageAltText: z.string(),
+          imageType: z.string(),
+          imageUrl: z.string(),
+          subtitle: z.string(),
+          title: z.string(),
+        }).partial(),
+        sectionDividerStyle: z.string(),
+        sections: z.array(
+          z.object({
+            collapseControl: z.unknown(),
+            collapsible: z.unknown(),
+            header: z.unknown(),
+            id: z.unknown(),
+            uncollapsibleWidgetsCount: z.unknown(),
+            widgets: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      cardId: z.string(),
+      ownerUser: z.object({
+        avatarUrl: z.string(),
+        displayName: z.string(),
+        domainId: z.string(),
+        email: z.string(),
+        isAnonymous: z.boolean(),
+        name: z.string(),
+        type: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   clientAssignedMessageId: z.string().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   deletionMetadata: z.object({
     deletionType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   elements: z.object({
-    citations: z.array(z.object({
-      citedSources: z.array(z.object({
-        footer: z.unknown(),
-        snippet: z.unknown(),
-        title: z.unknown(),
-        uri: z.unknown(),
-      })),
-      id: z.string(),
-    })),
-    citedSources: z.array(z.object({
-      footer: z.object({
-        text: z.string(),
-      }),
-      snippet: z.object({
-        imagePreview: z.object({
-          imageUri: z.unknown(),
-        }),
-        text: z.string(),
-      }),
-      title: z.string(),
-      uri: z.string(),
-    })),
-  }).optional(),
-  emojiReactionSummaries: z.array(z.object({
-    emoji: z.object({
-      customEmoji: z.object({
-        emojiName: z.string(),
-        name: z.string(),
-        payload: z.object({
-          fileContent: z.unknown(),
-          filename: z.unknown(),
-        }),
-        temporaryImageUri: z.string(),
-        uid: z.string(),
-      }),
-      unicode: z.string(),
-    }),
-    reactionCount: z.number(),
-  })).optional(),
+    citations: z.array(
+      z.object({
+        citedSources: z.array(
+          z.object({
+            footer: z.unknown(),
+            snippet: z.unknown(),
+            title: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+        ),
+        id: z.string(),
+      }).partial(),
+    ),
+    citedSources: z.array(
+      z.object({
+        footer: z.object({
+          text: z.string(),
+        }).partial(),
+        snippet: z.object({
+          imagePreview: z.object({
+            imageUri: z.unknown(),
+          }).partial(),
+          text: z.string(),
+        }).partial(),
+        title: z.string(),
+        uri: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  emojiReactionSummaries: z.array(
+    z.object({
+      emoji: z.object({
+        customEmoji: z.object({
+          emojiName: z.string(),
+          name: z.string(),
+          payload: z.object({
+            fileContent: z.unknown(),
+            filename: z.unknown(),
+          }).partial(),
+          temporaryImageUri: z.string(),
+          uid: z.string(),
+        }).partial(),
+        unicode: z.string(),
+      }).partial(),
+      reactionCount: z.number(),
+    }).partial(),
+  ).optional(),
   fallbackText: z.string().optional(),
   formattedText: z.string().optional(),
   lastUpdateTime: z.string().optional(),
   markupSyntax: z.string().optional(),
   matchedUrl: z.object({
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   privateMessageViewer: z.object({
     avatarUrl: z.string(),
@@ -1155,63 +1189,67 @@ const StateSchema = z.object({
     isAnonymous: z.boolean(),
     name: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   quotedMessageMetadata: z.object({
     forwardedMetadata: z.object({
       space: z.string(),
       spaceDisplayName: z.string(),
-    }),
+    }).partial(),
     lastUpdateTime: z.string(),
     name: z.string(),
     quoteType: z.string(),
     quotedMessageSnapshot: z.object({
-      annotations: z.array(z.object({
-        customEmojiMetadata: z.object({
-          customEmoji: z.unknown(),
-        }),
-        length: z.number(),
-        richLinkMetadata: z.object({
-          calendarEventLinkData: z.unknown(),
-          chatSpaceLinkData: z.unknown(),
-          driveLinkData: z.unknown(),
-          meetSpaceLinkData: z.unknown(),
-          richLinkType: z.unknown(),
-          uri: z.unknown(),
-        }),
-        slashCommand: z.object({
-          bot: z.unknown(),
-          commandId: z.unknown(),
-          commandName: z.unknown(),
-          triggersDialog: z.unknown(),
-          type: z.unknown(),
-        }),
-        startIndex: z.number(),
-        type: z.string(),
-        userMention: z.object({
-          type: z.unknown(),
-          user: z.unknown(),
-        }),
-      })),
-      attachments: z.array(z.object({
-        attachmentDataRef: z.object({
-          attachmentUploadToken: z.unknown(),
-          resourceName: z.unknown(),
-        }),
-        contentName: z.string(),
-        contentType: z.string(),
-        downloadUri: z.string(),
-        driveDataRef: z.object({
-          driveFileId: z.unknown(),
-        }),
-        name: z.string(),
-        source: z.string(),
-        thumbnailUri: z.string(),
-      })),
+      annotations: z.array(
+        z.object({
+          customEmojiMetadata: z.object({
+            customEmoji: z.unknown(),
+          }).partial(),
+          length: z.number(),
+          richLinkMetadata: z.object({
+            calendarEventLinkData: z.unknown(),
+            chatSpaceLinkData: z.unknown(),
+            driveLinkData: z.unknown(),
+            meetSpaceLinkData: z.unknown(),
+            richLinkType: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+          slashCommand: z.object({
+            bot: z.unknown(),
+            commandId: z.unknown(),
+            commandName: z.unknown(),
+            triggersDialog: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          startIndex: z.number(),
+          type: z.string(),
+          userMention: z.object({
+            type: z.unknown(),
+            user: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      attachments: z.array(
+        z.object({
+          attachmentDataRef: z.object({
+            attachmentUploadToken: z.unknown(),
+            resourceName: z.unknown(),
+          }).partial(),
+          contentName: z.string(),
+          contentType: z.string(),
+          downloadUri: z.string(),
+          driveDataRef: z.object({
+            driveFileId: z.unknown(),
+          }).partial(),
+          name: z.string(),
+          source: z.string(),
+          thumbnailUri: z.string(),
+        }).partial(),
+      ),
       formattedText: z.string(),
       sender: z.string(),
       text: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   sender: z.object({
     avatarUrl: z.string(),
     displayName: z.string(),
@@ -1220,27 +1258,27 @@ const StateSchema = z.object({
     isAnonymous: z.boolean(),
     name: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   silent: z.boolean().optional(),
   slashCommand: z.object({
     commandId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   space: z.object({
     accessSettings: z.object({
       accessPermissionSettings: z.object({
         discoverSpaceSetting: z.object({
           principals: z.array(z.unknown()),
-        }),
+        }).partial(),
         joinSpaceSetting: z.object({
           principals: z.array(z.unknown()),
-        }),
+        }).partial(),
         viewSpaceMembershipSetting: z.object({
           principals: z.array(z.unknown()),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       accessState: z.string(),
       audience: z.string(),
-    }),
+    }).partial(),
     adminInstalled: z.boolean(),
     createTime: z.string(),
     customer: z.string(),
@@ -1252,73 +1290,73 @@ const StateSchema = z.object({
     membershipCount: z.object({
       joinedDirectHumanUserCount: z.number(),
       joinedGroupCount: z.number(),
-    }),
+    }).partial(),
     name: z.string(),
     permissionSettings: z.object({
       manageApps: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
-      }),
+      }).partial(),
       manageMembersAndGroups: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
-      }),
+      }).partial(),
       manageWebhooks: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
-      }),
+      }).partial(),
       modifySpaceDetails: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
-      }),
+      }).partial(),
       postMessages: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
-      }),
+      }).partial(),
       replyMessages: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
-      }),
+      }).partial(),
       toggleHistory: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
-      }),
+      }).partial(),
       useAtMentionAll: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
-      }),
+      }).partial(),
       viewSpaceMembership: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     predefinedPermissionSettings: z.string(),
     singleUserBotDm: z.boolean(),
     spaceDetails: z.object({
       description: z.string(),
       guidelines: z.string(),
-    }),
+    }).partial(),
     spaceHistoryState: z.string(),
     spaceThreadingState: z.string(),
     spaceType: z.string(),
     spaceUri: z.string(),
     threaded: z.boolean(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   text: z.string().optional(),
   thread: z.object({
     name: z.string(),
     threadKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   threadReply: z.boolean().optional(),
 }).passthrough();
 
@@ -1338,7 +1376,7 @@ const InputsSchema = z.object({
           'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
         ).optional(),
         color: z.unknown().describe(
-          'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+          'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
         ).optional(),
         disabled: z.unknown().describe(
           "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -1390,7 +1428,7 @@ const InputsSchema = z.object({
       dialog: z.object({
         body: z.object({
           cardActions: z.array(z.unknown()).describe(
-            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "cardActions": [ { "actionLabel": "Settings", "onClick": { "action": { "function": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
           ).optional(),
           displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
             .describe(
@@ -1552,7 +1590,7 @@ const InputsSchema = z.object({
           "The `onClick` action for this action item.",
         ).optional(),
       })).describe(
-        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "cardActions": [ { "actionLabel": "Settings", "onClick": { "action": { "function": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
       ).optional(),
       displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
         .describe(
@@ -1578,7 +1616,7 @@ const InputsSchema = z.object({
             'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
           ).optional(),
           color: z.unknown().describe(
-            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
           ).optional(),
           disabled: z.unknown().describe(
             "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -1602,7 +1640,7 @@ const InputsSchema = z.object({
             'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
           ).optional(),
           color: z.unknown().describe(
-            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
           ).optional(),
           disabled: z.unknown().describe(
             "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -1979,7 +2017,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.11.08.1",
+  version: "2026.11.08.3",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2215,6 +2253,16 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

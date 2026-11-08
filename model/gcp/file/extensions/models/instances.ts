@@ -369,65 +369,73 @@ const StateSchema = z.object({
       groupsOu: z.string(),
       servers: z.array(z.string()),
       usersOu: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   etag: z.string().optional(),
-  fileShares: z.array(z.object({
-    capacityGb: z.string(),
-    name: z.string(),
-    nfsExportOptions: z.array(z.object({
-      accessMode: z.string(),
-      anonGid: z.string(),
-      anonUid: z.string(),
-      ipRanges: z.array(z.unknown()),
-      network: z.string(),
-      squashMode: z.string(),
-    })),
-    sourceBackup: z.string(),
-    sourceBackupdrBackup: z.string(),
-  })).optional(),
+  fileShares: z.array(
+    z.object({
+      capacityGb: z.string(),
+      name: z.string(),
+      nfsExportOptions: z.array(
+        z.object({
+          accessMode: z.string(),
+          anonGid: z.string(),
+          anonUid: z.string(),
+          ipRanges: z.array(z.unknown()),
+          network: z.string(),
+          squashMode: z.string(),
+        }).partial(),
+      ),
+      sourceBackup: z.string(),
+      sourceBackupdrBackup: z.string(),
+    }).partial(),
+  ).optional(),
   kmsKeyName: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   maxCapacityGb: z.string().optional(),
   minCapacityGb: z.string().optional(),
   name: z.string(),
-  networks: z.array(z.object({
-    connectMode: z.string(),
-    ipAddresses: z.array(z.string()),
-    modes: z.array(z.string()),
-    network: z.string(),
-    pscConfig: z.object({
-      endpointProject: z.string(),
-      requestedIpAddress: z.string(),
-    }),
-    reservedIpRange: z.string(),
-  })).optional(),
+  networks: z.array(
+    z.object({
+      connectMode: z.string(),
+      ipAddresses: z.array(z.string()),
+      modes: z.array(z.string()),
+      network: z.string(),
+      pscConfig: z.object({
+        endpointProject: z.string(),
+        requestedIpAddress: z.string(),
+      }).partial(),
+      reservedIpRange: z.string(),
+    }).partial(),
+  ).optional(),
   performanceConfig: z.object({
     fixedIops: z.object({
       maxIops: z.string(),
-    }),
+    }).partial(),
     iopsPerTb: z.object({
       maxIopsPerTb: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   performanceLimits: z.object({
     maxIops: z.string(),
     maxReadIops: z.string(),
     maxReadThroughputBps: z.string(),
     maxWriteIops: z.string(),
     maxWriteThroughputBps: z.string(),
-  }).optional(),
+  }).partial().optional(),
   protocol: z.string().optional(),
   replication: z.object({
-    replicas: z.array(z.object({
-      lastActiveSyncTime: z.string(),
-      peerInstance: z.string(),
-      state: z.string(),
-      stateReasons: z.array(z.string()),
-      stateUpdateTime: z.string(),
-    })),
+    replicas: z.array(
+      z.object({
+        lastActiveSyncTime: z.string(),
+        peerInstance: z.string(),
+        state: z.string(),
+        stateReasons: z.array(z.string()),
+        stateUpdateTime: z.string(),
+      }).partial(),
+    ),
     role: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   state: z.string().optional(),
@@ -663,7 +671,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Filestore Instances. Registered at `@swamp/gcp/file/instances`. */
 export const model = {
   type: "@swamp/gcp/file/instances",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -815,6 +823,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

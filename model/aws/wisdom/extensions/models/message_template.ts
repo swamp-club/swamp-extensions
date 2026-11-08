@@ -303,6 +303,121 @@ const TagSchema = z.object({
   ),
 });
 
+const MessageTemplateBodyContentProviderStateSchema = z.object({
+  Content: z.string(),
+}).partial();
+
+const EmailMessageTemplateContentBodyStateSchema = z.object({
+  PlainText: MessageTemplateBodyContentProviderStateSchema,
+  Html: MessageTemplateBodyContentProviderStateSchema,
+}).partial();
+
+const EmailMessageTemplateHeaderStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const EmailMessageTemplateContentStateSchema = z.object({
+  Subject: z.string(),
+  Body: EmailMessageTemplateContentBodyStateSchema,
+  Headers: z.array(EmailMessageTemplateHeaderStateSchema),
+}).partial();
+
+const SmsMessageTemplateContentBodyStateSchema = z.object({
+  PlainText: MessageTemplateBodyContentProviderStateSchema,
+}).partial();
+
+const SmsMessageTemplateContentStateSchema = z.object({
+  Body: SmsMessageTemplateContentBodyStateSchema,
+}).partial();
+
+const SystemEndpointAttributesStateSchema = z.object({
+  Address: z.string(),
+}).partial();
+
+const SystemAttributesStateSchema = z.object({
+  Name: z.string(),
+  CustomerEndpoint: SystemEndpointAttributesStateSchema,
+  SystemEndpoint: SystemEndpointAttributesStateSchema,
+}).partial();
+
+const AgentAttributesStateSchema = z.object({
+  FirstName: z.string(),
+  LastName: z.string(),
+}).partial();
+
+const CustomerProfileAttributesStateSchema = z.object({
+  ProfileId: z.string(),
+  ProfileARN: z.string(),
+  FirstName: z.string(),
+  MiddleName: z.string(),
+  LastName: z.string(),
+  AccountNumber: z.string(),
+  EmailAddress: z.string(),
+  PhoneNumber: z.string(),
+  AdditionalInformation: z.string(),
+  PartyType: z.string(),
+  BusinessName: z.string(),
+  BirthDate: z.string(),
+  Gender: z.string(),
+  MobilePhoneNumber: z.string(),
+  HomePhoneNumber: z.string(),
+  BusinessPhoneNumber: z.string(),
+  BusinessEmailAddress: z.string(),
+  Address1: z.string(),
+  Address2: z.string(),
+  Address3: z.string(),
+  Address4: z.string(),
+  City: z.string(),
+  County: z.string(),
+  Country: z.string(),
+  PostalCode: z.string(),
+  Province: z.string(),
+  State: z.string(),
+  ShippingAddress1: z.string(),
+  ShippingAddress2: z.string(),
+  ShippingAddress3: z.string(),
+  ShippingAddress4: z.string(),
+  ShippingCity: z.string(),
+  ShippingCounty: z.string(),
+  ShippingCountry: z.string(),
+  ShippingPostalCode: z.string(),
+  ShippingProvince: z.string(),
+  ShippingState: z.string(),
+  MailingAddress1: z.string(),
+  MailingAddress2: z.string(),
+  MailingAddress3: z.string(),
+  MailingAddress4: z.string(),
+  MailingCity: z.string(),
+  MailingCounty: z.string(),
+  MailingCountry: z.string(),
+  MailingPostalCode: z.string(),
+  MailingProvince: z.string(),
+  MailingState: z.string(),
+  BillingAddress1: z.string(),
+  BillingAddress2: z.string(),
+  BillingAddress3: z.string(),
+  BillingAddress4: z.string(),
+  BillingCity: z.string(),
+  BillingCounty: z.string(),
+  BillingCountry: z.string(),
+  BillingPostalCode: z.string(),
+  BillingProvince: z.string(),
+  BillingState: z.string(),
+  Custom: z.record(z.string(), z.unknown()),
+}).partial();
+
+const MessageTemplateAttachmentStateSchema = z.object({
+  AttachmentId: z.string(),
+  AttachmentName: z.string(),
+  S3PresignedUrl: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -387,28 +502,28 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   ChannelSubtype: z.string().optional(),
   Content: z.object({
-    EmailMessageTemplateContent: EmailMessageTemplateContentSchema,
-    SmsMessageTemplateContent: SmsMessageTemplateContentSchema,
-  }).optional(),
+    EmailMessageTemplateContent: EmailMessageTemplateContentStateSchema,
+    SmsMessageTemplateContent: SmsMessageTemplateContentStateSchema,
+  }).partial().optional(),
   Description: z.string().optional(),
   Language: z.string().optional(),
   GroupingConfiguration: z.object({
     Criteria: z.string(),
     Values: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   DefaultAttributes: z.object({
-    SystemAttributes: SystemAttributesSchema,
-    AgentAttributes: AgentAttributesSchema,
-    CustomerProfileAttributes: CustomerProfileAttributesSchema,
+    SystemAttributes: SystemAttributesStateSchema,
+    AgentAttributes: AgentAttributesStateSchema,
+    CustomerProfileAttributes: CustomerProfileAttributesStateSchema,
     CustomAttributes: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   MessageTemplateContentSha256: z.string().optional(),
-  MessageTemplateAttachments: z.array(MessageTemplateAttachmentSchema)
+  MessageTemplateAttachments: z.array(MessageTemplateAttachmentStateSchema)
     .optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -496,7 +611,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom MessageTemplate. Registered at `@swamp/aws/wisdom/message-template`. */
 export const model = {
   type: "@swamp/aws/wisdom/message-template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -560,6 +675,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

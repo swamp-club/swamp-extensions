@@ -88,6 +88,32 @@ const TemplateProviderDetailSchema = z.object({
   ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ProvisioningParameterStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CfnStackParameterStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CfnTemplateProviderDetailStateSchema = z.object({
+  Parameters: z.array(CfnStackParameterStateSchema),
+  RoleARN: z.string(),
+  TemplateName: z.string(),
+  TemplateURL: z.string(),
+}).partial();
+
+const TemplateProviderDetailStateSchema = z.object({
+  CfnTemplateProviderDetail: CfnTemplateProviderDetailStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -145,7 +171,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ProjectArn: z.string(),
   ProjectId: z.string().optional(),
   ProjectName: z.string().optional(),
@@ -155,17 +181,18 @@ const StateSchema = z.object({
     ProductId: z.string(),
     ProvisioningArtifactId: z.string(),
     PathId: z.string(),
-    ProvisioningParameters: z.array(ProvisioningParameterSchema),
-  }).optional(),
+    ProvisioningParameters: z.array(ProvisioningParameterStateSchema),
+  }).partial().optional(),
   ServiceCatalogProvisionedProductDetails: z.object({
     ProvisionedProductId: z.string(),
     ProvisionedProductStatusMessage: z.string(),
-  }).optional(),
-  TemplateProviderDetails: z.array(TemplateProviderDetailSchema).optional(),
+  }).partial().optional(),
+  TemplateProviderDetails: z.array(TemplateProviderDetailStateSchema)
+    .optional(),
   ProjectStatus: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -232,7 +259,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Project. Registered at `@swamp/aws/sagemaker/project`. */
 export const model = {
   type: "@swamp/aws/sagemaker/project",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -296,6 +323,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

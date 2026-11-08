@@ -49,6 +49,15 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
+const PublicCertificateAuthorityStateSchema = z.object({
+  AllowedKeyAlgorithms: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -92,16 +101,18 @@ const StateSchema = z.object({
   AuthorizationBehavior: z.string().optional(),
   Contact: z.string().optional(),
   CertificateAuthority: z.object({
-    PublicCertificateAuthority: PublicCertificateAuthoritySchema,
-  }).optional(),
-  CertificateTags: z.array(TagSchema).optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-  })).optional(),
+    PublicCertificateAuthority: PublicCertificateAuthorityStateSchema,
+  }).partial().optional(),
+  CertificateTags: z.array(TagStateSchema).optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -151,7 +162,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CertificateManager AcmeEndpoint. Registered at `@swamp/aws/certificatemanager/acme-endpoint`. */
 export const model = {
   type: "@swamp/aws/certificatemanager/acme-endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -180,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

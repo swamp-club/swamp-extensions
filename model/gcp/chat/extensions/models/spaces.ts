@@ -396,24 +396,30 @@ const StateSchema = z.object({
   accessSettings: z.object({
     accessPermissionSettings: z.object({
       discoverSpaceSetting: z.object({
-        principals: z.array(z.object({
-          audience: z.unknown(),
-        })),
-      }),
+        principals: z.array(
+          z.object({
+            audience: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       joinSpaceSetting: z.object({
-        principals: z.array(z.object({
-          audience: z.unknown(),
-        })),
-      }),
+        principals: z.array(
+          z.object({
+            audience: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       viewSpaceMembershipSetting: z.object({
-        principals: z.array(z.object({
-          audience: z.unknown(),
-        })),
-      }),
-    }),
+        principals: z.array(
+          z.object({
+            audience: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
     accessState: z.string(),
     audience: z.string(),
-  }).optional(),
+  }).partial().optional(),
   adminInstalled: z.boolean().optional(),
   createTime: z.string().optional(),
   customer: z.string().optional(),
@@ -425,61 +431,61 @@ const StateSchema = z.object({
   membershipCount: z.object({
     joinedDirectHumanUserCount: z.number(),
     joinedGroupCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   permissionSettings: z.object({
     manageApps: z.object({
       assistantManagersAllowed: z.boolean(),
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
-    }),
+    }).partial(),
     manageMembersAndGroups: z.object({
       assistantManagersAllowed: z.boolean(),
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
-    }),
+    }).partial(),
     manageWebhooks: z.object({
       assistantManagersAllowed: z.boolean(),
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
-    }),
+    }).partial(),
     modifySpaceDetails: z.object({
       assistantManagersAllowed: z.boolean(),
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
-    }),
+    }).partial(),
     postMessages: z.object({
       assistantManagersAllowed: z.boolean(),
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
-    }),
+    }).partial(),
     replyMessages: z.object({
       assistantManagersAllowed: z.boolean(),
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
-    }),
+    }).partial(),
     toggleHistory: z.object({
       assistantManagersAllowed: z.boolean(),
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
-    }),
+    }).partial(),
     useAtMentionAll: z.object({
       assistantManagersAllowed: z.boolean(),
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
-    }),
+    }).partial(),
     viewSpaceMembership: z.object({
       assistantManagersAllowed: z.boolean(),
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   predefinedPermissionSettings: z.string().optional(),
   singleUserBotDm: z.boolean().optional(),
   spaceDetails: z.object({
     description: z.string(),
     guidelines: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spaceHistoryState: z.string().optional(),
   spaceThreadingState: z.string().optional(),
   spaceType: z.string().optional(),
@@ -722,7 +728,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces. Registered at `@swamp/gcp/chat/spaces`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -929,6 +935,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

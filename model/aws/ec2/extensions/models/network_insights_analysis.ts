@@ -43,6 +43,184 @@ const TagSchema = z.object({
   Key: z.string(),
 });
 
+const AnalysisComponentStateSchema = z.object({
+  Id: z.string(),
+  Arn: z.string(),
+}).partial();
+
+const AdditionalDetailStateSchema = z.object({
+  ServiceName: z.string(),
+  AdditionalDetailType: z.string(),
+  LoadBalancers: z.array(AnalysisComponentStateSchema),
+  Component: AnalysisComponentStateSchema,
+}).partial();
+
+const PortRangeStateSchema = z.object({
+  From: z.number(),
+  To: z.number(),
+}).partial();
+
+const AnalysisPacketHeaderStateSchema = z.object({
+  DestinationPortRanges: z.array(PortRangeStateSchema),
+  SourcePortRanges: z.array(PortRangeStateSchema),
+  DestinationAddresses: z.array(z.string()),
+  Protocol: z.string(),
+  SourceAddresses: z.array(z.string()),
+}).partial();
+
+const AnalysisSecurityGroupRuleStateSchema = z.object({
+  PortRange: PortRangeStateSchema,
+  Cidr: z.string(),
+  PrefixListId: z.string(),
+  SecurityGroupId: z.string(),
+  Protocol: z.string(),
+  Direction: z.string(),
+}).partial();
+
+const AnalysisTransitGatewayPolicyTableEntryStateSchema = z.object({
+  DestinationPortRange: PortRangeStateSchema,
+  SourcePortRange: PortRangeStateSchema,
+  SourceCidr: z.string(),
+  RuleNumber: z.number(),
+  TargetRouteTableId: z.string(),
+  Protocol: z.string(),
+  DestinationCidr: z.string(),
+}).partial();
+
+const AnalysisLoadBalancerListenerStateSchema = z.object({
+  InstancePort: z.number(),
+  LoadBalancerPort: z.number(),
+}).partial();
+
+const TransitGatewayRouteTableRouteStateSchema = z.object({
+  PrefixListId: z.string(),
+  ResourceId: z.string(),
+  State: z.string(),
+  ResourceType: z.string(),
+  RouteOrigin: z.string(),
+  DestinationCidr: z.string(),
+  AttachmentId: z.string(),
+}).partial();
+
+const AnalysisLoadBalancerTargetStateSchema = z.object({
+  Address: z.string(),
+  Instance: AnalysisComponentStateSchema,
+  Port: z.number(),
+  AvailabilityZone: z.string(),
+}).partial();
+
+const AnalysisRouteTableRouteStateSchema = z.object({
+  Origin: z.string(),
+  destinationPrefixListId: z.string(),
+  destinationCidr: z.string(),
+  NetworkInterfaceId: z.string(),
+  TransitGatewayId: z.string(),
+  VpcPeeringConnectionId: z.string(),
+  instanceId: z.string(),
+  State: z.string(),
+  egressOnlyInternetGatewayId: z.string(),
+  NatGatewayId: z.string(),
+  gatewayId: z.string(),
+}).partial();
+
+const AnalysisAclRuleStateSchema = z.object({
+  PortRange: PortRangeStateSchema,
+  Cidr: z.string(),
+  RuleAction: z.string(),
+  Egress: z.boolean(),
+  RuleNumber: z.number(),
+  Protocol: z.string(),
+}).partial();
+
+const ExplanationStateSchema = z.object({
+  VpnGateway: AnalysisComponentStateSchema,
+  PacketField: z.string(),
+  TransitGatewayAttachment: AnalysisComponentStateSchema,
+  Protocols: z.array(z.string()),
+  IngressRouteTable: AnalysisComponentStateSchema,
+  ClassicLoadBalancerListener: AnalysisLoadBalancerListenerStateSchema,
+  VpcPeeringConnection: AnalysisComponentStateSchema,
+  Address: z.string(),
+  Port: z.number(),
+  TransitGatewayPolicyTableEntry:
+    AnalysisTransitGatewayPolicyTableEntryStateSchema,
+  Addresses: z.array(z.string()),
+  ElasticLoadBalancerListener: AnalysisComponentStateSchema,
+  TransitGatewayRouteTable: AnalysisComponentStateSchema,
+  ExplanationCode: z.string(),
+  InternetGateway: AnalysisComponentStateSchema,
+  SourceVpc: AnalysisComponentStateSchema,
+  AttachedTo: AnalysisComponentStateSchema,
+  PrefixList: AnalysisComponentStateSchema,
+  TransitGatewayRouteTableRoute: TransitGatewayRouteTableRouteStateSchema,
+  ComponentRegion: z.string(),
+  LoadBalancerTargetGroup: AnalysisComponentStateSchema,
+  NetworkInterface: AnalysisComponentStateSchema,
+  CustomerGateway: AnalysisComponentStateSchema,
+  DestinationVpc: AnalysisComponentStateSchema,
+  SecurityGroup: AnalysisComponentStateSchema,
+  TransitGateway: AnalysisComponentStateSchema,
+  RouteTable: AnalysisComponentStateSchema,
+  State: z.string(),
+  LoadBalancerListenerPort: z.number(),
+  vpcEndpoint: AnalysisComponentStateSchema,
+  Subnet: AnalysisComponentStateSchema,
+  Cidrs: z.array(z.string()),
+  Destination: AnalysisComponentStateSchema,
+  SecurityGroups: z.array(AnalysisComponentStateSchema),
+  ComponentAccount: z.string(),
+  VpnConnection: AnalysisComponentStateSchema,
+  Vpc: AnalysisComponentStateSchema,
+  NatGateway: AnalysisComponentStateSchema,
+  Direction: z.string(),
+  LoadBalancerTargetPort: z.number(),
+  LoadBalancerTarget: AnalysisLoadBalancerTargetStateSchema,
+  TransitGatewayPolicyTable: AnalysisComponentStateSchema,
+  LoadBalancerTargetGroups: z.array(AnalysisComponentStateSchema),
+  Component: AnalysisComponentStateSchema,
+  MissingComponent: z.string(),
+  RouteTableRoute: AnalysisRouteTableRouteStateSchema,
+  AvailabilityZones: z.array(z.string()),
+  PortRanges: z.array(PortRangeStateSchema),
+  Acl: AnalysisComponentStateSchema,
+  SecurityGroupRule: AnalysisSecurityGroupRuleStateSchema,
+  SubnetRouteTable: AnalysisComponentStateSchema,
+  LoadBalancerArn: z.string(),
+  AclRule: AnalysisAclRuleStateSchema,
+}).partial();
+
+const PathComponentStateSchema = z.object({
+  AdditionalDetails: z.array(AdditionalDetailStateSchema),
+  InboundHeader: AnalysisPacketHeaderStateSchema,
+  Vpc: AnalysisComponentStateSchema,
+  DestinationVpc: AnalysisComponentStateSchema,
+  SecurityGroupRule: AnalysisSecurityGroupRuleStateSchema,
+  TransitGatewayPolicyTableEntry:
+    AnalysisTransitGatewayPolicyTableEntryStateSchema,
+  TransitGateway: AnalysisComponentStateSchema,
+  ElasticLoadBalancerListener: AnalysisComponentStateSchema,
+  Explanations: z.array(ExplanationStateSchema),
+  ServiceName: z.string(),
+  SequenceNumber: z.number(),
+  SourceVpc: AnalysisComponentStateSchema,
+  OutboundHeader: AnalysisPacketHeaderStateSchema,
+  AclRule: AnalysisAclRuleStateSchema,
+  TransitGatewayRouteTableRoute: TransitGatewayRouteTableRouteStateSchema,
+  Component: AnalysisComponentStateSchema,
+  Subnet: AnalysisComponentStateSchema,
+  RouteTableRoute: AnalysisRouteTableRouteStateSchema,
+}).partial();
+
+const AlternatePathHintStateSchema = z.object({
+  ComponentArn: z.string(),
+  ComponentId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -68,345 +246,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Status: z.string().optional(),
-  ReturnPathComponents: z.array(z.object({
-    AdditionalDetails: z.array(z.object({
-      ServiceName: z.string(),
-      AdditionalDetailType: z.string(),
-      LoadBalancers: z.array(z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      })),
-      Component: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-    })),
-    InboundHeader: z.object({
-      DestinationPortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      SourcePortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      DestinationAddresses: z.array(z.string()),
-      Protocol: z.string(),
-      SourceAddresses: z.array(z.string()),
-    }),
-    Vpc: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    DestinationVpc: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    SecurityGroupRule: z.object({
-      PortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      Cidr: z.string(),
-      PrefixListId: z.string(),
-      SecurityGroupId: z.string(),
-      Protocol: z.string(),
-      Direction: z.string(),
-    }),
-    TransitGatewayPolicyTableEntry: z.object({
-      DestinationPortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      SourcePortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      SourceCidr: z.string(),
-      RuleNumber: z.number(),
-      TargetRouteTableId: z.string(),
-      Protocol: z.string(),
-      DestinationCidr: z.string(),
-    }),
-    TransitGateway: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    ElasticLoadBalancerListener: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Explanations: z.array(z.object({
-      VpnGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      PacketField: z.string(),
-      TransitGatewayAttachment: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Protocols: z.array(z.string()),
-      IngressRouteTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      ClassicLoadBalancerListener: z.object({
-        InstancePort: z.number(),
-        LoadBalancerPort: z.number(),
-      }),
-      VpcPeeringConnection: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Address: z.string(),
-      Port: z.number(),
-      TransitGatewayPolicyTableEntry: z.object({
-        DestinationPortRange: z.object({
-          From: z.number(),
-          To: z.number(),
-        }),
-        SourcePortRange: z.object({
-          From: z.number(),
-          To: z.number(),
-        }),
-        SourceCidr: z.string(),
-        RuleNumber: z.number(),
-        TargetRouteTableId: z.string(),
-        Protocol: z.string(),
-        DestinationCidr: z.string(),
-      }),
-      Addresses: z.array(z.string()),
-      ElasticLoadBalancerListener: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      TransitGatewayRouteTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      ExplanationCode: z.string(),
-      InternetGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      SourceVpc: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      AttachedTo: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      PrefixList: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      TransitGatewayRouteTableRoute: z.object({
-        PrefixListId: z.string(),
-        ResourceId: z.string(),
-        State: z.string(),
-        ResourceType: z.string(),
-        RouteOrigin: z.string(),
-        DestinationCidr: z.string(),
-        AttachmentId: z.string(),
-      }),
-      ComponentRegion: z.string(),
-      LoadBalancerTargetGroup: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      NetworkInterface: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      CustomerGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      DestinationVpc: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      SecurityGroup: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      TransitGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      RouteTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      State: z.string(),
-      LoadBalancerListenerPort: z.number(),
-      vpcEndpoint: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Subnet: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Cidrs: z.array(z.string()),
-      Destination: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      SecurityGroups: z.array(z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      })),
-      ComponentAccount: z.string(),
-      VpnConnection: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Vpc: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      NatGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Direction: z.string(),
-      LoadBalancerTargetPort: z.number(),
-      LoadBalancerTarget: z.object({
-        Address: z.string(),
-        Instance: z.object({
-          Id: z.string(),
-          Arn: z.string(),
-        }),
-        Port: z.number(),
-        AvailabilityZone: z.string(),
-      }),
-      TransitGatewayPolicyTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      LoadBalancerTargetGroups: z.array(z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      })),
-      Component: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      MissingComponent: z.string(),
-      RouteTableRoute: z.object({
-        Origin: z.string(),
-        destinationPrefixListId: z.string(),
-        destinationCidr: z.string(),
-        NetworkInterfaceId: z.string(),
-        TransitGatewayId: z.string(),
-        VpcPeeringConnectionId: z.string(),
-        instanceId: z.string(),
-        State: z.string(),
-        egressOnlyInternetGatewayId: z.string(),
-        NatGatewayId: z.string(),
-        gatewayId: z.string(),
-      }),
-      AvailabilityZones: z.array(z.string()),
-      PortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      Acl: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      SecurityGroupRule: z.object({
-        PortRange: z.object({
-          From: z.number(),
-          To: z.number(),
-        }),
-        Cidr: z.string(),
-        PrefixListId: z.string(),
-        SecurityGroupId: z.string(),
-        Protocol: z.string(),
-        Direction: z.string(),
-      }),
-      SubnetRouteTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      LoadBalancerArn: z.string(),
-      AclRule: z.object({
-        PortRange: z.object({
-          From: z.number(),
-          To: z.number(),
-        }),
-        Cidr: z.string(),
-        RuleAction: z.string(),
-        Egress: z.boolean(),
-        RuleNumber: z.number(),
-        Protocol: z.string(),
-      }),
-    })),
-    ServiceName: z.string(),
-    SequenceNumber: z.number(),
-    SourceVpc: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    OutboundHeader: z.object({
-      DestinationPortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      SourcePortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      DestinationAddresses: z.array(z.string()),
-      Protocol: z.string(),
-      SourceAddresses: z.array(z.string()),
-    }),
-    AclRule: z.object({
-      PortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      Cidr: z.string(),
-      RuleAction: z.string(),
-      Egress: z.boolean(),
-      RuleNumber: z.number(),
-      Protocol: z.string(),
-    }),
-    TransitGatewayRouteTableRoute: z.object({
-      PrefixListId: z.string(),
-      ResourceId: z.string(),
-      State: z.string(),
-      ResourceType: z.string(),
-      RouteOrigin: z.string(),
-      DestinationCidr: z.string(),
-      AttachmentId: z.string(),
-    }),
-    Component: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Subnet: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    RouteTableRoute: z.object({
-      Origin: z.string(),
-      destinationPrefixListId: z.string(),
-      destinationCidr: z.string(),
-      NetworkInterfaceId: z.string(),
-      TransitGatewayId: z.string(),
-      VpcPeeringConnectionId: z.string(),
-      instanceId: z.string(),
-      State: z.string(),
-      egressOnlyInternetGatewayId: z.string(),
-      NatGatewayId: z.string(),
-      gatewayId: z.string(),
-    }),
-  })).optional(),
+  ReturnPathComponents: z.array(PathComponentStateSchema).optional(),
   NetworkInsightsAnalysisId: z.string(),
   FilterOutArns: z.array(z.string()).optional(),
   NetworkInsightsPathId: z.string().optional(),
@@ -416,564 +256,14 @@ const StateSchema = z.object({
   NetworkInsightsAnalysisArn: z.string().optional(),
   StatusMessage: z.string().optional(),
   StartDate: z.string().optional(),
-  AlternatePathHints: z.array(z.object({
-    ComponentArn: z.string(),
-    ComponentId: z.string(),
-  })).optional(),
-  Explanations: z.array(z.object({
-    VpnGateway: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    PacketField: z.string(),
-    TransitGatewayAttachment: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Protocols: z.array(z.string()),
-    IngressRouteTable: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    ClassicLoadBalancerListener: z.object({
-      InstancePort: z.number(),
-      LoadBalancerPort: z.number(),
-    }),
-    VpcPeeringConnection: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Address: z.string(),
-    Port: z.number(),
-    TransitGatewayPolicyTableEntry: z.object({
-      DestinationPortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      SourcePortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      SourceCidr: z.string(),
-      RuleNumber: z.number(),
-      TargetRouteTableId: z.string(),
-      Protocol: z.string(),
-      DestinationCidr: z.string(),
-    }),
-    Addresses: z.array(z.string()),
-    ElasticLoadBalancerListener: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    TransitGatewayRouteTable: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    ExplanationCode: z.string(),
-    InternetGateway: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    SourceVpc: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    AttachedTo: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    PrefixList: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    TransitGatewayRouteTableRoute: z.object({
-      PrefixListId: z.string(),
-      ResourceId: z.string(),
-      State: z.string(),
-      ResourceType: z.string(),
-      RouteOrigin: z.string(),
-      DestinationCidr: z.string(),
-      AttachmentId: z.string(),
-    }),
-    ComponentRegion: z.string(),
-    LoadBalancerTargetGroup: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    NetworkInterface: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    CustomerGateway: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    DestinationVpc: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    SecurityGroup: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    TransitGateway: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    RouteTable: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    State: z.string(),
-    LoadBalancerListenerPort: z.number(),
-    vpcEndpoint: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Subnet: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Cidrs: z.array(z.string()),
-    Destination: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    SecurityGroups: z.array(z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    })),
-    ComponentAccount: z.string(),
-    VpnConnection: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Vpc: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    NatGateway: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Direction: z.string(),
-    LoadBalancerTargetPort: z.number(),
-    LoadBalancerTarget: z.object({
-      Address: z.string(),
-      Instance: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Port: z.number(),
-      AvailabilityZone: z.string(),
-    }),
-    TransitGatewayPolicyTable: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    LoadBalancerTargetGroups: z.array(z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    })),
-    Component: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    MissingComponent: z.string(),
-    RouteTableRoute: z.object({
-      Origin: z.string(),
-      destinationPrefixListId: z.string(),
-      destinationCidr: z.string(),
-      NetworkInterfaceId: z.string(),
-      TransitGatewayId: z.string(),
-      VpcPeeringConnectionId: z.string(),
-      instanceId: z.string(),
-      State: z.string(),
-      egressOnlyInternetGatewayId: z.string(),
-      NatGatewayId: z.string(),
-      gatewayId: z.string(),
-    }),
-    AvailabilityZones: z.array(z.string()),
-    PortRanges: z.array(z.object({
-      From: z.number(),
-      To: z.number(),
-    })),
-    Acl: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    SecurityGroupRule: z.object({
-      PortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      Cidr: z.string(),
-      PrefixListId: z.string(),
-      SecurityGroupId: z.string(),
-      Protocol: z.string(),
-      Direction: z.string(),
-    }),
-    SubnetRouteTable: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    LoadBalancerArn: z.string(),
-    AclRule: z.object({
-      PortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      Cidr: z.string(),
-      RuleAction: z.string(),
-      Egress: z.boolean(),
-      RuleNumber: z.number(),
-      Protocol: z.string(),
-    }),
-  })).optional(),
-  ForwardPathComponents: z.array(z.object({
-    AdditionalDetails: z.array(z.object({
-      ServiceName: z.string(),
-      AdditionalDetailType: z.string(),
-      LoadBalancers: z.array(z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      })),
-      Component: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-    })),
-    InboundHeader: z.object({
-      DestinationPortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      SourcePortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      DestinationAddresses: z.array(z.string()),
-      Protocol: z.string(),
-      SourceAddresses: z.array(z.string()),
-    }),
-    Vpc: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    DestinationVpc: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    SecurityGroupRule: z.object({
-      PortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      Cidr: z.string(),
-      PrefixListId: z.string(),
-      SecurityGroupId: z.string(),
-      Protocol: z.string(),
-      Direction: z.string(),
-    }),
-    TransitGatewayPolicyTableEntry: z.object({
-      DestinationPortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      SourcePortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      SourceCidr: z.string(),
-      RuleNumber: z.number(),
-      TargetRouteTableId: z.string(),
-      Protocol: z.string(),
-      DestinationCidr: z.string(),
-    }),
-    TransitGateway: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    ElasticLoadBalancerListener: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Explanations: z.array(z.object({
-      VpnGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      PacketField: z.string(),
-      TransitGatewayAttachment: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Protocols: z.array(z.string()),
-      IngressRouteTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      ClassicLoadBalancerListener: z.object({
-        InstancePort: z.number(),
-        LoadBalancerPort: z.number(),
-      }),
-      VpcPeeringConnection: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Address: z.string(),
-      Port: z.number(),
-      TransitGatewayPolicyTableEntry: z.object({
-        DestinationPortRange: z.object({
-          From: z.number(),
-          To: z.number(),
-        }),
-        SourcePortRange: z.object({
-          From: z.number(),
-          To: z.number(),
-        }),
-        SourceCidr: z.string(),
-        RuleNumber: z.number(),
-        TargetRouteTableId: z.string(),
-        Protocol: z.string(),
-        DestinationCidr: z.string(),
-      }),
-      Addresses: z.array(z.string()),
-      ElasticLoadBalancerListener: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      TransitGatewayRouteTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      ExplanationCode: z.string(),
-      InternetGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      SourceVpc: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      AttachedTo: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      PrefixList: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      TransitGatewayRouteTableRoute: z.object({
-        PrefixListId: z.string(),
-        ResourceId: z.string(),
-        State: z.string(),
-        ResourceType: z.string(),
-        RouteOrigin: z.string(),
-        DestinationCidr: z.string(),
-        AttachmentId: z.string(),
-      }),
-      ComponentRegion: z.string(),
-      LoadBalancerTargetGroup: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      NetworkInterface: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      CustomerGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      DestinationVpc: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      SecurityGroup: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      TransitGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      RouteTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      State: z.string(),
-      LoadBalancerListenerPort: z.number(),
-      vpcEndpoint: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Subnet: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Cidrs: z.array(z.string()),
-      Destination: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      SecurityGroups: z.array(z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      })),
-      ComponentAccount: z.string(),
-      VpnConnection: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Vpc: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      NatGateway: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      Direction: z.string(),
-      LoadBalancerTargetPort: z.number(),
-      LoadBalancerTarget: z.object({
-        Address: z.string(),
-        Instance: z.object({
-          Id: z.string(),
-          Arn: z.string(),
-        }),
-        Port: z.number(),
-        AvailabilityZone: z.string(),
-      }),
-      TransitGatewayPolicyTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      LoadBalancerTargetGroups: z.array(z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      })),
-      Component: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      MissingComponent: z.string(),
-      RouteTableRoute: z.object({
-        Origin: z.string(),
-        destinationPrefixListId: z.string(),
-        destinationCidr: z.string(),
-        NetworkInterfaceId: z.string(),
-        TransitGatewayId: z.string(),
-        VpcPeeringConnectionId: z.string(),
-        instanceId: z.string(),
-        State: z.string(),
-        egressOnlyInternetGatewayId: z.string(),
-        NatGatewayId: z.string(),
-        gatewayId: z.string(),
-      }),
-      AvailabilityZones: z.array(z.string()),
-      PortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      Acl: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      SecurityGroupRule: z.object({
-        PortRange: z.object({
-          From: z.number(),
-          To: z.number(),
-        }),
-        Cidr: z.string(),
-        PrefixListId: z.string(),
-        SecurityGroupId: z.string(),
-        Protocol: z.string(),
-        Direction: z.string(),
-      }),
-      SubnetRouteTable: z.object({
-        Id: z.string(),
-        Arn: z.string(),
-      }),
-      LoadBalancerArn: z.string(),
-      AclRule: z.object({
-        PortRange: z.object({
-          From: z.number(),
-          To: z.number(),
-        }),
-        Cidr: z.string(),
-        RuleAction: z.string(),
-        Egress: z.boolean(),
-        RuleNumber: z.number(),
-        Protocol: z.string(),
-      }),
-    })),
-    ServiceName: z.string(),
-    SequenceNumber: z.number(),
-    SourceVpc: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    OutboundHeader: z.object({
-      DestinationPortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      SourcePortRanges: z.array(z.object({
-        From: z.number(),
-        To: z.number(),
-      })),
-      DestinationAddresses: z.array(z.string()),
-      Protocol: z.string(),
-      SourceAddresses: z.array(z.string()),
-    }),
-    AclRule: z.object({
-      PortRange: z.object({
-        From: z.number(),
-        To: z.number(),
-      }),
-      Cidr: z.string(),
-      RuleAction: z.string(),
-      Egress: z.boolean(),
-      RuleNumber: z.number(),
-      Protocol: z.string(),
-    }),
-    TransitGatewayRouteTableRoute: z.object({
-      PrefixListId: z.string(),
-      ResourceId: z.string(),
-      State: z.string(),
-      ResourceType: z.string(),
-      RouteOrigin: z.string(),
-      DestinationCidr: z.string(),
-      AttachmentId: z.string(),
-    }),
-    Component: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    Subnet: z.object({
-      Id: z.string(),
-      Arn: z.string(),
-    }),
-    RouteTableRoute: z.object({
-      Origin: z.string(),
-      destinationPrefixListId: z.string(),
-      destinationCidr: z.string(),
-      NetworkInterfaceId: z.string(),
-      TransitGatewayId: z.string(),
-      VpcPeeringConnectionId: z.string(),
-      instanceId: z.string(),
-      State: z.string(),
-      egressOnlyInternetGatewayId: z.string(),
-      NatGatewayId: z.string(),
-      gatewayId: z.string(),
-    }),
-  })).optional(),
+  AlternatePathHints: z.array(AlternatePathHintStateSchema).optional(),
+  Explanations: z.array(ExplanationStateSchema).optional(),
+  ForwardPathComponents: z.array(PathComponentStateSchema).optional(),
   AdditionalAccounts: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -1007,7 +297,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 NetworkInsightsAnalysis. Registered at `@swamp/aws/ec2/network-insights-analysis`. */
 export const model = {
   type: "@swamp/aws/ec2/network-insights-analysis",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1071,6 +361,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

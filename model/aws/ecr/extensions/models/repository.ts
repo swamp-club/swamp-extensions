@@ -54,6 +54,16 @@ const ImageTagMutabilityExclusionFilterSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ImageTagMutabilityExclusionFilterStateSchema = z.object({
+  ImageTagMutabilityExclusionFilterType: z.string(),
+  ImageTagMutabilityExclusionFilterValue: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -131,27 +141,27 @@ const StateSchema = z.object({
   LifecyclePolicy: z.object({
     LifecyclePolicyText: z.string(),
     RegistryId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RepositoryName: z.string(),
   RepositoryPolicyText: z.union([z.string(), z.record(z.string(), z.unknown())])
     .optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Arn: z.string().optional(),
   RepositoryUri: z.string().optional(),
   ImageTagMutability: z.string().optional(),
   ImageTagMutabilityExclusionFilters: z.array(
-    ImageTagMutabilityExclusionFilterSchema,
+    ImageTagMutabilityExclusionFilterStateSchema,
   ).optional(),
   ImageScanningConfiguration: z.object({
     ScanOnPush: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   EncryptionConfiguration: z.object({
     EncryptionType: z.string(),
     KmsKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -236,7 +246,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECR Repository. Registered at `@swamp/aws/ecr/repository`. */
 export const model = {
   type: "@swamp/aws/ecr/repository",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -310,6 +320,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

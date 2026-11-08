@@ -825,37 +825,43 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   affinityCookieTtlSec: z.number().optional(),
-  backends: z.array(z.object({
-    balancingMode: z.string(),
-    capacityScaler: z.number(),
-    customMetrics: z.array(z.object({
-      dryRun: z.boolean(),
+  backends: z.array(
+    z.object({
+      balancingMode: z.string(),
+      capacityScaler: z.number(),
+      customMetrics: z.array(
+        z.object({
+          dryRun: z.boolean(),
+          maxUtilization: z.number(),
+          name: z.string(),
+        }).partial(),
+      ),
+      description: z.string(),
+      failover: z.boolean(),
+      group: z.string(),
+      maxConnections: z.number(),
+      maxConnectionsPerEndpoint: z.number(),
+      maxConnectionsPerInstance: z.number(),
+      maxInFlightRequests: z.number(),
+      maxInFlightRequestsPerEndpoint: z.number(),
+      maxInFlightRequestsPerInstance: z.number(),
+      maxRate: z.number(),
+      maxRatePerEndpoint: z.number(),
+      maxRatePerInstance: z.number(),
       maxUtilization: z.number(),
-      name: z.string(),
-    })),
-    description: z.string(),
-    failover: z.boolean(),
-    group: z.string(),
-    maxConnections: z.number(),
-    maxConnectionsPerEndpoint: z.number(),
-    maxConnectionsPerInstance: z.number(),
-    maxInFlightRequests: z.number(),
-    maxInFlightRequestsPerEndpoint: z.number(),
-    maxInFlightRequestsPerInstance: z.number(),
-    maxRate: z.number(),
-    maxRatePerEndpoint: z.number(),
-    maxRatePerInstance: z.number(),
-    maxUtilization: z.number(),
-    orchestrationInfo: z.object({
-      resourceUri: z.string(),
-    }),
-    preference: z.string(),
-    trafficDuration: z.string(),
-  })).optional(),
+      orchestrationInfo: z.object({
+        resourceUri: z.string(),
+      }).partial(),
+      preference: z.string(),
+      trafficDuration: z.string(),
+    }).partial(),
+  ).optional(),
   cdnPolicy: z.object({
-    bypassCacheOnRequestHeaders: z.array(z.object({
-      headerName: z.string(),
-    })),
+    bypassCacheOnRequestHeaders: z.array(
+      z.object({
+        headerName: z.string(),
+      }).partial(),
+    ),
     cacheKeyPolicy: z.object({
       includeHost: z.boolean(),
       includeHttpHeaders: z.array(z.string()),
@@ -864,38 +870,40 @@ const StateSchema = z.object({
       includeQueryString: z.boolean(),
       queryStringBlacklist: z.array(z.string()),
       queryStringWhitelist: z.array(z.string()),
-    }),
+    }).partial(),
     cacheMode: z.string(),
     clientTtl: z.number(),
     defaultTtl: z.number(),
     maxTtl: z.number(),
     negativeCaching: z.boolean(),
-    negativeCachingPolicy: z.array(z.object({
-      code: z.number(),
-      ttl: z.number(),
-    })),
+    negativeCachingPolicy: z.array(
+      z.object({
+        code: z.number(),
+        ttl: z.number(),
+      }).partial(),
+    ),
     requestCoalescing: z.boolean(),
     serveWhileStale: z.number(),
     signedUrlCacheMaxAgeSec: z.string(),
     signedUrlKeyNames: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   circuitBreakers: z.object({
     maxConnections: z.number(),
     maxPendingRequests: z.number(),
     maxRequests: z.number(),
     maxRequestsPerConnection: z.number(),
     maxRetries: z.number(),
-  }).optional(),
+  }).partial().optional(),
   compressionMode: z.string().optional(),
   connectionDraining: z.object({
     drainingTimeoutSec: z.number(),
-  }).optional(),
+  }).partial().optional(),
   connectionTrackingPolicy: z.object({
     connectionPersistenceOnUnhealthyBackends: z.string(),
     enableStrongAffinity: z.boolean(),
     idleTimeoutSec: z.number(),
     trackingMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   consistentHash: z.object({
     httpCookie: z.object({
       name: z.string(),
@@ -903,16 +911,18 @@ const StateSchema = z.object({
       ttl: z.object({
         nanos: z.number(),
         seconds: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     httpHeaderName: z.string(),
     minimumRingSize: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTimestamp: z.string().optional(),
-  customMetrics: z.array(z.object({
-    dryRun: z.boolean(),
-    name: z.string(),
-  })).optional(),
+  customMetrics: z.array(
+    z.object({
+      dryRun: z.boolean(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   customRequestHeaders: z.array(z.string()).optional(),
   customResponseHeaders: z.array(z.string()).optional(),
   description: z.string().optional(),
@@ -924,7 +934,7 @@ const StateSchema = z.object({
     disableConnectionDrainOnFailover: z.boolean(),
     dropTrafficIfUnhealthy: z.boolean(),
     failoverRatio: z.number(),
-  }).optional(),
+  }).partial().optional(),
   fingerprint: z.string().optional(),
   haPolicy: z.object({
     fastIPMove: z.string(),
@@ -932,46 +942,52 @@ const StateSchema = z.object({
       backendGroup: z.string(),
       networkEndpoint: z.object({
         instance: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   healthChecks: z.array(z.string()).optional(),
   iap: z.object({
     enabled: z.boolean(),
     oauth2ClientId: z.string(),
     oauth2ClientSecret: z.string(),
     oauth2ClientSecretSha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   ipAddressSelectionPolicy: z.string().optional(),
   kind: z.string().optional(),
   loadBalancingScheme: z.string().optional(),
-  localityLbPolicies: z.array(z.object({
-    customPolicy: z.object({
-      data: z.string(),
-      name: z.string(),
-    }),
-    policy: z.object({
-      name: z.string(),
-    }),
-  })).optional(),
+  localityLbPolicies: z.array(
+    z.object({
+      customPolicy: z.object({
+        data: z.string(),
+        name: z.string(),
+      }).partial(),
+      policy: z.object({
+        name: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   localityLbPolicy: z.string().optional(),
   logConfig: z.object({
     enable: z.boolean(),
-    loggingHttpRequestHeaders: z.array(z.object({
-      headerName: z.string(),
-    })),
-    loggingHttpResponseHeaders: z.array(z.object({
-      headerName: z.string(),
-    })),
+    loggingHttpRequestHeaders: z.array(
+      z.object({
+        headerName: z.string(),
+      }).partial(),
+    ),
+    loggingHttpResponseHeaders: z.array(
+      z.object({
+        headerName: z.string(),
+      }).partial(),
+    ),
     optionalFields: z.array(z.string()),
     optionalMode: z.string(),
     sampleRate: z.number(),
-  }).optional(),
+  }).partial().optional(),
   maxStreamDuration: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   metadatas: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   network: z.string().optional(),
@@ -979,16 +995,16 @@ const StateSchema = z.object({
     zonalAffinity: z.object({
       spillover: z.string(),
       spilloverRatio: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   orchestrationInfo: z.object({
     resourceUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   outlierDetection: z.object({
     baseEjectionTime: z.object({
       nanos: z.number(),
       seconds: z.string(),
-    }),
+    }).partial(),
     consecutiveErrors: z.number(),
     consecutiveGatewayFailure: z.number(),
     enforcingConsecutiveErrors: z.number(),
@@ -997,15 +1013,15 @@ const StateSchema = z.object({
     interval: z.object({
       nanos: z.number(),
       seconds: z.string(),
-    }),
+    }).partial(),
     maxEjectionPercent: z.number(),
     successRateMinimumHosts: z.number(),
     successRateRequestVolume: z.number(),
     successRateStdevFactor: z.number(),
-  }).optional(),
+  }).partial().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   port: z.number().optional(),
   portName: z.string().optional(),
   protocol: z.string().optional(),
@@ -1017,10 +1033,10 @@ const StateSchema = z.object({
       accessKeyId: z.string(),
       accessKeyVersion: z.string(),
       originRegion: z.string(),
-    }),
+    }).partial(),
     clientTlsPolicy: z.string(),
     subjectAltNames: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   serviceBindings: z.array(z.string()).optional(),
   serviceLbPolicy: z.string().optional(),
@@ -1031,33 +1047,37 @@ const StateSchema = z.object({
     ttl: z.object({
       nanos: z.number(),
       seconds: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   subsetting: z.object({
     policy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   timeoutSec: z.number().optional(),
   tlsSettings: z.object({
     authenticationConfig: z.string(),
     identity: z.string(),
     sni: z.string(),
-    subjectAltNames: z.array(z.object({
-      dnsName: z.string(),
-      uniformResourceIdentifier: z.string(),
-    })),
-  }).optional(),
-  usedBy: z.array(z.object({
-    reference: z.string(),
-  })).optional(),
+    subjectAltNames: z.array(
+      z.object({
+        dnsName: z.string(),
+        uniformResourceIdentifier: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  usedBy: z.array(
+    z.object({
+      reference: z.string(),
+    }).partial(),
+  ).optional(),
   dynamicForwarding: z.object({
     forwardProxy: z.object({
       enabled: z.boolean(),
       proxyMode: z.string(),
-    }),
+    }).partial(),
     ipPortSelection: z.object({
       enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1742,7 +1762,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine BackendServices. Registered at `@swamp/gcp/compute/backendservices`. */
 export const model = {
   type: "@swamp/gcp/compute/backendservices",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -2012,6 +2032,11 @@ export const model = {
     {
       toVersion: "2026.10.30.1",
       description: "Added: dynamicForwarding",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

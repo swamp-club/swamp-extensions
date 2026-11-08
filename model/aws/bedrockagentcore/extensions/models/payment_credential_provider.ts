@@ -158,6 +158,62 @@ const TagSchema = z.object({
   ),
 });
 
+const SecretReferenceStateSchema = z.object({
+  SecretId: z.string(),
+  JsonKey: z.string(),
+}).partial();
+
+const CoinbaseCdpConfigurationInputStateSchema = z.object({
+  ApiKeyId: z.string(),
+  ApiKeySecret: z.string(),
+  ApiKeySecretSource: z.string(),
+  ApiKeySecretConfig: SecretReferenceStateSchema,
+  WalletSecret: z.string(),
+  WalletSecretSource: z.string(),
+  WalletSecretConfig: SecretReferenceStateSchema,
+}).partial();
+
+const StripePrivyConfigurationInputStateSchema = z.object({
+  AppId: z.string(),
+  AppSecret: z.string(),
+  AppSecretSource: z.string(),
+  AppSecretConfig: SecretReferenceStateSchema,
+  AuthorizationPrivateKey: z.string(),
+  AuthorizationPrivateKeySource: z.string(),
+  AuthorizationPrivateKeyConfig: SecretReferenceStateSchema,
+  AuthorizationId: z.string(),
+}).partial();
+
+const SecretInfoStateSchema = z.object({
+  SecretArn: z.string(),
+}).partial();
+
+const CoinbaseCdpConfigurationOutputStateSchema = z.object({
+  ApiKeyId: z.string(),
+  ApiKeySecretArn: SecretInfoStateSchema,
+  ApiKeySecretJsonKey: z.string(),
+  ApiKeySecretSource: z.string(),
+  WalletSecretArn: SecretInfoStateSchema,
+  WalletSecretJsonKey: z.string(),
+  WalletSecretSource: z.string(),
+}).partial();
+
+const StripePrivyConfigurationOutputStateSchema = z.object({
+  AppId: z.string(),
+  AppSecretArn: SecretInfoStateSchema,
+  AppSecretJsonKey: z.string(),
+  AppSecretSource: z.string(),
+  AuthorizationPrivateKeyArn: SecretInfoStateSchema,
+  AuthorizationPrivateKeyJsonKey: z.string(),
+  AuthorizationPrivateKeySource: z.string(),
+  AuthorizationId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -207,20 +263,20 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   CredentialProviderVendor: z.string().optional(),
   ProviderConfigurationInput: z.object({
-    CoinbaseCdpConfiguration: CoinbaseCdpConfigurationInputSchema,
-    StripePrivyConfiguration: StripePrivyConfigurationInputSchema,
-  }).optional(),
+    CoinbaseCdpConfiguration: CoinbaseCdpConfigurationInputStateSchema,
+    StripePrivyConfiguration: StripePrivyConfigurationInputStateSchema,
+  }).partial().optional(),
   CredentialProviderArn: z.string(),
   ProviderConfigurationOutput: z.object({
-    CoinbaseCdpConfiguration: CoinbaseCdpConfigurationOutputSchema,
-    StripePrivyConfiguration: StripePrivyConfigurationOutputSchema,
-  }).optional(),
+    CoinbaseCdpConfiguration: CoinbaseCdpConfigurationOutputStateSchema,
+    StripePrivyConfiguration: StripePrivyConfigurationOutputStateSchema,
+  }).partial().optional(),
   CreatedTime: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -276,7 +332,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore PaymentCredentialProvider. Registered at `@swamp/aws/bedrockagentcore/payment-credential-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/payment-credential-provider",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.06.03.1",
@@ -325,6 +381,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

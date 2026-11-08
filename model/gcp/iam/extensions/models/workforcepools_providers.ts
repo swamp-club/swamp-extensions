@@ -342,13 +342,13 @@ const StateSchema = z.object({
       value: z.object({
         plainText: z.string(),
         thumbprint: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     issuerUri: z.string(),
     queryParameters: z.object({
       filter: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   extraAttributesOauth2Client: z.object({
     attributesType: z.string(),
     clientId: z.string(),
@@ -356,13 +356,13 @@ const StateSchema = z.object({
       value: z.object({
         plainText: z.string(),
         thumbprint: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     issuerUri: z.string(),
     queryParameters: z.object({
       filter: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   oidc: z.object({
     clientId: z.string(),
@@ -370,19 +370,19 @@ const StateSchema = z.object({
       value: z.object({
         plainText: z.string(),
         thumbprint: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     issuerUri: z.string(),
     jwksJson: z.string(),
     webSsoConfig: z.object({
       additionalScopes: z.array(z.string()),
       assertionClaimsBehavior: z.string(),
       responseType: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   saml: z.object({
     idpMetadataXml: z.string(),
-  }).optional(),
+  }).partial().optional(),
   scimUsage: z.string().optional(),
   state: z.string().optional(),
   vendorType: z.string().optional(),
@@ -593,7 +593,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) WorkforcePools.Providers. Registered at `@swamp/gcp/iam/workforcepools-providers`. */
 export const model = {
   type: "@swamp/gcp/iam/workforcepools-providers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -622,6 +622,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

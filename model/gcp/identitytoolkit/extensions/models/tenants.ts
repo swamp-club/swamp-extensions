@@ -371,13 +371,13 @@ const StateSchema = z.object({
     permissions: z.object({
       disabledUserDeletion: z.boolean(),
       disabledUserSignup: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   disableAuth: z.boolean().optional(),
   displayName: z.string().optional(),
   emailPrivacyConfig: z.object({
     enableImprovedEmailPrivacy: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   enableAnonymousUser: z.boolean().optional(),
   enableEmailLinkSignin: z.boolean().optional(),
   hashConfig: z.object({
@@ -386,72 +386,82 @@ const StateSchema = z.object({
     rounds: z.number(),
     saltSeparator: z.string(),
     signerKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inheritance: z.object({
     emailSendingConfig: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   mfaConfig: z.object({
     enabledProviders: z.array(z.string()),
-    providerConfigs: z.array(z.object({
-      state: z.string(),
-      totpProviderConfig: z.object({
-        adjacentIntervals: z.number(),
-      }),
-    })),
+    providerConfigs: z.array(
+      z.object({
+        state: z.string(),
+        totpProviderConfig: z.object({
+          adjacentIntervals: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   mobileLinksConfig: z.object({
     domain: z.string(),
-  }).optional(),
+  }).partial().optional(),
   monitoring: z.object({
     requestLogging: z.object({
       enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   passwordPolicyConfig: z.object({
     forceUpgradeOnSignin: z.boolean(),
     lastUpdateTime: z.string(),
     passwordPolicyEnforcementState: z.string(),
-    passwordPolicyVersions: z.array(z.object({
-      customStrengthOptions: z.object({
-        containsLowercaseCharacter: z.boolean(),
-        containsNonAlphanumericCharacter: z.boolean(),
-        containsNumericCharacter: z.boolean(),
-        containsUppercaseCharacter: z.boolean(),
-        maxPasswordLength: z.number(),
-        minPasswordLength: z.number(),
-      }),
-      schemaVersion: z.number(),
-    })),
-  }).optional(),
+    passwordPolicyVersions: z.array(
+      z.object({
+        customStrengthOptions: z.object({
+          containsLowercaseCharacter: z.boolean(),
+          containsNonAlphanumericCharacter: z.boolean(),
+          containsNumericCharacter: z.boolean(),
+          containsUppercaseCharacter: z.boolean(),
+          maxPasswordLength: z.number(),
+          minPasswordLength: z.number(),
+        }).partial(),
+        schemaVersion: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   recaptchaConfig: z.object({
     emailPasswordEnforcementState: z.string(),
-    managedRules: z.array(z.object({
-      action: z.string(),
-      endScore: z.number(),
-    })),
+    managedRules: z.array(
+      z.object({
+        action: z.string(),
+        endScore: z.number(),
+      }).partial(),
+    ),
     phoneEnforcementState: z.string(),
-    recaptchaKeys: z.array(z.object({
-      key: z.string(),
-      type: z.string(),
-    })),
-    tollFraudManagedRules: z.array(z.object({
-      action: z.string(),
-      startScore: z.number(),
-    })),
+    recaptchaKeys: z.array(
+      z.object({
+        key: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+    tollFraudManagedRules: z.array(
+      z.object({
+        action: z.string(),
+        startScore: z.number(),
+      }).partial(),
+    ),
     useAccountDefender: z.boolean(),
     useSmsBotScore: z.boolean(),
     useSmsTollFraudProtection: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   smsRegionConfig: z.object({
     allowByDefault: z.object({
       disallowedRegions: z.array(z.string()),
-    }),
+    }).partial(),
     allowlistOnly: z.object({
       allowedRegions: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   testPhoneNumbers: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
@@ -701,7 +711,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity Toolkit Tenants. Registered at `@swamp/gcp/identitytoolkit/tenants`. */
 export const model = {
   type: "@swamp/gcp/identitytoolkit/tenants",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -773,6 +783,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

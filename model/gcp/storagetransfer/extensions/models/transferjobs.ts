@@ -1292,32 +1292,32 @@ const StateSchema = z.object({
     eventStreamExpirationTime: z.string(),
     eventStreamStartTime: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lastModificationTime: z.string().optional(),
   latestOperationName: z.string().optional(),
   loggingConfig: z.object({
     enableOnpremGcsTransferLogs: z.boolean(),
     logActionStates: z.array(z.string()),
     logActions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   notificationConfig: z.object({
     eventTypes: z.array(z.string()),
     payloadFormat: z.string(),
     pubsubTopic: z.string(),
-  }).optional(),
+  }).partial().optional(),
   projectId: z.string().optional(),
   replicationSpec: z.object({
     gcsDataSink: z.object({
       bucketName: z.string(),
       managedFolderTransferEnabled: z.boolean(),
       path: z.string(),
-    }),
+    }).partial(),
     gcsDataSource: z.object({
       bucketName: z.string(),
       managedFolderTransferEnabled: z.boolean(),
       path: z.string(),
-    }),
+    }).partial(),
     objectConditions: z.object({
       excludePrefixes: z.array(z.string()),
       includePrefixes: z.array(z.string()),
@@ -1327,7 +1327,7 @@ const StateSchema = z.object({
       matchGlob: z.string(),
       maxTimeElapsedSinceLastModification: z.string(),
       minTimeElapsedSinceLastModification: z.string(),
-    }),
+    }).partial(),
     transferOptions: z.object({
       deleteObjectsFromSourceAfterTransfer: z.boolean(),
       deleteObjectsUniqueInSink: z.boolean(),
@@ -1341,36 +1341,36 @@ const StateSchema = z.object({
         temporaryHold: z.string(),
         timeCreated: z.string(),
         uid: z.string(),
-      }),
+      }).partial(),
       overwriteObjectsAlreadyExistingInSink: z.boolean(),
       overwriteWhen: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   schedule: z.object({
     endTimeOfDay: z.object({
       hours: z.number(),
       minutes: z.number(),
       nanos: z.number(),
       seconds: z.number(),
-    }),
+    }).partial(),
     repeatInterval: z.string(),
     scheduleEndDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     scheduleStartDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     startTimeOfDay: z.object({
       hours: z.number(),
       minutes: z.number(),
       nanos: z.number(),
       seconds: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   serviceAccount: z.string().optional(),
   status: z.string().optional(),
   transferSpec: z.object({
@@ -1384,13 +1384,13 @@ const StateSchema = z.object({
         listApi: z.string(),
         protocol: z.string(),
         requestModel: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     awsS3DataSource: z.object({
       awsAccessKey: z.object({
         accessKeyId: z.string(),
         secretAccessKey: z.string(),
-      }),
+      }).partial(),
       bucketName: z.string(),
       cloudfrontDomain: z.string(),
       credentialsSecret: z.string(),
@@ -1398,42 +1398,42 @@ const StateSchema = z.object({
       path: z.string(),
       privateNetworkService: z.string(),
       roleArn: z.string(),
-    }),
+    }).partial(),
     azureBlobStorageDataSource: z.object({
       azureCredentials: z.object({
         sasToken: z.string(),
-      }),
+      }).partial(),
       container: z.string(),
       credentialsSecret: z.string(),
       federatedIdentityConfig: z.object({
         clientId: z.string(),
         tenantId: z.string(),
-      }),
+      }).partial(),
       path: z.string(),
       privateNetworkService: z.string(),
       storageAccount: z.string(),
-    }),
+    }).partial(),
     gcsDataSink: z.object({
       bucketName: z.string(),
       managedFolderTransferEnabled: z.boolean(),
       path: z.string(),
-    }),
+    }).partial(),
     gcsDataSource: z.object({
       bucketName: z.string(),
       managedFolderTransferEnabled: z.boolean(),
       path: z.string(),
-    }),
+    }).partial(),
     gcsIntermediateDataLocation: z.object({
       bucketName: z.string(),
       managedFolderTransferEnabled: z.boolean(),
       path: z.string(),
-    }),
+    }).partial(),
     hdfsDataSource: z.object({
       path: z.string(),
-    }),
+    }).partial(),
     httpDataSource: z.object({
       listUrl: z.string(),
-    }),
+    }).partial(),
     objectConditions: z.object({
       excludePrefixes: z.array(z.string()),
       includePrefixes: z.array(z.string()),
@@ -1443,18 +1443,18 @@ const StateSchema = z.object({
       matchGlob: z.string(),
       maxTimeElapsedSinceLastModification: z.string(),
       minTimeElapsedSinceLastModification: z.string(),
-    }),
+    }).partial(),
     posixDataSink: z.object({
       rootDirectory: z.string(),
-    }),
+    }).partial(),
     posixDataSource: z.object({
       rootDirectory: z.string(),
-    }),
+    }).partial(),
     sinkAgentPoolName: z.string(),
     sourceAgentPoolName: z.string(),
     transferManifest: z.object({
       location: z.string(),
-    }),
+    }).partial(),
     transferOptions: z.object({
       deleteObjectsFromSourceAfterTransfer: z.boolean(),
       deleteObjectsUniqueInSink: z.boolean(),
@@ -1468,11 +1468,11 @@ const StateSchema = z.object({
         temporaryHold: z.string(),
         timeCreated: z.string(),
         uid: z.string(),
-      }),
+      }).partial(),
       overwriteObjectsAlreadyExistingInSink: z.boolean(),
       overwriteWhen: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2648,7 +2648,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage Transfer TransferJobs. Registered at `@swamp/gcp/storagetransfer/transferjobs`. */
 export const model = {
   type: "@swamp/gcp/storagetransfer/transferjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2822,6 +2822,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -229,6 +229,105 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const AttributeStateSchema = z.object({
+  DefaultValue: z.string(),
+}).partial();
+
+const PropertyPathDefinitionStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const VariableValueStateSchema = z.object({
+  PropertyLogicalId: z.string(),
+  PropertyId: z.string(),
+  PropertyExternalId: z.string(),
+  PropertyPath: z.array(PropertyPathDefinitionStateSchema),
+  HierarchyLogicalId: z.string(),
+  HierarchyId: z.string(),
+  HierarchyExternalId: z.string(),
+}).partial();
+
+const ExpressionVariableStateSchema = z.object({
+  Name: z.string(),
+  Value: VariableValueStateSchema,
+}).partial();
+
+const TransformStateSchema = z.object({
+  Expression: z.string(),
+  Variables: z.array(ExpressionVariableStateSchema),
+}).partial();
+
+const TumblingWindowStateSchema = z.object({
+  Interval: z.string(),
+  Offset: z.string(),
+}).partial();
+
+const MetricWindowStateSchema = z.object({
+  Tumbling: TumblingWindowStateSchema,
+}).partial();
+
+const MetricStateSchema = z.object({
+  Expression: z.string(),
+  Variables: z.array(ExpressionVariableStateSchema),
+  Window: MetricWindowStateSchema,
+}).partial();
+
+const PropertyTypeStateSchema = z.object({
+  TypeName: z.string(),
+  Attribute: AttributeStateSchema,
+  Transform: TransformStateSchema,
+  Metric: MetricStateSchema,
+}).partial();
+
+const AssetModelPropertyStateSchema = z.object({
+  LogicalId: z.string(),
+  Id: z.string(),
+  ExternalId: z.string(),
+  Name: z.string(),
+  DataType: z.string(),
+  DataTypeSpec: z.string(),
+  Unit: z.string(),
+  Type: PropertyTypeStateSchema,
+}).partial();
+
+const AssetModelCompositeModelStateSchema = z.object({
+  Id: z.string(),
+  ExternalId: z.string(),
+  ComposedAssetModelId: z.string(),
+  ParentAssetModelCompositeModelExternalId: z.string(),
+  Path: z.array(z.string()),
+  Description: z.string(),
+  Name: z.string(),
+  Type: z.string(),
+  CompositeModelProperties: z.array(AssetModelPropertyStateSchema),
+}).partial();
+
+const AssetModelHierarchyStateSchema = z.object({
+  Id: z.string(),
+  ExternalId: z.string(),
+  LogicalId: z.string(),
+  Name: z.string(),
+  ChildAssetModelId: z.string(),
+}).partial();
+
+const EnforcedAssetModelInterfacePropertyMappingStateSchema = z.object({
+  AssetModelPropertyExternalId: z.string(),
+  AssetModelPropertyLogicalId: z.string(),
+  InterfaceAssetModelPropertyExternalId: z.string(),
+}).partial();
+
+const EnforcedAssetModelInterfaceRelationshipStateSchema = z.object({
+  InterfaceAssetModelId: z.string(),
+  PropertyMappings: z.array(
+    EnforcedAssetModelInterfacePropertyMappingStateSchema,
+  ),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -281,16 +380,17 @@ const StateSchema = z.object({
   AssetModelArn: z.string().optional(),
   AssetModelName: z.string().optional(),
   AssetModelDescription: z.string().optional(),
-  AssetModelProperties: z.array(AssetModelPropertySchema).optional(),
-  AssetModelCompositeModels: z.array(AssetModelCompositeModelSchema).optional(),
-  AssetModelHierarchies: z.array(AssetModelHierarchySchema).optional(),
+  AssetModelProperties: z.array(AssetModelPropertyStateSchema).optional(),
+  AssetModelCompositeModels: z.array(AssetModelCompositeModelStateSchema)
+    .optional(),
+  AssetModelHierarchies: z.array(AssetModelHierarchyStateSchema).optional(),
   EnforcedAssetModelInterfaceRelationships: z.array(
-    EnforcedAssetModelInterfaceRelationshipSchema,
+    EnforcedAssetModelInterfaceRelationshipStateSchema,
   ).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -346,7 +446,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise AssetModel. Registered at `@swamp/aws/iotsitewise/asset-model`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/asset-model",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -410,6 +510,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

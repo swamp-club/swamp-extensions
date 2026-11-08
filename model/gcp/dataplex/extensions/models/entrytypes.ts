@@ -207,7 +207,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   authorization: z.object({
     alternateUsePermission: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -215,9 +215,11 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   platform: z.string().optional(),
-  requiredAspects: z.array(z.object({
-    type: z.string(),
-  })).optional(),
+  requiredAspects: z.array(
+    z.object({
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   system: z.string().optional(),
   typeAliases: z.array(z.string()).optional(),
   uid: z.string().optional(),
@@ -292,7 +294,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex EntryTypes. Registered at `@swamp/gcp/dataplex/entrytypes`. */
 export const model = {
   type: "@swamp/gcp/dataplex/entrytypes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -448,6 +450,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -118,10 +118,12 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   issuerId: z.string().optional(),
-  permissions: z.array(z.object({
-    emailAddress: z.string(),
-    role: z.string(),
-  })).optional(),
+  permissions: z.array(
+    z.object({
+      emailAddress: z.string(),
+      role: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -180,7 +182,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Wallet Permissions. Registered at `@swamp/gcp/walletobjects/permissions`. */
 export const model = {
   type: "@swamp/gcp/walletobjects/permissions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -304,6 +306,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

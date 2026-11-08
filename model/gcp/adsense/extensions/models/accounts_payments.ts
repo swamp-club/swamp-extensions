@@ -93,7 +93,7 @@ const StateSchema = z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
 }).passthrough();
 
@@ -138,7 +138,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AdSense Management Accounts.Payments. Registered at `@swamp/gcp/adsense/accounts-payments`. */
 export const model = {
   type: "@swamp/gcp/adsense/accounts-payments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -257,6 +257,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

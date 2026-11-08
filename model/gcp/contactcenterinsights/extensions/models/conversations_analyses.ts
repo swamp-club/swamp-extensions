@@ -210,85 +210,93 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   analysisResult: z.object({
     callAnalysisMetadata: z.object({
-      annotations: z.array(z.object({
-        annotationEndBoundary: z.object({
-          transcriptIndex: z.unknown(),
-          wordIndex: z.unknown(),
-        }),
-        annotationStartBoundary: z.object({
-          transcriptIndex: z.unknown(),
-          wordIndex: z.unknown(),
-        }),
-        channelTag: z.number(),
-        entityMentionData: z.object({
-          entityUniqueId: z.unknown(),
-          sentiment: z.unknown(),
-          type: z.unknown(),
-        }),
-        holdData: z.object({}),
-        intentMatchData: z.object({
-          intentUniqueId: z.unknown(),
-        }),
-        interruptionData: z.object({}),
-        issueMatchData: z.object({
-          issueAssignment: z.unknown(),
-        }),
-        phraseMatchData: z.object({
-          displayName: z.unknown(),
-          phraseMatcher: z.unknown(),
-        }),
-        sentimentData: z.object({
-          magnitude: z.unknown(),
-          score: z.unknown(),
-        }),
-        silenceData: z.object({}),
-      })),
+      annotations: z.array(
+        z.object({
+          annotationEndBoundary: z.object({
+            transcriptIndex: z.unknown(),
+            wordIndex: z.unknown(),
+          }).partial(),
+          annotationStartBoundary: z.object({
+            transcriptIndex: z.unknown(),
+            wordIndex: z.unknown(),
+          }).partial(),
+          channelTag: z.number(),
+          entityMentionData: z.object({
+            entityUniqueId: z.unknown(),
+            sentiment: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          holdData: z.object({}).partial(),
+          intentMatchData: z.object({
+            intentUniqueId: z.unknown(),
+          }).partial(),
+          interruptionData: z.object({}).partial(),
+          issueMatchData: z.object({
+            issueAssignment: z.unknown(),
+          }).partial(),
+          phraseMatchData: z.object({
+            displayName: z.unknown(),
+            phraseMatcher: z.unknown(),
+          }).partial(),
+          sentimentData: z.object({
+            magnitude: z.unknown(),
+            score: z.unknown(),
+          }).partial(),
+          silenceData: z.object({}).partial(),
+        }).partial(),
+      ),
       entities: z.record(z.string(), z.unknown()),
       intents: z.record(z.string(), z.unknown()),
       issueModelResult: z.object({
         issueModel: z.string(),
-        issues: z.array(z.object({
-          displayName: z.unknown(),
-          issue: z.unknown(),
-          score: z.unknown(),
-        })),
-      }),
+        issues: z.array(
+          z.object({
+            displayName: z.unknown(),
+            issue: z.unknown(),
+            score: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       phraseMatchers: z.record(z.string(), z.unknown()),
-      qaScorecardResults: z.array(z.object({
-        agentId: z.string(),
-        conversation: z.string(),
-        createTime: z.string(),
-        name: z.string(),
-        normalizedScore: z.number(),
-        potentialScore: z.number(),
-        qaAnswers: z.array(z.unknown()),
-        qaScorecardRevision: z.string(),
-        qaTagResults: z.array(z.unknown()),
-        score: z.number(),
-        scoreSources: z.array(z.unknown()),
-      })),
-      sentiments: z.array(z.object({
-        channelTag: z.number(),
-        sentimentData: z.object({
-          magnitude: z.unknown(),
-          score: z.unknown(),
-        }),
-      })),
+      qaScorecardResults: z.array(
+        z.object({
+          agentId: z.string(),
+          conversation: z.string(),
+          createTime: z.string(),
+          name: z.string(),
+          normalizedScore: z.number(),
+          potentialScore: z.number(),
+          qaAnswers: z.array(z.unknown()),
+          qaScorecardRevision: z.string(),
+          qaTagResults: z.array(z.unknown()),
+          score: z.number(),
+          scoreSources: z.array(z.unknown()),
+        }).partial(),
+      ),
+      sentiments: z.array(
+        z.object({
+          channelTag: z.number(),
+          sentimentData: z.object({
+            magnitude: z.unknown(),
+            score: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       silence: z.object({
         silenceDuration: z.string(),
         silencePercentage: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     endTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   annotatorSelector: z.object({
     issueModels: z.array(z.string()),
     phraseMatchers: z.array(z.string()),
     qaConfig: z.object({
       scorecardList: z.object({
         qaScorecardRevisions: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     runAutoLabelingAnnotator: z.boolean(),
     runEntityAnnotator: z.boolean(),
     runIntentAnnotator: z.boolean(),
@@ -303,8 +311,8 @@ const StateSchema = z.object({
       conversationProfile: z.string(),
       generator: z.string(),
       summarizationModel: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   name: z.string(),
   requestTime: z.string().optional(),
@@ -417,7 +425,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights Conversations.Analyses. Registered at `@swamp/gcp/contactcenterinsights/conversations-analyses`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/conversations-analyses",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -569,6 +577,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

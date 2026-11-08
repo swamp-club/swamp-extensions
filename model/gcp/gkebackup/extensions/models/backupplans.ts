@@ -323,52 +323,58 @@ const StateSchema = z.object({
     allNamespaces: z.boolean(),
     encryptionKey: z.object({
       gcpKmsEncryptionKey: z.string(),
-    }),
+    }).partial(),
     includeSecrets: z.boolean(),
     includeVolumeData: z.boolean(),
     permissiveMode: z.boolean(),
     selectedApplications: z.object({
-      namespacedNames: z.array(z.object({
-        name: z.string(),
-        namespace: z.string(),
-      })),
-    }),
+      namespacedNames: z.array(
+        z.object({
+          name: z.string(),
+          namespace: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     selectedNamespaceLabels: z.object({
-      resourceLabels: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
-    }),
+      resourceLabels: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     selectedNamespaces: z.object({
       namespaces: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   backupSchedule: z.object({
     cronSchedule: z.string(),
     nextScheduledBackupTime: z.string(),
     paused: z.boolean(),
     rpoConfig: z.object({
-      exclusionWindows: z.array(z.object({
-        daily: z.boolean(),
-        daysOfWeek: z.object({
-          daysOfWeek: z.unknown(),
-        }),
-        duration: z.string(),
-        singleOccurrenceDate: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        startTime: z.object({
-          hours: z.unknown(),
-          minutes: z.unknown(),
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-      })),
+      exclusionWindows: z.array(
+        z.object({
+          daily: z.boolean(),
+          daysOfWeek: z.object({
+            daysOfWeek: z.unknown(),
+          }).partial(),
+          duration: z.string(),
+          singleOccurrenceDate: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          startTime: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       targetRpoMinutes: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   cluster: z.string().optional(),
   createTime: z.string().optional(),
   deactivated: z.boolean().optional(),
@@ -383,7 +389,7 @@ const StateSchema = z.object({
     backupDeleteLockDays: z.number(),
     backupRetainDays: z.number(),
     locked: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   rpoRiskLevel: z.number().optional(),
   rpoRiskReason: z.string().optional(),
   state: z.string().optional(),
@@ -579,7 +585,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup for GKE BackupPlans. Registered at `@swamp/gcp/gkebackup/backupplans`. */
 export const model = {
   type: "@swamp/gcp/gkebackup/backupplans",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -775,6 +781,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

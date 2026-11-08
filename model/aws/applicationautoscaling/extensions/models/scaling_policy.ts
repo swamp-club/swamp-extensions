@@ -232,6 +232,124 @@ const PredictiveScalingMetricSpecificationSchema = z.object({
     ).optional(),
 });
 
+const TargetTrackingMetricDimensionStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const TargetTrackingMetricStateSchema = z.object({
+  MetricName: z.string(),
+  Dimensions: z.array(TargetTrackingMetricDimensionStateSchema),
+  Namespace: z.string(),
+}).partial();
+
+const TargetTrackingMetricStatStateSchema = z.object({
+  Stat: z.string(),
+  Metric: TargetTrackingMetricStateSchema,
+  Unit: z.string(),
+}).partial();
+
+const TargetTrackingMetricDataQueryStateSchema = z.object({
+  ReturnData: z.boolean(),
+  Expression: z.string(),
+  Label: z.string(),
+  MetricStat: TargetTrackingMetricStatStateSchema,
+  Id: z.string(),
+}).partial();
+
+const MetricDimensionStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const CustomizedMetricSpecificationStateSchema = z.object({
+  MetricName: z.string(),
+  Metrics: z.array(TargetTrackingMetricDataQueryStateSchema),
+  Statistic: z.string(),
+  Dimensions: z.array(MetricDimensionStateSchema),
+  Unit: z.string(),
+  Namespace: z.string(),
+}).partial();
+
+const PredefinedMetricSpecificationStateSchema = z.object({
+  PredefinedMetricType: z.string(),
+  ResourceLabel: z.string(),
+}).partial();
+
+const StepAdjustmentStateSchema = z.object({
+  MetricIntervalUpperBound: z.number(),
+  MetricIntervalLowerBound: z.number(),
+  ScalingAdjustment: z.number(),
+}).partial();
+
+const PredictiveScalingMetricDimensionStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const PredictiveScalingMetricStateSchema = z.object({
+  MetricName: z.string(),
+  Dimensions: z.array(PredictiveScalingMetricDimensionStateSchema),
+  Namespace: z.string(),
+}).partial();
+
+const PredictiveScalingMetricStatStateSchema = z.object({
+  Stat: z.string(),
+  Metric: PredictiveScalingMetricStateSchema,
+  Unit: z.string(),
+}).partial();
+
+const PredictiveScalingMetricDataQueryStateSchema = z.object({
+  ReturnData: z.boolean(),
+  Expression: z.string(),
+  Label: z.string(),
+  MetricStat: PredictiveScalingMetricStatStateSchema,
+  Id: z.string(),
+}).partial();
+
+const PredictiveScalingCustomizedLoadMetricStateSchema = z.object({
+  MetricDataQueries: z.array(PredictiveScalingMetricDataQueryStateSchema),
+}).partial();
+
+const PredictiveScalingPredefinedLoadMetricStateSchema = z.object({
+  PredefinedMetricType: z.string(),
+  ResourceLabel: z.string(),
+}).partial();
+
+const PredictiveScalingPredefinedScalingMetricStateSchema = z.object({
+  PredefinedMetricType: z.string(),
+  ResourceLabel: z.string(),
+}).partial();
+
+const PredictiveScalingCustomizedCapacityMetricStateSchema = z.object({
+  MetricDataQueries: z.array(PredictiveScalingMetricDataQueryStateSchema),
+}).partial();
+
+const PredictiveScalingCustomizedScalingMetricStateSchema = z.object({
+  MetricDataQueries: z.array(PredictiveScalingMetricDataQueryStateSchema),
+}).partial();
+
+const PredictiveScalingPredefinedMetricPairStateSchema = z.object({
+  PredefinedMetricType: z.string(),
+  ResourceLabel: z.string(),
+}).partial();
+
+const PredictiveScalingMetricSpecificationStateSchema = z.object({
+  CustomizedLoadMetricSpecification:
+    PredictiveScalingCustomizedLoadMetricStateSchema,
+  PredefinedLoadMetricSpecification:
+    PredictiveScalingPredefinedLoadMetricStateSchema,
+  TargetValue: z.number(),
+  PredefinedScalingMetricSpecification:
+    PredictiveScalingPredefinedScalingMetricStateSchema,
+  CustomizedCapacityMetricSpecification:
+    PredictiveScalingCustomizedCapacityMetricStateSchema,
+  CustomizedScalingMetricSpecification:
+    PredictiveScalingCustomizedScalingMetricStateSchema,
+  PredefinedMetricPairSpecification:
+    PredictiveScalingPredefinedMetricPairStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -333,29 +451,31 @@ const StateSchema = z.object({
   TargetTrackingScalingPolicyConfiguration: z.object({
     ScaleOutCooldown: z.number(),
     TargetValue: z.number(),
-    CustomizedMetricSpecification: CustomizedMetricSpecificationSchema,
+    CustomizedMetricSpecification: CustomizedMetricSpecificationStateSchema,
     DisableScaleIn: z.boolean(),
     ScaleInCooldown: z.number(),
-    PredefinedMetricSpecification: PredefinedMetricSpecificationSchema,
-  }).optional(),
+    PredefinedMetricSpecification: PredefinedMetricSpecificationStateSchema,
+  }).partial().optional(),
   Arn: z.string(),
   StepScalingPolicyConfiguration: z.object({
     MetricAggregationType: z.string(),
     Cooldown: z.number(),
-    StepAdjustments: z.array(StepAdjustmentSchema),
+    StepAdjustments: z.array(StepAdjustmentStateSchema),
     MinAdjustmentMagnitude: z.number(),
     AdjustmentType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   PredictiveScalingPolicyConfiguration: z.object({
     MaxCapacityBreachBehavior: z.string(),
     MaxCapacityBuffer: z.number(),
     Mode: z.string(),
-    MetricSpecifications: z.array(PredictiveScalingMetricSpecificationSchema),
+    MetricSpecifications: z.array(
+      PredictiveScalingMetricSpecificationStateSchema,
+    ),
     SchedulingBufferTime: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -457,7 +577,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApplicationAutoScaling ScalingPolicy. Registered at `@swamp/aws/applicationautoscaling/scaling-policy`. */
 export const model = {
   type: "@swamp/aws/applicationautoscaling/scaling-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -521,6 +641,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

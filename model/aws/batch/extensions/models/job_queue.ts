@@ -55,6 +55,23 @@ const JobStateTimeLimitActionSchema = z.object({
   State: z.enum(["RUNNABLE"]),
 });
 
+const ComputeEnvironmentOrderStateSchema = z.object({
+  ComputeEnvironment: z.string(),
+  Order: z.number(),
+}).partial();
+
+const ServiceEnvironmentOrderStateSchema = z.object({
+  ServiceEnvironment: z.string(),
+  Order: z.number(),
+}).partial();
+
+const JobStateTimeLimitActionStateSchema = z.object({
+  Action: z.string(),
+  MaxTimeSeconds: z.number(),
+  Reason: z.string(),
+  State: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -92,16 +109,19 @@ const StateSchema = z.object({
   JobQueueName: z.string().optional(),
   JobQueueArn: z.string(),
   JobQueueType: z.string().optional(),
-  ComputeEnvironmentOrder: z.array(ComputeEnvironmentOrderSchema).optional(),
-  ServiceEnvironmentOrder: z.array(ServiceEnvironmentOrderSchema).optional(),
-  JobStateTimeLimitActions: z.array(JobStateTimeLimitActionSchema).optional(),
+  ComputeEnvironmentOrder: z.array(ComputeEnvironmentOrderStateSchema)
+    .optional(),
+  ServiceEnvironmentOrder: z.array(ServiceEnvironmentOrderStateSchema)
+    .optional(),
+  JobStateTimeLimitActions: z.array(JobStateTimeLimitActionStateSchema)
+    .optional(),
   Priority: z.number().optional(),
   State: z.string().optional(),
   SchedulingPolicyArn: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -145,7 +165,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch JobQueue. Registered at `@swamp/aws/batch/job-queue`. */
 export const model = {
   type: "@swamp/aws/batch/job-queue",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -224,6 +244,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

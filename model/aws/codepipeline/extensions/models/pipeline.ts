@@ -327,6 +327,166 @@ const TagSchema = z.object({
   Key: z.string().describe("The tag's key."),
 });
 
+const EncryptionKeyStateSchema = z.object({
+  Type: z.string(),
+  Id: z.string(),
+}).partial();
+
+const ArtifactStoreStateSchema = z.object({
+  Type: z.string(),
+  EncryptionKey: EncryptionKeyStateSchema,
+  Location: z.string(),
+}).partial();
+
+const ArtifactStoreMapStateSchema = z.object({
+  ArtifactStore: ArtifactStoreStateSchema,
+  Region: z.string(),
+}).partial();
+
+const StageTransitionStateSchema = z.object({
+  StageName: z.string(),
+  Reason: z.string(),
+}).partial();
+
+const BlockerDeclarationStateSchema = z.object({
+  Name: z.string(),
+  Type: z.string(),
+}).partial();
+
+const ActionTypeIdStateSchema = z.object({
+  Owner: z.string(),
+  Category: z.string(),
+  Version: z.string(),
+  Provider: z.string(),
+}).partial();
+
+const InputArtifactStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const OutputArtifactStateSchema = z.object({
+  Name: z.string(),
+  Files: z.array(z.string()),
+}).partial();
+
+const EnvironmentVariableStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+  Type: z.string(),
+}).partial();
+
+const ActionDeclarationStateSchema = z.object({
+  ActionTypeId: ActionTypeIdStateSchema,
+  Configuration: z.record(z.string(), z.unknown()),
+  InputArtifacts: z.array(InputArtifactStateSchema),
+  OutputArtifacts: z.array(OutputArtifactStateSchema),
+  Commands: z.array(z.string()),
+  OutputVariables: z.array(z.string()),
+  EnvironmentVariables: z.array(EnvironmentVariableStateSchema),
+  Region: z.string(),
+  Namespace: z.string(),
+  RoleArn: z.string(),
+  RunOrder: z.number(),
+  Name: z.string(),
+  TimeoutInMinutes: z.number(),
+}).partial();
+
+const RuleTypeIdStateSchema = z.object({
+  Owner: z.string(),
+  Category: z.string(),
+  Version: z.string(),
+  Provider: z.string(),
+}).partial();
+
+const RuleDeclarationStateSchema = z.object({
+  RuleTypeId: RuleTypeIdStateSchema,
+  Configuration: z.record(z.string(), z.unknown()),
+  Commands: z.array(z.string()),
+  InputArtifacts: z.array(InputArtifactStateSchema),
+  Region: z.string(),
+  RoleArn: z.string(),
+  Name: z.string(),
+}).partial();
+
+const ConditionStateSchema = z.object({
+  Result: z.string(),
+  Rules: z.array(RuleDeclarationStateSchema),
+}).partial();
+
+const FailureConditionsStateSchema = z.object({
+  Result: z.string(),
+  RetryConfiguration: z.object({
+    RetryMode: z.string(),
+  }).partial(),
+  Conditions: z.array(ConditionStateSchema),
+}).partial();
+
+const SuccessConditionsStateSchema = z.object({
+  Conditions: z.array(ConditionStateSchema),
+}).partial();
+
+const BeforeEntryConditionsStateSchema = z.object({
+  Conditions: z.array(ConditionStateSchema),
+}).partial();
+
+const StageDeclarationStateSchema = z.object({
+  Blockers: z.array(BlockerDeclarationStateSchema),
+  Actions: z.array(ActionDeclarationStateSchema),
+  Name: z.string(),
+  OnFailure: FailureConditionsStateSchema,
+  OnSuccess: SuccessConditionsStateSchema,
+  BeforeEntry: BeforeEntryConditionsStateSchema,
+}).partial();
+
+const GitFilePathFilterCriteriaStateSchema = z.object({
+  Includes: z.array(z.string()),
+  Excludes: z.array(z.string()),
+}).partial();
+
+const GitBranchFilterCriteriaStateSchema = z.object({
+  Includes: z.array(z.string()),
+  Excludes: z.array(z.string()),
+}).partial();
+
+const GitTagFilterCriteriaStateSchema = z.object({
+  Includes: z.array(z.string()),
+  Excludes: z.array(z.string()),
+}).partial();
+
+const GitPushFilterStateSchema = z.object({
+  FilePaths: GitFilePathFilterCriteriaStateSchema,
+  Branches: GitBranchFilterCriteriaStateSchema,
+  Tags: GitTagFilterCriteriaStateSchema,
+}).partial();
+
+const GitPullRequestFilterStateSchema = z.object({
+  FilePaths: GitFilePathFilterCriteriaStateSchema,
+  Events: z.array(z.string()),
+  Branches: GitBranchFilterCriteriaStateSchema,
+}).partial();
+
+const GitConfigurationStateSchema = z.object({
+  Push: z.array(GitPushFilterStateSchema),
+  SourceActionName: z.string(),
+  PullRequest: z.array(GitPullRequestFilterStateSchema),
+}).partial();
+
+const PipelineTriggerDeclarationStateSchema = z.object({
+  GitConfiguration: GitConfigurationStateSchema,
+  ProviderType: z.string(),
+}).partial();
+
+const VariableDeclarationStateSchema = z.object({
+  DefaultValue: z.string(),
+  Description: z.string(),
+  Name: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -388,23 +548,28 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ArtifactStores: z.array(ArtifactStoreMapSchema).optional(),
-  DisableInboundStageTransitions: z.array(StageTransitionSchema).optional(),
-  Stages: z.array(StageDeclarationSchema).optional(),
+  ArtifactStores: z.array(ArtifactStoreMapStateSchema).optional(),
+  DisableInboundStageTransitions: z.array(StageTransitionStateSchema)
+    .optional(),
+  Stages: z.array(StageDeclarationStateSchema).optional(),
   ExecutionMode: z.string().optional(),
   RestartExecutionOnUpdate: z.boolean().optional(),
-  Triggers: z.array(PipelineTriggerDeclarationSchema).optional(),
+  Triggers: z.array(PipelineTriggerDeclarationStateSchema).optional(),
   RoleArn: z.string().optional(),
   Name: z.string(),
-  Variables: z.array(VariableDeclarationSchema).optional(),
+  Variables: z.array(VariableDeclarationStateSchema).optional(),
   Version: z.string().optional(),
   Arn: z.string().optional(),
-  ArtifactStore: ArtifactStoreSchema.optional(),
+  ArtifactStore: z.object({
+    Type: z.string(),
+    EncryptionKey: EncryptionKeyStateSchema,
+    Location: z.string(),
+  }).partial().optional(),
   PipelineType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -476,7 +641,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodePipeline Pipeline. Registered at `@swamp/aws/codepipeline/pipeline`. */
 export const model = {
   type: "@swamp/aws/codepipeline/pipeline",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -550,6 +715,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

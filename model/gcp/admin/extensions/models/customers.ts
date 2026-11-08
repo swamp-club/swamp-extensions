@@ -160,7 +160,7 @@ const StateSchema = z.object({
     organizationName: z.string(),
     postalCode: z.string(),
     region: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -248,7 +248,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Customers. Registered at `@swamp/gcp/admin/customers`. */
 export const model = {
   type: "@swamp/gcp/admin/customers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -277,6 +277,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

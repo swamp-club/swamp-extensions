@@ -114,19 +114,19 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  accountAggregation: z.object({}).optional(),
-  accountManagement: z.object({}).optional(),
-  campaignsManagement: z.object({}).optional(),
-  comparisonShopping: z.object({}).optional(),
+  accountAggregation: z.object({}).partial().optional(),
+  accountManagement: z.object({}).partial().optional(),
+  campaignsManagement: z.object({}).partial().optional(),
+  comparisonShopping: z.object({}).partial().optional(),
   externalAccountId: z.string().optional(),
   handshake: z.object({
     actor: z.string(),
     approvalState: z.string(),
-  }).optional(),
-  localListingManagement: z.object({}).optional(),
+  }).partial().optional(),
+  localListingManagement: z.object({}).partial().optional(),
   mutability: z.string().optional(),
   name: z.string(),
-  productsManagement: z.object({}).optional(),
+  productsManagement: z.object({}).partial().optional(),
   provider: z.string().optional(),
   providerDisplayName: z.string().optional(),
 }).passthrough();
@@ -172,7 +172,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Services. Registered at `@swamp/gcp/merchantapi/accounts-services`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-services",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.24.1",
@@ -196,6 +196,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

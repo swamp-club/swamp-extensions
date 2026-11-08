@@ -113,6 +113,48 @@ const VastResponseSchema = z.object({
   ).optional(),
 });
 
+const ClientSideBeaconingConfigurationStateSchema = z.object({
+  ReportingMode: z.string(),
+  AdditionalEventTypes: z.array(z.string()),
+}).partial();
+
+const PreRollVastResponseStateSchema = z.object({
+  AdSequencingMode: z.string(),
+}).partial();
+
+const PreRollAdDecisionServerConfigurationStateSchema = z.object({
+  VastResponse: PreRollVastResponseStateSchema,
+}).partial();
+
+const AdMarkerPassthroughStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const AdsInteractionLogStateSchema = z.object({
+  ExcludeEventTypes: z.array(z.string()),
+  PublishOptInEventTypes: z.array(z.string()),
+}).partial();
+
+const ManifestServiceInteractionLogStateSchema = z.object({
+  ExcludeEventTypes: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const HttpRequestStateSchema = z.object({
+  HttpMethod: z.string(),
+  Body: z.string(),
+  Headers: z.record(z.string(), z.unknown()),
+  CompressRequest: z.string(),
+}).partial();
+
+const VastResponseStateSchema = z.object({
+  AdSequencingMode: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -286,61 +328,62 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   AdConditioningConfiguration: z.object({
     StreamingMediaFileConditioning: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AdDecisionServerUrl: z.string().optional(),
   AvailSuppression: z.object({
     Mode: z.string(),
     Value: z.string(),
     FillPolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   BeaconingConfiguration: z.object({
-    ClientSide: ClientSideBeaconingConfigurationSchema,
-  }).optional(),
+    ClientSide: ClientSideBeaconingConfigurationStateSchema,
+  }).partial().optional(),
   Bumper: z.object({
     StartUrl: z.string(),
     EndUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CdnConfiguration: z.object({
     AdSegmentUrlPrefix: z.string(),
     ContentSegmentUrlPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ConfigurationAliases: z.record(z.string(), z.unknown()).optional(),
   DashConfiguration: z.object({
     MpdLocation: z.string(),
     OriginManifestType: z.string(),
     ManifestEndpointPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   InsertionMode: z.string().optional(),
   LivePreRollConfiguration: z.object({
     AdDecisionServerUrl: z.string(),
     MaxDurationSeconds: z.number(),
-    AdDecisionServerConfiguration: PreRollAdDecisionServerConfigurationSchema,
-  }).optional(),
+    AdDecisionServerConfiguration:
+      PreRollAdDecisionServerConfigurationStateSchema,
+  }).partial().optional(),
   ManifestProcessingRules: z.object({
-    AdMarkerPassthrough: AdMarkerPassthroughSchema,
-  }).optional(),
+    AdMarkerPassthrough: AdMarkerPassthroughStateSchema,
+  }).partial().optional(),
   Name: z.string(),
   PersonalizationThresholdSeconds: z.number().optional(),
   SessionInitializationEndpointPrefix: z.string().optional(),
   HlsConfiguration: z.object({
     ManifestEndpointPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LogConfiguration: z.object({
-    AdsInteractionLog: AdsInteractionLogSchema,
+    AdsInteractionLog: AdsInteractionLogStateSchema,
     EnabledLoggingStrategies: z.array(z.string()),
-    ManifestServiceInteractionLog: ManifestServiceInteractionLogSchema,
+    ManifestServiceInteractionLog: ManifestServiceInteractionLogStateSchema,
     PercentEnabled: z.number(),
-  }).optional(),
+  }).partial().optional(),
   PlaybackConfigurationArn: z.string().optional(),
   PlaybackEndpointPrefix: z.string().optional(),
   SlateAdUrl: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TranscodeProfileName: z.string().optional(),
   VideoContentSourceUrl: z.string().optional(),
   AdDecisionServerConfiguration: z.object({
-    HttpRequest: HttpRequestSchema,
-    VastResponse: VastResponseSchema,
-  }).optional(),
+    HttpRequest: HttpRequestStateSchema,
+    VastResponse: VastResponseStateSchema,
+  }).partial().optional(),
   FunctionMapping: z.record(z.string(), z.unknown()).optional(),
   AdsPersonalizationTimeouts: z.object({
     AdsRequestTimeoutMilliseconds: z.number(),
@@ -348,14 +391,14 @@ const StateSchema = z.object({
     VodMaximumAdsPersonalizationTimeMilliseconds: z.number(),
     PrefetchAdsRequestTimeoutMilliseconds: z.number(),
     PrefetchMaximumAdsPersonalizationTimeMilliseconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
   AdsPersonalizationConcurrency: z.object({
     MaxConcurrentAdsRequests: z.number(),
     EnableVodVastParallelization: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -538,7 +581,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor PlaybackConfiguration. Registered at `@swamp/aws/mediatailor/playback-configuration`. */
 export const model = {
   type: "@swamp/aws/mediatailor/playback-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -623,6 +666,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

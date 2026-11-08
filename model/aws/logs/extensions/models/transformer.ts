@@ -200,6 +200,155 @@ const ProcessorSchema = z.object({
   }).optional(),
 });
 
+const ParseCloudfrontStateSchema = z.object({
+  Source: z.string(),
+}).partial();
+
+const ParseVPCStateSchema = z.object({
+  Source: z.string(),
+}).partial();
+
+const ParseWAFStateSchema = z.object({
+  Source: z.string(),
+}).partial();
+
+const ParseRoute53StateSchema = z.object({
+  Source: z.string(),
+}).partial();
+
+const ParsePostgresStateSchema = z.object({
+  Source: z.string(),
+}).partial();
+
+const ParseToOCSFStateSchema = z.object({
+  Source: z.string(),
+  EventSource: z.string(),
+  OcsfVersion: z.string(),
+  MappingVersion: z.string(),
+}).partial();
+
+const CopyValueEntryStateSchema = z.object({
+  Source: z.string(),
+  Target: z.string(),
+  OverwriteIfExists: z.boolean(),
+}).partial();
+
+const AddKeyEntryStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+  OverwriteIfExists: z.boolean(),
+}).partial();
+
+const MoveKeyEntryStateSchema = z.object({
+  Source: z.string(),
+  Target: z.string(),
+  OverwriteIfExists: z.boolean(),
+}).partial();
+
+const RenameKeyEntryStateSchema = z.object({
+  Key: z.string(),
+  RenameTo: z.string(),
+  OverwriteIfExists: z.boolean(),
+}).partial();
+
+const SplitStringEntryStateSchema = z.object({
+  Source: z.string(),
+  Delimiter: z.string(),
+}).partial();
+
+const SubstituteStringEntryStateSchema = z.object({
+  Source: z.string(),
+  From: z.string(),
+  To: z.string(),
+}).partial();
+
+const TypeConverterEntryStateSchema = z.object({
+  Key: z.string(),
+  Type: z.string(),
+}).partial();
+
+const ProcessorStateSchema = z.object({
+  ParseCloudfront: ParseCloudfrontStateSchema,
+  ParseVPC: ParseVPCStateSchema,
+  ParseWAF: ParseWAFStateSchema,
+  ParseJSON: z.object({
+    Source: z.string(),
+    Destination: z.string(),
+  }).partial(),
+  ParseRoute53: ParseRoute53StateSchema,
+  ParsePostgres: ParsePostgresStateSchema,
+  ParseToOCSF: ParseToOCSFStateSchema,
+  ParseKeyValue: z.object({
+    Source: z.string(),
+    Destination: z.string(),
+    FieldDelimiter: z.string(),
+    KeyValueDelimiter: z.string(),
+    KeyPrefix: z.string(),
+    NonMatchValue: z.string(),
+    OverwriteIfExists: z.boolean(),
+  }).partial(),
+  CopyValue: z.object({
+    Entries: z.array(CopyValueEntryStateSchema),
+  }).partial(),
+  Csv: z.object({
+    QuoteCharacter: z.string(),
+    Delimiter: z.string(),
+    Source: z.string(),
+    Columns: z.array(z.string()),
+  }).partial(),
+  DateTimeConverter: z.object({
+    Source: z.string(),
+    Target: z.string(),
+    TargetFormat: z.string(),
+    MatchPatterns: z.array(z.string()),
+    SourceTimezone: z.string(),
+    TargetTimezone: z.string(),
+    Locale: z.string(),
+  }).partial(),
+  DeleteKeys: z.object({
+    WithKeys: z.array(z.string()),
+  }).partial(),
+  Grok: z.object({
+    Source: z.string(),
+    Match: z.string(),
+  }).partial(),
+  ListToMap: z.object({
+    Source: z.string(),
+    Key: z.string(),
+    ValueKey: z.string(),
+    Target: z.string(),
+    Flatten: z.boolean(),
+    FlattenedElement: z.string(),
+  }).partial(),
+  AddKeys: z.object({
+    Entries: z.array(AddKeyEntryStateSchema),
+  }).partial(),
+  MoveKeys: z.object({
+    Entries: z.array(MoveKeyEntryStateSchema),
+  }).partial(),
+  RenameKeys: z.object({
+    Entries: z.array(RenameKeyEntryStateSchema),
+  }).partial(),
+  LowerCaseString: z.object({
+    WithKeys: z.array(z.string()),
+  }).partial(),
+  SplitString: z.object({
+    Entries: z.array(SplitStringEntryStateSchema),
+  }).partial(),
+  SubstituteString: z.object({
+    Entries: z.array(SubstituteStringEntryStateSchema),
+  }).partial(),
+  TrimString: z.object({
+    WithKeys: z.array(z.string()),
+  }).partial(),
+  UpperCaseString: z.object({
+    WithKeys: z.array(z.string()),
+  }).partial(),
+  TypeConverter: z.object({
+    Entries: z.array(TypeConverterEntryStateSchema),
+  }).partial(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -225,10 +374,10 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   LogGroupIdentifier: z.string(),
-  TransformerConfig: z.array(ProcessorSchema).optional(),
+  TransformerConfig: z.array(ProcessorStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -264,7 +413,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Logs Transformer. Registered at `@swamp/aws/logs/transformer`. */
 export const model = {
   type: "@swamp/aws/logs/transformer",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -328,6 +477,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -56,6 +56,16 @@ const TagSchema = z.object({
   ),
 });
 
+const CountryRuleStateSchema = z.object({
+  CountryCode: z.string(),
+  ProtectStatus: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -91,15 +101,15 @@ const StateSchema = z.object({
   Arn: z.string().optional(),
   ProtectConfigurationId: z.string(),
   CountryRuleSet: z.object({
-    SMS: z.array(CountryRuleSchema),
-    VOICE: z.array(CountryRuleSchema),
-    MMS: z.array(CountryRuleSchema),
-  }).optional(),
+    SMS: z.array(CountryRuleStateSchema),
+    VOICE: z.array(CountryRuleStateSchema),
+    MMS: z.array(CountryRuleStateSchema),
+  }).partial().optional(),
   DeletionProtectionEnabled: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -141,7 +151,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SMSVOICE ProtectConfiguration. Registered at `@swamp/aws/smsvoice/protect-configuration`. */
 export const model = {
   type: "@swamp/aws/smsvoice/protect-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +210,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

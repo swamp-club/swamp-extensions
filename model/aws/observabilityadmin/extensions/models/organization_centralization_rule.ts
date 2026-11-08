@@ -130,6 +130,71 @@ const TagSchema = z.object({
   ),
 });
 
+const SourceLogsConfigurationStateSchema = z.object({
+  LogGroupSelectionCriteria: z.string(),
+  DataSourceSelectionCriteria: z.string(),
+  EncryptedLogGroupStrategy: z.string(),
+}).partial();
+
+const SourceMetricsConfigurationStateSchema = z.object({
+  MetricsSelectionCriteria: z.string(),
+}).partial();
+
+const CentralizationRuleSourceStateSchema = z.object({
+  Regions: z.array(z.string()),
+  Scope: z.string(),
+  SourceLogsConfiguration: SourceLogsConfigurationStateSchema,
+  SourceMetricsConfiguration: SourceMetricsConfigurationStateSchema,
+}).partial();
+
+const LogsEncryptionConfigurationStateSchema = z.object({
+  EncryptionStrategy: z.string(),
+  KmsKeyArn: z.string(),
+  EncryptionConflictResolutionStrategy: z.string(),
+  EncryptionScope: z.string(),
+}).partial();
+
+const LogsBackupConfigurationStateSchema = z.object({
+  Region: z.string(),
+  KmsKeyArn: z.string(),
+}).partial();
+
+const LogGroupNameConfigurationStateSchema = z.object({
+  LogGroupNamePattern: z.string(),
+}).partial();
+
+const TagPropagationConfigurationStateSchema = z.object({
+  DestinationRoleArn: z.string(),
+  TagConflictResolutionStrategy: z.string(),
+}).partial();
+
+const DestinationLogsConfigurationStateSchema = z.object({
+  LogsEncryptionConfiguration: LogsEncryptionConfigurationStateSchema,
+  BackupConfiguration: LogsBackupConfigurationStateSchema,
+  LogGroupNameConfiguration: LogGroupNameConfigurationStateSchema,
+  TagPropagationConfiguration: TagPropagationConfigurationStateSchema,
+}).partial();
+
+const MetricsBackupConfigurationStateSchema = z.object({
+  Region: z.string(),
+}).partial();
+
+const DestinationMetricsConfigurationStateSchema = z.object({
+  BackupConfiguration: MetricsBackupConfigurationStateSchema,
+}).partial();
+
+const CentralizationRuleDestinationStateSchema = z.object({
+  Region: z.string(),
+  Account: z.string(),
+  DestinationLogsConfiguration: DestinationLogsConfigurationStateSchema,
+  DestinationMetricsConfiguration: DestinationMetricsConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -160,14 +225,14 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   RuleName: z.string().optional(),
   Rule: z.object({
-    Source: CentralizationRuleSourceSchema,
-    Destination: CentralizationRuleDestinationSchema,
-  }).optional(),
+    Source: CentralizationRuleSourceStateSchema,
+    Destination: CentralizationRuleDestinationStateSchema,
+  }).partial().optional(),
   RuleArn: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -205,7 +270,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin OrganizationCentralizationRule. Registered at `@swamp/aws/observabilityadmin/organization-centralization-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/organization-centralization-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.20.1",
@@ -229,6 +294,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -74,6 +74,26 @@ const StageSchema = z.object({
   ).optional(),
 });
 
+const ContactTargetInfoStateSchema = z.object({
+  ContactId: z.string(),
+  IsEssential: z.boolean(),
+}).partial();
+
+const ChannelTargetInfoStateSchema = z.object({
+  ChannelId: z.string(),
+  RetryIntervalInMinutes: z.number(),
+}).partial();
+
+const TargetsStateSchema = z.object({
+  ContactTargetInfo: ContactTargetInfoStateSchema,
+  ChannelTargetInfo: ChannelTargetInfoStateSchema,
+}).partial();
+
+const StageStateSchema = z.object({
+  DurationInMinutes: z.number(),
+  Targets: z.array(TargetsStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -107,12 +127,12 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ContactId: z.string().optional(),
-  Stages: z.array(StageSchema).optional(),
+  Stages: z.array(StageStateSchema).optional(),
   RotationIds: z.array(z.string()).optional(),
   Arn: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -154,7 +174,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSMContacts Plan. Registered at `@swamp/aws/ssmcontacts/plan`. */
 export const model = {
   type: "@swamp/aws/ssmcontacts/plan",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +233,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -204,21 +204,27 @@ const StateSchema = z.object({
   isFallback: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  parameters: z.array(z.object({
-    entityType: z.string(),
-    id: z.string(),
-    isList: z.boolean(),
-    redact: z.boolean(),
-  })).optional(),
+  parameters: z.array(
+    z.object({
+      entityType: z.string(),
+      id: z.string(),
+      isList: z.boolean(),
+      redact: z.boolean(),
+    }).partial(),
+  ).optional(),
   priority: z.number().optional(),
-  trainingPhrases: z.array(z.object({
-    id: z.string(),
-    parts: z.array(z.object({
-      parameterId: z.string(),
-      text: z.string(),
-    })),
-    repeatCount: z.number(),
-  })).optional(),
+  trainingPhrases: z.array(
+    z.object({
+      id: z.string(),
+      parts: z.array(
+        z.object({
+          parameterId: z.string(),
+          text: z.string(),
+        }).partial(),
+      ),
+      repeatCount: z.number(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -287,7 +293,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.Intents. Registered at `@swamp/gcp/dialogflow/agents-intents`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-intents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -421,6 +427,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

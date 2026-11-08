@@ -257,7 +257,7 @@ const StateSchema = z.object({
   allocationOptions: z.object({
     allocationStrategy: z.string(),
     firstAvailableRangesLookupSize: z.number(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   excludeCidrRanges: z.array(z.string()).optional(),
@@ -267,7 +267,7 @@ const StateSchema = z.object({
   migration: z.object({
     source: z.string(),
     target: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   network: z.string().optional(),
   overlaps: z.array(z.string()).optional(),
@@ -400,7 +400,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity InternalRanges. Registered at `@swamp/gcp/networkconnectivity/internalranges`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/internalranges",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -569,6 +569,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

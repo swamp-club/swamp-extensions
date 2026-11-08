@@ -1183,7 +1183,7 @@ const StateSchema = z.object({
     agent: z.string(),
     description: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clientFunction: z.object({
     description: z.string(),
     name: z.string(),
@@ -1207,7 +1207,7 @@ const StateSchema = z.object({
       title: z.string(),
       type: z.string(),
       uniqueItems: z.boolean(),
-    }),
+    }).partial(),
     response: z.object({
       additionalProperties: z.record(z.string(), z.unknown()),
       anyOf: z.array(z.record(z.string(), z.unknown())),
@@ -1228,103 +1228,111 @@ const StateSchema = z.object({
       title: z.string(),
       type: z.string(),
       uniqueItems: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   connectorTool: z.object({
     action: z.object({
       connectionActionId: z.string(),
       entityOperation: z.object({
         entityId: z.string(),
         operation: z.string(),
-      }),
+      }).partial(),
       inputFields: z.array(z.string()),
       outputFields: z.array(z.string()),
-    }),
+    }).partial(),
     authConfig: z.object({
       oauth2AuthCodeConfig: z.object({
         oauthToken: z.string(),
-      }),
+      }).partial(),
       oauth2JwtBearerConfig: z.object({
         clientKey: z.string(),
         issuer: z.string(),
         subject: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     connection: z.string(),
     description: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dataStoreTool: z.object({
-    boostSpecs: z.array(z.object({
-      dataStores: z.array(z.string()),
-      spec: z.array(z.object({
-        conditionBoostSpecs: z.unknown(),
-      })),
-    })),
+    boostSpecs: z.array(
+      z.object({
+        dataStores: z.array(z.string()),
+        spec: z.array(
+          z.object({
+            conditionBoostSpecs: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
     dataStoreSource: z.object({
       dataStore: z.object({
         connectorConfig: z.object({
           collection: z.string(),
           collectionDisplayName: z.string(),
           dataSource: z.string(),
-        }),
+        }).partial(),
         createTime: z.string(),
         displayName: z.string(),
         documentProcessingMode: z.string(),
         name: z.string(),
         type: z.string(),
-      }),
+      }).partial(),
       filter: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     engineSource: z.object({
-      dataStoreSources: z.array(z.object({
-        dataStore: z.object({
-          connectorConfig: z.unknown(),
-          createTime: z.unknown(),
-          displayName: z.unknown(),
-          documentProcessingMode: z.unknown(),
-          name: z.unknown(),
-          type: z.unknown(),
-        }),
-        filter: z.string(),
-      })),
+      dataStoreSources: z.array(
+        z.object({
+          dataStore: z.object({
+            connectorConfig: z.unknown(),
+            createTime: z.unknown(),
+            displayName: z.unknown(),
+            documentProcessingMode: z.unknown(),
+            name: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          filter: z.string(),
+        }).partial(),
+      ),
       engine: z.string(),
       filter: z.string(),
-    }),
+    }).partial(),
     filterParameterBehavior: z.string(),
-    modalityConfigs: z.array(z.object({
-      groundingConfig: z.object({
-        disabled: z.boolean(),
-        groundingLevel: z.number(),
-      }),
-      modalityType: z.string(),
-      rewriterConfig: z.object({
-        disabled: z.boolean(),
-        modelSettings: z.object({
-          model: z.unknown(),
-          temperature: z.unknown(),
-          thinkingLevel: z.unknown(),
-        }),
-        prompt: z.string(),
-      }),
-      snippetsConfig: z.object({
-        enableSnippets: z.boolean(),
-        maxSnippets: z.number(),
-      }),
-      summarizationConfig: z.object({
-        disabled: z.boolean(),
-        modelSettings: z.object({
-          model: z.unknown(),
-          temperature: z.unknown(),
-          thinkingLevel: z.unknown(),
-        }),
-        prompt: z.string(),
-      }),
-    })),
+    modalityConfigs: z.array(
+      z.object({
+        groundingConfig: z.object({
+          disabled: z.boolean(),
+          groundingLevel: z.number(),
+        }).partial(),
+        modalityType: z.string(),
+        rewriterConfig: z.object({
+          disabled: z.boolean(),
+          modelSettings: z.object({
+            model: z.unknown(),
+            temperature: z.unknown(),
+            thinkingLevel: z.unknown(),
+          }).partial(),
+          prompt: z.string(),
+        }).partial(),
+        snippetsConfig: z.object({
+          enableSnippets: z.boolean(),
+          maxSnippets: z.number(),
+        }).partial(),
+        summarizationConfig: z.object({
+          disabled: z.boolean(),
+          modelSettings: z.object({
+            model: z.unknown(),
+            temperature: z.unknown(),
+            thinkingLevel: z.unknown(),
+          }).partial(),
+          prompt: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
   executionType: z.string().optional(),
@@ -1333,7 +1341,7 @@ const StateSchema = z.object({
     description: z.string(),
     fileCorpus: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   generatedSummary: z.string().optional(),
   googleSearchTool: z.object({
     contextUrls: z.array(z.string()),
@@ -1344,31 +1352,31 @@ const StateSchema = z.object({
     promptConfig: z.object({
       textPrompt: z.string(),
       voicePrompt: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   mcpTool: z.object({
     apiAuthentication: z.object({
       apiKeyConfig: z.object({
         apiKeySecretVersion: z.string(),
         keyName: z.string(),
         requestLocation: z.string(),
-      }),
+      }).partial(),
       bearerTokenConfig: z.object({
         token: z.string(),
-      }),
+      }).partial(),
       oauthConfig: z.object({
         clientId: z.string(),
         clientSecretVersion: z.string(),
         oauthGrantType: z.string(),
         scopes: z.array(z.string()),
         tokenEndpoint: z.string(),
-      }),
+      }).partial(),
       serviceAccountAuthConfig: z.object({
         scopes: z.array(z.string()),
         serviceAccount: z.string(),
-      }),
-      serviceAgentIdTokenAuthConfig: z.object({}),
-    }),
+      }).partial(),
+      serviceAgentIdTokenAuthConfig: z.object({}).partial(),
+    }).partial(),
     customHeaders: z.record(z.string(), z.unknown()),
     description: z.string(),
     inputSchema: z.object({
@@ -1391,7 +1399,7 @@ const StateSchema = z.object({
       title: z.string(),
       type: z.string(),
       uniqueItems: z.boolean(),
-    }),
+    }).partial(),
     name: z.string(),
     nameOverride: z.string(),
     outputSchema: z.object({
@@ -1414,19 +1422,21 @@ const StateSchema = z.object({
       title: z.string(),
       type: z.string(),
       uniqueItems: z.boolean(),
-    }),
+    }).partial(),
     serverAddress: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
     tlsConfig: z.object({
-      caCerts: z.array(z.object({
-        cert: z.string(),
-        displayName: z.string(),
-      })),
-    }),
-  }).optional(),
+      caCerts: z.array(
+        z.object({
+          cert: z.string(),
+          displayName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   openApiTool: z.object({
     apiAuthentication: z.object({
@@ -1434,107 +1444,113 @@ const StateSchema = z.object({
         apiKeySecretVersion: z.string(),
         keyName: z.string(),
         requestLocation: z.string(),
-      }),
+      }).partial(),
       bearerTokenConfig: z.object({
         token: z.string(),
-      }),
+      }).partial(),
       oauthConfig: z.object({
         clientId: z.string(),
         clientSecretVersion: z.string(),
         oauthGrantType: z.string(),
         scopes: z.array(z.string()),
         tokenEndpoint: z.string(),
-      }),
+      }).partial(),
       serviceAccountAuthConfig: z.object({
         scopes: z.array(z.string()),
         serviceAccount: z.string(),
-      }),
-      serviceAgentIdTokenAuthConfig: z.object({}),
-    }),
+      }).partial(),
+      serviceAgentIdTokenAuthConfig: z.object({}).partial(),
+    }).partial(),
     description: z.string(),
     ignoreUnknownFields: z.boolean(),
     name: z.string(),
     openApiSchema: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     tlsConfig: z.object({
-      caCerts: z.array(z.object({
-        cert: z.string(),
-        displayName: z.string(),
-      })),
-    }),
+      caCerts: z.array(
+        z.object({
+          cert: z.string(),
+          displayName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   pythonFunction: z.object({
     description: z.string(),
     name: z.string(),
     pythonCode: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   readOnly: z.boolean().optional(),
   remoteAgentTool: z.object({
     agentCard: z.object({
       description: z.string(),
       name: z.string(),
-      skills: z.array(z.object({
-        description: z.string(),
-        examples: z.array(z.unknown()),
-        id: z.string(),
-        inputModes: z.array(z.unknown()),
-        name: z.string(),
-        outputModes: z.array(z.unknown()),
-        tags: z.array(z.unknown()),
-      })),
-      supportedInterfaces: z.array(z.object({
-        protocolBinding: z.string(),
-        protocolVersion: z.string(),
-        tenant: z.string(),
-        url: z.string(),
-      })),
+      skills: z.array(
+        z.object({
+          description: z.string(),
+          examples: z.array(z.unknown()),
+          id: z.string(),
+          inputModes: z.array(z.unknown()),
+          name: z.string(),
+          outputModes: z.array(z.unknown()),
+          tags: z.array(z.unknown()),
+        }).partial(),
+      ),
+      supportedInterfaces: z.array(
+        z.object({
+          protocolBinding: z.string(),
+          protocolVersion: z.string(),
+          tenant: z.string(),
+          url: z.string(),
+        }).partial(),
+      ),
       version: z.string(),
-    }),
+    }).partial(),
     apiAuthentication: z.object({
       apiKeyConfig: z.object({
         apiKeySecretVersion: z.string(),
         keyName: z.string(),
         requestLocation: z.string(),
-      }),
+      }).partial(),
       bearerTokenConfig: z.object({
         token: z.string(),
-      }),
+      }).partial(),
       oauthConfig: z.object({
         clientId: z.string(),
         clientSecretVersion: z.string(),
         oauthGrantType: z.string(),
         scopes: z.array(z.string()),
         tokenEndpoint: z.string(),
-      }),
+      }).partial(),
       serviceAccountAuthConfig: z.object({
         scopes: z.array(z.string()),
         serviceAccount: z.string(),
-      }),
-      serviceAgentIdTokenAuthConfig: z.object({}),
-    }),
+      }).partial(),
+      serviceAgentIdTokenAuthConfig: z.object({}).partial(),
+    }).partial(),
     description: z.string(),
     inputVariableMapping: z.record(z.string(), z.unknown()),
     name: z.string(),
     outputVariableMapping: z.record(z.string(), z.unknown()),
     statefulAgent: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   systemTool: z.object({
     description: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   timeout: z.string().optional(),
   toolFakeConfig: z.object({
     codeBlock: z.object({
       pythonCode: z.string(),
-    }),
+    }).partial(),
     enableFakeMode: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   widgetTool: z.object({
     dataMapping: z.object({
@@ -1546,11 +1562,11 @@ const StateSchema = z.object({
         pythonCode: z.string(),
         serviceDirectoryConfig: z.object({
           service: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       pythonScript: z.string(),
       sourceToolName: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     name: z.string(),
     parameters: z.object({
@@ -1573,15 +1589,15 @@ const StateSchema = z.object({
       title: z.string(),
       type: z.string(),
       uniqueItems: z.boolean(),
-    }),
+    }).partial(),
     textResponseConfig: z.object({
       staticText: z.string(),
       textResponseInstruction: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     uiConfig: z.record(z.string(), z.unknown()),
     widgetType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2631,7 +2647,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Tools. Registered at `@swamp/gcp/ces/apps-tools`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-tools",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -2840,6 +2856,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -210,31 +210,33 @@ const StateSchema = z.object({
     manifestFileName: z.string(),
     scriptId: z.string(),
     versionNumber: z.number(),
-  }).optional(),
+  }).partial().optional(),
   deploymentId: z.string().optional(),
-  entryPoints: z.array(z.object({
-    addOn: z.object({
-      addOnType: z.string(),
-      description: z.string(),
-      helpUrl: z.string(),
-      postInstallTipUrl: z.string(),
-      reportIssueUrl: z.string(),
-      title: z.string(),
-    }),
-    entryPointType: z.string(),
-    executionApi: z.object({
-      entryPointConfig: z.object({
-        access: z.string(),
-      }),
-    }),
-    webApp: z.object({
-      entryPointConfig: z.object({
-        access: z.string(),
-        executeAs: z.string(),
-      }),
-      url: z.string(),
-    }),
-  })).optional(),
+  entryPoints: z.array(
+    z.object({
+      addOn: z.object({
+        addOnType: z.string(),
+        description: z.string(),
+        helpUrl: z.string(),
+        postInstallTipUrl: z.string(),
+        reportIssueUrl: z.string(),
+        title: z.string(),
+      }).partial(),
+      entryPointType: z.string(),
+      executionApi: z.object({
+        entryPointConfig: z.object({
+          access: z.string(),
+        }).partial(),
+      }).partial(),
+      webApp: z.object({
+        entryPointConfig: z.object({
+          access: z.string(),
+          executeAs: z.string(),
+        }).partial(),
+        url: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -296,7 +298,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apps Script Deployments. Registered at `@swamp/gcp/script/deployments`. */
 export const model = {
   type: "@swamp/gcp/script/deployments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -425,6 +427,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

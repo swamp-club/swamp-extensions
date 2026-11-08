@@ -171,7 +171,7 @@ const StateSchema = z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   millipercentOfMediaFee: z.string().optional(),
   name: z.string(),
@@ -242,7 +242,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Curation Partners Curators.DataSegments. Registered at `@swamp/gcp/curationpartners/curators-datasegments`. */
 export const model = {
   type: "@swamp/gcp/curationpartners/curators-datasegments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -251,6 +251,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -205,6 +205,97 @@ const ServerTimingHeadersConfigSchema = z.object({
   ).optional(),
 });
 
+const AccessControlAllowHeadersStateSchema = z.object({
+  Items: z.array(z.string()),
+}).partial();
+
+const AccessControlAllowMethodsStateSchema = z.object({
+  Items: z.array(z.string()),
+}).partial();
+
+const AccessControlAllowOriginsStateSchema = z.object({
+  Items: z.array(z.string()),
+}).partial();
+
+const AccessControlExposeHeadersStateSchema = z.object({
+  Items: z.array(z.string()),
+}).partial();
+
+const CorsConfigStateSchema = z.object({
+  AccessControlAllowCredentials: z.boolean(),
+  AccessControlAllowHeaders: AccessControlAllowHeadersStateSchema,
+  AccessControlAllowMethods: AccessControlAllowMethodsStateSchema,
+  AccessControlAllowOrigins: AccessControlAllowOriginsStateSchema,
+  AccessControlExposeHeaders: AccessControlExposeHeadersStateSchema,
+  AccessControlMaxAgeSec: z.number(),
+  OriginOverride: z.boolean(),
+}).partial();
+
+const CustomHeaderStateSchema = z.object({
+  Header: z.string(),
+  Override: z.boolean(),
+  Value: z.string(),
+}).partial();
+
+const CustomHeadersConfigStateSchema = z.object({
+  Items: z.array(CustomHeaderStateSchema),
+}).partial();
+
+const RemoveHeaderStateSchema = z.object({
+  Header: z.string(),
+}).partial();
+
+const RemoveHeadersConfigStateSchema = z.object({
+  Items: z.array(RemoveHeaderStateSchema),
+}).partial();
+
+const ContentSecurityPolicyStateSchema = z.object({
+  ContentSecurityPolicy: z.string(),
+  Override: z.boolean(),
+}).partial();
+
+const ContentTypeOptionsStateSchema = z.object({
+  Override: z.boolean(),
+}).partial();
+
+const FrameOptionsStateSchema = z.object({
+  FrameOption: z.string(),
+  Override: z.boolean(),
+}).partial();
+
+const ReferrerPolicyStateSchema = z.object({
+  Override: z.boolean(),
+  ReferrerPolicy: z.string(),
+}).partial();
+
+const StrictTransportSecurityStateSchema = z.object({
+  AccessControlMaxAgeSec: z.number(),
+  IncludeSubdomains: z.boolean(),
+  Override: z.boolean(),
+  Preload: z.boolean(),
+}).partial();
+
+const XSSProtectionStateSchema = z.object({
+  ModeBlock: z.boolean(),
+  Override: z.boolean(),
+  Protection: z.boolean(),
+  ReportUri: z.string(),
+}).partial();
+
+const SecurityHeadersConfigStateSchema = z.object({
+  ContentSecurityPolicy: ContentSecurityPolicyStateSchema,
+  ContentTypeOptions: ContentTypeOptionsStateSchema,
+  FrameOptions: FrameOptionsStateSchema,
+  ReferrerPolicy: ReferrerPolicyStateSchema,
+  StrictTransportSecurity: StrictTransportSecurityStateSchema,
+  XSSProtection: XSSProtectionStateSchema,
+}).partial();
+
+const ServerTimingHeadersConfigStateSchema = z.object({
+  Enabled: z.boolean(),
+  SamplingRate: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -251,16 +342,16 @@ const StateSchema = z.object({
   LastModifiedTime: z.string().optional(),
   ResponseHeadersPolicyConfig: z.object({
     Comment: z.string(),
-    CorsConfig: CorsConfigSchema,
-    CustomHeadersConfig: CustomHeadersConfigSchema,
+    CorsConfig: CorsConfigStateSchema,
+    CustomHeadersConfig: CustomHeadersConfigStateSchema,
     Name: z.string(),
-    RemoveHeadersConfig: RemoveHeadersConfigSchema,
-    SecurityHeadersConfig: SecurityHeadersConfigSchema,
-    ServerTimingHeadersConfig: ServerTimingHeadersConfigSchema,
-  }).optional(),
+    RemoveHeadersConfig: RemoveHeadersConfigStateSchema,
+    SecurityHeadersConfig: SecurityHeadersConfigStateSchema,
+    ServerTimingHeadersConfig: ServerTimingHeadersConfigStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -312,7 +403,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront ResponseHeadersPolicy. Registered at `@swamp/aws/cloudfront/response-headers-policy`. */
 export const model = {
   type: "@swamp/aws/cloudfront/response-headers-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -376,6 +467,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

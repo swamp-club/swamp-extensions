@@ -243,13 +243,13 @@ const StateSchema = z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     startDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   breakdownDimensions: z.array(z.string()).optional(),
   creativeId: z.string().optional(),
   dealId: z.string().optional(),
@@ -261,11 +261,11 @@ const StateSchema = z.object({
   publisherIdentifiers: z.array(z.string()).optional(),
   realtimeTimeRange: z.object({
     startTimestamp: z.string(),
-  }).optional(),
+  }).partial().optional(),
   relativeDateRange: z.object({
     durationDays: z.number(),
     offsetDays: z.number(),
-  }).optional(),
+  }).partial().optional(),
   sellerNetworkIds: z.array(z.number()).optional(),
   timeSeriesGranularity: z.string().optional(),
 }).passthrough();
@@ -403,7 +403,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Bidders.FilterSets. Registered at `@swamp/gcp/adexchangebuyer2/bidders-filtersets`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/bidders-filtersets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -540,6 +540,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

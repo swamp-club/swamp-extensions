@@ -246,16 +246,16 @@ const StateSchema = z.object({
       disableTypeInference: z.boolean(),
       encoding: z.string(),
       headerRows: z.number(),
-    }),
+    }).partial(),
     enabled: z.boolean(),
     excludePatterns: z.array(z.string()),
     includePatterns: z.array(z.string()),
     jsonOptions: z.object({
       disableTypeInference: z.boolean(),
       encoding: z.string(),
-    }),
+    }).partial(),
     schedule: z.string(),
-  }).optional(),
+  }).partial().optional(),
   discoveryStatus: z.object({
     lastRunDuration: z.string(),
     lastRunTime: z.string(),
@@ -266,9 +266,9 @@ const StateSchema = z.object({
       dataSize: z.string(),
       filesets: z.string(),
       tables: z.string(),
-    }),
+    }).partial(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -276,18 +276,18 @@ const StateSchema = z.object({
     name: z.string(),
     readAccessMode: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resourceStatus: z.object({
     managedAccessIdentity: z.string(),
     message: z.string(),
     state: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   securityStatus: z.object({
     message: z.string(),
     state: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -397,7 +397,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex Lakes.Assets. Registered at `@swamp/gcp/dataplex/lakes-assets`. */
 export const model = {
   type: "@swamp/gcp/dataplex/lakes-assets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -572,6 +572,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

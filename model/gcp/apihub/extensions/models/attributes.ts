@@ -210,12 +210,14 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  allowedValues: z.array(z.object({
-    description: z.string(),
-    displayName: z.string(),
-    id: z.string(),
-    immutable: z.boolean(),
-  })).optional(),
+  allowedValues: z.array(
+    z.object({
+      description: z.string(),
+      displayName: z.string(),
+      id: z.string(),
+      immutable: z.boolean(),
+    }).partial(),
+  ).optional(),
   cardinality: z.number().optional(),
   createTime: z.string().optional(),
   dataType: z.string().optional(),
@@ -315,7 +317,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Attributes. Registered at `@swamp/gcp/apihub/attributes`. */
 export const model = {
   type: "@swamp/gcp/apihub/attributes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -454,6 +456,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

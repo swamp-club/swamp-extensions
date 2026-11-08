@@ -188,19 +188,21 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   endTime: z.string().optional(),
-  links: z.array(z.object({
-    dependencyInfo: z.object({
-      dependencyType: z.string(),
-    }),
-    source: z.object({
-      field: z.array(z.string()),
-      fullyQualifiedName: z.string(),
-    }),
-    target: z.object({
-      field: z.array(z.string()),
-      fullyQualifiedName: z.string(),
-    }),
-  })).optional(),
+  links: z.array(
+    z.object({
+      dependencyInfo: z.object({
+        dependencyType: z.string(),
+      }).partial(),
+      source: z.object({
+        field: z.array(z.string()),
+        fullyQualifiedName: z.string(),
+      }).partial(),
+      target: z.object({
+        field: z.array(z.string()),
+        fullyQualifiedName: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   startTime: z.string().optional(),
 }).passthrough();
@@ -288,7 +290,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Data Lineage Processes.Runs.LineageEvents. Registered at `@swamp/gcp/datalineage/processes-runs-lineageevents`. */
 export const model = {
   type: "@swamp/gcp/datalineage/processes-runs-lineageevents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -457,6 +459,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

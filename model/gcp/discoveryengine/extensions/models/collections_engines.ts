@@ -466,8 +466,8 @@ const StateSchema = z.object({
   agentGatewaySetting: z.object({
     defaultEgressAgentGateway: z.object({
       name: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   appType: z.string().optional(),
   associatedAgentRegistry: z.string().optional(),
   chatEngineConfig: z.object({
@@ -476,13 +476,13 @@ const StateSchema = z.object({
       defaultLanguageCode: z.string(),
       location: z.string(),
       timeZone: z.string(),
-    }),
+    }).partial(),
     allowCrossRegion: z.boolean(),
     dialogflowAgentToLink: z.string(),
-  }).optional(),
+  }).partial().optional(),
   chatEngineMetadata: z.object({
     dialogflowAgent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cmekConfig: z.object({
     isDefault: z.boolean(),
     kmsKey: z.string(),
@@ -490,14 +490,16 @@ const StateSchema = z.object({
     lastRotationTimestampMicros: z.string(),
     name: z.string(),
     notebooklmState: z.string(),
-    singleRegionKeys: z.array(z.object({
-      kmsKey: z.string(),
-    })),
+    singleRegionKeys: z.array(
+      z.object({
+        kmsKey: z.string(),
+      }).partial(),
+    ),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   commonConfig: z.object({
     companyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   configurableBillingApproach: z.string().optional(),
   connectorTenantInfo: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
@@ -519,45 +521,45 @@ const StateSchema = z.object({
       disablePrivateKgEnrichment: z.boolean(),
       disablePrivateKgQueryUiChips: z.boolean(),
       disablePrivateKgQueryUnderstanding: z.boolean(),
-    }),
+    }).partial(),
     privateKnowledgeGraphTypes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   marketplaceAgentVisibility: z.string().optional(),
   mediaRecommendationEngineConfig: z.object({
     engineFeaturesConfig: z.object({
       mostPopularConfig: z.object({
         timeWindowDays: z.string(),
-      }),
+      }).partial(),
       recommendedForYouConfig: z.object({
         contextEventType: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     optimizationObjective: z.string(),
     optimizationObjectiveConfig: z.object({
       targetField: z.string(),
       targetFieldValueFloat: z.number(),
-    }),
+    }).partial(),
     trainingState: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   modelConfigs: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   observabilityConfig: z.object({
     observabilityEnabled: z.boolean(),
     sensitiveLoggingEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   procurementContactEmails: z.array(z.string()).optional(),
   searchEngineConfig: z.object({
     requiredSubscriptionTier: z.string(),
     searchAddOns: z.array(z.string()),
     searchTier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sessionConfig: z.object({
     sessionManagementPolicy: z.string(),
     sessionTtl: z.object({
       days: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   solutionType: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -902,7 +904,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines. Registered at `@swamp/gcp/discoveryengine/collections-engines`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1214,6 +1216,11 @@ export const model = {
     {
       toVersion: "2026.11.08.1",
       description: "Added: featurePolicies",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -169,14 +169,14 @@ const StateSchema = z.object({
   base: z.object({
     ref: z.string(),
     sha: z.string(),
-  }).optional(),
+  }).partial().optional(),
   body: z.string().optional(),
   closeTime: z.string().optional(),
   createTime: z.string().optional(),
   head: z.object({
     ref: z.string(),
     sha: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   state: z.string().optional(),
   title: z.string().optional(),
@@ -244,7 +244,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Secure Source Manager Repositories.PullRequests. Registered at `@swamp/gcp/securesourcemanager/repositories-pullrequests`. */
 export const model = {
   type: "@swamp/gcp/securesourcemanager/repositories-pullrequests",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -388,6 +388,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

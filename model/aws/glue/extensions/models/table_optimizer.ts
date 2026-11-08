@@ -89,6 +89,39 @@ const CompactionConfigurationSchema = z.object({
   ).optional(),
 });
 
+const IcebergRetentionConfigurationStateSchema = z.object({
+  SnapshotRetentionPeriodInDays: z.number(),
+  NumberOfSnapshotsToRetain: z.number(),
+  CleanExpiredFiles: z.boolean(),
+}).partial();
+
+const RetentionConfigurationStateSchema = z.object({
+  IcebergConfiguration: IcebergRetentionConfigurationStateSchema,
+}).partial();
+
+const VpcConfigurationStateSchema = z.object({
+  GlueConnectionName: z.string(),
+}).partial();
+
+const IcebergConfigurationStateSchema = z.object({
+  OrphanFileRetentionPeriodInDays: z.number(),
+  Location: z.string(),
+}).partial();
+
+const OrphanFileDeletionConfigurationStateSchema = z.object({
+  IcebergConfiguration: IcebergConfigurationStateSchema,
+}).partial();
+
+const IcebergCompactionConfigurationStateSchema = z.object({
+  Strategy: z.string(),
+  MinInputFiles: z.number(),
+  DeleteFileThreshold: z.number(),
+}).partial();
+
+const CompactionConfigurationStateSchema = z.object({
+  IcebergConfiguration: IcebergCompactionConfigurationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -141,16 +174,16 @@ const StateSchema = z.object({
   Type: z.string(),
   TableOptimizerConfiguration: z.object({
     Enabled: z.boolean(),
-    RetentionConfiguration: RetentionConfigurationSchema,
-    VpcConfiguration: VpcConfigurationSchema,
+    RetentionConfiguration: RetentionConfigurationStateSchema,
+    VpcConfiguration: VpcConfigurationStateSchema,
     RoleArn: z.string(),
-    OrphanFileDeletionConfiguration: OrphanFileDeletionConfigurationSchema,
-    CompactionConfiguration: CompactionConfigurationSchema,
-  }).optional(),
+    OrphanFileDeletionConfiguration: OrphanFileDeletionConfigurationStateSchema,
+    CompactionConfiguration: CompactionConfigurationStateSchema,
+  }).partial().optional(),
   CatalogId: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -208,7 +241,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue TableOptimizer. Registered at `@swamp/aws/glue/table-optimizer`. */
 export const model = {
   type: "@swamp/aws/glue/table-optimizer",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -232,6 +265,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -196,20 +196,20 @@ const StateSchema = z.object({
     activeAssets: z.number(),
     securityPolicyApplyingAssets: z.number(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   metastore: z.object({
     service: z.string(),
-  }).optional(),
+  }).partial().optional(),
   metastoreStatus: z.object({
     endpoint: z.string(),
     message: z.string(),
     state: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   serviceAccount: z.string().optional(),
   state: z.string().optional(),
@@ -275,7 +275,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex Lakes. Registered at `@swamp/gcp/dataplex/lakes`. */
 export const model = {
   type: "@swamp/gcp/dataplex/lakes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -434,6 +434,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

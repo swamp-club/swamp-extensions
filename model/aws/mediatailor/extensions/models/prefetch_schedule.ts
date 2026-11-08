@@ -91,6 +91,38 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const AvailMatchingCriteriaStateSchema = z.object({
+  DynamicVariable: z.string(),
+  Operator: z.string(),
+}).partial();
+
+const TrafficShapingRetrievalWindowStateSchema = z.object({
+  RetrievalWindowDurationSeconds: z.number(),
+}).partial();
+
+const TrafficShapingTpsConfigurationStateSchema = z.object({
+  PeakTps: z.number(),
+  PeakConcurrentUsers: z.number(),
+}).partial();
+
+const RecurringConsumptionStateSchema = z.object({
+  RetrievedAdExpirationSeconds: z.number(),
+  AvailMatchingCriteria: z.array(AvailMatchingCriteriaStateSchema),
+}).partial();
+
+const RecurringRetrievalStateSchema = z.object({
+  DynamicVariables: z.record(z.string(), z.unknown()),
+  DelayAfterAvailEndSeconds: z.number(),
+  TrafficShapingType: z.string(),
+  TrafficShapingRetrievalWindow: TrafficShapingRetrievalWindowStateSchema,
+  TrafficShapingTpsConfiguration: TrafficShapingTpsConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -167,30 +199,30 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   PlaybackConfigurationName: z.string().optional(),
   Consumption: z.object({
-    AvailMatchingCriteria: z.array(AvailMatchingCriteriaSchema),
+    AvailMatchingCriteria: z.array(AvailMatchingCriteriaStateSchema),
     EndTime: z.string(),
     StartTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Retrieval: z.object({
     DynamicVariables: z.record(z.string(), z.unknown()),
     EndTime: z.string(),
     StartTime: z.string(),
     TrafficShapingType: z.string(),
-    TrafficShapingRetrievalWindow: TrafficShapingRetrievalWindowSchema,
-    TrafficShapingTpsConfiguration: TrafficShapingTpsConfigurationSchema,
-  }).optional(),
+    TrafficShapingRetrievalWindow: TrafficShapingRetrievalWindowStateSchema,
+    TrafficShapingTpsConfiguration: TrafficShapingTpsConfigurationStateSchema,
+  }).partial().optional(),
   RecurringPrefetchConfiguration: z.object({
     StartTime: z.string(),
     EndTime: z.string(),
-    RecurringConsumption: RecurringConsumptionSchema,
-    RecurringRetrieval: RecurringRetrievalSchema,
-  }).optional(),
+    RecurringConsumption: RecurringConsumptionStateSchema,
+    RecurringRetrieval: RecurringRetrievalStateSchema,
+  }).partial().optional(),
   ScheduleType: z.string().optional(),
   StreamId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -272,7 +304,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor PrefetchSchedule. Registered at `@swamp/aws/mediatailor/prefetch-schedule`. */
 export const model = {
   type: "@swamp/aws/mediatailor/prefetch-schedule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -286,6 +318,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

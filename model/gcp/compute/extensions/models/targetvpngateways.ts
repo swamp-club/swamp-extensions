@@ -217,7 +217,7 @@ const StateSchema = z.object({
   network: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
   status: z.string().optional(),
@@ -290,7 +290,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine TargetVpnGateways. Registered at `@swamp/gcp/compute/targetvpngateways`. */
 export const model = {
   type: "@swamp/gcp/compute/targetvpngateways",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -444,6 +444,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

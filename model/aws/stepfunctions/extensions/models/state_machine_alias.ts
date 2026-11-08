@@ -47,6 +47,11 @@ const RoutingConfigurationVersionSchema = z.object({
   ),
 });
 
+const RoutingConfigurationVersionStateSchema = z.object({
+  StateMachineVersionArn: z.string(),
+  Weight: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -94,17 +99,18 @@ const StateSchema = z.object({
   StateMachineArn: z.string().optional(),
   Name: z.string().optional(),
   Description: z.string().optional(),
-  RoutingConfiguration: z.array(RoutingConfigurationVersionSchema).optional(),
+  RoutingConfiguration: z.array(RoutingConfigurationVersionStateSchema)
+    .optional(),
   DeploymentPreference: z.object({
     StateMachineVersionArn: z.string(),
     Type: z.string(),
     Percentage: z.number(),
     Interval: z.number(),
     Alarms: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -157,7 +163,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for StepFunctions StateMachineAlias. Registered at `@swamp/aws/stepfunctions/state-machine-alias`. */
 export const model = {
   type: "@swamp/aws/stepfunctions/state-machine-alias",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -221,6 +227,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

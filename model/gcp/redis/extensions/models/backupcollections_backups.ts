@@ -132,11 +132,13 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  backupFiles: z.array(z.object({
-    createTime: z.string(),
-    fileName: z.string(),
-    sizeBytes: z.string(),
-  })).optional(),
+  backupFiles: z.array(
+    z.object({
+      createTime: z.string(),
+      fileName: z.string(),
+      sizeBytes: z.string(),
+    }).partial(),
+  ).optional(),
   backupType: z.string().optional(),
   cluster: z.string().optional(),
   clusterUid: z.string().optional(),
@@ -146,7 +148,7 @@ const StateSchema = z.object({
     kmsKeyPrimaryState: z.string(),
     kmsKeyVersions: z.array(z.string()),
     lastUpdateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   engineVersion: z.string().optional(),
   expireTime: z.string().optional(),
   name: z.string(),
@@ -202,7 +204,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Cloud Memorystore for Redis BackupCollections.Backups. Registered at `@swamp/gcp/redis/backupcollections-backups`. */
 export const model = {
   type: "@swamp/gcp/redis/backupcollections-backups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -331,6 +333,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

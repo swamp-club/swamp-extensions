@@ -88,24 +88,24 @@ const StateSchema = z.object({
   Status: z.string().optional(),
   HttpUrlProperties: z.object({
     ConfirmationUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   StatusReason: z.string().optional(),
   VpcProperties: z.object({
     SubnetIds: z.array(z.string()),
     SecurityGroups: z.array(z.string()),
     VpcId: z.string(),
     RoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   InfluxDBProperties: z.object({
     Endpoint: z.string(),
     InfluxDBVersion: z.string(),
     SecretId: z.string(),
     SecretType: z.string(),
     SecretKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -162,7 +162,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT TopicRuleDestination. Registered at `@swamp/aws/iot/topic-rule-destination`. */
 export const model = {
   type: "@swamp/aws/iot/topic-rule-destination",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -226,6 +226,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

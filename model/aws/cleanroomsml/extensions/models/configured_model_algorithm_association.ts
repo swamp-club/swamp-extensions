@@ -109,6 +109,69 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const CustomEntityConfigStateSchema = z.object({
+  CustomDataIdentifiers: z.array(z.string()),
+}).partial();
+
+const LogRedactionConfigurationStateSchema = z.object({
+  EntitiesToRedact: z.array(z.string()),
+  CustomEntityConfig: CustomEntityConfigStateSchema,
+}).partial();
+
+const LogsConfigurationPolicyStateSchema = z.object({
+  AllowedAccountIds: z.array(z.string()),
+  FilterPattern: z.string(),
+  LogType: z.string(),
+  LogRedactionConfiguration: LogRedactionConfigurationStateSchema,
+}).partial();
+
+const MetricsConfigurationPolicyStateSchema = z.object({
+  NoiseLevel: z.string(),
+}).partial();
+
+const TrainedModelArtifactMaxSizeStateSchema = z.object({
+  Unit: z.string(),
+  Value: z.number(),
+}).partial();
+
+const TrainedModelsConfigurationPolicyStateSchema = z.object({
+  ContainerLogs: z.array(LogsConfigurationPolicyStateSchema),
+  ContainerMetrics: MetricsConfigurationPolicyStateSchema,
+  MaxArtifactSize: TrainedModelArtifactMaxSizeStateSchema,
+}).partial();
+
+const TrainedModelExportsMaxSizeStateSchema = z.object({
+  Unit: z.string(),
+  Value: z.number(),
+}).partial();
+
+const TrainedModelExportsConfigurationPolicyStateSchema = z.object({
+  MaxSize: TrainedModelExportsMaxSizeStateSchema,
+  FilesToExport: z.array(z.string()),
+}).partial();
+
+const TrainedModelInferenceMaxOutputSizeStateSchema = z.object({
+  Unit: z.string(),
+  Value: z.number(),
+}).partial();
+
+const TrainedModelInferenceJobsConfigurationPolicyStateSchema = z.object({
+  ContainerLogs: z.array(LogsConfigurationPolicyStateSchema),
+  MaxOutputSize: TrainedModelInferenceMaxOutputSizeStateSchema,
+}).partial();
+
+const PrivacyConfigurationPoliciesStateSchema = z.object({
+  TrainedModels: TrainedModelsConfigurationPolicyStateSchema,
+  TrainedModelExports: TrainedModelExportsConfigurationPolicyStateSchema,
+  TrainedModelInferenceJobs:
+    TrainedModelInferenceJobsConfigurationPolicyStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -161,12 +224,12 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   PrivacyConfiguration: z.object({
-    Policies: PrivacyConfigurationPoliciesSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    Policies: PrivacyConfigurationPoliciesStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -221,7 +284,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRoomsML ConfiguredModelAlgorithmAssociation. Registered at `@swamp/aws/cleanroomsml/configured-model-algorithm-association`. */
 export const model = {
   type: "@swamp/aws/cleanroomsml/configured-model-algorithm-association",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -285,6 +348,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

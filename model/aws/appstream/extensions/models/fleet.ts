@@ -43,6 +43,11 @@ const TagSchema = z.object({
   Value: z.string().max(256).regex(new RegExp("^[\\S\\s]*$")).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -119,22 +124,22 @@ const StateSchema = z.object({
   ComputeCapacity: z.object({
     DesiredInstances: z.number(),
     DesiredSessions: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Platform: z.string().optional(),
   VpcConfig: z.object({
     SubnetIds: z.array(z.string()),
     SecurityGroupIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   FleetType: z.string().optional(),
   EnableDefaultInternetAccess: z.boolean().optional(),
   DomainJoinInfo: z.object({
     OrganizationalUnitDistinguishedName: z.string(),
     DirectoryName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SessionScriptS3Location: z.object({
     S3Bucket: z.string(),
     S3Key: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Name: z.string(),
   ImageName: z.string().optional(),
   MaxUserDurationInSeconds: z.number().optional(),
@@ -148,16 +153,16 @@ const StateSchema = z.object({
   Arn: z.string().optional(),
   InstanceType: z.string().optional(),
   MaxConcurrentSessions: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ImageArn: z.string().optional(),
   RootVolumeConfig: z.object({
     VolumeSizeInGb: z.number(),
-  }).optional(),
+  }).partial().optional(),
   DisableIMDSV1: z.boolean().optional(),
   AttributesToDelete: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -241,7 +246,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream Fleet. Registered at `@swamp/aws/appstream/fleet`. */
 export const model = {
   type: "@swamp/aws/appstream/fleet",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -255,6 +260,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

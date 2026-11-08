@@ -404,44 +404,48 @@ const StateSchema = z.object({
           day: z.number(),
           month: z.number(),
           year: z.number(),
-        }),
+        }).partial(),
         startDate: z.object({
           day: z.number(),
           month: z.number(),
           year: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       relative: z.string(),
-    }),
+    }).partial(),
     dimensions: z.array(z.string()),
-    filters: z.array(z.object({
-      andFilter: z.object({
-        filters: z.array(z.unknown()),
-      }),
-      fieldFilter: z.object({
-        field: z.object({
-          dimension: z.unknown(),
-          metric: z.unknown(),
-        }),
-        operation: z.string(),
-        values: z.array(z.unknown()),
-      }),
-      notFilter: z.record(z.string(), z.unknown()),
-      orFilter: z.object({
-        filters: z.array(z.unknown()),
-      }),
-    })),
+    filters: z.array(
+      z.object({
+        andFilter: z.object({
+          filters: z.array(z.unknown()),
+        }).partial(),
+        fieldFilter: z.object({
+          field: z.object({
+            dimension: z.unknown(),
+            metric: z.unknown(),
+          }).partial(),
+          operation: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+        notFilter: z.record(z.string(), z.unknown()),
+        orFilter: z.object({
+          filters: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    ),
     metrics: z.array(z.string()),
-    sorts: z.array(z.object({
-      descending: z.boolean(),
-      field: z.object({
-        dimension: z.string(),
-        metric: z.string(),
-      }),
-    })),
+    sorts: z.array(
+      z.object({
+        descending: z.boolean(),
+        field: z.object({
+          dimension: z.string(),
+          metric: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     timeZone: z.string(),
     timeZoneSource: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reportId: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -708,7 +712,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Curation Partners Curators.Reports. Registered at `@swamp/gcp/curationpartners/curators-reports`. */
 export const model = {
   type: "@swamp/gcp/curationpartners/curators-reports",
-  version: "2026.11.04.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -722,6 +726,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

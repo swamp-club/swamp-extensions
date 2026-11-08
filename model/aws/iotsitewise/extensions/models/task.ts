@@ -144,6 +144,44 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
+const EphemeralStorageConfigurationStateSchema = z.object({
+  StorageClass: z.string(),
+  StorageSizeInGiB: z.number(),
+}).partial();
+
+const S3AccessPointSourceStateSchema = z.object({
+  AccessPointArn: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const MountSourceStateSchema = z.object({
+  S3AccessPoint: S3AccessPointSourceStateSchema,
+}).partial();
+
+const MountStateSchema = z.object({
+  Name: z.string(),
+  RelativePath: z.string(),
+  Source: MountSourceStateSchema,
+  StorageType: z.string(),
+}).partial();
+
+const ContainerTaskConfigurationStateSchema = z.object({
+  EcrUri: z.string(),
+  TaskExecutionRole: z.string(),
+  ProcessingType: z.string(),
+  ProcessingUnit: z.string(),
+  Command: z.array(z.string()),
+  TimeoutSeconds: z.number(),
+  EnvironmentVariables: z.record(z.string(), z.unknown()),
+  EphemeralStorageConfiguration: EphemeralStorageConfigurationStateSchema,
+  Mounts: z.array(MountStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -185,13 +223,13 @@ const StateSchema = z.object({
   TaskArn: z.string(),
   Description: z.string().optional(),
   TaskConfiguration: z.object({
-    ContainerTaskConfiguration: ContainerTaskConfigurationSchema,
-  }).optional(),
+    ContainerTaskConfiguration: ContainerTaskConfigurationStateSchema,
+  }).partial().optional(),
   Status: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -237,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Task. Registered at `@swamp/aws/iotsitewise/task`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/task",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.09.15.1",
@@ -256,6 +294,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

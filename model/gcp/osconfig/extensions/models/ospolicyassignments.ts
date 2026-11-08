@@ -261,28 +261,38 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   instanceFilter: z.object({
     all: z.boolean(),
-    exclusionLabels: z.array(z.object({
-      labels: z.record(z.string(), z.unknown()),
-    })),
-    inclusionLabels: z.array(z.object({
-      labels: z.record(z.string(), z.unknown()),
-    })),
-    inventories: z.array(z.object({
-      osShortName: z.string(),
-      osVersion: z.string(),
-    })),
-  }).optional(),
+    exclusionLabels: z.array(
+      z.object({
+        labels: z.record(z.string(), z.unknown()),
+      }).partial(),
+    ),
+    inclusionLabels: z.array(
+      z.object({
+        labels: z.record(z.string(), z.unknown()),
+      }).partial(),
+    ),
+    inventories: z.array(
+      z.object({
+        osShortName: z.string(),
+        osVersion: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
-  osPolicies: z.array(z.object({
-    allowNoResourceGroupMatch: z.boolean(),
-    description: z.string(),
-    id: z.string(),
-    mode: z.string(),
-    resourceGroups: z.array(z.object({
-      inventoryFilters: z.array(z.unknown()),
-      resources: z.array(z.unknown()),
-    })),
-  })).optional(),
+  osPolicies: z.array(
+    z.object({
+      allowNoResourceGroupMatch: z.boolean(),
+      description: z.string(),
+      id: z.string(),
+      mode: z.string(),
+      resourceGroups: z.array(
+        z.object({
+          inventoryFilters: z.array(z.unknown()),
+          resources: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   reconciling: z.boolean().optional(),
   revisionCreateTime: z.string().optional(),
   revisionId: z.string().optional(),
@@ -290,9 +300,9 @@ const StateSchema = z.object({
     disruptionBudget: z.object({
       fixed: z.number(),
       percent: z.number(),
-    }),
+    }).partial(),
     minWaitDuration: z.string(),
-  }).optional(),
+  }).partial().optional(),
   rolloutState: z.string().optional(),
   uid: z.string().optional(),
 }).passthrough();
@@ -420,7 +430,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud OS Config OsPolicyAssignments. Registered at `@swamp/gcp/osconfig/ospolicyassignments`. */
 export const model = {
   type: "@swamp/gcp/osconfig/ospolicyassignments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -444,6 +454,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

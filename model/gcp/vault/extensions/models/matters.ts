@@ -170,10 +170,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   description: z.string().optional(),
   matterId: z.string().optional(),
-  matterPermissions: z.array(z.object({
-    accountId: z.string(),
-    role: z.string(),
-  })).optional(),
+  matterPermissions: z.array(
+    z.object({
+      accountId: z.string(),
+      role: z.string(),
+    }).partial(),
+  ).optional(),
   matterRegion: z.string().optional(),
   name: z.string(),
   state: z.string().optional(),
@@ -237,7 +239,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Vault Matters. Registered at `@swamp/gcp/vault/matters`. */
 export const model = {
   type: "@swamp/gcp/vault/matters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -376,6 +378,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

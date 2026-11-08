@@ -161,10 +161,12 @@ const StateSchema = z.object({
   kmsKeyName: z.string().optional(),
   name: z.string(),
   processEndpoint: z.string().optional(),
-  processorVersionAliases: z.array(z.object({
-    alias: z.string(),
-    processorVersion: z.string(),
-  })).optional(),
+  processorVersionAliases: z.array(
+    z.object({
+      alias: z.string(),
+      processorVersion: z.string(),
+    }).partial(),
+  ).optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   state: z.string().optional(),
@@ -225,7 +227,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Document AI Processors. Registered at `@swamp/gcp/documentai/processors`. */
 export const model = {
   type: "@swamp/gcp/documentai/processors",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -369,6 +371,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

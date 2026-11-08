@@ -318,7 +318,7 @@ const StateSchema = z.object({
     airInterface: z.object({
       radioTechnology: z.string(),
       supportedSpec: z.string(),
-    }),
+    }).partial(),
     callSign: z.string(),
     category: z.string(),
     installationParams: z.object({
@@ -336,7 +336,7 @@ const StateSchema = z.object({
       latitude: z.number(),
       longitude: z.number(),
       verticalAccuracy: z.number(),
-    }),
+    }).partial(),
     isSigned: z.boolean(),
     measurementCapabilities: z.array(z.string()),
     model: z.object({
@@ -345,18 +345,20 @@ const StateSchema = z.object({
       name: z.string(),
       softwareVersion: z.string(),
       vendor: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
     updateTime: z.string(),
     userId: z.string(),
-  }).optional(),
-  currentChannels: z.array(z.object({
-    frequencyRange: z.object({
-      highFrequencyMhz: z.number(),
-      lowFrequencyMhz: z.number(),
-    }),
-    score: z.number(),
-  })).optional(),
+  }).partial().optional(),
+  currentChannels: z.array(
+    z.object({
+      frequencyRange: z.object({
+        highFrequencyMhz: z.number(),
+        lowFrequencyMhz: z.number(),
+      }).partial(),
+      score: z.number(),
+    }).partial(),
+  ).optional(),
   deviceMetadata: z.object({
     antennaModel: z.string(),
     commonChannelGroup: z.string(),
@@ -368,40 +370,46 @@ const StateSchema = z.object({
       latitude: z.number(),
       longitude: z.number(),
       state: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   fccId: z.string().optional(),
-  grantRangeAllowlists: z.array(z.object({
-    highFrequencyMhz: z.number(),
-    lowFrequencyMhz: z.number(),
-  })).optional(),
-  grants: z.array(z.object({
-    channelType: z.string(),
-    expireTime: z.string(),
-    frequencyRange: z.object({
+  grantRangeAllowlists: z.array(
+    z.object({
       highFrequencyMhz: z.number(),
       lowFrequencyMhz: z.number(),
-    }),
-    grantId: z.string(),
-    lastHeartbeatTransmitExpireTime: z.string(),
-    maxEirp: z.number(),
-    moveList: z.array(z.object({
-      dpaId: z.string(),
+    }).partial(),
+  ).optional(),
+  grants: z.array(
+    z.object({
+      channelType: z.string(),
+      expireTime: z.string(),
       frequencyRange: z.object({
-        highFrequencyMhz: z.unknown(),
-        lowFrequencyMhz: z.unknown(),
-      }),
-    })),
-    state: z.string(),
-    suspensionReason: z.array(z.string()),
-  })).optional(),
+        highFrequencyMhz: z.number(),
+        lowFrequencyMhz: z.number(),
+      }).partial(),
+      grantId: z.string(),
+      lastHeartbeatTransmitExpireTime: z.string(),
+      maxEirp: z.number(),
+      moveList: z.array(
+        z.object({
+          dpaId: z.string(),
+          frequencyRange: z.object({
+            highFrequencyMhz: z.unknown(),
+            lowFrequencyMhz: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      state: z.string(),
+      suspensionReason: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   preloadedConfig: z.object({
     airInterface: z.object({
       radioTechnology: z.string(),
       supportedSpec: z.string(),
-    }),
+    }).partial(),
     callSign: z.string(),
     category: z.string(),
     installationParams: z.object({
@@ -419,7 +427,7 @@ const StateSchema = z.object({
       latitude: z.number(),
       longitude: z.number(),
       verticalAccuracy: z.number(),
-    }),
+    }).partial(),
     isSigned: z.boolean(),
     measurementCapabilities: z.array(z.string()),
     model: z.object({
@@ -428,11 +436,11 @@ const StateSchema = z.object({
       name: z.string(),
       softwareVersion: z.string(),
       vendor: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
     updateTime: z.string(),
     userId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   serialNumber: z.string().optional(),
   state: z.string().optional(),
 }).passthrough();
@@ -629,7 +637,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SAS Portal (Testing) Nodes.Devices. Registered at `@swamp/gcp/prod_tt_sasportal/nodes-devices`. */
 export const model = {
   type: "@swamp/gcp/prod_tt_sasportal/nodes-devices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -771,6 +779,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

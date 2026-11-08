@@ -527,6 +527,247 @@ const OpenSearchManagedClusterConfigurationSchema = z.object({
   ),
 });
 
+const AudioSegmentationConfigurationStateSchema = z.object({
+  FixedLengthDuration: z.number(),
+}).partial();
+
+const AudioConfigurationStateSchema = z.object({
+  SegmentationConfiguration: AudioSegmentationConfigurationStateSchema,
+}).partial();
+
+const VideoSegmentationConfigurationStateSchema = z.object({
+  FixedLengthDuration: z.number(),
+}).partial();
+
+const VideoConfigurationStateSchema = z.object({
+  SegmentationConfiguration: VideoSegmentationConfigurationStateSchema,
+}).partial();
+
+const BedrockEmbeddingModelConfigurationStateSchema = z.object({
+  Dimensions: z.number(),
+  EmbeddingDataType: z.string(),
+  Audio: z.array(AudioConfigurationStateSchema),
+  Video: z.array(VideoConfigurationStateSchema),
+  ModelConfiguration: z.record(z.string(), z.unknown()),
+}).partial();
+
+const EmbeddingModelConfigurationStateSchema = z.object({
+  BedrockEmbeddingModelConfiguration:
+    BedrockEmbeddingModelConfigurationStateSchema,
+}).partial();
+
+const S3LocationStateSchema = z.object({
+  URI: z.string(),
+}).partial();
+
+const SupplementalDataStorageLocationStateSchema = z.object({
+  SupplementalDataStorageLocationType: z.string(),
+  S3Location: S3LocationStateSchema,
+}).partial();
+
+const SupplementalDataStorageConfigurationStateSchema = z.object({
+  SupplementalDataStorageLocations: z.array(
+    SupplementalDataStorageLocationStateSchema,
+  ),
+}).partial();
+
+const VectorKnowledgeBaseConfigurationStateSchema = z.object({
+  EmbeddingModelArn: z.string(),
+  EmbeddingModelConfiguration: EmbeddingModelConfigurationStateSchema,
+  SupplementalDataStorageConfiguration:
+    SupplementalDataStorageConfigurationStateSchema,
+}).partial();
+
+const KendraKnowledgeBaseConfigurationStateSchema = z.object({
+  KendraIndexArn: z.string(),
+}).partial();
+
+const RedshiftQueryEngineAwsDataCatalogStorageConfigurationStateSchema = z
+  .object({
+    TableNames: z.array(z.string()),
+  }).partial();
+
+const RedshiftQueryEngineRedshiftStorageConfigurationStateSchema = z.object({
+  DatabaseName: z.string(),
+}).partial();
+
+const RedshiftQueryEngineStorageConfigurationStateSchema = z.object({
+  Type: z.string(),
+  AwsDataCatalogConfiguration:
+    RedshiftQueryEngineAwsDataCatalogStorageConfigurationStateSchema,
+  RedshiftConfiguration:
+    RedshiftQueryEngineRedshiftStorageConfigurationStateSchema,
+}).partial();
+
+const RedshiftServerlessAuthConfigurationStateSchema = z.object({
+  Type: z.string(),
+  UsernamePasswordSecretArn: z.string(),
+}).partial();
+
+const RedshiftServerlessConfigurationStateSchema = z.object({
+  WorkgroupArn: z.string(),
+  AuthConfiguration: RedshiftServerlessAuthConfigurationStateSchema,
+}).partial();
+
+const RedshiftProvisionedAuthConfigurationStateSchema = z.object({
+  Type: z.string(),
+  DatabaseUser: z.string(),
+  UsernamePasswordSecretArn: z.string(),
+}).partial();
+
+const RedshiftProvisionedConfigurationStateSchema = z.object({
+  ClusterIdentifier: z.string(),
+  AuthConfiguration: RedshiftProvisionedAuthConfigurationStateSchema,
+}).partial();
+
+const RedshiftQueryEngineConfigurationStateSchema = z.object({
+  Type: z.string(),
+  ServerlessConfiguration: RedshiftServerlessConfigurationStateSchema,
+  ProvisionedConfiguration: RedshiftProvisionedConfigurationStateSchema,
+}).partial();
+
+const QueryGenerationColumnStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Inclusion: z.string(),
+}).partial();
+
+const QueryGenerationTableStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Inclusion: z.string(),
+  Columns: z.array(QueryGenerationColumnStateSchema),
+}).partial();
+
+const CuratedQueryStateSchema = z.object({
+  NaturalLanguage: z.string(),
+  Sql: z.string(),
+}).partial();
+
+const QueryGenerationContextStateSchema = z.object({
+  Tables: z.array(QueryGenerationTableStateSchema),
+  CuratedQueries: z.array(CuratedQueryStateSchema),
+}).partial();
+
+const QueryGenerationConfigurationStateSchema = z.object({
+  ExecutionTimeoutSeconds: z.number(),
+  GenerationContext: QueryGenerationContextStateSchema,
+}).partial();
+
+const RedshiftConfigurationStateSchema = z.object({
+  StorageConfigurations: z.array(
+    RedshiftQueryEngineStorageConfigurationStateSchema,
+  ),
+  QueryEngineConfiguration: RedshiftQueryEngineConfigurationStateSchema,
+  QueryGenerationConfiguration: QueryGenerationConfigurationStateSchema,
+}).partial();
+
+const SqlKnowledgeBaseConfigurationStateSchema = z.object({
+  Type: z.string(),
+  RedshiftConfiguration: RedshiftConfigurationStateSchema,
+}).partial();
+
+const ManagedKnowledgeBaseServerSideEncryptionConfigurationStateSchema = z
+  .object({
+    KmsKeyArn: z.string(),
+  }).partial();
+
+const ManagedKnowledgeBaseConfigurationStateSchema = z.object({
+  EmbeddingModelArn: z.string(),
+  EmbeddingModelType: z.string(),
+  EmbeddingModelConfiguration: EmbeddingModelConfigurationStateSchema,
+  SupplementalDataStorageConfiguration:
+    SupplementalDataStorageConfigurationStateSchema,
+  ServerSideEncryptionConfiguration:
+    ManagedKnowledgeBaseServerSideEncryptionConfigurationStateSchema,
+}).partial();
+
+const OpenSearchServerlessFieldMappingStateSchema = z.object({
+  VectorField: z.string(),
+  TextField: z.string(),
+  MetadataField: z.string(),
+}).partial();
+
+const OpenSearchServerlessConfigurationStateSchema = z.object({
+  CollectionArn: z.string(),
+  VectorIndexName: z.string(),
+  FieldMapping: OpenSearchServerlessFieldMappingStateSchema,
+}).partial();
+
+const PineconeFieldMappingStateSchema = z.object({
+  TextField: z.string(),
+  MetadataField: z.string(),
+}).partial();
+
+const PineconeConfigurationStateSchema = z.object({
+  ConnectionString: z.string(),
+  CredentialsSecretArn: z.string(),
+  Namespace: z.string(),
+  FieldMapping: PineconeFieldMappingStateSchema,
+}).partial();
+
+const RdsFieldMappingStateSchema = z.object({
+  PrimaryKeyField: z.string(),
+  VectorField: z.string(),
+  TextField: z.string(),
+  MetadataField: z.string(),
+  CustomMetadataField: z.string(),
+}).partial();
+
+const RdsConfigurationStateSchema = z.object({
+  ResourceArn: z.string(),
+  CredentialsSecretArn: z.string(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  FieldMapping: RdsFieldMappingStateSchema,
+}).partial();
+
+const MongoDbAtlasFieldMappingStateSchema = z.object({
+  VectorField: z.string(),
+  TextField: z.string(),
+  MetadataField: z.string(),
+}).partial();
+
+const MongoDbAtlasConfigurationStateSchema = z.object({
+  Endpoint: z.string(),
+  CredentialsSecretArn: z.string(),
+  DatabaseName: z.string(),
+  CollectionName: z.string(),
+  VectorIndexName: z.string(),
+  TextIndexName: z.string(),
+  EndpointServiceName: z.string(),
+  FieldMapping: MongoDbAtlasFieldMappingStateSchema,
+}).partial();
+
+const NeptuneAnalyticsFieldMappingStateSchema = z.object({
+  TextField: z.string(),
+  MetadataField: z.string(),
+}).partial();
+
+const NeptuneAnalyticsConfigurationStateSchema = z.object({
+  GraphArn: z.string(),
+  FieldMapping: NeptuneAnalyticsFieldMappingStateSchema,
+}).partial();
+
+const S3VectorsConfigurationStateSchema = z.object({
+  VectorBucketArn: z.string(),
+  IndexArn: z.string(),
+  IndexName: z.string(),
+}).partial();
+
+const OpenSearchManagedClusterFieldMappingStateSchema = z.object({
+  VectorField: z.string(),
+  TextField: z.string(),
+  MetadataField: z.string(),
+}).partial();
+
+const OpenSearchManagedClusterConfigurationStateSchema = z.object({
+  DomainArn: z.string(),
+  DomainEndpoint: z.string(),
+  VectorIndexName: z.string(),
+  FieldMapping: OpenSearchManagedClusterFieldMappingStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -797,11 +1038,14 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   KnowledgeBaseConfiguration: z.object({
     Type: z.string(),
-    VectorKnowledgeBaseConfiguration: VectorKnowledgeBaseConfigurationSchema,
-    KendraKnowledgeBaseConfiguration: KendraKnowledgeBaseConfigurationSchema,
-    SqlKnowledgeBaseConfiguration: SqlKnowledgeBaseConfigurationSchema,
-    ManagedKnowledgeBaseConfiguration: ManagedKnowledgeBaseConfigurationSchema,
-  }).optional(),
+    VectorKnowledgeBaseConfiguration:
+      VectorKnowledgeBaseConfigurationStateSchema,
+    KendraKnowledgeBaseConfiguration:
+      KendraKnowledgeBaseConfigurationStateSchema,
+    SqlKnowledgeBaseConfiguration: SqlKnowledgeBaseConfigurationStateSchema,
+    ManagedKnowledgeBaseConfiguration:
+      ManagedKnowledgeBaseConfigurationStateSchema,
+  }).partial().optional(),
   KnowledgeBaseId: z.string(),
   KnowledgeBaseArn: z.string().optional(),
   Name: z.string().optional(),
@@ -812,19 +1056,20 @@ const StateSchema = z.object({
   UpdatedAt: z.string().optional(),
   StorageConfiguration: z.object({
     Type: z.string(),
-    OpensearchServerlessConfiguration: OpenSearchServerlessConfigurationSchema,
-    PineconeConfiguration: PineconeConfigurationSchema,
-    RdsConfiguration: RdsConfigurationSchema,
-    MongoDbAtlasConfiguration: MongoDbAtlasConfigurationSchema,
-    NeptuneAnalyticsConfiguration: NeptuneAnalyticsConfigurationSchema,
-    S3VectorsConfiguration: S3VectorsConfigurationSchema,
+    OpensearchServerlessConfiguration:
+      OpenSearchServerlessConfigurationStateSchema,
+    PineconeConfiguration: PineconeConfigurationStateSchema,
+    RdsConfiguration: RdsConfigurationStateSchema,
+    MongoDbAtlasConfiguration: MongoDbAtlasConfigurationStateSchema,
+    NeptuneAnalyticsConfiguration: NeptuneAnalyticsConfigurationStateSchema,
+    S3VectorsConfiguration: S3VectorsConfigurationStateSchema,
     OpensearchManagedClusterConfiguration:
-      OpenSearchManagedClusterConfigurationSchema,
-  }).optional(),
+      OpenSearchManagedClusterConfigurationStateSchema,
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -923,7 +1168,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock KnowledgeBase. Registered at `@swamp/aws/bedrock/knowledge-base`. */
 export const model = {
   type: "@swamp/aws/bedrock/knowledge-base",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1072,6 +1317,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

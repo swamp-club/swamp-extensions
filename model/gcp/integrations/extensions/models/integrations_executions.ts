@@ -102,13 +102,15 @@ const StateSchema = z.object({
   cloudLoggingDetails: z.object({
     cloudLoggingSeverity: z.string(),
     enableCloudLogging: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   containTaskVariables: z.boolean().optional(),
   createTime: z.string().optional(),
-  executionAttemptStats: z.array(z.object({
-    endTime: z.string(),
-    startTime: z.string(),
-  })).optional(),
+  executionAttemptStats: z.array(
+    z.object({
+      endTime: z.string(),
+      startTime: z.string(),
+    }).partial(),
+  ).optional(),
   integrationVersionNumber: z.string().optional(),
   integrationVersionUserLabel: z.string().optional(),
   name: z.string(),
@@ -117,29 +119,33 @@ const StateSchema = z.object({
     replayMode: z.string(),
     replayReason: z.string(),
     replayedExecutionIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   requestVariables: z.record(z.string(), z.unknown()).optional(),
   responseVariables: z.record(z.string(), z.unknown()).optional(),
   state: z.string().optional(),
-  taskExecutions: z.array(z.object({
-    name: z.string(),
-    taskExecutionDetails: z.array(z.object({
-      taskAttemptStats: z.array(z.unknown()),
-      taskExecutionState: z.string(),
-      taskNumber: z.string(),
-    })),
-    taskExecutionMetadata: z.object({
-      ancestorIterationNumbers: z.array(z.string()),
-      ancestorTaskNumbers: z.array(z.string()),
-      executionAttempt: z.number(),
-      privateIntegrationName: z.string(),
-      task: z.string(),
-      taskAttempt: z.number(),
-      taskLabel: z.string(),
-      taskNumber: z.string(),
-    }),
-    variables: z.record(z.string(), z.unknown()),
-  })).optional(),
+  taskExecutions: z.array(
+    z.object({
+      name: z.string(),
+      taskExecutionDetails: z.array(
+        z.object({
+          taskAttemptStats: z.array(z.unknown()),
+          taskExecutionState: z.string(),
+          taskNumber: z.string(),
+        }).partial(),
+      ),
+      taskExecutionMetadata: z.object({
+        ancestorIterationNumbers: z.array(z.string()),
+        ancestorTaskNumbers: z.array(z.string()),
+        executionAttempt: z.number(),
+        privateIntegrationName: z.string(),
+        task: z.string(),
+        taskAttempt: z.number(),
+        taskLabel: z.string(),
+        taskNumber: z.string(),
+      }).partial(),
+      variables: z.record(z.string(), z.unknown()),
+    }).partial(),
+  ).optional(),
   triggerId: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -188,7 +194,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Integrations.Executions. Registered at `@swamp/gcp/integrations/integrations-executions`. */
 export const model = {
   type: "@swamp/gcp/integrations/integrations-executions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -278,6 +284,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

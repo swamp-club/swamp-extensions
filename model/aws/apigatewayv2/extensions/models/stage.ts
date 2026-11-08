@@ -99,7 +99,7 @@ const StateSchema = z.object({
   AccessLogSettings: z.object({
     Format: z.string(),
     DestinationArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RouteSettings: z.record(z.string(), z.unknown()).optional(),
   StageName: z.string(),
   StageVariables: z.record(z.string(), z.unknown()).optional(),
@@ -110,11 +110,11 @@ const StateSchema = z.object({
     ThrottlingBurstLimit: z.number(),
     DetailedMetricsEnabled: z.boolean(),
     ThrottlingRateLimit: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -178,7 +178,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 Stage. Registered at `@swamp/aws/apigatewayv2/stage`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/stage",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -207,6 +207,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

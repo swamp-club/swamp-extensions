@@ -230,18 +230,22 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  accelerators: z.array(z.object({
-    acceleratorCount: z.number(),
-    acceleratorType: z.string(),
-  })).optional(),
+  accelerators: z.array(
+    z.object({
+      acceleratorCount: z.number(),
+      acceleratorType: z.string(),
+    }).partial(),
+  ).optional(),
   cpuOvercommitType: z.string().optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
-  disks: z.array(z.object({
-    diskCount: z.number(),
-    diskSizeGb: z.number(),
-    diskType: z.string(),
-  })).optional(),
+  disks: z.array(
+    z.object({
+      diskCount: z.number(),
+      diskSizeGb: z.number(),
+      diskType: z.string(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
@@ -251,12 +255,12 @@ const StateSchema = z.object({
     cpus: z.string(),
     localSsd: z.string(),
     memory: z.string(),
-  }).optional(),
+  }).partial().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
   serverBinding: z.object({
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.string().optional(),
   statusMessage: z.string().optional(),
 }).passthrough();
@@ -353,7 +357,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine NodeTemplates. Registered at `@swamp/gcp/compute/nodetemplates`. */
 export const model = {
   type: "@swamp/gcp/compute/nodetemplates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -502,6 +506,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

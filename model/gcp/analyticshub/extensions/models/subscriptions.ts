@@ -132,28 +132,30 @@ const StateSchema = z.object({
   commercialInfo: z.object({
     cloudMarketplace: z.object({
       order: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   creationTime: z.string().optional(),
   dataExchange: z.string().optional(),
   destinationDataset: z.object({
     datasetReference: z.object({
       datasetId: z.string(),
       projectId: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     friendlyName: z.string(),
     labels: z.record(z.string(), z.unknown()),
     location: z.string(),
     replicaLocations: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   lastModifyTime: z.string().optional(),
   linkedDatasetMap: z.record(z.string(), z.unknown()).optional(),
-  linkedResources: z.array(z.object({
-    linkedDataset: z.string(),
-    linkedPubsubSubscription: z.string(),
-    listing: z.string(),
-  })).optional(),
+  linkedResources: z.array(
+    z.object({
+      linkedDataset: z.string(),
+      linkedPubsubSubscription: z.string(),
+      listing: z.string(),
+    }).partial(),
+  ).optional(),
   listing: z.string().optional(),
   logLinkedDatasetQueryUserEmail: z.boolean().optional(),
   name: z.string(),
@@ -205,7 +207,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Analytics Hub Subscriptions. Registered at `@swamp/gcp/analyticshub/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/analyticshub/subscriptions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -334,6 +336,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

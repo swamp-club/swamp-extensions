@@ -230,34 +230,40 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   brand: z.string().optional(),
-  certification: z.array(z.object({
-    authority: z.string(),
-    code: z.string(),
-    link: z.string(),
-    logo: z.string(),
-    name: z.string(),
-    validUntil: z.string(),
-    value: z.string(),
-  })).optional(),
+  certification: z.array(
+    z.object({
+      authority: z.string(),
+      code: z.string(),
+      link: z.string(),
+      logo: z.string(),
+      name: z.string(),
+      validUntil: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   countryCode: z.array(z.string()).optional(),
-  destinationStatuses: z.array(z.object({
-    approvedCountries: z.array(z.string()),
-    destination: z.string(),
-    disapprovedCountries: z.array(z.string()),
-    pendingCountries: z.array(z.string()),
-    status: z.string(),
-  })).optional(),
-  issues: z.array(z.object({
-    applicableCountries: z.array(z.string()),
-    attribute: z.string(),
-    description: z.string(),
-    destination: z.string(),
-    resolution: z.string(),
-    severity: z.string(),
-    timestamp: z.string(),
-    title: z.string(),
-    type: z.string(),
-  })).optional(),
+  destinationStatuses: z.array(
+    z.object({
+      approvedCountries: z.array(z.string()),
+      destination: z.string(),
+      disapprovedCountries: z.array(z.string()),
+      pendingCountries: z.array(z.string()),
+      status: z.string(),
+    }).partial(),
+  ).optional(),
+  issues: z.array(
+    z.object({
+      applicableCountries: z.array(z.string()),
+      attribute: z.string(),
+      description: z.string(),
+      destination: z.string(),
+      resolution: z.string(),
+      severity: z.string(),
+      timestamp: z.string(),
+      title: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   mpn: z.array(z.string()).optional(),
   name: z.string(),
   productCode: z.array(z.string()).optional(),
@@ -389,7 +395,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Manufacturer Center Accounts.Languages.ProductCertifications. Registered at `@swamp/gcp/manufacturers/accounts-languages-productcertifications`. */
 export const model = {
   type: "@swamp/gcp/manufacturers/accounts-languages-productcertifications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -513,6 +519,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

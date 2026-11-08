@@ -171,39 +171,41 @@ const StateSchema = z.object({
       signature: z.string(),
       source: z.string(),
       volumeId: z.string(),
-    }),
+    }).partial(),
     driveImportedContentLink: z.string(),
     embeddable: z.boolean(),
     epub: z.object({
       acsTokenLink: z.string(),
       downloadLink: z.string(),
       isAvailable: z.boolean(),
-    }),
+    }).partial(),
     explicitOfflineLicenseManagement: z.boolean(),
     pdf: z.object({
       acsTokenLink: z.string(),
       downloadLink: z.string(),
       isAvailable: z.boolean(),
-    }),
+    }).partial(),
     publicDomain: z.boolean(),
     quoteSharingAllowed: z.boolean(),
     textToSpeechPermission: z.string(),
     viewOrderUrl: z.string(),
     viewability: z.string(),
     webReaderLink: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   layerInfo: z.object({
-    layers: z.array(z.object({
-      layerId: z.string(),
-      volumeAnnotationsVersion: z.string(),
-    })),
-  }).optional(),
+    layers: z.array(
+      z.object({
+        layerId: z.string(),
+        volumeAnnotationsVersion: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   recommendedInfo: z.object({
     explanation: z.string(),
-  }).optional(),
+  }).partial().optional(),
   saleInfo: z.object({
     buyLink: z.string(),
     country: z.string(),
@@ -211,33 +213,35 @@ const StateSchema = z.object({
     listPrice: z.object({
       amount: z.number(),
       currencyCode: z.string(),
-    }),
-    offers: z.array(z.object({
-      finskyOfferType: z.number(),
-      giftable: z.boolean(),
-      listPrice: z.object({
-        amountInMicros: z.number(),
-        currencyCode: z.string(),
-      }),
-      rentalDuration: z.object({
-        count: z.number(),
-        unit: z.string(),
-      }),
-      retailPrice: z.object({
-        amountInMicros: z.number(),
-        currencyCode: z.string(),
-      }),
-    })),
+    }).partial(),
+    offers: z.array(
+      z.object({
+        finskyOfferType: z.number(),
+        giftable: z.boolean(),
+        listPrice: z.object({
+          amountInMicros: z.number(),
+          currencyCode: z.string(),
+        }).partial(),
+        rentalDuration: z.object({
+          count: z.number(),
+          unit: z.string(),
+        }).partial(),
+        retailPrice: z.object({
+          amountInMicros: z.number(),
+          currencyCode: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     onSaleDate: z.string(),
     retailPrice: z.object({
       amount: z.number(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     saleability: z.string(),
-  }).optional(),
+  }).partial().optional(),
   searchInfo: z.object({
     textSnippet: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   userInfo: z.object({
     acquiredTime: z.string(),
@@ -247,13 +251,13 @@ const StateSchema = z.object({
       limitType: z.string(),
       remainingCharacterCount: z.number(),
       updated: z.string(),
-    }),
+    }).partial(),
     entitlementType: z.number(),
     familySharing: z.object({
       familyRole: z.string(),
       isSharingAllowed: z.boolean(),
       isSharingDisabledByFop: z.boolean(),
-    }),
+    }).partial(),
     isFamilySharedFromUser: z.boolean(),
     isFamilySharedToUser: z.boolean(),
     isFamilySharingAllowed: z.boolean(),
@@ -270,16 +274,16 @@ const StateSchema = z.object({
       pdfPosition: z.string(),
       updated: z.string(),
       volumeId: z.string(),
-    }),
+    }).partial(),
     rentalPeriod: z.object({
       endUtcSec: z.string(),
       startUtcSec: z.string(),
-    }),
+    }).partial(),
     rentalState: z.string(),
     review: z.object({
       author: z.object({
         displayName: z.string(),
-      }),
+      }).partial(),
       content: z.string(),
       date: z.string(),
       fullTextUrl: z.string(),
@@ -289,16 +293,16 @@ const StateSchema = z.object({
         description: z.string(),
         extraDescription: z.string(),
         url: z.string(),
-      }),
+      }).partial(),
       title: z.string(),
       type: z.string(),
       volumeId: z.string(),
-    }),
+    }).partial(),
     updated: z.string(),
     userUploadedVolumeInfo: z.object({
       processingState: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   volumeInfo: z.object({
     allowAnonLogging: z.boolean(),
     authors: z.array(z.string()),
@@ -312,7 +316,7 @@ const StateSchema = z.object({
       height: z.string(),
       thickness: z.string(),
       width: z.string(),
-    }),
+    }).partial(),
     imageLinks: z.object({
       extraLarge: z.string(),
       large: z.string(),
@@ -320,11 +324,13 @@ const StateSchema = z.object({
       small: z.string(),
       smallThumbnail: z.string(),
       thumbnail: z.string(),
-    }),
-    industryIdentifiers: z.array(z.object({
-      identifier: z.string(),
-      type: z.string(),
-    })),
+    }).partial(),
+    industryIdentifiers: z.array(
+      z.object({
+        identifier: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     infoLink: z.string(),
     language: z.string(),
     mainCategory: z.string(),
@@ -335,7 +341,7 @@ const StateSchema = z.object({
       containsImageBubbles: z.boolean(),
       epubBubbleVersion: z.string(),
       imageBubbleVersion: z.string(),
-    }),
+    }).partial(),
     previewLink: z.string(),
     printType: z.string(),
     printedPageCount: z.number(),
@@ -345,22 +351,24 @@ const StateSchema = z.object({
     readingModes: z.object({
       image: z.boolean(),
       text: z.boolean(),
-    }),
+    }).partial(),
     samplePageCount: z.number(),
     seriesInfo: z.object({
       bookDisplayNumber: z.string(),
       kind: z.string(),
       shortSeriesBookTitle: z.string(),
-      volumeSeries: z.array(z.object({
-        issue: z.array(z.unknown()),
-        orderNumber: z.number(),
-        seriesBookType: z.string(),
-        seriesId: z.string(),
-      })),
-    }),
+      volumeSeries: z.array(
+        z.object({
+          issue: z.array(z.unknown()),
+          orderNumber: z.number(),
+          seriesBookType: z.string(),
+          seriesId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     subtitle: z.string(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -402,7 +410,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Books Volumes. Registered at `@swamp/gcp/books/volumes`. */
 export const model = {
   type: "@swamp/gcp/books/volumes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -531,6 +539,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -118,15 +118,15 @@ const StateSchema = z.object({
   closeTime: z.string().optional(),
   log: z.object({
     extractedLabels: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   metadata: z.object({
     systemLabels: z.record(z.string(), z.unknown()),
     userLabels: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   metric: z.object({
     labels: z.record(z.string(), z.unknown()),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   openTime: z.string().optional(),
   policy: z.object({
@@ -134,11 +134,11 @@ const StateSchema = z.object({
     name: z.string(),
     severity: z.string(),
     userLabels: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   resource: z.object({
     labels: z.record(z.string(), z.unknown()),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -183,7 +183,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring Alerts. Registered at `@swamp/gcp/monitoring/alerts`. */
 export const model = {
   type: "@swamp/gcp/monitoring/alerts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -312,6 +312,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

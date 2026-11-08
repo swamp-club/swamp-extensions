@@ -613,41 +613,47 @@ const StateSchema = z.object({
   completionTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   deviceUsageDuration: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
-  dimensionValue: z.array(z.object({
-    key: z.string(),
-    value: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  dimensionValue: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   hasImages: z.boolean().optional(),
-  labels: z.array(z.object({
-    key: z.string(),
-    value: z.string(),
-  })).optional(),
+  labels: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   multiStep: z.object({
     multistepNumber: z.number(),
     primaryStep: z.object({
-      individualOutcome: z.array(z.object({
-        multistepNumber: z.number(),
-        outcomeSummary: z.string(),
-        runDuration: z.object({
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-        stepId: z.string(),
-      })),
+      individualOutcome: z.array(
+        z.object({
+          multistepNumber: z.number(),
+          outcomeSummary: z.string(),
+          runDuration: z.object({
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          stepId: z.string(),
+        }).partial(),
+      ),
       rollUp: z.string(),
-    }),
+    }).partial(),
     primaryStepId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   outcome: z.object({
     failureDetail: z.object({
@@ -658,113 +664,125 @@ const StateSchema = z.object({
       otherNativeCrash: z.boolean(),
       timedOut: z.boolean(),
       unableToCrawl: z.boolean(),
-    }),
+    }).partial(),
     inconclusiveDetail: z.object({
       abortedByUser: z.boolean(),
       hasErrorLogs: z.boolean(),
       infrastructureFailure: z.boolean(),
-    }),
+    }).partial(),
     skippedDetail: z.object({
       incompatibleAppVersion: z.boolean(),
       incompatibleArchitecture: z.boolean(),
       incompatibleDevice: z.boolean(),
       pendingTimeout: z.boolean(),
-    }),
+    }).partial(),
     successDetail: z.object({
       otherNativeCrash: z.boolean(),
-    }),
+    }).partial(),
     summary: z.string(),
-  }).optional(),
+  }).partial().optional(),
   runDuration: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   stepId: z.string().optional(),
   testExecutionStep: z.object({
-    testIssues: z.array(z.object({
-      category: z.string(),
-      errorMessage: z.string(),
-      severity: z.string(),
-      stackTrace: z.object({
-        exception: z.string(),
-      }),
-      type: z.string(),
-      warning_migration: z.object({
-        typeUrl: z.string(),
-        value: z.string(),
-      }),
-    })),
-    testSuiteOverviews: z.array(z.object({
-      elapsedTime: z.object({
-        nanos: z.number(),
-        seconds: z.string(),
-      }),
-      errorCount: z.number(),
-      failureCount: z.number(),
-      flakyCount: z.number(),
-      name: z.string(),
-      skippedCount: z.number(),
-      totalCount: z.number(),
-      xmlSource: z.object({
-        fileUri: z.string(),
-      }),
-    })),
+    testIssues: z.array(
+      z.object({
+        category: z.string(),
+        errorMessage: z.string(),
+        severity: z.string(),
+        stackTrace: z.object({
+          exception: z.string(),
+        }).partial(),
+        type: z.string(),
+        warning_migration: z.object({
+          typeUrl: z.string(),
+          value: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+    testSuiteOverviews: z.array(
+      z.object({
+        elapsedTime: z.object({
+          nanos: z.number(),
+          seconds: z.string(),
+        }).partial(),
+        errorCount: z.number(),
+        failureCount: z.number(),
+        flakyCount: z.number(),
+        name: z.string(),
+        skippedCount: z.number(),
+        totalCount: z.number(),
+        xmlSource: z.object({
+          fileUri: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     testTiming: z.object({
       testProcessDuration: z.object({
         nanos: z.number(),
         seconds: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     toolExecution: z.object({
       commandLineArguments: z.array(z.string()),
       exitCode: z.object({
         number: z.number(),
-      }),
-      toolLogs: z.array(z.object({
-        fileUri: z.string(),
-      })),
-      toolOutputs: z.array(z.object({
-        creationTime: z.object({
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-        output: z.object({
-          fileUri: z.unknown(),
-        }),
-        testCase: z.object({
-          className: z.unknown(),
-          name: z.unknown(),
-          testSuiteName: z.unknown(),
-        }),
-      })),
-    }),
-  }).optional(),
+      }).partial(),
+      toolLogs: z.array(
+        z.object({
+          fileUri: z.string(),
+        }).partial(),
+      ),
+      toolOutputs: z.array(
+        z.object({
+          creationTime: z.object({
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          output: z.object({
+            fileUri: z.unknown(),
+          }).partial(),
+          testCase: z.object({
+            className: z.unknown(),
+            name: z.unknown(),
+            testSuiteName: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   toolExecutionStep: z.object({
     toolExecution: z.object({
       commandLineArguments: z.array(z.string()),
       exitCode: z.object({
         number: z.number(),
-      }),
-      toolLogs: z.array(z.object({
-        fileUri: z.string(),
-      })),
-      toolOutputs: z.array(z.object({
-        creationTime: z.object({
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-        output: z.object({
-          fileUri: z.unknown(),
-        }),
-        testCase: z.object({
-          className: z.unknown(),
-          name: z.unknown(),
-          testSuiteName: z.unknown(),
-        }),
-      })),
-    }),
-  }).optional(),
+      }).partial(),
+      toolLogs: z.array(
+        z.object({
+          fileUri: z.string(),
+        }).partial(),
+      ),
+      toolOutputs: z.array(
+        z.object({
+          creationTime: z.object({
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          output: z.object({
+            fileUri: z.unknown(),
+          }).partial(),
+          testCase: z.object({
+            className: z.unknown(),
+            name: z.unknown(),
+            testSuiteName: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1224,7 +1242,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tool Results Histories.Executions.Steps. Registered at `@swamp/gcp/toolresults/histories-executions-steps`. */
 export const model = {
   type: "@swamp/gcp/toolresults/histories-executions-steps",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1398,6 +1416,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

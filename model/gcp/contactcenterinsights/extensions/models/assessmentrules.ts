@@ -208,7 +208,7 @@ const StateSchema = z.object({
     dimension: z.string(),
     samplePercentage: z.number(),
     sampleRow: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   scheduleInfo: z.object({
@@ -216,7 +216,7 @@ const StateSchema = z.object({
     schedule: z.string(),
     startTime: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -299,7 +299,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights AssessmentRules. Registered at `@swamp/gcp/contactcenterinsights/assessmentrules`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/assessmentrules",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -443,6 +443,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -169,16 +169,18 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   customBiddingAlgorithmId: z.string().optional(),
   customBiddingScriptId: z.string().optional(),
-  errors: z.array(z.object({
-    column: z.string(),
-    errorCode: z.string(),
-    errorMessage: z.string(),
-    line: z.string(),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      column: z.string(),
+      errorCode: z.string(),
+      errorMessage: z.string(),
+      line: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   script: z.object({
     resourceName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -234,7 +236,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 CustomBiddingAlgorithms.Scripts. Registered at `@swamp/gcp/displayvideo/custombiddingalgorithms-scripts`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/custombiddingalgorithms-scripts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

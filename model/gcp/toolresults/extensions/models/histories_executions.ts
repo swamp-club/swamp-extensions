@@ -371,12 +371,12 @@ const StateSchema = z.object({
   completionTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
-  dimensionDefinitions: z.array(z.object({})).optional(),
+  }).partial().optional(),
+  dimensionDefinitions: z.array(z.object({}).partial()).optional(),
   executionId: z.string().optional(),
   outcome: z.object({
     failureDetail: z.object({
@@ -387,23 +387,23 @@ const StateSchema = z.object({
       otherNativeCrash: z.boolean(),
       timedOut: z.boolean(),
       unableToCrawl: z.boolean(),
-    }),
+    }).partial(),
     inconclusiveDetail: z.object({
       abortedByUser: z.boolean(),
       hasErrorLogs: z.boolean(),
       infrastructureFailure: z.boolean(),
-    }),
+    }).partial(),
     skippedDetail: z.object({
       incompatibleAppVersion: z.boolean(),
       incompatibleArchitecture: z.boolean(),
       incompatibleDevice: z.boolean(),
       pendingTimeout: z.boolean(),
-    }),
+    }).partial(),
     successDetail: z.object({
       otherNativeCrash: z.boolean(),
-    }),
+    }).partial(),
     summary: z.string(),
-  }).optional(),
+  }).partial().optional(),
   specification: z.object({
     androidTest: z.object({
       androidAppInfo: z.object({
@@ -411,44 +411,44 @@ const StateSchema = z.object({
         packageName: z.string(),
         versionCode: z.string(),
         versionName: z.string(),
-      }),
+      }).partial(),
       androidInstrumentationTest: z.object({
         testPackageId: z.string(),
         testRunnerClass: z.string(),
         testTargets: z.array(z.string()),
         useOrchestrator: z.boolean(),
-      }),
+      }).partial(),
       androidRoboTest: z.object({
         appInitialActivity: z.string(),
         bootstrapPackageId: z.string(),
         bootstrapRunnerClass: z.string(),
         maxDepth: z.number(),
         maxSteps: z.number(),
-      }),
-      androidTestLoop: z.object({}),
+      }).partial(),
+      androidTestLoop: z.object({}).partial(),
       testTimeout: z.object({
         nanos: z.number(),
         seconds: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     iosTest: z.object({
       iosAppInfo: z.object({
         name: z.string(),
-      }),
-      iosRoboTest: z.object({}),
+      }).partial(),
+      iosRoboTest: z.object({}).partial(),
       iosTestLoop: z.object({
         bundleId: z.string(),
-      }),
+      }).partial(),
       iosXcTest: z.object({
         bundleId: z.string(),
         xcodeVersion: z.string(),
-      }),
+      }).partial(),
       testTimeout: z.object({
         nanos: z.number(),
         seconds: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   testExecutionMatrixId: z.string().optional(),
 }).passthrough();
@@ -686,7 +686,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tool Results Histories.Executions. Registered at `@swamp/gcp/toolresults/histories-executions`. */
 export const model = {
   type: "@swamp/gcp/toolresults/histories-executions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -830,6 +830,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -207,6 +207,165 @@ const LocalSecondaryIndexSchema = z.object({
   KeySchema: z.array(KeySchemaSchema),
 });
 
+const VectorAttributeStateSchema = z.object({
+  AttributeName: z.string(),
+}).partial();
+
+const ProjectionStateSchema = z.object({
+  NonKeyAttributes: z.array(z.string()),
+  ProjectionType: z.string(),
+}).partial();
+
+const SearchSchemaElementStateSchema = z.object({
+  AttributeName: z.string(),
+  SearchSchemaElementType: z.string(),
+}).partial();
+
+const VectorIndexStateSchema = z.object({
+  IndexName: z.string(),
+  VectorAttribute: VectorAttributeStateSchema,
+  Projection: ProjectionStateSchema,
+  Dimensions: z.number(),
+  SearchSchema: z.array(SearchSchemaElementStateSchema),
+  DistanceFunction: z.string(),
+}).partial();
+
+const ReplicaSSESpecificationStateSchema = z.object({
+  KMSMasterKeyId: z.string(),
+}).partial();
+
+const KinesisStreamSpecificationStateSchema = z.object({
+  ApproximateCreationDateTimePrecision: z.string(),
+  StreamArn: z.string(),
+}).partial();
+
+const ContributorInsightsSpecificationStateSchema = z.object({
+  Mode: z.string(),
+  Enabled: z.boolean(),
+}).partial();
+
+const PointInTimeRecoverySpecificationStateSchema = z.object({
+  PointInTimeRecoveryEnabled: z.boolean(),
+  RecoveryPeriodInDays: z.number(),
+}).partial();
+
+const ResourcePolicyStateSchema = z.object({
+  PolicyDocument: z.record(z.string(), z.unknown()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const ReplicaStreamSpecificationStateSchema = z.object({
+  ResourcePolicy: ResourcePolicyStateSchema,
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const TargetTrackingScalingPolicyConfigurationStateSchema = z.object({
+  ScaleOutCooldown: z.number(),
+  TargetValue: z.number(),
+  DisableScaleIn: z.boolean(),
+  ScaleInCooldown: z.number(),
+}).partial();
+
+const CapacityAutoScalingSettingsStateSchema = z.object({
+  MinCapacity: z.number(),
+  SeedCapacity: z.number(),
+  TargetTrackingScalingPolicyConfiguration:
+    TargetTrackingScalingPolicyConfigurationStateSchema,
+  MaxCapacity: z.number(),
+}).partial();
+
+const ReadProvisionedThroughputSettingsStateSchema = z.object({
+  ReadCapacityUnits: z.number(),
+  ReadCapacityAutoScalingSettings: CapacityAutoScalingSettingsStateSchema,
+}).partial();
+
+const ReadOnDemandThroughputSettingsStateSchema = z.object({
+  MaxReadRequestUnits: z.number(),
+}).partial();
+
+const ReplicaGlobalSecondaryIndexSpecificationStateSchema = z.object({
+  IndexName: z.string(),
+  ContributorInsightsSpecification: ContributorInsightsSpecificationStateSchema,
+  ReadProvisionedThroughputSettings:
+    ReadProvisionedThroughputSettingsStateSchema,
+  ReadOnDemandThroughputSettings: ReadOnDemandThroughputSettingsStateSchema,
+}).partial();
+
+const ReplicaSpecificationStateSchema = z.object({
+  SSESpecification: ReplicaSSESpecificationStateSchema,
+  KinesisStreamSpecification: KinesisStreamSpecificationStateSchema,
+  ContributorInsightsSpecification: ContributorInsightsSpecificationStateSchema,
+  GlobalTableSettingsReplicationMode: z.string(),
+  PointInTimeRecoverySpecification: PointInTimeRecoverySpecificationStateSchema,
+  DisassociationProtectionEnabled: z.boolean(),
+  ReplicaStreamSpecification: ReplicaStreamSpecificationStateSchema,
+  GlobalSecondaryIndexes: z.array(
+    ReplicaGlobalSecondaryIndexSpecificationStateSchema,
+  ),
+  Region: z.string(),
+  ResourcePolicy: ResourcePolicyStateSchema,
+  ReadProvisionedThroughputSettings:
+    ReadProvisionedThroughputSettingsStateSchema,
+  TableClass: z.string(),
+  DeletionProtectionEnabled: z.boolean(),
+  Tags: z.array(TagStateSchema),
+  ReadOnDemandThroughputSettings: ReadOnDemandThroughputSettingsStateSchema,
+}).partial();
+
+const GlobalTableWitnessStateSchema = z.object({
+  Region: z.string(),
+}).partial();
+
+const AttributeDefinitionStateSchema = z.object({
+  AttributeType: z.string(),
+  AttributeName: z.string(),
+}).partial();
+
+const KeySchemaStateSchema = z.object({
+  KeyType: z.string(),
+  AttributeName: z.string(),
+}).partial();
+
+const WarmThroughputStateSchema = z.object({
+  ReadUnitsPerSecond: z.number(),
+  WriteUnitsPerSecond: z.number(),
+}).partial();
+
+const GlobalReadProvisionedThroughputSettingsStateSchema = z.object({
+  ReadCapacityUnits: z.number(),
+}).partial();
+
+const WriteProvisionedThroughputSettingsStateSchema = z.object({
+  WriteCapacityAutoScalingSettings: CapacityAutoScalingSettingsStateSchema,
+}).partial();
+
+const WriteOnDemandThroughputSettingsStateSchema = z.object({
+  MaxWriteRequestUnits: z.number(),
+}).partial();
+
+const GlobalSecondaryIndexStateSchema = z.object({
+  IndexName: z.string(),
+  Projection: ProjectionStateSchema,
+  KeySchema: z.array(KeySchemaStateSchema),
+  WarmThroughput: WarmThroughputStateSchema,
+  ReadProvisionedThroughputSettings:
+    GlobalReadProvisionedThroughputSettingsStateSchema,
+  WriteProvisionedThroughputSettings:
+    WriteProvisionedThroughputSettingsStateSchema,
+  ReadOnDemandThroughputSettings: ReadOnDemandThroughputSettingsStateSchema,
+  WriteOnDemandThroughputSettings: WriteOnDemandThroughputSettingsStateSchema,
+}).partial();
+
+const LocalSecondaryIndexStateSchema = z.object({
+  IndexName: z.string(),
+  Projection: ProjectionStateSchema,
+  KeySchema: z.array(KeySchemaStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -268,39 +427,46 @@ const StateSchema = z.object({
   SSESpecification: z.object({
     SSEEnabled: z.boolean(),
     SSEType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   TableType: z.string().optional(),
   StreamSpecification: z.object({
     StreamViewType: z.string(),
-  }).optional(),
-  WarmThroughput: WarmThroughputSchema.optional(),
-  VectorIndexes: z.array(VectorIndexSchema).optional(),
-  Replicas: z.array(ReplicaSpecificationSchema).optional(),
-  WriteProvisionedThroughputSettings: WriteProvisionedThroughputSettingsSchema
-    .optional(),
+  }).partial().optional(),
+  WarmThroughput: z.object({
+    ReadUnitsPerSecond: z.number(),
+    WriteUnitsPerSecond: z.number(),
+  }).partial().optional(),
+  VectorIndexes: z.array(VectorIndexStateSchema).optional(),
+  Replicas: z.array(ReplicaSpecificationStateSchema).optional(),
+  WriteProvisionedThroughputSettings: z.object({
+    WriteCapacityAutoScalingSettings: CapacityAutoScalingSettingsStateSchema,
+  }).partial().optional(),
   GlobalTableSourceArn: z.string().optional(),
-  WriteOnDemandThroughputSettings: WriteOnDemandThroughputSettingsSchema
-    .optional(),
-  GlobalTableWitnesses: z.array(GlobalTableWitnessSchema).optional(),
+  WriteOnDemandThroughputSettings: z.object({
+    MaxWriteRequestUnits: z.number(),
+  }).partial().optional(),
+  GlobalTableWitnesses: z.array(GlobalTableWitnessStateSchema).optional(),
   TableName: z.string(),
-  AttributeDefinitions: z.array(AttributeDefinitionSchema).optional(),
+  AttributeDefinitions: z.array(AttributeDefinitionStateSchema).optional(),
   BillingMode: z.string().optional(),
-  GlobalSecondaryIndexes: z.array(GlobalSecondaryIndexSchema).optional(),
-  KeySchema: z.array(KeySchemaSchema).optional(),
-  LocalSecondaryIndexes: z.array(LocalSecondaryIndexSchema).optional(),
+  GlobalSecondaryIndexes: z.array(GlobalSecondaryIndexStateSchema).optional(),
+  KeySchema: z.array(KeySchemaStateSchema).optional(),
+  LocalSecondaryIndexes: z.array(LocalSecondaryIndexStateSchema).optional(),
   Arn: z.string().optional(),
   StreamArn: z.string().optional(),
-  ReadProvisionedThroughputSettings:
-    GlobalReadProvisionedThroughputSettingsSchema.optional(),
-  ReadOnDemandThroughputSettings: ReadOnDemandThroughputSettingsSchema
-    .optional(),
+  ReadProvisionedThroughputSettings: z.object({
+    ReadCapacityUnits: z.number(),
+  }).partial().optional(),
+  ReadOnDemandThroughputSettings: z.object({
+    MaxReadRequestUnits: z.number(),
+  }).partial().optional(),
   TimeToLiveSpecification: z.object({
     Enabled: z.boolean(),
     AttributeName: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -368,7 +534,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DynamoDB GlobalTable. Registered at `@swamp/aws/dynamodb/global-table`. */
 export const model = {
   type: "@swamp/aws/dynamodb/global-table",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -467,6 +633,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

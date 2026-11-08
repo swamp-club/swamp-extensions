@@ -333,6 +333,164 @@ const CapacityReservationTargetSchema = z.object({
   ).optional(),
 });
 
+const LifecycleHookSpecificationStateSchema = z.object({
+  LifecycleHookName: z.string(),
+  LifecycleTransition: z.string(),
+  HeartbeatTimeout: z.number(),
+  NotificationMetadata: z.string(),
+  DefaultResult: z.string(),
+  NotificationTargetARN: z.string(),
+  RoleARN: z.string(),
+}).partial();
+
+const NotificationConfigurationStateSchema = z.object({
+  TopicARN: z.array(z.string()),
+  NotificationTypes: z.array(z.string()),
+}).partial();
+
+const RetentionTriggersStateSchema = z.object({
+  TerminateHookAbandon: z.string(),
+}).partial();
+
+const DistributionSegmentStateSchema = z.object({
+  TargetCapacityTypes: z.array(z.string()),
+}).partial();
+
+const InstancesDistributionStateSchema = z.object({
+  OnDemandAllocationStrategy: z.string(),
+  OnDemandBaseCapacity: z.number(),
+  DistributionSegments: z.array(DistributionSegmentStateSchema),
+  OnDemandPercentageAboveBaseCapacity: z.number(),
+  SpotInstancePools: z.number(),
+  SpotAllocationStrategy: z.string(),
+  SpotMaxPrice: z.string(),
+}).partial();
+
+const LaunchTemplateSpecificationStateSchema = z.object({
+  LaunchTemplateName: z.string(),
+  Version: z.string(),
+  LaunchTemplateId: z.string(),
+}).partial();
+
+const MemoryGiBPerVCpuRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const VCpuCountRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const MemoryMiBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const NetworkInterfaceCountRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorCountRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const NetworkBandwidthGbpsRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const PerformanceFactorReferenceRequestStateSchema = z.object({
+  InstanceFamily: z.string(),
+}).partial();
+
+const CpuPerformanceFactorRequestStateSchema = z.object({
+  References: z.array(PerformanceFactorReferenceRequestStateSchema),
+}).partial();
+
+const BaselinePerformanceFactorsRequestStateSchema = z.object({
+  Cpu: CpuPerformanceFactorRequestStateSchema,
+}).partial();
+
+const BaselineEbsBandwidthMbpsRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorTotalMemoryMiBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const TotalLocalStorageGBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const InstanceRequirementsStateSchema = z.object({
+  InstanceGenerations: z.array(z.string()),
+  AcceleratorTypes: z.array(z.string()),
+  MemoryGiBPerVCpu: MemoryGiBPerVCpuRequestStateSchema,
+  AcceleratorManufacturers: z.array(z.string()),
+  VCpuCount: VCpuCountRequestStateSchema,
+  LocalStorage: z.string(),
+  CpuManufacturers: z.array(z.string()),
+  BareMetal: z.string(),
+  RequireHibernateSupport: z.boolean(),
+  MaxSpotPriceAsPercentageOfOptimalOnDemandPrice: z.number(),
+  OnDemandMaxPricePercentageOverLowestPrice: z.number(),
+  MemoryMiB: MemoryMiBRequestStateSchema,
+  LocalStorageTypes: z.array(z.string()),
+  NetworkInterfaceCount: NetworkInterfaceCountRequestStateSchema,
+  ExcludedInstanceTypes: z.array(z.string()),
+  AllowedInstanceTypes: z.array(z.string()),
+  AcceleratorCount: AcceleratorCountRequestStateSchema,
+  NetworkBandwidthGbps: NetworkBandwidthGbpsRequestStateSchema,
+  BaselinePerformanceFactors: BaselinePerformanceFactorsRequestStateSchema,
+  BaselineEbsBandwidthMbps: BaselineEbsBandwidthMbpsRequestStateSchema,
+  SpotMaxPricePercentageOverLowestPrice: z.number(),
+  AcceleratorNames: z.array(z.string()),
+  AcceleratorTotalMemoryMiB: AcceleratorTotalMemoryMiBRequestStateSchema,
+  BurstablePerformance: z.string(),
+  TotalLocalStorageGB: TotalLocalStorageGBRequestStateSchema,
+}).partial();
+
+const LaunchTemplateOverridesStateSchema = z.object({
+  LaunchTemplateSpecification: LaunchTemplateSpecificationStateSchema,
+  WeightedCapacity: z.string(),
+  ImageId: z.string(),
+  InstanceRequirements: InstanceRequirementsStateSchema,
+  InstanceType: z.string(),
+}).partial();
+
+const LaunchTemplateStateSchema = z.object({
+  LaunchTemplateSpecification: LaunchTemplateSpecificationStateSchema,
+  Overrides: z.array(LaunchTemplateOverridesStateSchema),
+}).partial();
+
+const TagPropertyStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+  PropagateAtLaunch: z.boolean(),
+}).partial();
+
+const MetricsCollectionStateSchema = z.object({
+  Metrics: z.array(z.string()),
+  Granularity: z.string(),
+}).partial();
+
+const TrafficSourceIdentifierStateSchema = z.object({
+  Type: z.string(),
+  Identifier: z.string(),
+}).partial();
+
+const CapacityReservationTargetStateSchema = z.object({
+  CapacityReservationIds: z.array(z.string()),
+  CapacityReservationResourceGroupArns: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -519,7 +677,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  LifecycleHookSpecificationList: z.array(LifecycleHookSpecificationSchema)
+  LifecycleHookSpecificationList: z.array(LifecycleHookSpecificationStateSchema)
     .optional(),
   LoadBalancerNames: z.array(z.string()).optional(),
   LaunchConfigurationName: z.string().optional(),
@@ -527,58 +685,65 @@ const StateSchema = z.object({
   AvailabilityZoneImpairmentPolicy: z.object({
     ZonalShiftEnabled: z.boolean(),
     ImpairedZoneHealthCheckBehavior: z.string(),
-  }).optional(),
+  }).partial().optional(),
   TargetGroupARNs: z.array(z.string()).optional(),
   AvailabilityZoneIds: z.array(z.string()).optional(),
   Cooldown: z.string().optional(),
-  NotificationConfigurations: z.array(NotificationConfigurationSchema)
+  NotificationConfigurations: z.array(NotificationConfigurationStateSchema)
     .optional(),
   DesiredCapacity: z.string().optional(),
   HealthCheckGracePeriod: z.number().optional(),
   InstanceLifecyclePolicy: z.object({
-    RetentionTriggers: RetentionTriggersSchema,
-  }).optional(),
+    RetentionTriggers: RetentionTriggersStateSchema,
+  }).partial().optional(),
   DefaultInstanceWarmup: z.number().optional(),
   SkipZonalShiftValidation: z.boolean().optional(),
   NewInstancesProtectedFromScaleIn: z.boolean().optional(),
-  LaunchTemplate: LaunchTemplateSpecificationSchema.optional(),
+  LaunchTemplate: z.object({
+    LaunchTemplateName: z.string(),
+    Version: z.string(),
+    LaunchTemplateId: z.string(),
+  }).partial().optional(),
   MixedInstancesPolicy: z.object({
-    InstancesDistribution: InstancesDistributionSchema,
-    LaunchTemplate: LaunchTemplateSchema,
-  }).optional(),
+    InstancesDistribution: InstancesDistributionStateSchema,
+    LaunchTemplate: LaunchTemplateStateSchema,
+  }).partial().optional(),
   VPCZoneIdentifier: z.array(z.string()).optional(),
-  Tags: z.array(TagPropertySchema).optional(),
+  Tags: z.array(TagPropertyStateSchema).optional(),
   Context: z.string().optional(),
   CapacityRebalance: z.boolean().optional(),
   InstanceId: z.string().optional(),
   AutoScalingGroupARN: z.string().optional(),
   AvailabilityZones: z.array(z.string()).optional(),
-  NotificationConfiguration: NotificationConfigurationSchema.optional(),
+  NotificationConfiguration: z.object({
+    TopicARN: z.array(z.string()),
+    NotificationTypes: z.array(z.string()),
+  }).partial().optional(),
   AvailabilityZoneDistribution: z.object({
     CapacityDistributionStrategy: z.string(),
-  }).optional(),
-  MetricsCollection: z.array(MetricsCollectionSchema).optional(),
+  }).partial().optional(),
+  MetricsCollection: z.array(MetricsCollectionStateSchema).optional(),
   DeletionProtection: z.string().optional(),
   InstanceMaintenancePolicy: z.object({
     MaxHealthyPercentage: z.number(),
     MinHealthyPercentage: z.number(),
-  }).optional(),
+  }).partial().optional(),
   MaxSize: z.string().optional(),
   MinSize: z.string().optional(),
   TerminationPolicies: z.array(z.string()).optional(),
   AutoScalingGroupName: z.string(),
-  TrafficSources: z.array(TrafficSourceIdentifierSchema).optional(),
+  TrafficSources: z.array(TrafficSourceIdentifierStateSchema).optional(),
   DesiredCapacityType: z.string().optional(),
   PlacementGroup: z.string().optional(),
   CapacityReservationSpecification: z.object({
     CapacityReservationPreference: z.string(),
-    CapacityReservationTarget: CapacityReservationTargetSchema,
-  }).optional(),
+    CapacityReservationTarget: CapacityReservationTargetStateSchema,
+  }).partial().optional(),
   HealthCheckType: z.string().optional(),
   MaxInstanceLifetime: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -776,7 +941,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AutoScaling AutoScalingGroup. Registered at `@swamp/aws/autoscaling/auto-scaling-group`. */
 export const model = {
   type: "@swamp/aws/autoscaling/auto-scaling-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -875,6 +1040,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

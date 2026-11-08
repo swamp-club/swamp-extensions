@@ -66,7 +66,7 @@ snapshot[`generateZodSchemas - nested object 1`] = `
   resourceSchemaBody: "  Config: z.object({
     Memory: z.number(),
     Cpu: z.number(),
-  }).optional(),",
+  }).partial().optional(),",
 }
 `;
 
@@ -114,8 +114,15 @@ snapshot[`generateZodSchemas - extracted schemas from titled nested objects 1`] 
 });",
       name: "BlockDeviceMappingSchema",
     },
+    {
+      declaration: "const BlockDeviceMappingStateSchema = z.object({
+  DeviceName: z.string(),
+  VolumeSize: z.number(),
+}).partial();",
+      name: "BlockDeviceMappingStateSchema",
+    },
   ],
   inputSchemaBody: "  Mappings: z.array(BlockDeviceMappingSchema),",
-  resourceSchemaBody: "  Mappings: z.array(BlockDeviceMappingSchema).optional(),",
+  resourceSchemaBody: "  Mappings: z.array(BlockDeviceMappingStateSchema).optional(),",
 }
 `;

@@ -161,9 +161,9 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   collectionGroupScope: z.object({
     collectionGroupId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
-  databaseScope: z.object({}).optional(),
+  databaseScope: z.object({}).partial().optional(),
   etag: z.string().optional(),
   name: z.string(),
   retentionPeriod: z.string().optional(),
@@ -232,7 +232,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firestore Databases.ChangeStreams. Registered at `@swamp/gcp/firestore/databases-changestreams`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-changestreams",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -241,6 +241,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

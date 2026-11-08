@@ -202,7 +202,7 @@ const StateSchema = z.object({
   subnet: z.object({
     name: z.string(),
     projectId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -274,7 +274,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Serverless VPC Access Connectors. Registered at `@swamp/gcp/vpcaccess/connectors`. */
 export const model = {
   type: "@swamp/gcp/vpcaccess/connectors",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -413,6 +413,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

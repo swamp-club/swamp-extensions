@@ -45,6 +45,12 @@ const LogDestinationConfigSchema = z.object({
   ),
 });
 
+const LogDestinationConfigStateSchema = z.object({
+  LogType: z.string(),
+  LogDestinationType: z.string(),
+  LogDestination: z.record(z.string(), z.unknown()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -72,12 +78,12 @@ const StateSchema = z.object({
   FirewallName: z.string().optional(),
   FirewallArn: z.string(),
   LoggingConfiguration: z.object({
-    LogDestinationConfigs: z.array(LogDestinationConfigSchema),
-  }).optional(),
+    LogDestinationConfigs: z.array(LogDestinationConfigStateSchema),
+  }).partial().optional(),
   EnableMonitoringDashboard: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -113,7 +119,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkFirewall LoggingConfiguration. Registered at `@swamp/aws/networkfirewall/logging-configuration`. */
 export const model = {
   type: "@swamp/aws/networkfirewall/logging-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -172,6 +178,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

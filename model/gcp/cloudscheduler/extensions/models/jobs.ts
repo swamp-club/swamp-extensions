@@ -284,12 +284,12 @@ const StateSchema = z.object({
       instance: z.string(),
       service: z.string(),
       version: z.string(),
-    }),
+    }).partial(),
     body: z.string(),
     headers: z.record(z.string(), z.unknown()),
     httpMethod: z.string(),
     relativeUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   attemptDeadline: z.string().optional(),
   description: z.string().optional(),
   httpTarget: z.object({
@@ -299,27 +299,27 @@ const StateSchema = z.object({
     oauthToken: z.object({
       scope: z.string(),
       serviceAccountEmail: z.string(),
-    }),
+    }).partial(),
     oidcToken: z.object({
       audience: z.string(),
       serviceAccountEmail: z.string(),
-    }),
+    }).partial(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lastAttemptTime: z.string().optional(),
   name: z.string(),
   pubsubTarget: z.object({
     attributes: z.record(z.string(), z.unknown()),
     data: z.string(),
     topicName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   retryConfig: z.object({
     maxBackoffDuration: z.string(),
     maxDoublings: z.number(),
     maxRetryDuration: z.string(),
     minBackoffDuration: z.string(),
     retryCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzs: z.boolean().optional(),
   schedule: z.string().optional(),
   scheduleTime: z.string().optional(),
@@ -328,7 +328,7 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   timeZone: z.string().optional(),
   userUpdateTime: z.string().optional(),
 }).passthrough();
@@ -492,7 +492,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Scheduler Jobs. Registered at `@swamp/gcp/cloudscheduler/jobs`. */
 export const model = {
   type: "@swamp/gcp/cloudscheduler/jobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -649,6 +649,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -58,6 +58,18 @@ const ResponderErrorMaskingForHttpCodeSchema = z.object({
   ResponseLoggingPercentage: z.number().min(0).max(100).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ResponderErrorMaskingForHttpCodeStateSchema = z.object({
+  HttpCode: z.string(),
+  Action: z.string(),
+  LoggingTypes: z.array(z.string()),
+  ResponseLoggingPercentage: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -96,29 +108,29 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LinkId: z.string().optional(),
   GatewayId: z.string().optional(),
   PublicEndpoint: z.string().optional(),
   LinkAttributes: z.object({
-    ResponderErrorMasking: z.array(ResponderErrorMaskingForHttpCodeSchema),
+    ResponderErrorMasking: z.array(ResponderErrorMaskingForHttpCodeStateSchema),
     CustomerProvidedId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LinkLogSettings: z.object({
     ApplicationLogs: z.object({
       LinkApplicationLogSampling: z.object({
         ErrorLog: z.number(),
         FilterLog: z.number(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   LinkStatus: z.string().optional(),
   CreatedTimestamp: z.string().optional(),
   UpdatedTimestamp: z.string().optional(),
   Arn: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -166,7 +178,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RTBFabric OutboundExternalLink. Registered at `@swamp/aws/rtbfabric/outbound-external-link`. */
 export const model = {
   type: "@swamp/aws/rtbfabric/outbound-external-link",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -230,6 +242,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

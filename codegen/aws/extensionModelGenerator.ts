@@ -5,6 +5,7 @@ import type { ZodGeneratorResult } from "../shared/zodGenerator.ts";
 import type { CfSchema, OnlyProperties } from "../shared/schema/types.ts";
 import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
+import { assertUniqueTopLevelDeclarations } from "../shared/util.ts";
 import type {
   AwsEnrichmentMethodOutput,
   ParsedEnrichmentSource,
@@ -332,7 +333,12 @@ export function generateAwsExtensionModel(
   }
   lines.push(`}).passthrough();`);
   lines.push("");
-  lines.push(`type StateData = z.infer<typeof ${stateSchemaName}>;`);
+  // StateData is only a cast target for readResource/createResource results,
+  // which are Record<string, unknown> at runtime. Inferring it from
+  // StateSchema adds no checking and, with every nested state field optional
+  // (swamp-club #2487), exceeds TypeScript's instantiation-depth limit on deep
+  // schemas such as QuickSight dashboard definitions (TS2589).
+  lines.push(`type StateData = Record<string, unknown>;`);
   lines.push("");
 
   // InputsSchema — mirrors globalArgs but all optional
@@ -1010,7 +1016,9 @@ export function generateAwsExtensionModel(
   lines.push(`};`);
   lines.push("");
 
-  return lines.join("\n");
+  const code = lines.join("\n");
+  assertUniqueTopLevelDeclarations(code, typeName);
+  return code;
 }
 
 /**

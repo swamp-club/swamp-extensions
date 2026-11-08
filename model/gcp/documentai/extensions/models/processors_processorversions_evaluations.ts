@@ -117,78 +117,88 @@ const StateSchema = z.object({
   allEntitiesMetrics: z.object({
     auprc: z.number(),
     auprcExact: z.number(),
-    confidenceLevelMetrics: z.array(z.object({
-      confidenceLevel: z.number(),
-      metrics: z.object({
-        f1Score: z.number(),
-        falseNegativesCount: z.number(),
-        falsePositivesCount: z.number(),
-        groundTruthDocumentCount: z.number(),
-        groundTruthOccurrencesCount: z.number(),
-        precision: z.number(),
-        predictedDocumentCount: z.number(),
-        predictedOccurrencesCount: z.number(),
-        recall: z.number(),
-        totalDocumentsCount: z.number(),
-        truePositivesCount: z.number(),
-      }),
-    })),
-    confidenceLevelMetricsExact: z.array(z.object({
-      confidenceLevel: z.number(),
-      metrics: z.object({
-        f1Score: z.number(),
-        falseNegativesCount: z.number(),
-        falsePositivesCount: z.number(),
-        groundTruthDocumentCount: z.number(),
-        groundTruthOccurrencesCount: z.number(),
-        precision: z.number(),
-        predictedDocumentCount: z.number(),
-        predictedOccurrencesCount: z.number(),
-        recall: z.number(),
-        totalDocumentsCount: z.number(),
-        truePositivesCount: z.number(),
-      }),
-    })),
+    confidenceLevelMetrics: z.array(
+      z.object({
+        confidenceLevel: z.number(),
+        metrics: z.object({
+          f1Score: z.number(),
+          falseNegativesCount: z.number(),
+          falsePositivesCount: z.number(),
+          groundTruthDocumentCount: z.number(),
+          groundTruthOccurrencesCount: z.number(),
+          precision: z.number(),
+          predictedDocumentCount: z.number(),
+          predictedOccurrencesCount: z.number(),
+          recall: z.number(),
+          totalDocumentsCount: z.number(),
+          truePositivesCount: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+    confidenceLevelMetricsExact: z.array(
+      z.object({
+        confidenceLevel: z.number(),
+        metrics: z.object({
+          f1Score: z.number(),
+          falseNegativesCount: z.number(),
+          falsePositivesCount: z.number(),
+          groundTruthDocumentCount: z.number(),
+          groundTruthOccurrencesCount: z.number(),
+          precision: z.number(),
+          predictedDocumentCount: z.number(),
+          predictedOccurrencesCount: z.number(),
+          recall: z.number(),
+          totalDocumentsCount: z.number(),
+          truePositivesCount: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     estimatedCalibrationError: z.number(),
     estimatedCalibrationErrorExact: z.number(),
     metricsType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   documentCounters: z.object({
     evaluatedDocumentsCount: z.number(),
     failedDocumentsCount: z.number(),
     inputDocumentsCount: z.number(),
     invalidDocumentsCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   entityMetrics: z.record(z.string(), z.unknown()).optional(),
   kmsKeyName: z.string().optional(),
   kmsKeyVersionName: z.string().optional(),
   name: z.string(),
-  revisions: z.array(z.object({
-    allEntitiesMetrics: z.object({
-      auprc: z.number(),
-      auprcExact: z.number(),
-      confidenceLevelMetrics: z.array(z.object({
-        confidenceLevel: z.unknown(),
-        metrics: z.unknown(),
-      })),
-      confidenceLevelMetricsExact: z.array(z.object({
-        confidenceLevel: z.unknown(),
-        metrics: z.unknown(),
-      })),
-      estimatedCalibrationError: z.number(),
-      estimatedCalibrationErrorExact: z.number(),
-      metricsType: z.string(),
-    }),
-    documentCounters: z.object({
-      evaluatedDocumentsCount: z.number(),
-      failedDocumentsCount: z.number(),
-      inputDocumentsCount: z.number(),
-      invalidDocumentsCount: z.number(),
-    }),
-    entityMetrics: z.record(z.string(), z.unknown()),
-    revisionId: z.string(),
-  })).optional(),
+  revisions: z.array(
+    z.object({
+      allEntitiesMetrics: z.object({
+        auprc: z.number(),
+        auprcExact: z.number(),
+        confidenceLevelMetrics: z.array(
+          z.object({
+            confidenceLevel: z.unknown(),
+            metrics: z.unknown(),
+          }).partial(),
+        ),
+        confidenceLevelMetricsExact: z.array(
+          z.object({
+            confidenceLevel: z.unknown(),
+            metrics: z.unknown(),
+          }).partial(),
+        ),
+        estimatedCalibrationError: z.number(),
+        estimatedCalibrationErrorExact: z.number(),
+        metricsType: z.string(),
+      }).partial(),
+      documentCounters: z.object({
+        evaluatedDocumentsCount: z.number(),
+        failedDocumentsCount: z.number(),
+        inputDocumentsCount: z.number(),
+        invalidDocumentsCount: z.number(),
+      }).partial(),
+      entityMetrics: z.record(z.string(), z.unknown()),
+      revisionId: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -235,7 +245,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Document AI Processors.ProcessorVersions.Evaluations. Registered at `@swamp/gcp/documentai/processors-processorversions-evaluations`. */
 export const model = {
   type: "@swamp/gcp/documentai/processors-processorversions-evaluations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -369,6 +379,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

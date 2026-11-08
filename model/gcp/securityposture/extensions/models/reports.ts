@@ -116,30 +116,32 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   iacValidationReport: z.object({
     note: z.string(),
-    violations: z.array(z.object({
-      assetId: z.string(),
-      nextSteps: z.string(),
-      policyId: z.string(),
-      severity: z.string(),
-      violatedAsset: z.object({
-        asset: z.string(),
-        assetType: z.string(),
-      }),
-      violatedPolicy: z.object({
-        complianceStandards: z.array(z.unknown()),
-        constraint: z.string(),
-        constraintType: z.string(),
-        description: z.string(),
-      }),
-      violatedPosture: z.object({
-        policySet: z.string(),
-        posture: z.string(),
-        postureDeployment: z.string(),
-        postureDeploymentTargetResource: z.string(),
-        postureRevisionId: z.string(),
-      }),
-    })),
-  }).optional(),
+    violations: z.array(
+      z.object({
+        assetId: z.string(),
+        nextSteps: z.string(),
+        policyId: z.string(),
+        severity: z.string(),
+        violatedAsset: z.object({
+          asset: z.string(),
+          assetType: z.string(),
+        }).partial(),
+        violatedPolicy: z.object({
+          complianceStandards: z.array(z.unknown()),
+          constraint: z.string(),
+          constraintType: z.string(),
+          description: z.string(),
+        }).partial(),
+        violatedPosture: z.object({
+          policySet: z.string(),
+          posture: z.string(),
+          postureDeployment: z.string(),
+          postureDeploymentTargetResource: z.string(),
+          postureRevisionId: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -185,7 +187,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Posture Reports. Registered at `@swamp/gcp/securityposture/reports`. */
 export const model = {
   type: "@swamp/gcp/securityposture/reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -314,6 +316,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

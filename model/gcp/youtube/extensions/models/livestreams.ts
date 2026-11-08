@@ -324,14 +324,14 @@ const StateSchema = z.object({
       rtmpsBackupIngestionAddress: z.string(),
       rtmpsIngestionAddress: z.string(),
       streamName: z.string(),
-    }),
+    }).partial(),
     ingestionType: z.string(),
     resolution: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentDetails: z.object({
     closedCaptionsIngestionUrl: z.string(),
     isReusable: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -341,20 +341,22 @@ const StateSchema = z.object({
     isDefaultStream: z.boolean(),
     publishedAt: z.string(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     healthStatus: z.object({
-      configurationIssues: z.array(z.object({
-        description: z.string(),
-        reason: z.string(),
-        severity: z.string(),
-        type: z.string(),
-      })),
+      configurationIssues: z.array(
+        z.object({
+          description: z.string(),
+          reason: z.string(),
+          severity: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
       lastUpdateTimeSeconds: z.string(),
       status: z.string(),
-    }),
+    }).partial(),
     streamStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -536,7 +538,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data LiveStreams. Registered at `@swamp/gcp/youtube/livestreams`. */
 export const model = {
   type: "@swamp/gcp/youtube/livestreams",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -675,6 +677,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

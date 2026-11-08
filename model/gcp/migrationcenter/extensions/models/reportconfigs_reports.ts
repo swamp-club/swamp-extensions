@@ -188,100 +188,114 @@ const StateSchema = z.object({
   summary: z.object({
     allAssetsStats: z.object({
       coreCountHistogram: z.object({
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          lowerBound: z.unknown(),
-          upperBound: z.unknown(),
-        })),
-      }),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            lowerBound: z.unknown(),
+            upperBound: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       memoryBytesHistogram: z.object({
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          lowerBound: z.unknown(),
-          upperBound: z.unknown(),
-        })),
-      }),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            lowerBound: z.unknown(),
+            upperBound: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       memoryUtilizationChart: z.object({
         free: z.string(),
         used: z.string(),
-      }),
+      }).partial(),
       operatingSystem: z.object({
-        dataPoints: z.array(z.object({
-          label: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        dataPoints: z.array(
+          z.object({
+            label: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       softwareInstances: z.object({
-        dataPoints: z.array(z.object({
-          label: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        dataPoints: z.array(
+          z.object({
+            label: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       storageBytesHistogram: z.object({
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          lowerBound: z.unknown(),
-          upperBound: z.unknown(),
-        })),
-      }),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            lowerBound: z.unknown(),
+            upperBound: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       storageUtilizationChart: z.object({
         free: z.string(),
         used: z.string(),
-      }),
+      }).partial(),
       totalAssets: z.string(),
       totalCores: z.string(),
       totalMemoryBytes: z.string(),
       totalStorageBytes: z.string(),
-    }),
-    groupFindings: z.array(z.object({
-      assetAggregateStats: z.object({
-        coreCountHistogram: z.object({
-          buckets: z.unknown(),
-        }),
-        memoryBytesHistogram: z.object({
-          buckets: z.unknown(),
-        }),
-        memoryUtilizationChart: z.object({
-          free: z.unknown(),
-          used: z.unknown(),
-        }),
-        operatingSystem: z.object({
-          dataPoints: z.unknown(),
-        }),
-        softwareInstances: z.object({
-          dataPoints: z.unknown(),
-        }),
-        storageBytesHistogram: z.object({
-          buckets: z.unknown(),
-        }),
-        storageUtilizationChart: z.object({
-          free: z.unknown(),
-          used: z.unknown(),
-        }),
-        totalAssets: z.string(),
-        totalCores: z.string(),
-        totalMemoryBytes: z.string(),
-        totalStorageBytes: z.string(),
-      }),
-      description: z.string(),
-      displayName: z.string(),
-      overlappingAssetCount: z.string(),
-      preferenceSetFindings: z.array(z.object({
-        computeEngineFinding: z.unknown(),
-        description: z.unknown(),
-        displayName: z.unknown(),
-        machinePreferences: z.unknown(),
-        monthlyCostCompute: z.unknown(),
-        monthlyCostNetworkEgress: z.unknown(),
-        monthlyCostOsLicense: z.unknown(),
-        monthlyCostOther: z.unknown(),
-        monthlyCostStorage: z.unknown(),
-        monthlyCostTotal: z.unknown(),
-        soleTenantFinding: z.unknown(),
-        vmwareEngineFinding: z.unknown(),
-      })),
-    })),
-  }).optional(),
+    }).partial(),
+    groupFindings: z.array(
+      z.object({
+        assetAggregateStats: z.object({
+          coreCountHistogram: z.object({
+            buckets: z.unknown(),
+          }).partial(),
+          memoryBytesHistogram: z.object({
+            buckets: z.unknown(),
+          }).partial(),
+          memoryUtilizationChart: z.object({
+            free: z.unknown(),
+            used: z.unknown(),
+          }).partial(),
+          operatingSystem: z.object({
+            dataPoints: z.unknown(),
+          }).partial(),
+          softwareInstances: z.object({
+            dataPoints: z.unknown(),
+          }).partial(),
+          storageBytesHistogram: z.object({
+            buckets: z.unknown(),
+          }).partial(),
+          storageUtilizationChart: z.object({
+            free: z.unknown(),
+            used: z.unknown(),
+          }).partial(),
+          totalAssets: z.string(),
+          totalCores: z.string(),
+          totalMemoryBytes: z.string(),
+          totalStorageBytes: z.string(),
+        }).partial(),
+        description: z.string(),
+        displayName: z.string(),
+        overlappingAssetCount: z.string(),
+        preferenceSetFindings: z.array(
+          z.object({
+            computeEngineFinding: z.unknown(),
+            description: z.unknown(),
+            displayName: z.unknown(),
+            machinePreferences: z.unknown(),
+            monthlyCostCompute: z.unknown(),
+            monthlyCostNetworkEgress: z.unknown(),
+            monthlyCostOsLicense: z.unknown(),
+            monthlyCostOther: z.unknown(),
+            monthlyCostStorage: z.unknown(),
+            monthlyCostTotal: z.unknown(),
+            soleTenantFinding: z.unknown(),
+            vmwareEngineFinding: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+  }).partial().optional(),
   type: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -345,7 +359,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Migration Center ReportConfigs.Reports. Registered at `@swamp/gcp/migrationcenter/reportconfigs-reports`. */
 export const model = {
   type: "@swamp/gcp/migrationcenter/reportconfigs-reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -487,6 +501,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -206,8 +206,8 @@ const StateSchema = z.object({
   certificateAuthorityConfig: z.object({
     certificateAuthorityServiceConfig: z.object({
       caPool: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   keyAlgorithm: z.string().optional(),
@@ -293,7 +293,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Certificate Manager CertificateIssuanceConfigs. Registered at `@swamp/gcp/certificatemanager/certificateissuanceconfigs`. */
 export const model = {
   type: "@swamp/gcp/certificatemanager/certificateissuanceconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -432,6 +432,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

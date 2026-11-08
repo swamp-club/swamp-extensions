@@ -43,6 +43,11 @@ const ControlConditionSchema = z.object({
   AlarmIdentifier: z.string().min(8).max(1024).regex(new RegExp("^.*$")),
 });
 
+const ControlConditionStateSchema = z.object({
+  Type: z.string(),
+  AlarmIdentifier: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -79,15 +84,15 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ZonalAutoshiftStatus: z.string().optional(),
   PracticeRunConfiguration: z.object({
-    BlockingAlarms: z.array(ControlConditionSchema),
-    OutcomeAlarms: z.array(ControlConditionSchema),
+    BlockingAlarms: z.array(ControlConditionStateSchema),
+    OutcomeAlarms: z.array(ControlConditionStateSchema),
     BlockedDates: z.array(z.string()),
     BlockedWindows: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   ResourceIdentifier: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -133,7 +138,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ARCZonalShift ZonalAutoshiftConfiguration. Registered at `@swamp/aws/arczonalshift/zonal-autoshift-configuration`. */
 export const model = {
   type: "@swamp/aws/arczonalshift/zonal-autoshift-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +197,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

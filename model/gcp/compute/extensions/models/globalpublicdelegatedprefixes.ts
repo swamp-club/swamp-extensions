@@ -280,20 +280,22 @@ const StateSchema = z.object({
   mode: z.string().optional(),
   name: z.string(),
   parentPrefix: z.string().optional(),
-  publicDelegatedSubPrefixs: z.array(z.object({
-    allocatablePrefixLength: z.number(),
-    delegateeProject: z.string(),
-    description: z.string(),
-    enableEnhancedIpv4Allocation: z.boolean(),
-    ipCidrRange: z.string(),
-    ipv6AccessType: z.string(),
-    isAddress: z.boolean(),
-    mode: z.string(),
-    name: z.string(),
-    region: z.string(),
-    status: z.string(),
-    purpose: z.string(),
-  })).optional(),
+  publicDelegatedSubPrefixs: z.array(
+    z.object({
+      allocatablePrefixLength: z.number(),
+      delegateeProject: z.string(),
+      description: z.string(),
+      enableEnhancedIpv4Allocation: z.boolean(),
+      ipCidrRange: z.string(),
+      ipv6AccessType: z.string(),
+      isAddress: z.boolean(),
+      mode: z.string(),
+      name: z.string(),
+      region: z.string(),
+      status: z.string(),
+      purpose: z.string(),
+    }).partial(),
+  ).optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
   status: z.string().optional(),
@@ -421,7 +423,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine GlobalPublicDelegatedPrefixes. Registered at `@swamp/gcp/compute/globalpublicdelegatedprefixes`. */
 export const model = {
   type: "@swamp/gcp/compute/globalpublicdelegatedprefixes",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -576,6 +578,11 @@ export const model = {
     {
       toVersion: "2026.10.30.1",
       description: "Added: purpose",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

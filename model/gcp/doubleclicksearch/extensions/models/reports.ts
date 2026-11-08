@@ -84,29 +84,18 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  files: z.array(z.object({
-    byteCount: z.string(),
-    url: z.string(),
-  })).optional(),
+  files: z.array(
+    z.object({
+      byteCount: z.string(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   isReportReady: z.boolean().optional(),
   kind: z.string().optional(),
   request: z.object({
-    columns: z.array(z.object({
-      columnName: z.string(),
-      customDimensionName: z.string(),
-      customMetricName: z.string(),
-      endDate: z.string(),
-      groupByColumn: z.boolean(),
-      headerText: z.string(),
-      platformSource: z.string(),
-      productReportPerspective: z.string(),
-      savedColumnName: z.string(),
-      startDate: z.string(),
-    })),
-    downloadFormat: z.string(),
-    filters: z.array(z.object({
-      column: z.object({
+    columns: z.array(
+      z.object({
         columnName: z.string(),
         customDimensionName: z.string(),
         customMetricName: z.string(),
@@ -117,28 +106,47 @@ const StateSchema = z.object({
         productReportPerspective: z.string(),
         savedColumnName: z.string(),
         startDate: z.string(),
-      }),
-      operator: z.string(),
-      values: z.array(z.string()),
-    })),
+      }).partial(),
+    ),
+    downloadFormat: z.string(),
+    filters: z.array(
+      z.object({
+        column: z.object({
+          columnName: z.string(),
+          customDimensionName: z.string(),
+          customMetricName: z.string(),
+          endDate: z.string(),
+          groupByColumn: z.boolean(),
+          headerText: z.string(),
+          platformSource: z.string(),
+          productReportPerspective: z.string(),
+          savedColumnName: z.string(),
+          startDate: z.string(),
+        }).partial(),
+        operator: z.string(),
+        values: z.array(z.string()),
+      }).partial(),
+    ),
     includeDeletedEntities: z.boolean(),
     includeRemovedEntities: z.boolean(),
     maxRowsPerFile: z.number(),
-    orderBy: z.array(z.object({
-      column: z.object({
-        columnName: z.string(),
-        customDimensionName: z.string(),
-        customMetricName: z.string(),
-        endDate: z.string(),
-        groupByColumn: z.boolean(),
-        headerText: z.string(),
-        platformSource: z.string(),
-        productReportPerspective: z.string(),
-        savedColumnName: z.string(),
-        startDate: z.string(),
-      }),
-      sortOrder: z.string(),
-    })),
+    orderBy: z.array(
+      z.object({
+        column: z.object({
+          columnName: z.string(),
+          customDimensionName: z.string(),
+          customMetricName: z.string(),
+          endDate: z.string(),
+          groupByColumn: z.boolean(),
+          headerText: z.string(),
+          platformSource: z.string(),
+          productReportPerspective: z.string(),
+          savedColumnName: z.string(),
+          startDate: z.string(),
+        }).partial(),
+        sortOrder: z.string(),
+      }).partial(),
+    ),
     reportScope: z.object({
       adGroupId: z.string(),
       adId: z.string(),
@@ -147,7 +155,7 @@ const StateSchema = z.object({
       campaignId: z.string(),
       engineAccountId: z.string(),
       keywordId: z.string(),
-    }),
+    }).partial(),
     reportType: z.string(),
     rowCount: z.number(),
     startRow: z.number(),
@@ -157,9 +165,9 @@ const StateSchema = z.object({
       changedMetricsSinceTimestamp: z.string(),
       endDate: z.string(),
       startDate: z.string(),
-    }),
+    }).partial(),
     verifySingleTimeZone: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   rowCount: z.number().optional(),
   rows: z.array(z.record(z.string(), z.unknown())).optional(),
   statisticsCurrencyCode: z.string().optional(),
@@ -204,7 +212,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Ads 360 Reports. Registered at `@swamp/gcp/doubleclicksearch/reports`. */
 export const model = {
   type: "@swamp/gcp/doubleclicksearch/reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -323,6 +331,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

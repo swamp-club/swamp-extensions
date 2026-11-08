@@ -680,207 +680,227 @@ const StateSchema = z.object({
   apiFunctionalRequirements: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   apiRequirements: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   apiStyle: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   apiTechnicalRequirements: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   attributes: z.record(z.string(), z.unknown()).optional(),
   businessUnit: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   documentation: z.object({
     externalUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   fingerprint: z.string().optional(),
   maturityLevel: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   owner: z.object({
     displayName: z.string(),
     email: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selectedVersion: z.string().optional(),
   serviceType: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
-  sourceMetadata: z.array(z.object({
-    originalResourceCreateTime: z.string(),
-    originalResourceId: z.string(),
-    originalResourceUpdateTime: z.string(),
-    pluginInstanceActionSource: z.object({
-      actionId: z.string(),
-      pluginInstance: z.string(),
-    }),
-    sourceType: z.string(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  sourceMetadata: z.array(
+    z.object({
+      originalResourceCreateTime: z.string(),
+      originalResourceId: z.string(),
+      originalResourceUpdateTime: z.string(),
+      pluginInstanceActionSource: z.object({
+        actionId: z.string(),
+        pluginInstance: z.string(),
+      }).partial(),
+      sourceType: z.string(),
+    }).partial(),
+  ).optional(),
   targetUser: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   team: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   versions: z.array(z.string()).optional(),
 }).passthrough();
@@ -1436,7 +1456,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Apis. Registered at `@swamp/gcp/apihub/apis`. */
 export const model = {
   type: "@swamp/gcp/apihub/apis",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1590,6 +1610,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

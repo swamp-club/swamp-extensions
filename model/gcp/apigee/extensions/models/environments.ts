@@ -201,8 +201,8 @@ const StateSchema = z.object({
     headerIndexAlgorithm: z.object({
       ipHeaderIndex: z.number(),
       ipHeaderName: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createdAt: z.string().optional(),
   deploymentType: z.string().optional(),
   description: z.string().optional(),
@@ -215,13 +215,15 @@ const StateSchema = z.object({
     currentAggregateNodeCount: z.string(),
     maxNodeCount: z.string(),
     minNodeCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   properties: z.object({
-    property: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
+    property: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   state: z.string().optional(),
   type: z.string().optional(),
 }).passthrough();
@@ -327,7 +329,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Environments. Registered at `@swamp/gcp/apigee/environments`. */
 export const model = {
   type: "@swamp/gcp/apigee/environments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -525,6 +527,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

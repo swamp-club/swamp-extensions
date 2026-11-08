@@ -151,6 +151,115 @@ const StepSchema = z.object({
   }),
 });
 
+const M2ManagedActionPropertiesStateSchema = z.object({
+  ForceStop: z.boolean(),
+  ImportDataSetLocation: z.string(),
+}).partial();
+
+const M2ManagedApplicationActionStateSchema = z.object({
+  Resource: z.string(),
+  ActionType: z.string(),
+  Properties: M2ManagedActionPropertiesStateSchema,
+}).partial();
+
+const M2NonManagedApplicationActionStateSchema = z.object({
+  Resource: z.string(),
+  ActionType: z.string(),
+}).partial();
+
+const CloudFormationActionStateSchema = z.object({
+  Resource: z.string(),
+  ActionType: z.string(),
+}).partial();
+
+const BatchStateSchema = z.object({
+  BatchJobName: z.string(),
+  BatchJobParameters: z.record(z.string(), z.unknown()),
+  ExportDataSetNames: z.array(z.string()),
+}).partial();
+
+const ScriptStateSchema = z.object({
+  ScriptLocation: z.string(),
+  Type: z.string(),
+}).partial();
+
+const TN3270StateSchema = z.object({
+  Script: ScriptStateSchema,
+  ExportDataSetNames: z.array(z.string()),
+}).partial();
+
+const MainframeActionPropertiesStateSchema = z.object({
+  DmsTaskArn: z.string(),
+}).partial();
+
+const MainframeActionStateSchema = z.object({
+  Resource: z.string(),
+  ActionType: z.object({
+    Batch: BatchStateSchema,
+    Tn3270: TN3270StateSchema,
+  }).partial(),
+  Properties: MainframeActionPropertiesStateSchema,
+}).partial();
+
+const DataSetStateSchema = z.object({
+  Type: z.string(),
+  Name: z.string(),
+  Ccsid: z.string(),
+  Format: z.string(),
+  Length: z.number(),
+}).partial();
+
+const SourceDatabaseMetadataStateSchema = z.object({
+  Type: z.string(),
+  CaptureTool: z.string(),
+}).partial();
+
+const TargetDatabaseMetadataStateSchema = z.object({
+  Type: z.string(),
+  CaptureTool: z.string(),
+}).partial();
+
+const DatabaseCDCStateSchema = z.object({
+  SourceMetadata: SourceDatabaseMetadataStateSchema,
+  TargetMetadata: TargetDatabaseMetadataStateSchema,
+}).partial();
+
+const InputFileStateSchema = z.object({
+  SourceLocation: z.string(),
+  TargetLocation: z.string(),
+  FileMetadata: z.object({
+    DataSets: z.array(DataSetStateSchema),
+    DatabaseCDC: DatabaseCDCStateSchema,
+  }).partial(),
+}).partial();
+
+const OutputFileStateSchema = z.object({
+  FileLocation: z.string(),
+}).partial();
+
+const CompareActionStateSchema = z.object({
+  Input: z.object({
+    File: InputFileStateSchema,
+  }).partial(),
+  Output: z.object({
+    File: OutputFileStateSchema,
+  }).partial(),
+}).partial();
+
+const StepStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Action: z.object({
+    ResourceAction: z.object({
+      M2ManagedApplicationAction: M2ManagedApplicationActionStateSchema,
+      M2NonManagedApplicationAction: M2NonManagedApplicationActionStateSchema,
+      CloudFormationAction: CloudFormationActionStateSchema,
+    }).partial(),
+    MainframeAction: MainframeActionStateSchema,
+    CompareAction: CompareActionStateSchema,
+  }).partial(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -185,17 +294,17 @@ const StateSchema = z.object({
   LatestVersion: z.object({
     Version: z.number(),
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Name: z.string().optional(),
   Status: z.string().optional(),
-  Steps: z.array(StepSchema).optional(),
+  Steps: z.array(StepStateSchema).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   TestCaseArn: z.string().optional(),
   TestCaseId: z.string(),
   TestCaseVersion: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -233,7 +342,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppTest TestCase. Registered at `@swamp/aws/apptest/test-case`. */
 export const model = {
   type: "@swamp/aws/apptest/test-case",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -302,6 +411,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

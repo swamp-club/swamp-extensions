@@ -63,6 +63,23 @@ const TagSchema = z.object({
   ),
 });
 
+const PointStateSchema = z.object({
+  X: z.number(),
+  Y: z.number(),
+}).partial();
+
+const BoundingBoxStateSchema = z.object({
+  Height: z.number(),
+  Width: z.number(),
+  Left: z.number(),
+  Top: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -160,36 +177,36 @@ const StateSchema = z.object({
   RoleArn: z.string().optional(),
   KinesisVideoStream: z.object({
     Arn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   FaceSearchSettings: z.object({
     CollectionId: z.string(),
     FaceMatchThreshold: z.number(),
-  }).optional(),
+  }).partial().optional(),
   ConnectedHomeSettings: z.object({
     Labels: z.array(z.string()),
     MinConfidence: z.number(),
-  }).optional(),
+  }).partial().optional(),
   KinesisDataStream: z.object({
     Arn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   S3Destination: z.object({
     BucketName: z.string(),
     ObjectKeyPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   NotificationChannel: z.object({
     Arn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DataSharingPreference: z.object({
     OptIn: z.boolean(),
-  }).optional(),
-  PolygonRegionsOfInterest: z.array(z.array(PointSchema)).optional(),
-  BoundingBoxRegionsOfInterest: z.array(BoundingBoxSchema).optional(),
+  }).partial().optional(),
+  PolygonRegionsOfInterest: z.array(z.array(PointStateSchema)).optional(),
+  BoundingBoxRegionsOfInterest: z.array(BoundingBoxStateSchema).optional(),
   Status: z.string().optional(),
   StatusMessage: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -292,7 +309,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Rekognition StreamProcessor. Registered at `@swamp/aws/rekognition/stream-processor`. */
 export const model = {
   type: "@swamp/aws/rekognition/stream-processor",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -362,6 +379,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

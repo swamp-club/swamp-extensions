@@ -43,6 +43,11 @@ const ResourceTagSchema = z.object({
   Value: z.string().min(0).max(200),
 });
 
+const ResourceTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -83,12 +88,12 @@ const StateSchema = z.object({
   TaxInheritanceDisabled: z.boolean().optional(),
   Rule: z.object({
     LinkedAccounts: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   LastModified: z.number().optional(),
-  ResourceTags: z.array(ResourceTagSchema).optional(),
+  ResourceTags: z.array(ResourceTagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -131,7 +136,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Invoicing InvoiceUnit. Registered at `@swamp/aws/invoicing/invoice-unit`. */
 export const model = {
   type: "@swamp/aws/invoicing/invoice-unit",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +205,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

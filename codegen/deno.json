@@ -40,6 +40,7 @@
     "@std/testing": "jsr:@std/testing@1.0.17",
     "@zip-js/zip-js": "jsr:@zip-js/zip-js@2.8.22",
     "@swamp-club/swamp-testing": "jsr:@swamp-club/swamp-testing@0.20261030.67",
-    "pluralize": "npm:pluralize@8.0.0"
+    "pluralize": "npm:pluralize@8.0.0",
+    "zod": "npm:zod@4.6.7"
   }
 }

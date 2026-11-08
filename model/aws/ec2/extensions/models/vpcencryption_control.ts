@@ -47,6 +47,16 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const VpcEncryptionControlExclusionStateSchema = z.object({
+  State: z.string(),
+  StateMessage: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -99,7 +109,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   VpcEncryptionControlId: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   VpcId: z.string().optional(),
   Mode: z.string().optional(),
   State: z.string().optional(),
@@ -113,42 +123,18 @@ const StateSchema = z.object({
   ElasticFileSystemExclusionInput: z.string().optional(),
   LambdaExclusionInput: z.string().optional(),
   ResourceExclusions: z.object({
-    InternetGateway: z.object({
-      State: z.string(),
-      StateMessage: z.string(),
-    }),
-    EgressOnlyInternetGateway: z.object({
-      State: z.string(),
-      StateMessage: z.string(),
-    }),
-    NatGateway: z.object({
-      State: z.string(),
-      StateMessage: z.string(),
-    }),
-    VirtualPrivateGateway: z.object({
-      State: z.string(),
-      StateMessage: z.string(),
-    }),
-    VpcPeering: z.object({
-      State: z.string(),
-      StateMessage: z.string(),
-    }),
-    VpcLattice: z.object({
-      State: z.string(),
-      StateMessage: z.string(),
-    }),
-    ElasticFileSystem: z.object({
-      State: z.string(),
-      StateMessage: z.string(),
-    }),
-    Lambda: z.object({
-      State: z.string(),
-      StateMessage: z.string(),
-    }),
-  }).optional(),
+    InternetGateway: VpcEncryptionControlExclusionStateSchema,
+    EgressOnlyInternetGateway: VpcEncryptionControlExclusionStateSchema,
+    NatGateway: VpcEncryptionControlExclusionStateSchema,
+    VirtualPrivateGateway: VpcEncryptionControlExclusionStateSchema,
+    VpcPeering: VpcEncryptionControlExclusionStateSchema,
+    VpcLattice: VpcEncryptionControlExclusionStateSchema,
+    ElasticFileSystem: VpcEncryptionControlExclusionStateSchema,
+    Lambda: VpcEncryptionControlExclusionStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -209,7 +195,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VPCEncryptionControl. Registered at `@swamp/aws/ec2/vpcencryption-control`. */
 export const model = {
   type: "@swamp/aws/ec2/vpcencryption-control",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -268,6 +254,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

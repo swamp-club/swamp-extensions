@@ -196,18 +196,18 @@ const StateSchema = z.object({
   bucketOptions: z.object({
     explicitBuckets: z.object({
       bounds: z.array(z.number()),
-    }),
+    }).partial(),
     exponentialBuckets: z.object({
       growthFactor: z.number(),
       numFiniteBuckets: z.number(),
       scale: z.number(),
-    }),
+    }).partial(),
     linearBuckets: z.object({
       numFiniteBuckets: z.number(),
       offset: z.number(),
       width: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   disabled: z.boolean().optional(),
@@ -216,25 +216,27 @@ const StateSchema = z.object({
   metricDescriptor: z.object({
     description: z.string(),
     displayName: z.string(),
-    labels: z.array(z.object({
-      description: z.string(),
-      key: z.string(),
-      valueType: z.string(),
-    })),
+    labels: z.array(
+      z.object({
+        description: z.string(),
+        key: z.string(),
+        valueType: z.string(),
+      }).partial(),
+    ),
     launchStage: z.string(),
     metadata: z.object({
       ingestDelay: z.string(),
       launchStage: z.string(),
       samplePeriod: z.string(),
       timeSeriesResourceHierarchyLevel: z.array(z.string()),
-    }),
+    }).partial(),
     metricKind: z.string(),
     monitoredResourceTypes: z.array(z.string()),
     name: z.string(),
     type: z.string(),
     unit: z.string(),
     valueType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   resourceName: z.string().optional(),
   updateTime: z.string().optional(),
@@ -325,7 +327,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Logging Metrics. Registered at `@swamp/gcp/logging/metrics`. */
 export const model = {
   type: "@swamp/gcp/logging/metrics",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -472,6 +474,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

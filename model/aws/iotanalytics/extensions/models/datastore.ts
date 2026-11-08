@@ -90,6 +90,53 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const CustomerManagedS3StateSchema = z.object({
+  Bucket: z.string(),
+  RoleArn: z.string(),
+  KeyPrefix: z.string(),
+}).partial();
+
+const CustomerManagedS3StorageStateSchema = z.object({
+  Bucket: z.string(),
+  KeyPrefix: z.string(),
+}).partial();
+
+const IotSiteWiseMultiLayerStorageStateSchema = z.object({
+  CustomerManagedS3Storage: CustomerManagedS3StorageStateSchema,
+}).partial();
+
+const PartitionStateSchema = z.object({
+  AttributeName: z.string(),
+}).partial();
+
+const TimestampPartitionStateSchema = z.object({
+  AttributeName: z.string(),
+  TimestampFormat: z.string(),
+}).partial();
+
+const DatastorePartitionStateSchema = z.object({
+  Partition: PartitionStateSchema,
+  TimestampPartition: TimestampPartitionStateSchema,
+}).partial();
+
+const ColumnStateSchema = z.object({
+  Type: z.string(),
+  Name: z.string(),
+}).partial();
+
+const SchemaDefinitionStateSchema = z.object({
+  Columns: z.array(ColumnStateSchema),
+}).partial();
+
+const ParquetConfigurationStateSchema = z.object({
+  SchemaDefinition: SchemaDefinitionStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -127,26 +174,26 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   DatastoreStorage: z.object({
     ServiceManagedS3: z.record(z.string(), z.unknown()),
-    CustomerManagedS3: CustomerManagedS3Schema,
-    IotSiteWiseMultiLayerStorage: IotSiteWiseMultiLayerStorageSchema,
-  }).optional(),
+    CustomerManagedS3: CustomerManagedS3StateSchema,
+    IotSiteWiseMultiLayerStorage: IotSiteWiseMultiLayerStorageStateSchema,
+  }).partial().optional(),
   DatastoreName: z.string(),
   DatastorePartitions: z.object({
-    Partitions: z.array(DatastorePartitionSchema),
-  }).optional(),
+    Partitions: z.array(DatastorePartitionStateSchema),
+  }).partial().optional(),
   Id: z.string().optional(),
   FileFormatConfiguration: z.object({
     JsonConfiguration: z.record(z.string(), z.unknown()),
-    ParquetConfiguration: ParquetConfigurationSchema,
-  }).optional(),
+    ParquetConfiguration: ParquetConfigurationStateSchema,
+  }).partial().optional(),
   RetentionPeriod: z.object({
     NumberOfDays: z.number(),
     Unlimited: z.boolean(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -193,7 +240,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTAnalytics Datastore. Registered at `@swamp/aws/iotanalytics/datastore`. */
 export const model = {
   type: "@swamp/aws/iotanalytics/datastore",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -257,6 +304,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

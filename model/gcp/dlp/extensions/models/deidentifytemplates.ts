@@ -253,73 +253,81 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   deidentifyConfig: z.object({
     imageTransformations: z.object({
-      transforms: z.array(z.object({
-        allInfoTypes: z.object({}),
-        allText: z.object({}),
-        redactionColor: z.object({
-          blue: z.unknown(),
-          green: z.unknown(),
-          red: z.unknown(),
-        }),
-        selectedInfoTypes: z.object({
-          infoTypes: z.unknown(),
-        }),
-      })),
-    }),
+      transforms: z.array(
+        z.object({
+          allInfoTypes: z.object({}).partial(),
+          allText: z.object({}).partial(),
+          redactionColor: z.object({
+            blue: z.unknown(),
+            green: z.unknown(),
+            red: z.unknown(),
+          }).partial(),
+          selectedInfoTypes: z.object({
+            infoTypes: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     infoTypeTransformations: z.object({
-      transformations: z.array(z.object({
-        infoTypes: z.array(z.unknown()),
-        primitiveTransformation: z.object({
-          bucketingConfig: z.unknown(),
-          characterMaskConfig: z.unknown(),
-          cryptoDeterministicConfig: z.unknown(),
-          cryptoHashConfig: z.unknown(),
-          cryptoReplaceFfxFpeConfig: z.unknown(),
-          dateShiftConfig: z.unknown(),
-          fixedSizeBucketingConfig: z.unknown(),
-          redactConfig: z.unknown(),
-          replaceConfig: z.unknown(),
-          replaceDictionaryConfig: z.unknown(),
-          replaceWithInfoTypeConfig: z.unknown(),
-          timePartConfig: z.unknown(),
-        }),
-      })),
-    }),
+      transformations: z.array(
+        z.object({
+          infoTypes: z.array(z.unknown()),
+          primitiveTransformation: z.object({
+            bucketingConfig: z.unknown(),
+            characterMaskConfig: z.unknown(),
+            cryptoDeterministicConfig: z.unknown(),
+            cryptoHashConfig: z.unknown(),
+            cryptoReplaceFfxFpeConfig: z.unknown(),
+            dateShiftConfig: z.unknown(),
+            fixedSizeBucketingConfig: z.unknown(),
+            redactConfig: z.unknown(),
+            replaceConfig: z.unknown(),
+            replaceDictionaryConfig: z.unknown(),
+            replaceWithInfoTypeConfig: z.unknown(),
+            timePartConfig: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     recordTransformations: z.object({
-      fieldTransformations: z.array(z.object({
-        condition: z.object({
-          expressions: z.unknown(),
-        }),
-        fields: z.array(z.unknown()),
-        infoTypeTransformations: z.object({
-          transformations: z.unknown(),
-        }),
-        primitiveTransformation: z.object({
-          bucketingConfig: z.unknown(),
-          characterMaskConfig: z.unknown(),
-          cryptoDeterministicConfig: z.unknown(),
-          cryptoHashConfig: z.unknown(),
-          cryptoReplaceFfxFpeConfig: z.unknown(),
-          dateShiftConfig: z.unknown(),
-          fixedSizeBucketingConfig: z.unknown(),
-          redactConfig: z.unknown(),
-          replaceConfig: z.unknown(),
-          replaceDictionaryConfig: z.unknown(),
-          replaceWithInfoTypeConfig: z.unknown(),
-          timePartConfig: z.unknown(),
-        }),
-      })),
-      recordSuppressions: z.array(z.object({
-        condition: z.object({
-          expressions: z.unknown(),
-        }),
-      })),
-    }),
+      fieldTransformations: z.array(
+        z.object({
+          condition: z.object({
+            expressions: z.unknown(),
+          }).partial(),
+          fields: z.array(z.unknown()),
+          infoTypeTransformations: z.object({
+            transformations: z.unknown(),
+          }).partial(),
+          primitiveTransformation: z.object({
+            bucketingConfig: z.unknown(),
+            characterMaskConfig: z.unknown(),
+            cryptoDeterministicConfig: z.unknown(),
+            cryptoHashConfig: z.unknown(),
+            cryptoReplaceFfxFpeConfig: z.unknown(),
+            dateShiftConfig: z.unknown(),
+            fixedSizeBucketingConfig: z.unknown(),
+            redactConfig: z.unknown(),
+            replaceConfig: z.unknown(),
+            replaceDictionaryConfig: z.unknown(),
+            replaceWithInfoTypeConfig: z.unknown(),
+            timePartConfig: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      recordSuppressions: z.array(
+        z.object({
+          condition: z.object({
+            expressions: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     transformationErrorHandling: z.object({
-      leaveUntransformed: z.object({}),
-      throwError: z.object({}),
-    }),
-  }).optional(),
+      leaveUntransformed: z.object({}).partial(),
+      throwError: z.object({}).partial(),
+    }).partial(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   name: z.string(),
@@ -454,7 +462,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) DeidentifyTemplates. Registered at `@swamp/gcp/dlp/deidentifytemplates`. */
 export const model = {
   type: "@swamp/gcp/dlp/deidentifytemplates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -588,6 +596,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

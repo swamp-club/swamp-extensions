@@ -223,14 +223,18 @@ const StateSchema = z.object({
   profile: z.string().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
-  warnings: z.array(z.object({
-    code: z.string(),
-    data: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
-    message: z.string(),
-  })).optional(),
+  warnings: z.array(
+    z.object({
+      code: z.string(),
+      data: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -301,7 +305,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine SslPolicies. Registered at `@swamp/gcp/compute/sslpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/sslpolicies",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -475,6 +479,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

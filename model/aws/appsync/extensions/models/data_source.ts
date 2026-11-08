@@ -78,6 +78,30 @@ const RdsHttpEndpointConfigSchema = z.object({
   Schema: z.string().describe("Logical schema name.").optional(),
 });
 
+const DeltaSyncConfigStateSchema = z.object({
+  BaseTableTTL: z.string(),
+  DeltaSyncTableTTL: z.string(),
+  DeltaSyncTableName: z.string(),
+}).partial();
+
+const AwsIamConfigStateSchema = z.object({
+  SigningRegion: z.string(),
+  SigningServiceName: z.string(),
+}).partial();
+
+const AuthorizationConfigStateSchema = z.object({
+  AuthorizationType: z.string(),
+  AwsIamConfig: AwsIamConfigStateSchema,
+}).partial();
+
+const RdsHttpEndpointConfigStateSchema = z.object({
+  DatabaseName: z.string(),
+  AwsRegion: z.string(),
+  DbClusterIdentifier: z.string(),
+  AwsSecretStoreArn: z.string(),
+  Schema: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -165,41 +189,41 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   DynamoDBConfig: z.object({
     TableName: z.string(),
-    DeltaSyncConfig: DeltaSyncConfigSchema,
+    DeltaSyncConfig: DeltaSyncConfigStateSchema,
     UseCallerCredentials: z.boolean(),
     AwsRegion: z.string(),
     Versioned: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ElasticsearchConfig: z.object({
     AwsRegion: z.string(),
     Endpoint: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EventBridgeConfig: z.object({
     EventBusArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   HttpConfig: z.object({
     Endpoint: z.string(),
-    AuthorizationConfig: AuthorizationConfigSchema,
-  }).optional(),
+    AuthorizationConfig: AuthorizationConfigStateSchema,
+  }).partial().optional(),
   LambdaConfig: z.object({
     LambdaFunctionArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Name: z.string().optional(),
   OpenSearchServiceConfig: z.object({
     AwsRegion: z.string(),
     Endpoint: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RelationalDatabaseConfig: z.object({
-    RdsHttpEndpointConfig: RdsHttpEndpointConfigSchema,
+    RdsHttpEndpointConfig: RdsHttpEndpointConfigStateSchema,
     RelationalDatabaseSourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ServiceRoleArn: z.string().optional(),
   Type: z.string().optional(),
   DataSourceArn: z.string(),
   MetricsConfig: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -293,7 +317,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync DataSource. Registered at `@swamp/aws/appsync/data-source`. */
 export const model = {
   type: "@swamp/aws/appsync/data-source",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -357,6 +381,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

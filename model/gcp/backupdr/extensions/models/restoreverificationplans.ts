@@ -202,7 +202,7 @@ const StateSchema = z.object({
   failureCleanupRule: z.object({
     cleanupDelay: z.string(),
     skipCleanup: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   schedule: z.string().optional(),
@@ -210,7 +210,7 @@ const StateSchema = z.object({
   successCleanupRule: z.object({
     cleanupDelay: z.string(),
     skipCleanup: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   timeZone: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -294,7 +294,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service RestoreVerificationPlans. Registered at `@swamp/gcp/backupdr/restoreverificationplans`. */
 export const model = {
   type: "@swamp/gcp/backupdr/restoreverificationplans",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

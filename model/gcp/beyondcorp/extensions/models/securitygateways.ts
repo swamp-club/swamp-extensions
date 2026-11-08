@@ -283,7 +283,7 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   externalIps: z.array(z.string()).optional(),
   hubs: z.record(z.string(), z.unknown()).optional(),
-  logging: z.object({}).optional(),
+  logging: z.object({}).partial().optional(),
   name: z.string(),
   proxyProtocolConfig: z.object({
     allowedClientHeaders: z.array(z.string()),
@@ -291,28 +291,28 @@ const StateSchema = z.object({
     contextualHeaders: z.object({
       deviceInfo: z.object({
         outputType: z.string(),
-      }),
+      }).partial(),
       dispatchInfo: z.object({
         outputType: z.string(),
-      }),
+      }).partial(),
       groupInfo: z.object({
         outputType: z.string(),
-      }),
+      }).partial(),
       outputType: z.string(),
       userInfo: z.object({
         outputType: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     gatewayIdentity: z.string(),
     metadataHeaders: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   serviceDiscovery: z.object({
     apiGateway: z.object({
       resourceOverride: z.object({
         path: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -457,7 +457,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BeyondCorp SecurityGateways. Registered at `@swamp/gcp/beyondcorp/securitygateways`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/securitygateways",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -652,6 +652,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

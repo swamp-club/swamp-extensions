@@ -228,13 +228,15 @@ const StateSchema = z.object({
   definition: z.object({
     condition: z.string(),
     versionVariants: z.object({
-      variants: z.array(z.object({
-        isControlGroup: z.boolean(),
-        trafficAllocation: z.number(),
-        version: z.string(),
-      })),
-    }),
-  }).optional(),
+      variants: z.array(
+        z.object({
+          isControlGroup: z.boolean(),
+          trafficAllocation: z.number(),
+          version: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   endTime: z.string().optional(),
@@ -243,45 +245,55 @@ const StateSchema = z.object({
   name: z.string(),
   result: z.object({
     lastUpdateTime: z.string(),
-    versionMetrics: z.array(z.object({
-      metrics: z.array(z.object({
-        confidenceInterval: z.unknown(),
-        count: z.unknown(),
-        countType: z.unknown(),
-        ratio: z.unknown(),
-        type: z.unknown(),
-      })),
-      sessionCount: z.number(),
-      version: z.string(),
-    })),
-  }).optional(),
+    versionMetrics: z.array(
+      z.object({
+        metrics: z.array(
+          z.object({
+            confidenceInterval: z.unknown(),
+            count: z.unknown(),
+            countType: z.unknown(),
+            ratio: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+        sessionCount: z.number(),
+        version: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   rolloutConfig: z.object({
     failureCondition: z.string(),
     rolloutCondition: z.string(),
-    rolloutSteps: z.array(z.object({
-      displayName: z.string(),
-      minDuration: z.string(),
-      trafficPercent: z.number(),
-    })),
-  }).optional(),
+    rolloutSteps: z.array(
+      z.object({
+        displayName: z.string(),
+        minDuration: z.string(),
+        trafficPercent: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   rolloutFailureReason: z.string().optional(),
   rolloutState: z.object({
     startTime: z.string(),
     step: z.string(),
     stepIndex: z.number(),
-  }).optional(),
+  }).partial().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
-  variantsHistory: z.array(z.object({
-    updateTime: z.string(),
-    versionVariants: z.object({
-      variants: z.array(z.object({
-        isControlGroup: z.unknown(),
-        trafficAllocation: z.unknown(),
-        version: z.unknown(),
-      })),
-    }),
-  })).optional(),
+  variantsHistory: z.array(
+    z.object({
+      updateTime: z.string(),
+      versionVariants: z.object({
+        variants: z.array(
+          z.object({
+            isControlGroup: z.unknown(),
+            trafficAllocation: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -391,7 +403,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.Environments.Experiments. Registered at `@swamp/gcp/dialogflow/agents-environments-experiments`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-environments-experiments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -530,6 +542,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

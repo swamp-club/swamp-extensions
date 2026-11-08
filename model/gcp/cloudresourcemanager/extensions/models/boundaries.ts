@@ -191,8 +191,8 @@ const StateSchema = z.object({
     tagFilter: z.object({
       tagKey: z.string(),
       tagValue: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -259,10 +259,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Resource Manager Boundaries. Registered at `@swamp/gcp/cloudresourcemanager/boundaries`. */
 export const model = {
   type: "@swamp/gcp/cloudresourcemanager/boundaries",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -47,6 +47,11 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -85,17 +90,17 @@ const StateSchema = z.object({
     DeviceCreationFile: z.string(),
     DeviceCreationFileList: z.array(z.string()),
     Role: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   StatusReason: z.string().optional(),
   InitializedImportedDevicesCount: z.number().optional(),
   PendingImportedDevicesCount: z.number().optional(),
   OnboardedImportedDevicesCount: z.number().optional(),
   FailedImportedDevicesCount: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -134,7 +139,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTWireless WirelessDeviceImportTask. Registered at `@swamp/aws/iotwireless/wireless-device-import-task`. */
 export const model = {
   type: "@swamp/aws/iotwireless/wireless-device-import-task",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -198,6 +203,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

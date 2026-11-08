@@ -121,27 +121,33 @@ const StateSchema = z.object({
   card: z.object({
     content: z.record(z.string(), z.unknown()),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   location: z.string().optional(),
   name: z.string(),
-  protocols: z.array(z.object({
-    interfaces: z.array(z.object({
-      protocolBinding: z.string(),
-      url: z.string(),
-    })),
-    protocolVersion: z.string(),
-    type: z.string(),
-  })).optional(),
-  skills: z.array(z.object({
-    description: z.string(),
-    examples: z.array(z.string()),
-    id: z.string(),
-    name: z.string(),
-    tags: z.array(z.string()),
-  })).optional(),
+  protocols: z.array(
+    z.object({
+      interfaces: z.array(
+        z.object({
+          protocolBinding: z.string(),
+          url: z.string(),
+        }).partial(),
+      ),
+      protocolVersion: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
+  skills: z.array(
+    z.object({
+      description: z.string(),
+      examples: z.array(z.string()),
+      id: z.string(),
+      name: z.string(),
+      tags: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   version: z.string().optional(),
@@ -188,7 +194,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Agents. Registered at `@swamp/gcp/agentregistry/agents`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/agents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -352,6 +358,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

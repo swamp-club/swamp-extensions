@@ -243,7 +243,7 @@ const StateSchema = z.object({
   cmekConfig: z.object({
     activeKeyVersion: z.array(z.string()),
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   concurrencyMode: z.string().optional(),
   createTime: z.string().optional(),
   databaseEdition: z.string().optional(),
@@ -263,9 +263,9 @@ const StateSchema = z.object({
   sourceInfo: z.object({
     backup: z.object({
       backup: z.string(),
-    }),
+    }).partial(),
     operation: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tags: z.record(z.string(), z.unknown()).optional(),
   type: z.string().optional(),
   uid: z.string().optional(),
@@ -392,7 +392,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firestore Databases. Registered at `@swamp/gcp/firestore/databases`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -589,6 +589,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

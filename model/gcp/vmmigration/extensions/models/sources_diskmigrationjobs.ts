@@ -241,35 +241,39 @@ const StateSchema = z.object({
     sizeGib: z.string(),
     tags: z.record(z.string(), z.unknown()),
     volumeId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
-  errors: z.array(z.object({
-    code: z.number(),
-    details: z.array(z.record(z.string(), z.unknown())),
-    message: z.string(),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      code: z.number(),
+      details: z.array(z.record(z.string(), z.unknown())),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   state: z.string().optional(),
-  steps: z.array(z.object({
-    copyingSourceDiskSnapshot: z.object({}),
-    creatingSourceDiskSnapshot: z.object({}),
-    endTime: z.string(),
-    provisioningTargetDisk: z.object({}),
-    startTime: z.string(),
-  })).optional(),
+  steps: z.array(
+    z.object({
+      copyingSourceDiskSnapshot: z.object({}).partial(),
+      creatingSourceDiskSnapshot: z.object({}).partial(),
+      endTime: z.string(),
+      provisioningTargetDisk: z.object({}).partial(),
+      startTime: z.string(),
+    }).partial(),
+  ).optional(),
   targetDetails: z.object({
     encryption: z.object({
       kmsKey: z.string(),
-    }),
+    }).partial(),
     labels: z.record(z.string(), z.unknown()),
     targetDisk: z.object({
       diskId: z.string(),
       diskType: z.string(),
       replicaZones: z.array(z.string()),
       zone: z.string(),
-    }),
+    }).partial(),
     targetProject: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -375,7 +379,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VM Migration Sources.DiskMigrationJobs. Registered at `@swamp/gcp/vmmigration/sources-diskmigrationjobs`. */
 export const model = {
   type: "@swamp/gcp/vmmigration/sources-diskmigrationjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -514,6 +518,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -258,13 +258,17 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  classificationLabelValues: z.array(z.object({
-    fields: z.array(z.object({
-      fieldId: z.string(),
-      selection: z.string(),
-    })),
-    labelId: z.string(),
-  })).optional(),
+  classificationLabelValues: z.array(
+    z.object({
+      fields: z.array(
+        z.object({
+          fieldId: z.string(),
+          selection: z.string(),
+        }).partial(),
+      ),
+      labelId: z.string(),
+    }).partial(),
+  ).optional(),
   historyId: z.string().optional(),
   id: z.string(),
   internalDate: z.string().optional(),
@@ -274,16 +278,18 @@ const StateSchema = z.object({
       attachmentId: z.string(),
       data: z.string(),
       size: z.number(),
-    }),
+    }).partial(),
     filename: z.string(),
-    headers: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
+    headers: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     mimeType: z.string(),
     partId: z.string(),
     parts: z.array(z.record(z.string(), z.unknown())),
-  }).optional(),
+  }).partial().optional(),
   raw: z.string().optional(),
   sizeEstimate: z.number().optional(),
   snippet: z.string().optional(),
@@ -407,7 +413,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Messages. Registered at `@swamp/gcp/gmail/users-messages`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-messages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -586,6 +592,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -286,7 +286,7 @@ const StateSchema = z.object({
       latLng: z.object({
         latitude: z.number(),
         longitude: z.number(),
-      }),
+      }).partial(),
       locationType: z.string(),
       postalAddress: z.object({
         addressLines: z.array(z.string()),
@@ -300,10 +300,10 @@ const StateSchema = z.object({
         revision: z.number(),
         sortingCode: z.string(),
         sublocality: z.string(),
-      }),
+      }).partial(),
       radiusInMiles: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   eeoText: z.string().optional(),
   externalId: z.string().optional(),
@@ -478,7 +478,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Talent Solution Companies. Registered at `@swamp/gcp/jobs/companies`. */
 export const model = {
   type: "@swamp/gcp/jobs/companies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -497,6 +497,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

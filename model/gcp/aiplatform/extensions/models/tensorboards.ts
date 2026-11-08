@@ -193,7 +193,7 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   isDefault: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -263,7 +263,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Tensorboards. Registered at `@swamp/gcp/aiplatform/tensorboards`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/tensorboards",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -437,6 +437,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

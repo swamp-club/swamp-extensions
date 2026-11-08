@@ -431,6 +431,222 @@ const FlowConnectionSchema = z.object({
   }).describe("Connection configuration").optional(),
 });
 
+const GuardrailConfigurationStateSchema = z.object({
+  GuardrailIdentifier: z.string(),
+  GuardrailVersion: z.string(),
+}).partial();
+
+const PromptModelInferenceConfigurationStateSchema = z.object({
+  Temperature: z.number(),
+  TopP: z.number(),
+  MaxTokens: z.number(),
+  StopSequences: z.array(z.string()),
+}).partial();
+
+const PerformanceConfigurationStateSchema = z.object({
+  Latency: z.string(),
+}).partial();
+
+const KnowledgeBaseOrchestrationConfigurationStateSchema = z.object({
+  PromptTemplate: z.object({
+    TextPromptTemplate: z.string(),
+  }).partial(),
+  InferenceConfig: z.object({
+    Text: PromptModelInferenceConfigurationStateSchema,
+  }).partial(),
+  AdditionalModelRequestFields: z.record(z.string(), z.unknown()),
+  PerformanceConfig: PerformanceConfigurationStateSchema,
+}).partial();
+
+const VectorSearchBedrockRerankingModelConfigurationStateSchema = z.object({
+  ModelArn: z.string(),
+  AdditionalModelRequestFields: z.record(z.string(), z.unknown()),
+}).partial();
+
+const FieldForRerankingStateSchema = z.object({
+  FieldName: z.string(),
+}).partial();
+
+const MetadataConfigurationForRerankingStateSchema = z.object({
+  SelectionMode: z.string(),
+  SelectiveModeConfiguration: z.object({
+    FieldsToInclude: z.array(FieldForRerankingStateSchema),
+    FieldsToExclude: z.array(FieldForRerankingStateSchema),
+  }).partial(),
+}).partial();
+
+const VectorSearchBedrockRerankingConfigurationStateSchema = z.object({
+  ModelConfiguration: VectorSearchBedrockRerankingModelConfigurationStateSchema,
+  NumberOfRerankedResults: z.number(),
+  MetadataConfiguration: MetadataConfigurationForRerankingStateSchema,
+}).partial();
+
+const VectorSearchRerankingConfigurationStateSchema = z.object({
+  Type: z.string(),
+  BedrockRerankingConfiguration:
+    VectorSearchBedrockRerankingConfigurationStateSchema,
+}).partial();
+
+const KnowledgeBaseFlowNodeConfigurationStateSchema = z.object({
+  KnowledgeBaseId: z.string(),
+  ModelId: z.string(),
+  GuardrailConfiguration: GuardrailConfigurationStateSchema,
+  NumberOfResults: z.number(),
+  PromptTemplate: z.object({
+    TextPromptTemplate: z.string(),
+  }).partial(),
+  InferenceConfiguration: z.object({
+    Text: PromptModelInferenceConfigurationStateSchema,
+  }).partial(),
+  OrchestrationConfiguration:
+    KnowledgeBaseOrchestrationConfigurationStateSchema,
+  RerankingConfiguration: VectorSearchRerankingConfigurationStateSchema,
+}).partial();
+
+const FlowConditionStateSchema = z.object({
+  Name: z.string(),
+  Expression: z.string(),
+}).partial();
+
+const ConditionFlowNodeConfigurationStateSchema = z.object({
+  Conditions: z.array(FlowConditionStateSchema),
+}).partial();
+
+const LexFlowNodeConfigurationStateSchema = z.object({
+  BotAliasArn: z.string(),
+  LocaleId: z.string(),
+}).partial();
+
+const PromptFlowNodeResourceConfigurationStateSchema = z.object({
+  PromptArn: z.string(),
+}).partial();
+
+const PromptInputVariableStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const TextPromptTemplateConfigurationStateSchema = z.object({
+  Text: z.string(),
+  InputVariables: z.array(PromptInputVariableStateSchema),
+}).partial();
+
+const PromptFlowNodeInlineConfigurationStateSchema = z.object({
+  TemplateType: z.string(),
+  TemplateConfiguration: z.object({
+    Text: TextPromptTemplateConfigurationStateSchema,
+  }).partial(),
+  ModelId: z.string(),
+  InferenceConfiguration: z.object({
+    Text: PromptModelInferenceConfigurationStateSchema,
+  }).partial(),
+}).partial();
+
+const PromptFlowNodeConfigurationStateSchema = z.object({
+  SourceConfiguration: z.object({
+    Resource: PromptFlowNodeResourceConfigurationStateSchema,
+    Inline: PromptFlowNodeInlineConfigurationStateSchema,
+  }).partial(),
+  GuardrailConfiguration: GuardrailConfigurationStateSchema,
+}).partial();
+
+const LambdaFunctionFlowNodeConfigurationStateSchema = z.object({
+  LambdaArn: z.string(),
+}).partial();
+
+const AgentFlowNodeConfigurationStateSchema = z.object({
+  AgentAliasArn: z.string(),
+}).partial();
+
+const StorageFlowNodeS3ConfigurationStateSchema = z.object({
+  BucketName: z.string(),
+}).partial();
+
+const StorageFlowNodeConfigurationStateSchema = z.object({
+  ServiceConfiguration: z.object({
+    S3: StorageFlowNodeS3ConfigurationStateSchema,
+  }).partial(),
+}).partial();
+
+const RetrievalFlowNodeS3ConfigurationStateSchema = z.object({
+  BucketName: z.string(),
+}).partial();
+
+const RetrievalFlowNodeConfigurationStateSchema = z.object({
+  ServiceConfiguration: z.object({
+    S3: RetrievalFlowNodeS3ConfigurationStateSchema,
+  }).partial(),
+}).partial();
+
+const InlineCodeFlowNodeConfigurationStateSchema = z.object({
+  Code: z.string(),
+  Language: z.string(),
+}).partial();
+
+const LoopFlowNodeConfigurationStateSchema = z.object({
+  Definition: z.record(z.string(), z.unknown()),
+}).partial();
+
+const LoopControllerFlowNodeConfigurationStateSchema = z.object({
+  ContinueCondition: FlowConditionStateSchema,
+  MaxIterations: z.number(),
+}).partial();
+
+const FlowNodeInputStateSchema = z.object({
+  Name: z.string(),
+  Type: z.string(),
+  Expression: z.string(),
+}).partial();
+
+const FlowNodeOutputStateSchema = z.object({
+  Name: z.string(),
+  Type: z.string(),
+}).partial();
+
+const FlowNodeStateSchema = z.object({
+  Name: z.string(),
+  Type: z.string(),
+  Configuration: z.object({
+    Input: z.record(z.string(), z.unknown()),
+    Output: z.record(z.string(), z.unknown()),
+    KnowledgeBase: KnowledgeBaseFlowNodeConfigurationStateSchema,
+    Condition: ConditionFlowNodeConfigurationStateSchema,
+    Lex: LexFlowNodeConfigurationStateSchema,
+    Prompt: PromptFlowNodeConfigurationStateSchema,
+    LambdaFunction: LambdaFunctionFlowNodeConfigurationStateSchema,
+    Agent: AgentFlowNodeConfigurationStateSchema,
+    Storage: StorageFlowNodeConfigurationStateSchema,
+    Retrieval: RetrievalFlowNodeConfigurationStateSchema,
+    Iterator: z.record(z.string(), z.unknown()),
+    Collector: z.record(z.string(), z.unknown()),
+    InlineCode: InlineCodeFlowNodeConfigurationStateSchema,
+    Loop: LoopFlowNodeConfigurationStateSchema,
+    LoopInput: z.record(z.string(), z.unknown()),
+    LoopController: LoopControllerFlowNodeConfigurationStateSchema,
+  }).partial(),
+  Inputs: z.array(FlowNodeInputStateSchema),
+  Outputs: z.array(FlowNodeOutputStateSchema),
+}).partial();
+
+const FlowDataConnectionConfigurationStateSchema = z.object({
+  SourceOutput: z.string(),
+  TargetInput: z.string(),
+}).partial();
+
+const FlowConditionalConnectionConfigurationStateSchema = z.object({
+  Condition: z.string(),
+}).partial();
+
+const FlowConnectionStateSchema = z.object({
+  Type: z.string(),
+  Name: z.string(),
+  Source: z.string(),
+  Target: z.string(),
+  Configuration: z.object({
+    Data: FlowDataConnectionConfigurationStateSchema,
+    Conditional: FlowConditionalConnectionConfigurationStateSchema,
+  }).partial(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -467,9 +683,9 @@ const StateSchema = z.object({
   FlowArn: z.string(),
   CreatedAt: z.string().optional(),
   Definition: z.object({
-    Nodes: z.array(FlowNodeSchema),
-    Connections: z.array(FlowConnectionSchema),
-  }).optional(),
+    Nodes: z.array(FlowNodeStateSchema),
+    Connections: z.array(FlowConnectionStateSchema),
+  }).partial().optional(),
   Description: z.string().optional(),
   ExecutionRoleArn: z.string().optional(),
   FlowId: z.string().optional(),
@@ -479,7 +695,7 @@ const StateSchema = z.object({
   CustomerEncryptionKeyArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -522,7 +738,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock FlowVersion. Registered at `@swamp/aws/bedrock/flow-version`. */
 export const model = {
   type: "@swamp/aws/bedrock/flow-version",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -591,6 +807,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

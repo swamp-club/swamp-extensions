@@ -202,7 +202,7 @@ const StateSchema = z.object({
     encryptedPrivateKey: z.string(),
     passphrase: z.string(),
     sslCertificate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   requestorId: z.string().optional(),
   validEndTime: z.string().optional(),
   validStartTime: z.string().optional(),
@@ -276,7 +276,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Products.Certificates. Registered at `@swamp/gcp/integrations/products-certificates`. */
 export const model = {
   type: "@swamp/gcp/integrations/products-certificates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -356,6 +356,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -149,10 +149,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   disableReason: z.string().optional(),
   disabled: z.boolean().optional(),
-  extendedStatus: z.array(z.object({
-    key: z.string(),
-    value: z.string(),
-  })).optional(),
+  extendedStatus: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   keyAlgorithm: z.string().optional(),
   keyOrigin: z.string().optional(),
   keyType: z.string().optional(),
@@ -218,7 +220,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) ServiceAccounts.Keys. Registered at `@swamp/gcp/iam/serviceaccounts-keys`. */
 export const model = {
   type: "@swamp/gcp/iam/serviceaccounts-keys",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.28.1",
@@ -242,6 +244,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

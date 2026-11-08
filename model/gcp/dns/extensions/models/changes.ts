@@ -297,74 +297,78 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  additions: z.array(z.object({
-    kind: z.string(),
-    name: z.string(),
-    routingPolicy: z.object({
-      geo: z.object({
-        enableFencing: z.boolean(),
-        items: z.array(z.unknown()),
-        kind: z.string(),
-      }),
-      healthCheck: z.string(),
+  additions: z.array(
+    z.object({
       kind: z.string(),
-      primaryBackup: z.object({
-        backupGeoTargets: z.object({
-          enableFencing: z.unknown(),
-          items: z.unknown(),
-          kind: z.unknown(),
-        }),
+      name: z.string(),
+      routingPolicy: z.object({
+        geo: z.object({
+          enableFencing: z.boolean(),
+          items: z.array(z.unknown()),
+          kind: z.string(),
+        }).partial(),
+        healthCheck: z.string(),
         kind: z.string(),
-        primaryTargets: z.object({
-          externalEndpoints: z.unknown(),
-          internalLoadBalancers: z.unknown(),
-        }),
-        trickleTraffic: z.number(),
-      }),
-      wrr: z.object({
-        items: z.array(z.unknown()),
-        kind: z.string(),
-      }),
-    }),
-    rrdatas: z.array(z.string()),
-    signatureRrdatas: z.array(z.string()),
-    ttl: z.number(),
-    type: z.string(),
-  })).optional(),
-  deletions: z.array(z.object({
-    kind: z.string(),
-    name: z.string(),
-    routingPolicy: z.object({
-      geo: z.object({
-        enableFencing: z.boolean(),
-        items: z.array(z.unknown()),
-        kind: z.string(),
-      }),
-      healthCheck: z.string(),
+        primaryBackup: z.object({
+          backupGeoTargets: z.object({
+            enableFencing: z.unknown(),
+            items: z.unknown(),
+            kind: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          primaryTargets: z.object({
+            externalEndpoints: z.unknown(),
+            internalLoadBalancers: z.unknown(),
+          }).partial(),
+          trickleTraffic: z.number(),
+        }).partial(),
+        wrr: z.object({
+          items: z.array(z.unknown()),
+          kind: z.string(),
+        }).partial(),
+      }).partial(),
+      rrdatas: z.array(z.string()),
+      signatureRrdatas: z.array(z.string()),
+      ttl: z.number(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
+  deletions: z.array(
+    z.object({
       kind: z.string(),
-      primaryBackup: z.object({
-        backupGeoTargets: z.object({
-          enableFencing: z.unknown(),
-          items: z.unknown(),
-          kind: z.unknown(),
-        }),
+      name: z.string(),
+      routingPolicy: z.object({
+        geo: z.object({
+          enableFencing: z.boolean(),
+          items: z.array(z.unknown()),
+          kind: z.string(),
+        }).partial(),
+        healthCheck: z.string(),
         kind: z.string(),
-        primaryTargets: z.object({
-          externalEndpoints: z.unknown(),
-          internalLoadBalancers: z.unknown(),
-        }),
-        trickleTraffic: z.number(),
-      }),
-      wrr: z.object({
-        items: z.array(z.unknown()),
-        kind: z.string(),
-      }),
-    }),
-    rrdatas: z.array(z.string()),
-    signatureRrdatas: z.array(z.string()),
-    ttl: z.number(),
-    type: z.string(),
-  })).optional(),
+        primaryBackup: z.object({
+          backupGeoTargets: z.object({
+            enableFencing: z.unknown(),
+            items: z.unknown(),
+            kind: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          primaryTargets: z.object({
+            externalEndpoints: z.unknown(),
+            internalLoadBalancers: z.unknown(),
+          }).partial(),
+          trickleTraffic: z.number(),
+        }).partial(),
+        wrr: z.object({
+          items: z.array(z.unknown()),
+          kind: z.string(),
+        }).partial(),
+      }).partial(),
+      rrdatas: z.array(z.string()),
+      signatureRrdatas: z.array(z.string()),
+      ttl: z.number(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   isServing: z.boolean().optional(),
   kind: z.string().optional(),
@@ -557,7 +561,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS Changes. Registered at `@swamp/gcp/dns/changes`. */
 export const model = {
   type: "@swamp/gcp/dns/changes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -701,6 +705,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

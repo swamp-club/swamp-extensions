@@ -368,21 +368,23 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  additionalSpecContents: z.array(z.object({
-    createTime: z.string(),
-    labels: z.record(z.string(), z.unknown()),
-    specContentType: z.string(),
-    specContents: z.object({
-      contents: z.string(),
-      mimeType: z.string(),
-    }),
-    updateTime: z.string(),
-  })).optional(),
+  additionalSpecContents: z.array(
+    z.object({
+      createTime: z.string(),
+      labels: z.record(z.string(), z.unknown()),
+      specContentType: z.string(),
+      specContents: z.object({
+        contents: z.string(),
+        mimeType: z.string(),
+      }).partial(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   attributes: z.record(z.string(), z.unknown()).optional(),
   contents: z.object({
     contents: z.string(),
     mimeType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deployments: z.array(z.string()).optional(),
   details: z.object({
@@ -392,73 +394,81 @@ const StateSchema = z.object({
       owner: z.object({
         displayName: z.string(),
         email: z.string(),
-      }),
+      }).partial(),
       version: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   documentation: z.object({
     externalUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lintResponse: z.object({
     createTime: z.string(),
-    issues: z.array(z.object({
-      code: z.string(),
-      message: z.string(),
-      path: z.array(z.string()),
-      range: z.object({
-        end: z.object({
-          character: z.unknown(),
-          line: z.unknown(),
-        }),
-        start: z.object({
-          character: z.unknown(),
-          line: z.unknown(),
-        }),
-      }),
-      severity: z.string(),
-    })),
+    issues: z.array(
+      z.object({
+        code: z.string(),
+        message: z.string(),
+        path: z.array(z.string()),
+        range: z.object({
+          end: z.object({
+            character: z.unknown(),
+            line: z.unknown(),
+          }).partial(),
+          start: z.object({
+            character: z.unknown(),
+            line: z.unknown(),
+          }).partial(),
+        }).partial(),
+        severity: z.string(),
+      }).partial(),
+    ),
     linter: z.string(),
     source: z.string(),
     state: z.string(),
-    summary: z.array(z.object({
-      count: z.number(),
-      severity: z.string(),
-    })),
-  }).optional(),
+    summary: z.array(
+      z.object({
+        count: z.number(),
+        severity: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   parsingMode: z.string().optional(),
-  sourceMetadata: z.array(z.object({
-    originalResourceCreateTime: z.string(),
-    originalResourceId: z.string(),
-    originalResourceUpdateTime: z.string(),
-    pluginInstanceActionSource: z.object({
-      actionId: z.string(),
-      pluginInstance: z.string(),
-    }),
-    sourceType: z.string(),
-  })).optional(),
+  sourceMetadata: z.array(
+    z.object({
+      originalResourceCreateTime: z.string(),
+      originalResourceId: z.string(),
+      originalResourceUpdateTime: z.string(),
+      pluginInstanceActionSource: z.object({
+        actionId: z.string(),
+        pluginInstance: z.string(),
+      }).partial(),
+      sourceType: z.string(),
+    }).partial(),
+  ).optional(),
   sourceUri: z.string().optional(),
   specType: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -707,7 +717,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Apis.Versions.Specs. Registered at `@swamp/gcp/apihub/apis-versions-specs`. */
 export const model = {
   type: "@swamp/gcp/apihub/apis-versions-specs",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -874,6 +884,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

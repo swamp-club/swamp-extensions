@@ -43,6 +43,11 @@ const TagSchema = z.object({
   Key: z.string().min(1).max(128).regex(new RegExp("^.+$")),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -98,7 +103,7 @@ const StateSchema = z.object({
   HealthStatus: z.string().optional(),
   ManifestOverridesPayload: z.object({
     PayloadData: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LastUpdatedTime: z.number().optional(),
   RuntimeRoleArn: z.string().optional(),
   Name: z.string().optional(),
@@ -106,12 +111,12 @@ const StateSchema = z.object({
   StatusDescription: z.string().optional(),
   ManifestPayload: z.object({
     PayloadData: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -167,7 +172,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Panorama ApplicationInstance. Registered at `@swamp/aws/panorama/application-instance`. */
 export const model = {
   type: "@swamp/aws/panorama/application-instance",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -231,6 +236,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

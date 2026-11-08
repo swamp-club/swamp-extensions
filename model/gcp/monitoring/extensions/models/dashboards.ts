@@ -1053,372 +1053,388 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   annotations: z.object({
     defaultResourceNames: z.array(z.string()),
-    eventAnnotations: z.array(z.object({
-      displayName: z.string(),
-      enabled: z.boolean(),
-      eventType: z.string(),
-      filter: z.string(),
-      resourceNames: z.array(z.string()),
-    })),
-  }).optional(),
-  columnLayout: z.object({
-    columns: z.array(z.object({
-      weight: z.string(),
-      widgets: z.array(z.object({
-        alertChart: z.unknown(),
-        blank: z.unknown(),
-        collapsibleGroup: z.unknown(),
-        errorReportingPanel: z.unknown(),
-        filterControl: z.unknown(),
-        id: z.unknown(),
-        incidentList: z.unknown(),
-        logsPanel: z.unknown(),
-        pieChart: z.unknown(),
-        scorecard: z.unknown(),
-        sectionHeader: z.unknown(),
-        singleViewGroup: z.unknown(),
-        text: z.unknown(),
-        timeRange: z.unknown(),
-        timeSeriesTable: z.unknown(),
-        title: z.unknown(),
-        treemap: z.unknown(),
-        visibilityCondition: z.unknown(),
-        xyChart: z.unknown(),
-      })),
-    })),
-  }).optional(),
-  dashboardFilters: z.array(z.object({
-    filterType: z.string(),
-    labelKey: z.string(),
-    stringArray: z.object({
-      values: z.array(z.string()),
-    }),
-    stringArrayValue: z.object({
-      values: z.array(z.string()),
-    }),
-    stringValue: z.string(),
-    templateVariable: z.string(),
-    timeSeriesQuery: z.object({
-      opsAnalyticsQuery: z.object({
-        sql: z.string(),
-      }),
-      outputFullDuration: z.boolean(),
-      prometheusQuery: z.string(),
-      timeSeriesFilter: z.object({
-        aggregation: z.object({
-          alignmentPeriod: z.unknown(),
-          crossSeriesReducer: z.unknown(),
-          groupByFields: z.unknown(),
-          perSeriesAligner: z.unknown(),
-        }),
+    eventAnnotations: z.array(
+      z.object({
+        displayName: z.string(),
+        enabled: z.boolean(),
+        eventType: z.string(),
         filter: z.string(),
-        pickTimeSeriesFilter: z.object({
-          direction: z.unknown(),
-          interval: z.unknown(),
-          numTimeSeries: z.unknown(),
-          rankingMethod: z.unknown(),
-        }),
-        secondaryAggregation: z.object({
-          alignmentPeriod: z.unknown(),
-          crossSeriesReducer: z.unknown(),
-          groupByFields: z.unknown(),
-          perSeriesAligner: z.unknown(),
-        }),
-        statisticalTimeSeriesFilter: z.object({
-          numTimeSeries: z.unknown(),
-          rankingMethod: z.unknown(),
-        }),
-      }),
-      timeSeriesFilterRatio: z.object({
-        denominator: z.object({
-          aggregation: z.unknown(),
-          filter: z.unknown(),
-        }),
-        numerator: z.object({
-          aggregation: z.unknown(),
-          filter: z.unknown(),
-        }),
-        pickTimeSeriesFilter: z.object({
-          direction: z.unknown(),
-          interval: z.unknown(),
-          numTimeSeries: z.unknown(),
-          rankingMethod: z.unknown(),
-        }),
-        secondaryAggregation: z.object({
-          alignmentPeriod: z.unknown(),
-          crossSeriesReducer: z.unknown(),
-          groupByFields: z.unknown(),
-          perSeriesAligner: z.unknown(),
-        }),
-        statisticalTimeSeriesFilter: z.object({
-          numTimeSeries: z.unknown(),
-          rankingMethod: z.unknown(),
-        }),
-      }),
-      timeSeriesQueryLanguage: z.string(),
-      traceQuery: z.object({
-        resourceContainer: z.string(),
-        spanDataValue: z.string(),
-        spanFilters: z.object({
-          apphubServices: z.unknown(),
-          apphubWorkloads: z.unknown(),
-          applicationIds: z.unknown(),
-          attributes: z.unknown(),
-          displayNames: z.unknown(),
-          isRootSpan: z.unknown(),
-          kinds: z.unknown(),
-          maxDuration: z.unknown(),
-          minDuration: z.unknown(),
-          services: z.unknown(),
-          status: z.unknown(),
-        }),
-      }),
-      unitOverride: z.string(),
-    }),
-    valueType: z.string(),
-  })).optional(),
+        resourceNames: z.array(z.string()),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  columnLayout: z.object({
+    columns: z.array(
+      z.object({
+        weight: z.string(),
+        widgets: z.array(
+          z.object({
+            alertChart: z.unknown(),
+            blank: z.unknown(),
+            collapsibleGroup: z.unknown(),
+            errorReportingPanel: z.unknown(),
+            filterControl: z.unknown(),
+            id: z.unknown(),
+            incidentList: z.unknown(),
+            logsPanel: z.unknown(),
+            pieChart: z.unknown(),
+            scorecard: z.unknown(),
+            sectionHeader: z.unknown(),
+            singleViewGroup: z.unknown(),
+            text: z.unknown(),
+            timeRange: z.unknown(),
+            timeSeriesTable: z.unknown(),
+            title: z.unknown(),
+            treemap: z.unknown(),
+            visibilityCondition: z.unknown(),
+            xyChart: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  dashboardFilters: z.array(
+    z.object({
+      filterType: z.string(),
+      labelKey: z.string(),
+      stringArray: z.object({
+        values: z.array(z.string()),
+      }).partial(),
+      stringArrayValue: z.object({
+        values: z.array(z.string()),
+      }).partial(),
+      stringValue: z.string(),
+      templateVariable: z.string(),
+      timeSeriesQuery: z.object({
+        opsAnalyticsQuery: z.object({
+          sql: z.string(),
+        }).partial(),
+        outputFullDuration: z.boolean(),
+        prometheusQuery: z.string(),
+        timeSeriesFilter: z.object({
+          aggregation: z.object({
+            alignmentPeriod: z.unknown(),
+            crossSeriesReducer: z.unknown(),
+            groupByFields: z.unknown(),
+            perSeriesAligner: z.unknown(),
+          }).partial(),
+          filter: z.string(),
+          pickTimeSeriesFilter: z.object({
+            direction: z.unknown(),
+            interval: z.unknown(),
+            numTimeSeries: z.unknown(),
+            rankingMethod: z.unknown(),
+          }).partial(),
+          secondaryAggregation: z.object({
+            alignmentPeriod: z.unknown(),
+            crossSeriesReducer: z.unknown(),
+            groupByFields: z.unknown(),
+            perSeriesAligner: z.unknown(),
+          }).partial(),
+          statisticalTimeSeriesFilter: z.object({
+            numTimeSeries: z.unknown(),
+            rankingMethod: z.unknown(),
+          }).partial(),
+        }).partial(),
+        timeSeriesFilterRatio: z.object({
+          denominator: z.object({
+            aggregation: z.unknown(),
+            filter: z.unknown(),
+          }).partial(),
+          numerator: z.object({
+            aggregation: z.unknown(),
+            filter: z.unknown(),
+          }).partial(),
+          pickTimeSeriesFilter: z.object({
+            direction: z.unknown(),
+            interval: z.unknown(),
+            numTimeSeries: z.unknown(),
+            rankingMethod: z.unknown(),
+          }).partial(),
+          secondaryAggregation: z.object({
+            alignmentPeriod: z.unknown(),
+            crossSeriesReducer: z.unknown(),
+            groupByFields: z.unknown(),
+            perSeriesAligner: z.unknown(),
+          }).partial(),
+          statisticalTimeSeriesFilter: z.object({
+            numTimeSeries: z.unknown(),
+            rankingMethod: z.unknown(),
+          }).partial(),
+        }).partial(),
+        timeSeriesQueryLanguage: z.string(),
+        traceQuery: z.object({
+          resourceContainer: z.string(),
+          spanDataValue: z.string(),
+          spanFilters: z.object({
+            apphubServices: z.unknown(),
+            apphubWorkloads: z.unknown(),
+            applicationIds: z.unknown(),
+            attributes: z.unknown(),
+            displayNames: z.unknown(),
+            isRootSpan: z.unknown(),
+            kinds: z.unknown(),
+            maxDuration: z.unknown(),
+            minDuration: z.unknown(),
+            services: z.unknown(),
+            status: z.unknown(),
+          }).partial(),
+        }).partial(),
+        unitOverride: z.string(),
+      }).partial(),
+      valueType: z.string(),
+    }).partial(),
+  ).optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
   gridLayout: z.object({
     columns: z.string(),
-    widgets: z.array(z.object({
-      alertChart: z.object({
-        name: z.string(),
-      }),
-      blank: z.object({}),
-      collapsibleGroup: z.object({
-        collapsed: z.boolean(),
-      }),
-      errorReportingPanel: z.object({
-        projectNames: z.array(z.unknown()),
-        services: z.array(z.unknown()),
-        versions: z.array(z.unknown()),
-      }),
-      filterControl: z.object({
-        templateVariable: z.string(),
-      }),
-      id: z.string(),
-      incidentList: z.object({
-        monitoredResources: z.array(z.unknown()),
-        policyNames: z.array(z.unknown()),
-      }),
-      logsPanel: z.object({
-        filter: z.string(),
-        resourceNames: z.array(z.unknown()),
-      }),
-      pieChart: z.object({
-        chartType: z.string(),
-        dataSets: z.array(z.unknown()),
-        showLabels: z.boolean(),
-      }),
-      scorecard: z.object({
-        blankView: z.object({}),
-        breakdowns: z.array(z.unknown()),
-        dimensions: z.array(z.unknown()),
-        gaugeView: z.object({
-          lowerBound: z.unknown(),
-          upperBound: z.unknown(),
-        }),
-        measures: z.array(z.unknown()),
-        sparkChartView: z.object({
-          minAlignmentPeriod: z.unknown(),
-          sparkChartType: z.unknown(),
-        }),
-        thresholds: z.array(z.unknown()),
-        timeSeriesQuery: z.object({
-          opsAnalyticsQuery: z.unknown(),
-          outputFullDuration: z.unknown(),
-          prometheusQuery: z.unknown(),
-          timeSeriesFilter: z.unknown(),
-          timeSeriesFilterRatio: z.unknown(),
-          timeSeriesQueryLanguage: z.unknown(),
-          traceQuery: z.unknown(),
-          unitOverride: z.unknown(),
-        }),
-      }),
-      sectionHeader: z.object({
-        dividerBelow: z.boolean(),
-        subtitle: z.string(),
-      }),
-      singleViewGroup: z.object({
-        displayType: z.string(),
-      }),
-      text: z.object({
-        content: z.string(),
-        format: z.string(),
-        style: z.object({
-          backgroundColor: z.unknown(),
-          fontSize: z.unknown(),
-          horizontalAlignment: z.unknown(),
-          padding: z.unknown(),
-          pointerLocation: z.unknown(),
-          textColor: z.unknown(),
-          verticalAlignment: z.unknown(),
-        }),
-      }),
-      timeRange: z.object({
-        absoluteWindow: z.object({
-          endTime: z.unknown(),
-          startTime: z.unknown(),
-        }),
-        relativeDuration: z.string(),
-      }),
-      timeSeriesTable: z.object({
-        columnSettings: z.array(z.unknown()),
-        dataSets: z.array(z.unknown()),
-        metricVisualization: z.string(),
-      }),
-      title: z.string(),
-      treemap: z.object({
-        dataSets: z.array(z.unknown()),
-        treemapHierarchy: z.array(z.unknown()),
-      }),
-      visibilityCondition: z.object({
-        templateVariableCondition: z.object({
-          comparator: z.unknown(),
-          templateVariable: z.unknown(),
-          templateVariableValue: z.unknown(),
-        }),
-      }),
-      xyChart: z.object({
-        chartOptions: z.object({
-          displayHorizontal: z.unknown(),
-          mode: z.unknown(),
-        }),
-        dataSets: z.array(z.unknown()),
-        thresholds: z.array(z.unknown()),
-        timeshiftDuration: z.string(),
-        xAxis: z.object({
-          label: z.unknown(),
-          scale: z.unknown(),
-        }),
-        y2Axis: z.object({
-          label: z.unknown(),
-          scale: z.unknown(),
-        }),
-        yAxis: z.object({
-          label: z.unknown(),
-          scale: z.unknown(),
-        }),
-      }),
-    })),
-  }).optional(),
+    widgets: z.array(
+      z.object({
+        alertChart: z.object({
+          name: z.string(),
+        }).partial(),
+        blank: z.object({}).partial(),
+        collapsibleGroup: z.object({
+          collapsed: z.boolean(),
+        }).partial(),
+        errorReportingPanel: z.object({
+          projectNames: z.array(z.unknown()),
+          services: z.array(z.unknown()),
+          versions: z.array(z.unknown()),
+        }).partial(),
+        filterControl: z.object({
+          templateVariable: z.string(),
+        }).partial(),
+        id: z.string(),
+        incidentList: z.object({
+          monitoredResources: z.array(z.unknown()),
+          policyNames: z.array(z.unknown()),
+        }).partial(),
+        logsPanel: z.object({
+          filter: z.string(),
+          resourceNames: z.array(z.unknown()),
+        }).partial(),
+        pieChart: z.object({
+          chartType: z.string(),
+          dataSets: z.array(z.unknown()),
+          showLabels: z.boolean(),
+        }).partial(),
+        scorecard: z.object({
+          blankView: z.object({}).partial(),
+          breakdowns: z.array(z.unknown()),
+          dimensions: z.array(z.unknown()),
+          gaugeView: z.object({
+            lowerBound: z.unknown(),
+            upperBound: z.unknown(),
+          }).partial(),
+          measures: z.array(z.unknown()),
+          sparkChartView: z.object({
+            minAlignmentPeriod: z.unknown(),
+            sparkChartType: z.unknown(),
+          }).partial(),
+          thresholds: z.array(z.unknown()),
+          timeSeriesQuery: z.object({
+            opsAnalyticsQuery: z.unknown(),
+            outputFullDuration: z.unknown(),
+            prometheusQuery: z.unknown(),
+            timeSeriesFilter: z.unknown(),
+            timeSeriesFilterRatio: z.unknown(),
+            timeSeriesQueryLanguage: z.unknown(),
+            traceQuery: z.unknown(),
+            unitOverride: z.unknown(),
+          }).partial(),
+        }).partial(),
+        sectionHeader: z.object({
+          dividerBelow: z.boolean(),
+          subtitle: z.string(),
+        }).partial(),
+        singleViewGroup: z.object({
+          displayType: z.string(),
+        }).partial(),
+        text: z.object({
+          content: z.string(),
+          format: z.string(),
+          style: z.object({
+            backgroundColor: z.unknown(),
+            fontSize: z.unknown(),
+            horizontalAlignment: z.unknown(),
+            padding: z.unknown(),
+            pointerLocation: z.unknown(),
+            textColor: z.unknown(),
+            verticalAlignment: z.unknown(),
+          }).partial(),
+        }).partial(),
+        timeRange: z.object({
+          absoluteWindow: z.object({
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+          relativeDuration: z.string(),
+        }).partial(),
+        timeSeriesTable: z.object({
+          columnSettings: z.array(z.unknown()),
+          dataSets: z.array(z.unknown()),
+          metricVisualization: z.string(),
+        }).partial(),
+        title: z.string(),
+        treemap: z.object({
+          dataSets: z.array(z.unknown()),
+          treemapHierarchy: z.array(z.unknown()),
+        }).partial(),
+        visibilityCondition: z.object({
+          templateVariableCondition: z.object({
+            comparator: z.unknown(),
+            templateVariable: z.unknown(),
+            templateVariableValue: z.unknown(),
+          }).partial(),
+        }).partial(),
+        xyChart: z.object({
+          chartOptions: z.object({
+            displayHorizontal: z.unknown(),
+            mode: z.unknown(),
+          }).partial(),
+          dataSets: z.array(z.unknown()),
+          thresholds: z.array(z.unknown()),
+          timeshiftDuration: z.string(),
+          xAxis: z.object({
+            label: z.unknown(),
+            scale: z.unknown(),
+          }).partial(),
+          y2Axis: z.object({
+            label: z.unknown(),
+            scale: z.unknown(),
+          }).partial(),
+          yAxis: z.object({
+            label: z.unknown(),
+            scale: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   mosaicLayout: z.object({
     columns: z.number(),
-    tiles: z.array(z.object({
-      height: z.number(),
-      widget: z.object({
-        alertChart: z.object({
-          name: z.unknown(),
-        }),
-        blank: z.object({}),
-        collapsibleGroup: z.object({
-          collapsed: z.unknown(),
-        }),
-        errorReportingPanel: z.object({
-          projectNames: z.unknown(),
-          services: z.unknown(),
-          versions: z.unknown(),
-        }),
-        filterControl: z.object({
-          templateVariable: z.unknown(),
-        }),
-        id: z.string(),
-        incidentList: z.object({
-          monitoredResources: z.unknown(),
-          policyNames: z.unknown(),
-        }),
-        logsPanel: z.object({
-          filter: z.unknown(),
-          resourceNames: z.unknown(),
-        }),
-        pieChart: z.object({
-          chartType: z.unknown(),
-          dataSets: z.unknown(),
-          showLabels: z.unknown(),
-        }),
-        scorecard: z.object({
-          blankView: z.unknown(),
-          breakdowns: z.unknown(),
-          dimensions: z.unknown(),
-          gaugeView: z.unknown(),
-          measures: z.unknown(),
-          sparkChartView: z.unknown(),
-          thresholds: z.unknown(),
-          timeSeriesQuery: z.unknown(),
-        }),
-        sectionHeader: z.object({
-          dividerBelow: z.unknown(),
-          subtitle: z.unknown(),
-        }),
-        singleViewGroup: z.object({
-          displayType: z.unknown(),
-        }),
-        text: z.object({
-          content: z.unknown(),
-          format: z.unknown(),
-          style: z.unknown(),
-        }),
-        timeRange: z.object({
-          absoluteWindow: z.unknown(),
-          relativeDuration: z.unknown(),
-        }),
-        timeSeriesTable: z.object({
-          columnSettings: z.unknown(),
-          dataSets: z.unknown(),
-          metricVisualization: z.unknown(),
-        }),
-        title: z.string(),
-        treemap: z.object({
-          dataSets: z.unknown(),
-          treemapHierarchy: z.unknown(),
-        }),
-        visibilityCondition: z.object({
-          templateVariableCondition: z.unknown(),
-        }),
-        xyChart: z.object({
-          chartOptions: z.unknown(),
-          dataSets: z.unknown(),
-          thresholds: z.unknown(),
-          timeshiftDuration: z.unknown(),
-          xAxis: z.unknown(),
-          y2Axis: z.unknown(),
-          yAxis: z.unknown(),
-        }),
-      }),
-      width: z.number(),
-      xPos: z.number(),
-      yPos: z.number(),
-    })),
-  }).optional(),
+    tiles: z.array(
+      z.object({
+        height: z.number(),
+        widget: z.object({
+          alertChart: z.object({
+            name: z.unknown(),
+          }).partial(),
+          blank: z.object({}).partial(),
+          collapsibleGroup: z.object({
+            collapsed: z.unknown(),
+          }).partial(),
+          errorReportingPanel: z.object({
+            projectNames: z.unknown(),
+            services: z.unknown(),
+            versions: z.unknown(),
+          }).partial(),
+          filterControl: z.object({
+            templateVariable: z.unknown(),
+          }).partial(),
+          id: z.string(),
+          incidentList: z.object({
+            monitoredResources: z.unknown(),
+            policyNames: z.unknown(),
+          }).partial(),
+          logsPanel: z.object({
+            filter: z.unknown(),
+            resourceNames: z.unknown(),
+          }).partial(),
+          pieChart: z.object({
+            chartType: z.unknown(),
+            dataSets: z.unknown(),
+            showLabels: z.unknown(),
+          }).partial(),
+          scorecard: z.object({
+            blankView: z.unknown(),
+            breakdowns: z.unknown(),
+            dimensions: z.unknown(),
+            gaugeView: z.unknown(),
+            measures: z.unknown(),
+            sparkChartView: z.unknown(),
+            thresholds: z.unknown(),
+            timeSeriesQuery: z.unknown(),
+          }).partial(),
+          sectionHeader: z.object({
+            dividerBelow: z.unknown(),
+            subtitle: z.unknown(),
+          }).partial(),
+          singleViewGroup: z.object({
+            displayType: z.unknown(),
+          }).partial(),
+          text: z.object({
+            content: z.unknown(),
+            format: z.unknown(),
+            style: z.unknown(),
+          }).partial(),
+          timeRange: z.object({
+            absoluteWindow: z.unknown(),
+            relativeDuration: z.unknown(),
+          }).partial(),
+          timeSeriesTable: z.object({
+            columnSettings: z.unknown(),
+            dataSets: z.unknown(),
+            metricVisualization: z.unknown(),
+          }).partial(),
+          title: z.string(),
+          treemap: z.object({
+            dataSets: z.unknown(),
+            treemapHierarchy: z.unknown(),
+          }).partial(),
+          visibilityCondition: z.object({
+            templateVariableCondition: z.unknown(),
+          }).partial(),
+          xyChart: z.object({
+            chartOptions: z.unknown(),
+            dataSets: z.unknown(),
+            thresholds: z.unknown(),
+            timeshiftDuration: z.unknown(),
+            xAxis: z.unknown(),
+            y2Axis: z.unknown(),
+            yAxis: z.unknown(),
+          }).partial(),
+        }).partial(),
+        width: z.number(),
+        xPos: z.number(),
+        yPos: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   rowLayout: z.object({
-    rows: z.array(z.object({
-      weight: z.string(),
-      widgets: z.array(z.object({
-        alertChart: z.unknown(),
-        blank: z.unknown(),
-        collapsibleGroup: z.unknown(),
-        errorReportingPanel: z.unknown(),
-        filterControl: z.unknown(),
-        id: z.unknown(),
-        incidentList: z.unknown(),
-        logsPanel: z.unknown(),
-        pieChart: z.unknown(),
-        scorecard: z.unknown(),
-        sectionHeader: z.unknown(),
-        singleViewGroup: z.unknown(),
-        text: z.unknown(),
-        timeRange: z.unknown(),
-        timeSeriesTable: z.unknown(),
-        title: z.unknown(),
-        treemap: z.unknown(),
-        visibilityCondition: z.unknown(),
-        xyChart: z.unknown(),
-      })),
-    })),
-  }).optional(),
+    rows: z.array(
+      z.object({
+        weight: z.string(),
+        widgets: z.array(
+          z.object({
+            alertChart: z.unknown(),
+            blank: z.unknown(),
+            collapsibleGroup: z.unknown(),
+            errorReportingPanel: z.unknown(),
+            filterControl: z.unknown(),
+            id: z.unknown(),
+            incidentList: z.unknown(),
+            logsPanel: z.unknown(),
+            pieChart: z.unknown(),
+            scorecard: z.unknown(),
+            sectionHeader: z.unknown(),
+            singleViewGroup: z.unknown(),
+            text: z.unknown(),
+            timeRange: z.unknown(),
+            timeSeriesTable: z.unknown(),
+            title: z.unknown(),
+            treemap: z.unknown(),
+            visibilityCondition: z.unknown(),
+            xyChart: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2352,7 +2368,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring Dashboards. Registered at `@swamp/gcp/monitoring/dashboards`. */
 export const model = {
   type: "@swamp/gcp/monitoring/dashboards",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -2376,6 +2392,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

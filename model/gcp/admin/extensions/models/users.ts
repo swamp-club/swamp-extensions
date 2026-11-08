@@ -298,7 +298,7 @@ const StateSchema = z.object({
   gender: z.string().optional(),
   guestAccountInfo: z.object({
     primaryGuestEmail: z.string(),
-  }).optional(),
+  }).partial().optional(),
   hashFunction: z.string().optional(),
   id: z.string().optional(),
   ims: z.string().optional(),
@@ -320,7 +320,7 @@ const StateSchema = z.object({
     familyName: z.string(),
     fullName: z.string(),
     givenName: z.string(),
-  }),
+  }).partial(),
   nonEditableAliases: z.array(z.string()).optional(),
   notes: z.string().optional(),
   orgUnitPath: z.string().optional(),
@@ -484,7 +484,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Users. Registered at `@swamp/gcp/admin/users`. */
 export const model = {
   type: "@swamp/gcp/admin/users",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -528,6 +528,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

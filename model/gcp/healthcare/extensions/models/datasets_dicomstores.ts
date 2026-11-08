@@ -228,20 +228,24 @@ const StateSchema = z.object({
   notificationConfig: z.object({
     pubsubTopic: z.string(),
     sendForBulkImport: z.boolean(),
-  }).optional(),
-  notificationConfigs: z.array(z.object({
-    pubsubTopic: z.string(),
-  })).optional(),
-  streamConfigs: z.array(z.object({
-    bigqueryDestination: z.object({
-      force: z.boolean(),
-      includeSourceStore: z.boolean(),
-      schemaFlattened: z.object({}),
-      schemaJson: z.object({}),
-      tableUri: z.string(),
-      writeDisposition: z.string(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  notificationConfigs: z.array(
+    z.object({
+      pubsubTopic: z.string(),
+    }).partial(),
+  ).optional(),
+  streamConfigs: z.array(
+    z.object({
+      bigqueryDestination: z.object({
+        force: z.boolean(),
+        includeSourceStore: z.boolean(),
+        schemaFlattened: z.object({}).partial(),
+        schemaJson: z.object({}).partial(),
+        tableUri: z.string(),
+        writeDisposition: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -344,7 +348,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Healthcare Datasets.DicomStores. Registered at `@swamp/gcp/healthcare/datasets-dicomstores`. */
 export const model = {
   type: "@swamp/gcp/healthcare/datasets-dicomstores",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -513,6 +517,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -94,87 +94,107 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   certificateSha256Hash: z.string().optional(),
-  generatedAssetPackSlices: z.array(z.object({
-    downloadId: z.string(),
-    moduleName: z.string(),
-    sliceId: z.string(),
-    version: z.string(),
-  })).optional(),
-  generatedRecoveryModules: z.array(z.object({
-    downloadId: z.string(),
-    moduleName: z.string(),
-    recoveryId: z.string(),
-    recoveryStatus: z.string(),
-  })).optional(),
-  generatedSplitApks: z.array(z.object({
-    downloadId: z.string(),
-    moduleName: z.string(),
-    splitId: z.string(),
-    variantId: z.number(),
-  })).optional(),
-  generatedStandaloneApks: z.array(z.object({
-    downloadId: z.string(),
-    variantId: z.number(),
-  })).optional(),
+  generatedAssetPackSlices: z.array(
+    z.object({
+      downloadId: z.string(),
+      moduleName: z.string(),
+      sliceId: z.string(),
+      version: z.string(),
+    }).partial(),
+  ).optional(),
+  generatedRecoveryModules: z.array(
+    z.object({
+      downloadId: z.string(),
+      moduleName: z.string(),
+      recoveryId: z.string(),
+      recoveryStatus: z.string(),
+    }).partial(),
+  ).optional(),
+  generatedSplitApks: z.array(
+    z.object({
+      downloadId: z.string(),
+      moduleName: z.string(),
+      splitId: z.string(),
+      variantId: z.number(),
+    }).partial(),
+  ).optional(),
+  generatedStandaloneApks: z.array(
+    z.object({
+      downloadId: z.string(),
+      variantId: z.number(),
+    }).partial(),
+  ).optional(),
   generatedUniversalApk: z.object({
     downloadId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetingInfo: z.object({
-    assetSliceSet: z.array(z.object({
-      apkDescription: z.array(z.object({
-        assetSliceMetadata: z.unknown(),
-        instantApkMetadata: z.unknown(),
-        path: z.unknown(),
-        splitApkMetadata: z.unknown(),
-        standaloneApkMetadata: z.unknown(),
-        targeting: z.unknown(),
-      })),
-      assetModuleMetadata: z.object({
-        deliveryType: z.string(),
-        name: z.string(),
-      }),
-    })),
+    assetSliceSet: z.array(
+      z.object({
+        apkDescription: z.array(
+          z.object({
+            assetSliceMetadata: z.unknown(),
+            instantApkMetadata: z.unknown(),
+            path: z.unknown(),
+            splitApkMetadata: z.unknown(),
+            standaloneApkMetadata: z.unknown(),
+            targeting: z.unknown(),
+          }).partial(),
+        ),
+        assetModuleMetadata: z.object({
+          deliveryType: z.string(),
+          name: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     packageName: z.string(),
-    variant: z.array(z.object({
-      apkSet: z.array(z.object({
-        apkDescription: z.unknown(),
-        moduleMetadata: z.unknown(),
-      })),
-      targeting: z.object({
-        abiTargeting: z.object({
-          alternatives: z.unknown(),
-          value: z.unknown(),
-        }),
-        multiAbiTargeting: z.object({
-          alternatives: z.unknown(),
-          value: z.unknown(),
-        }),
-        screenDensityTargeting: z.object({
-          alternatives: z.unknown(),
-          value: z.unknown(),
-        }),
-        sdkVersionTargeting: z.object({
-          alternatives: z.unknown(),
-          value: z.unknown(),
-        }),
-        textureCompressionFormatTargeting: z.object({
-          alternatives: z.unknown(),
-          value: z.unknown(),
-        }),
-      }),
-      variantNumber: z.number(),
-    })),
-  }).optional(),
-  unprotectedGeneratedSplitApks: z.array(z.object({
-    downloadId: z.string(),
-    moduleName: z.string(),
-    splitId: z.string(),
-    variantId: z.number(),
-  })).optional(),
-  unprotectedGeneratedStandaloneApks: z.array(z.object({
-    downloadId: z.string(),
-    variantId: z.number(),
-  })).optional(),
+    variant: z.array(
+      z.object({
+        apkSet: z.array(
+          z.object({
+            apkDescription: z.unknown(),
+            moduleMetadata: z.unknown(),
+          }).partial(),
+        ),
+        targeting: z.object({
+          abiTargeting: z.object({
+            alternatives: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          multiAbiTargeting: z.object({
+            alternatives: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          screenDensityTargeting: z.object({
+            alternatives: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          sdkVersionTargeting: z.object({
+            alternatives: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          textureCompressionFormatTargeting: z.object({
+            alternatives: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        }).partial(),
+        variantNumber: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  unprotectedGeneratedSplitApks: z.array(
+    z.object({
+      downloadId: z.string(),
+      moduleName: z.string(),
+      splitId: z.string(),
+      variantId: z.number(),
+    }).partial(),
+  ).optional(),
+  unprotectedGeneratedStandaloneApks: z.array(
+    z.object({
+      downloadId: z.string(),
+      variantId: z.number(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -218,7 +238,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Generatedapks. Registered at `@swamp/gcp/androidpublisher/generatedapks`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/generatedapks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -387,6 +407,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

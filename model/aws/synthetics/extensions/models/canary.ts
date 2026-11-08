@@ -137,6 +137,62 @@ const ReplicaSchema = z.object({
   ).optional(),
 });
 
+const DependencyStateSchema = z.object({
+  Type: z.string(),
+  Reference: z.string(),
+}).partial();
+
+const S3EncryptionStateSchema = z.object({
+  EncryptionMode: z.string(),
+  KmsKeyArn: z.string(),
+}).partial();
+
+const RetryConfigStateSchema = z.object({
+  MaxRetries: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const BaseScreenshotStateSchema = z.object({
+  ScreenshotName: z.string(),
+  IgnoreCoordinates: z.array(z.string()),
+}).partial();
+
+const BrowserConfigStateSchema = z.object({
+  BrowserType: z.string(),
+}).partial();
+
+const VisualReferenceStateSchema = z.object({
+  BaseCanaryRunId: z.string(),
+  BaseScreenshots: z.array(BaseScreenshotStateSchema),
+  BrowserType: z.string(),
+}).partial();
+
+const VPCConfigStateSchema = z.object({
+  VpcId: z.string(),
+  SubnetIds: z.array(z.string()),
+  SecurityGroupIds: z.array(z.string()),
+  Ipv6AllowedForDualStack: z.boolean(),
+}).partial();
+
+const ReplicaReplicationStatusStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const ReplicaStateSchema = z.object({
+  Location: z.string(),
+  VpcConfig: VPCConfigStateSchema,
+  Tags: z.array(TagStateSchema),
+  ResourcesToReplicateTags: z.array(z.string()),
+  KmsKeyArn: z.string(),
+  CanaryState: z.string(),
+  LastModified: z.number(),
+  ReplicationStatus: ReplicaReplicationStatusStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -268,44 +324,53 @@ const StateSchema = z.object({
     Script: z.string(),
     Handler: z.string(),
     SourceLocationArn: z.string(),
-    Dependencies: z.array(DependencySchema),
+    Dependencies: z.array(DependencyStateSchema),
     BlueprintTypes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   ArtifactS3Location: z.string().optional(),
   ArtifactConfig: z.object({
-    S3Encryption: S3EncryptionSchema,
-  }).optional(),
+    S3Encryption: S3EncryptionStateSchema,
+  }).partial().optional(),
   Schedule: z.object({
     Expression: z.string(),
     DurationInSeconds: z.string(),
-    RetryConfig: RetryConfigSchema,
-  }).optional(),
+    RetryConfig: RetryConfigStateSchema,
+  }).partial().optional(),
   ExecutionRoleArn: z.string().optional(),
   RuntimeVersion: z.string().optional(),
   SuccessRetentionPeriod: z.number().optional(),
   FailureRetentionPeriod: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
-  VPCConfig: VPCConfigSchema.optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  VPCConfig: z.object({
+    VpcId: z.string(),
+    SubnetIds: z.array(z.string()),
+    SecurityGroupIds: z.array(z.string()),
+    Ipv6AllowedForDualStack: z.boolean(),
+  }).partial().optional(),
   RunConfig: z.object({
     TimeoutInSeconds: z.number(),
     MemoryInMB: z.number(),
     EphemeralStorage: z.number(),
     ActiveTracing: z.boolean(),
     EnvironmentVariables: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   StartCanaryAfterCreation: z.boolean().optional(),
-  VisualReference: VisualReferenceSchema.optional(),
+  VisualReference: z.object({
+    BaseCanaryRunId: z.string(),
+    BaseScreenshots: z.array(BaseScreenshotStateSchema),
+    BrowserType: z.string(),
+  }).partial().optional(),
   DeleteLambdaResourcesOnCanaryDeletion: z.boolean().optional(),
   ResourcesToReplicateTags: z.array(z.string()).optional(),
   ProvisionedResourceCleanup: z.string().optional(),
   KmsKeyArn: z.string().optional(),
   DryRunAndUpdate: z.boolean().optional(),
-  BrowserConfigs: z.array(BrowserConfigSchema).optional(),
-  VisualReferences: z.array(VisualReferenceSchema).optional(),
-  Replicas: z.array(ReplicaSchema).optional(),
+  BrowserConfigs: z.array(BrowserConfigStateSchema).optional(),
+  VisualReferences: z.array(VisualReferenceStateSchema).optional(),
+  Replicas: z.array(ReplicaStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -438,7 +503,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Synthetics Canary. Registered at `@swamp/aws/synthetics/canary`. */
 export const model = {
   type: "@swamp/aws/synthetics/canary",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -512,6 +577,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

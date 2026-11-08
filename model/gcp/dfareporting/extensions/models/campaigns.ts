@@ -447,24 +447,28 @@ const StateSchema = z.object({
   accountId: z.string().optional(),
   adBlockingConfiguration: z.object({
     enabled: z.boolean(),
-  }).optional(),
-  additionalCreativeOptimizationConfigurations: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    optimizationActivitys: z.array(z.object({
-      floodlightActivityId: z.string(),
-      floodlightActivityIdDimensionValue: z.object({
-        dimensionName: z.unknown(),
-        etag: z.unknown(),
-        id: z.unknown(),
-        kind: z.unknown(),
-        matchType: z.unknown(),
-        value: z.unknown(),
-      }),
-      weight: z.number(),
-    })),
-    optimizationModel: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  additionalCreativeOptimizationConfigurations: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      optimizationActivitys: z.array(
+        z.object({
+          floodlightActivityId: z.string(),
+          floodlightActivityIdDimensionValue: z.object({
+            dimensionName: z.unknown(),
+            etag: z.unknown(),
+            id: z.unknown(),
+            kind: z.unknown(),
+            matchType: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          weight: z.number(),
+        }).partial(),
+      ),
+      optimizationModel: z.string(),
+    }).partial(),
+  ).optional(),
   advertiserGroupId: z.string().optional(),
   advertiserId: z.string().optional(),
   advertiserIdDimensionValue: z.object({
@@ -474,55 +478,63 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   archived: z.boolean().optional(),
-  audienceSegmentGroups: z.array(z.object({
-    audienceSegments: z.array(z.object({
-      allocation: z.number(),
+  audienceSegmentGroups: z.array(
+    z.object({
+      audienceSegments: z.array(
+        z.object({
+          allocation: z.number(),
+          id: z.string(),
+          name: z.string(),
+        }).partial(),
+      ),
       id: z.string(),
       name: z.string(),
-    })),
-    id: z.string(),
-    name: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   billingInvoiceCode: z.string().optional(),
   clickThroughUrlSuffixProperties: z.object({
     clickThroughUrlSuffix: z.string(),
     overrideInheritedSuffix: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   comment: z.string().optional(),
   createInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creativeGroupIds: z.array(z.string()).optional(),
   creativeOptimizationConfiguration: z.object({
     id: z.string(),
     name: z.string(),
-    optimizationActivitys: z.array(z.object({
-      floodlightActivityId: z.string(),
-      floodlightActivityIdDimensionValue: z.object({
-        dimensionName: z.string(),
-        etag: z.string(),
-        id: z.string(),
-        kind: z.string(),
-        matchType: z.string(),
-        value: z.string(),
-      }),
-      weight: z.number(),
-    })),
+    optimizationActivitys: z.array(
+      z.object({
+        floodlightActivityId: z.string(),
+        floodlightActivityIdDimensionValue: z.object({
+          dimensionName: z.string(),
+          etag: z.string(),
+          id: z.string(),
+          kind: z.string(),
+          matchType: z.string(),
+          value: z.string(),
+        }).partial(),
+        weight: z.number(),
+      }).partial(),
+    ),
     optimizationModel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   defaultClickThroughEventTagProperties: z.object({
     defaultClickThroughEventTagId: z.string(),
     overrideInheritedEventTag: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   defaultLandingPageId: z.string().optional(),
   endDate: z.string().optional(),
   euPoliticalAdsDeclaration: z.string().optional(),
-  eventTagOverrides: z.array(z.object({
-    enabled: z.boolean(),
-    id: z.string(),
-  })).optional(),
+  eventTagOverrides: z.array(
+    z.object({
+      enabled: z.boolean(),
+      id: z.string(),
+    }).partial(),
+  ).optional(),
   externalId: z.string().optional(),
   id: z.string(),
   idDimensionValue: z.object({
@@ -532,16 +544,16 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   lastModifiedInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   measurementPartnerLink: z.object({
     linkStatus: z.string(),
     measurementPartner: z.string(),
     partnerCampaignId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string().optional(),
   startDate: z.string().optional(),
   subaccountId: z.string().optional(),
@@ -854,7 +866,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 Campaigns. Registered at `@swamp/gcp/dfareporting/campaigns`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/campaigns",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -993,6 +1005,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

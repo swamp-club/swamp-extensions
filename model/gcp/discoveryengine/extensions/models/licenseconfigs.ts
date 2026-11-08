@@ -218,12 +218,12 @@ const StateSchema = z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   endDate: z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   freeTrial: z.boolean().optional(),
   geminiBundle: z.boolean().optional(),
   lastUserUpdateTime: z.string().optional(),
@@ -233,7 +233,7 @@ const StateSchema = z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   subscriptionTerm: z.string().optional(),
   subscriptionTier: z.string().optional(),
@@ -344,7 +344,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine LicenseConfigs. Registered at `@swamp/gcp/discoveryengine/licenseconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/licenseconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -514,6 +514,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

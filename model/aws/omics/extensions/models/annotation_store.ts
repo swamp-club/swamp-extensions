@@ -57,6 +57,12 @@ const TsvStoreOptionsSchema = z.object({
   ).optional(),
 });
 
+const TsvStoreOptionsStateSchema = z.object({
+  AnnotationType: z.string(),
+  FormatToHeader: z.record(z.string(), z.unknown()),
+  Schema: z.array(z.record(z.string(), z.unknown())),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -95,24 +101,24 @@ const StateSchema = z.object({
   Name: z.string(),
   Reference: z.object({
     ReferenceArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SseConfig: z.object({
     Type: z.string(),
     KeyArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   StatusMessage: z.string().optional(),
   StoreArn: z.string().optional(),
   StoreFormat: z.string().optional(),
   StoreOptions: z.object({
-    TsvStoreOptions: TsvStoreOptionsSchema,
-  }).optional(),
+    TsvStoreOptions: TsvStoreOptionsStateSchema,
+  }).partial().optional(),
   StoreSizeBytes: z.number().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   UpdateTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -158,7 +164,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Omics AnnotationStore. Registered at `@swamp/aws/omics/annotation-store`. */
 export const model = {
   type: "@swamp/aws/omics/annotation-store",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -222,6 +228,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

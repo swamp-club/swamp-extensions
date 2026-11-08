@@ -247,59 +247,63 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   active: z.object({
-    dynamicProfileFeedSettings: z.array(z.object({
-      dynamicFeedId: z.string(),
-      dynamicRules: z.object({
-        autoTargetedFieldIds: z.array(z.unknown()),
-        customRules: z.array(z.unknown()),
-        customValueFields: z.array(z.unknown()),
-        proximityFilter: z.object({
-          fieldId: z.unknown(),
-          radiusBucketType: z.unknown(),
-          radiusUnitType: z.unknown(),
-          radiusValue: z.unknown(),
-        }),
-        remarketingValueAttributes: z.array(z.unknown()),
-        rotationType: z.string(),
-        ruleType: z.string(),
-        weightFieldId: z.number(),
-      }),
-      quantity: z.number(),
-    })),
+    dynamicProfileFeedSettings: z.array(
+      z.object({
+        dynamicFeedId: z.string(),
+        dynamicRules: z.object({
+          autoTargetedFieldIds: z.array(z.unknown()),
+          customRules: z.array(z.unknown()),
+          customValueFields: z.array(z.unknown()),
+          proximityFilter: z.object({
+            fieldId: z.unknown(),
+            radiusBucketType: z.unknown(),
+            radiusUnitType: z.unknown(),
+            radiusValue: z.unknown(),
+          }).partial(),
+          remarketingValueAttributes: z.array(z.unknown()),
+          rotationType: z.string(),
+          ruleType: z.string(),
+          weightFieldId: z.number(),
+        }).partial(),
+        quantity: z.number(),
+      }).partial(),
+    ),
     versionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   archiveStatus: z.string().optional(),
   createInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   draft: z.object({
-    dynamicProfileFeedSettings: z.array(z.object({
-      dynamicFeedId: z.string(),
-      dynamicRules: z.object({
-        autoTargetedFieldIds: z.array(z.unknown()),
-        customRules: z.array(z.unknown()),
-        customValueFields: z.array(z.unknown()),
-        proximityFilter: z.object({
-          fieldId: z.unknown(),
-          radiusBucketType: z.unknown(),
-          radiusUnitType: z.unknown(),
-          radiusValue: z.unknown(),
-        }),
-        remarketingValueAttributes: z.array(z.unknown()),
-        rotationType: z.string(),
-        ruleType: z.string(),
-        weightFieldId: z.number(),
-      }),
-      quantity: z.number(),
-    })),
+    dynamicProfileFeedSettings: z.array(
+      z.object({
+        dynamicFeedId: z.string(),
+        dynamicRules: z.object({
+          autoTargetedFieldIds: z.array(z.unknown()),
+          customRules: z.array(z.unknown()),
+          customValueFields: z.array(z.unknown()),
+          proximityFilter: z.object({
+            fieldId: z.unknown(),
+            radiusBucketType: z.unknown(),
+            radiusUnitType: z.unknown(),
+            radiusValue: z.unknown(),
+          }).partial(),
+          remarketingValueAttributes: z.array(z.unknown()),
+          rotationType: z.string(),
+          ruleType: z.string(),
+          weightFieldId: z.number(),
+        }).partial(),
+        quantity: z.number(),
+      }).partial(),
+    ),
     versionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dynamicProfileId: z.string().optional(),
   kind: z.string().optional(),
   lastModifiedInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   status: z.string().optional(),
   studioAdvertiserId: z.string().optional(),
@@ -488,7 +492,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 DynamicProfiles. Registered at `@swamp/gcp/dfareporting/dynamicprofiles`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/dynamicprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -629,6 +633,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -101,6 +101,46 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
+const AuthorizedTokenIssuerStateSchema = z.object({
+  TrustedTokenIssuerArn: z.string(),
+  AuthorizedAudiencesList: z.array(z.string()),
+}).partial();
+
+const LakeFormationQueryStateSchema = z.object({
+  Authorization: z.string(),
+}).partial();
+
+const LakeFormationScopeUnionStateSchema = z.object({
+  LakeFormationQuery: LakeFormationQueryStateSchema,
+}).partial();
+
+const ReadWriteAccessStateSchema = z.object({
+  Authorization: z.string(),
+}).partial();
+
+const S3AccessGrantsScopeUnionStateSchema = z.object({
+  ReadWriteAccess: ReadWriteAccessStateSchema,
+}).partial();
+
+const ConnectStateSchema = z.object({
+  Authorization: z.string(),
+}).partial();
+
+const RedshiftScopeUnionStateSchema = z.object({
+  Connect: ConnectStateSchema,
+}).partial();
+
+const ServiceIntegrationsUnionStateSchema = z.object({
+  LakeFormation: z.array(LakeFormationScopeUnionStateSchema),
+  S3AccessGrants: z.array(S3AccessGrantsScopeUnionStateSchema),
+  Redshift: z.array(RedshiftScopeUnionStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -166,14 +206,15 @@ const StateSchema = z.object({
   IamRoleArn: z.string().optional(),
   IdcManagedApplicationArn: z.string().optional(),
   IdcOnboardStatus: z.string().optional(),
-  AuthorizedTokenIssuerList: z.array(AuthorizedTokenIssuerSchema).optional(),
-  ServiceIntegrations: z.array(ServiceIntegrationsUnionSchema).optional(),
+  AuthorizedTokenIssuerList: z.array(AuthorizedTokenIssuerStateSchema)
+    .optional(),
+  ServiceIntegrations: z.array(ServiceIntegrationsUnionStateSchema).optional(),
   ApplicationType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   SsoTagKeys: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -240,7 +281,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift RedshiftIdcApplication. Registered at `@swamp/aws/redshift/redshift-idc-application`. */
 export const model = {
   type: "@swamp/aws/redshift/redshift-idc-application",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -254,6 +295,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

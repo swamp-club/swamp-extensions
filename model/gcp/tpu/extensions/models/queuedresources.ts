@@ -381,7 +381,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   guaranteed: z.object({
     minDuration: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   queueingPolicy: z.object({
     validAfterDuration: z.string(),
@@ -389,97 +389,99 @@ const StateSchema = z.object({
     validInterval: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
+    }).partial(),
     validUntilDuration: z.string(),
     validUntilTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reservationName: z.string().optional(),
-  spot: z.object({}).optional(),
+  spot: z.object({}).partial().optional(),
   state: z.object({
-    acceptedData: z.object({}),
-    activeData: z.object({}),
-    creatingData: z.object({}),
-    deletingData: z.object({}),
+    acceptedData: z.object({}).partial(),
+    activeData: z.object({}).partial(),
+    creatingData: z.object({}).partial(),
+    deletingData: z.object({}).partial(),
     failedData: z.object({
       error: z.object({
         code: z.number(),
         details: z.array(z.record(z.string(), z.unknown())),
         message: z.string(),
-      }),
-    }),
-    provisioningData: z.object({}),
+      }).partial(),
+    }).partial(),
+    provisioningData: z.object({}).partial(),
     state: z.string(),
     stateInitiator: z.string(),
-    suspendedData: z.object({}),
-    suspendingData: z.object({}),
-  }).optional(),
+    suspendedData: z.object({}).partial(),
+    suspendingData: z.object({}).partial(),
+  }).partial().optional(),
   tpu: z.object({
-    nodeSpec: z.array(z.object({
-      multisliceParams: z.object({
-        nodeCount: z.number(),
-        nodeIdPrefix: z.string(),
-      }),
-      node: z.object({
-        acceleratorConfig: z.object({
-          topology: z.unknown(),
-          type: z.unknown(),
-        }),
-        acceleratorType: z.string(),
-        apiVersion: z.string(),
-        bootDiskConfig: z.object({
-          customerEncryptionKey: z.unknown(),
-        }),
-        cidrBlock: z.string(),
-        createTime: z.string(),
-        dataDisks: z.array(z.unknown()),
-        description: z.string(),
-        health: z.string(),
-        healthDescription: z.string(),
-        id: z.string(),
-        labels: z.record(z.string(), z.unknown()),
-        metadata: z.record(z.string(), z.unknown()),
-        multisliceNode: z.boolean(),
-        name: z.string(),
-        networkConfig: z.object({
-          canIpForward: z.unknown(),
-          enableExternalIps: z.unknown(),
-          network: z.unknown(),
-          queueCount: z.unknown(),
-          subnetwork: z.unknown(),
-        }),
-        networkConfigs: z.array(z.unknown()),
-        networkEndpoints: z.array(z.unknown()),
-        protectionTier: z.string(),
-        queuedResource: z.string(),
-        runtimeVersion: z.string(),
-        schedulingConfig: z.object({
-          preemptible: z.unknown(),
-          reserved: z.unknown(),
-          spot: z.unknown(),
-        }),
-        serviceAccount: z.object({
-          email: z.unknown(),
-          scope: z.unknown(),
-        }),
-        shieldedInstanceConfig: z.object({
-          enableSecureBoot: z.unknown(),
-        }),
-        state: z.string(),
-        symptoms: z.array(z.unknown()),
-        tags: z.array(z.unknown()),
-        upcomingMaintenance: z.object({
-          canReschedule: z.unknown(),
-          latestWindowStartTime: z.unknown(),
-          maintenanceStatus: z.unknown(),
-          type: z.unknown(),
-          windowEndTime: z.unknown(),
-          windowStartTime: z.unknown(),
-        }),
-      }),
-      nodeId: z.string(),
-      parent: z.string(),
-    })),
-  }).optional(),
+    nodeSpec: z.array(
+      z.object({
+        multisliceParams: z.object({
+          nodeCount: z.number(),
+          nodeIdPrefix: z.string(),
+        }).partial(),
+        node: z.object({
+          acceleratorConfig: z.object({
+            topology: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          acceleratorType: z.string(),
+          apiVersion: z.string(),
+          bootDiskConfig: z.object({
+            customerEncryptionKey: z.unknown(),
+          }).partial(),
+          cidrBlock: z.string(),
+          createTime: z.string(),
+          dataDisks: z.array(z.unknown()),
+          description: z.string(),
+          health: z.string(),
+          healthDescription: z.string(),
+          id: z.string(),
+          labels: z.record(z.string(), z.unknown()),
+          metadata: z.record(z.string(), z.unknown()),
+          multisliceNode: z.boolean(),
+          name: z.string(),
+          networkConfig: z.object({
+            canIpForward: z.unknown(),
+            enableExternalIps: z.unknown(),
+            network: z.unknown(),
+            queueCount: z.unknown(),
+            subnetwork: z.unknown(),
+          }).partial(),
+          networkConfigs: z.array(z.unknown()),
+          networkEndpoints: z.array(z.unknown()),
+          protectionTier: z.string(),
+          queuedResource: z.string(),
+          runtimeVersion: z.string(),
+          schedulingConfig: z.object({
+            preemptible: z.unknown(),
+            reserved: z.unknown(),
+            spot: z.unknown(),
+          }).partial(),
+          serviceAccount: z.object({
+            email: z.unknown(),
+            scope: z.unknown(),
+          }).partial(),
+          shieldedInstanceConfig: z.object({
+            enableSecureBoot: z.unknown(),
+          }).partial(),
+          state: z.string(),
+          symptoms: z.array(z.unknown()),
+          tags: z.array(z.unknown()),
+          upcomingMaintenance: z.object({
+            canReschedule: z.unknown(),
+            latestWindowStartTime: z.unknown(),
+            maintenanceStatus: z.unknown(),
+            type: z.unknown(),
+            windowEndTime: z.unknown(),
+            windowStartTime: z.unknown(),
+          }).partial(),
+        }).partial(),
+        nodeId: z.string(),
+        parent: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -748,7 +750,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud TPU QueuedResources. Registered at `@swamp/gcp/tpu/queuedresources`. */
 export const model = {
   type: "@swamp/gcp/tpu/queuedresources",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -905,6 +907,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

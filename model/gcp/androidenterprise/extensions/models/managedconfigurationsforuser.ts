@@ -223,25 +223,31 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   configurationVariables: z.object({
     mcmId: z.string(),
-    variableSet: z.array(z.object({
-      placeholder: z.string(),
-      userValue: z.string(),
-    })),
-  }).optional(),
+    variableSet: z.array(
+      z.object({
+        placeholder: z.string(),
+        userValue: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   kind: z.string().optional(),
-  managedProperty: z.array(z.object({
-    key: z.string(),
-    valueBool: z.boolean(),
-    valueBundle: z.object({
-      managedProperty: z.array(z.record(z.string(), z.unknown())),
-    }),
-    valueBundleArray: z.array(z.object({
-      managedProperty: z.array(z.unknown()),
-    })),
-    valueInteger: z.number(),
-    valueString: z.string(),
-    valueStringArray: z.array(z.string()),
-  })).optional(),
+  managedProperty: z.array(
+    z.object({
+      key: z.string(),
+      valueBool: z.boolean(),
+      valueBundle: z.object({
+        managedProperty: z.array(z.record(z.string(), z.unknown())),
+      }).partial(),
+      valueBundleArray: z.array(
+        z.object({
+          managedProperty: z.array(z.unknown()),
+        }).partial(),
+      ),
+      valueInteger: z.number(),
+      valueString: z.string(),
+      valueStringArray: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   productId: z.string().optional(),
 }).passthrough();
 
@@ -334,7 +340,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play EMM Managedconfigurationsforuser. Registered at `@swamp/gcp/androidenterprise/managedconfigurationsforuser`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/managedconfigurationsforuser",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -483,6 +489,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

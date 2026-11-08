@@ -104,18 +104,18 @@ const StateSchema = z.object({
   FunctionName: z.string().optional(),
   ProvisionedConcurrencyConfig: z.object({
     ProvisionedConcurrentExecutions: z.number(),
-  }).optional(),
+  }).partial().optional(),
   RuntimePolicy: z.object({
     RuntimeVersionArn: z.string(),
     UpdateRuntimeOn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   FunctionScalingConfig: z.object({
     MinExecutionEnvironments: z.number(),
     MaxExecutionEnvironments: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -184,7 +184,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda Version. Registered at `@swamp/aws/lambda/version`. */
 export const model = {
   type: "@swamp/aws/lambda/version",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -248,6 +248,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

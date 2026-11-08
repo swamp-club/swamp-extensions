@@ -69,6 +69,25 @@ const TagSchema = z.object({
   Key: z.string().min(1).max(128),
 });
 
+const ScalableTargetActionStateSchema = z.object({
+  MinCapacity: z.number(),
+  MaxCapacity: z.number(),
+}).partial();
+
+const ScheduledActionStateSchema = z.object({
+  Timezone: z.string(),
+  ScheduledActionName: z.string(),
+  EndTime: z.string(),
+  Schedule: z.string(),
+  StartTime: z.string(),
+  ScalableTargetAction: ScalableTargetActionStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -123,7 +142,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ScheduledActions: z.array(ScheduledActionSchema).optional(),
+  ScheduledActions: z.array(ScheduledActionStateSchema).optional(),
   ResourceId: z.string(),
   ServiceNamespace: z.string(),
   ScalableDimension: z.string(),
@@ -131,15 +150,15 @@ const StateSchema = z.object({
     DynamicScalingOutSuspended: z.boolean(),
     ScheduledScalingSuspended: z.boolean(),
     DynamicScalingInSuspended: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   Id: z.string().optional(),
   MinCapacity: z.number().optional(),
   RoleARN: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   MaxCapacity: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -203,7 +222,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApplicationAutoScaling ScalableTarget. Registered at `@swamp/aws/applicationautoscaling/scalable-target`. */
 export const model = {
   type: "@swamp/aws/applicationautoscaling/scalable-target",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -272,6 +291,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -163,6 +163,67 @@ const TagSchema = z.object({
   ),
 });
 
+const S3InputFileLocationStateSchema = z.object({
+  Bucket: z.string(),
+  Key: z.string(),
+}).partial();
+
+const S3FileLocationStateSchema = z.object({
+  S3FileLocation: S3InputFileLocationStateSchema,
+}).partial();
+
+const EfsInputFileLocationStateSchema = z.object({
+  FileSystemId: z.string(),
+  Path: z.string(),
+}).partial();
+
+const InputFileLocationStateSchema = z.object({
+  S3FileLocation: S3InputFileLocationStateSchema,
+  EfsFileLocation: EfsInputFileLocationStateSchema,
+}).partial();
+
+const S3TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const WorkflowStepStateSchema = z.object({
+  CopyStepDetails: z.object({
+    DestinationFileLocation: S3FileLocationStateSchema,
+    Name: z.string(),
+    OverwriteExisting: z.string(),
+    SourceFileLocation: z.string(),
+  }).partial(),
+  CustomStepDetails: z.object({
+    Name: z.string(),
+    Target: z.string(),
+    TimeoutSeconds: z.number(),
+    SourceFileLocation: z.string(),
+  }).partial(),
+  DecryptStepDetails: z.object({
+    DestinationFileLocation: InputFileLocationStateSchema,
+    Name: z.string(),
+    Type: z.string(),
+    OverwriteExisting: z.string(),
+    SourceFileLocation: z.string(),
+  }).partial(),
+  DeleteStepDetails: z.object({
+    Name: z.string(),
+    SourceFileLocation: z.string(),
+  }).partial(),
+  TagStepDetails: z.object({
+    Name: z.string(),
+    Tags: z.array(S3TagStateSchema),
+    SourceFileLocation: z.string(),
+  }).partial(),
+  Type: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -196,16 +257,16 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  OnExceptionSteps: z.array(WorkflowStepSchema).optional(),
-  Steps: z.array(WorkflowStepSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  OnExceptionSteps: z.array(WorkflowStepStateSchema).optional(),
+  Steps: z.array(WorkflowStepStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Description: z.string().optional(),
   StructuredLogDestinations: z.array(z.string()).optional(),
   WorkflowId: z.string(),
   Arn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -248,7 +309,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer Workflow. Registered at `@swamp/aws/transfer/workflow`. */
 export const model = {
   type: "@swamp/aws/transfer/workflow",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -317,6 +378,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

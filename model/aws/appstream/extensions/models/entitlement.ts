@@ -42,6 +42,11 @@ const AttributeSchema = z.object({
   Value: z.string(),
 });
 
+const AttributeStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -70,12 +75,12 @@ const StateSchema = z.object({
   StackName: z.string(),
   Description: z.string().optional(),
   AppVisibility: z.string().optional(),
-  Attributes: z.array(AttributeSchema).optional(),
+  Attributes: z.array(AttributeStateSchema).optional(),
   CreatedTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -109,7 +114,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream Entitlement. Registered at `@swamp/aws/appstream/entitlement`. */
 export const model = {
   type: "@swamp/aws/appstream/entitlement",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -168,6 +173,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

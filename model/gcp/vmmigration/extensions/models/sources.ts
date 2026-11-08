@@ -294,44 +294,46 @@ const StateSchema = z.object({
       accessKeyId: z.string(),
       secretAccessKey: z.string(),
       sessionToken: z.string(),
-    }),
+    }).partial(),
     awsRegion: z.string(),
     error: z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     inventorySecurityGroupNames: z.array(z.string()),
-    inventoryTagList: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
+    inventoryTagList: z.array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     migrationResourcesUserTags: z.record(z.string(), z.unknown()),
     publicIp: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   azure: z.object({
     azureLocation: z.string(),
     clientSecretCreds: z.object({
       clientId: z.string(),
       clientSecret: z.string(),
       tenantId: z.string(),
-    }),
+    }).partial(),
     error: z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     migrationResourcesUserTags: z.record(z.string(), z.unknown()),
     resourceGroupId: z.string(),
     state: z.string(),
     subscriptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   encryption: z.object({
     kmsKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   updateTime: z.string().optional(),
@@ -341,7 +343,7 @@ const StateSchema = z.object({
     thumbprint: z.string(),
     username: z.string(),
     vcenterIp: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -496,7 +498,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VM Migration Sources. Registered at `@swamp/gcp/vmmigration/sources`. */
 export const model = {
   type: "@swamp/gcp/vmmigration/sources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -640,6 +642,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

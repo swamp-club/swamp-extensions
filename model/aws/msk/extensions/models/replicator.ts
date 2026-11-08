@@ -291,6 +291,138 @@ const ReplicatorLogDeliverySchema = z.object({
   ).optional(),
 });
 
+const AmazonMskClusterStateSchema = z.object({
+  MskClusterArn: z.string(),
+}).partial();
+
+const ApacheKafkaClusterStateSchema = z.object({
+  ApacheKafkaClusterId: z.string(),
+  BootstrapBrokerString: z.string(),
+}).partial();
+
+const KafkaClusterClientVpcConfigStateSchema = z.object({
+  SecurityGroupIds: z.array(z.string()),
+  SubnetIds: z.array(z.string()),
+}).partial();
+
+const KafkaClusterSaslScramAuthenticationStateSchema = z.object({
+  Mechanism: z.string(),
+  SecretArn: z.string(),
+}).partial();
+
+const KafkaClusterMtlsAuthenticationStateSchema = z.object({
+  SecretArn: z.string(),
+}).partial();
+
+const KafkaClusterOAuthClientCredentialsStateSchema = z.object({
+  TokenRequestSecretArn: z.string(),
+}).partial();
+
+const KafkaClusterOAuthIamJwtBearerStateSchema = z.object({
+  Audience: z.string(),
+  SigningAlgorithm: z.string(),
+  TokenRequestSecretArn: z.string(),
+}).partial();
+
+const KafkaClusterOAuthClientCredentialsAssertionStateSchema = z.object({
+  Audience: z.string(),
+  SigningAlgorithm: z.string(),
+  TokenRequestSecretArn: z.string(),
+}).partial();
+
+const KafkaClusterSaslOAuthBearerAuthenticationStateSchema = z.object({
+  TokenEndpointUrl: z.string(),
+  ClientCredentials: KafkaClusterOAuthClientCredentialsStateSchema,
+  IamJwtBearer: KafkaClusterOAuthIamJwtBearerStateSchema,
+  ClientCredentialsAssertion:
+    KafkaClusterOAuthClientCredentialsAssertionStateSchema,
+  TokenEndpointAuthenticationMethod: z.string(),
+  Scope: z.string(),
+  TokenEndpointTlsCertificateArn: z.string(),
+}).partial();
+
+const KafkaClusterClientAuthenticationStateSchema = z.object({
+  SaslScram: KafkaClusterSaslScramAuthenticationStateSchema,
+  MTLS: KafkaClusterMtlsAuthenticationStateSchema,
+  SaslOAuthBearer: KafkaClusterSaslOAuthBearerAuthenticationStateSchema,
+}).partial();
+
+const KafkaClusterEncryptionInTransitStateSchema = z.object({
+  EncryptionType: z.string(),
+  RootCaCertificate: z.string(),
+}).partial();
+
+const KafkaClusterStateSchema = z.object({
+  AmazonMskCluster: AmazonMskClusterStateSchema,
+  ApacheKafkaCluster: ApacheKafkaClusterStateSchema,
+  VpcConfig: KafkaClusterClientVpcConfigStateSchema,
+  ClientAuthentication: KafkaClusterClientAuthenticationStateSchema,
+  EncryptionInTransit: KafkaClusterEncryptionInTransitStateSchema,
+}).partial();
+
+const ReplicationStartingPositionStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const ReplicationTopicNameConfigurationStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const TopicReplicationStateSchema = z.object({
+  TopicsToReplicate: z.array(z.string()),
+  TopicsToExclude: z.array(z.string()),
+  CopyTopicConfigurations: z.boolean(),
+  CopyAccessControlListsForTopics: z.boolean(),
+  DetectAndCopyNewTopics: z.boolean(),
+  StartingPosition: ReplicationStartingPositionStateSchema,
+  TopicNameConfiguration: ReplicationTopicNameConfigurationStateSchema,
+}).partial();
+
+const ConsumerGroupReplicationStateSchema = z.object({
+  ConsumerGroupsToReplicate: z.array(z.string()),
+  ConsumerGroupsToExclude: z.array(z.string()),
+  SynchroniseConsumerGroupOffsets: z.boolean(),
+  DetectAndCopyNewConsumerGroups: z.boolean(),
+  ConsumerGroupOffsetSyncMode: z.string(),
+}).partial();
+
+const ReplicationInfoStateSchema = z.object({
+  SourceKafkaClusterArn: z.string(),
+  SourceKafkaClusterId: z.string(),
+  TargetKafkaClusterArn: z.string(),
+  TargetKafkaClusterId: z.string(),
+  TargetCompressionType: z.string(),
+  TopicReplication: TopicReplicationStateSchema,
+  ConsumerGroupReplication: ConsumerGroupReplicationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CloudWatchLogsStateSchema = z.object({
+  Enabled: z.boolean(),
+  LogGroup: z.string(),
+}).partial();
+
+const FirehoseStateSchema = z.object({
+  Enabled: z.boolean(),
+  DeliveryStream: z.string(),
+}).partial();
+
+const S3StateSchema = z.object({
+  Enabled: z.boolean(),
+  Bucket: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const ReplicatorLogDeliveryStateSchema = z.object({
+  CloudWatchLogs: CloudWatchLogsStateSchema,
+  Firehose: FirehoseStateSchema,
+  S3: S3StateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -339,16 +471,16 @@ const StateSchema = z.object({
   ReplicatorName: z.string().optional(),
   CurrentVersion: z.string().optional(),
   Description: z.string().optional(),
-  KafkaClusters: z.array(KafkaClusterSchema).optional(),
-  ReplicationInfoList: z.array(ReplicationInfoSchema).optional(),
+  KafkaClusters: z.array(KafkaClusterStateSchema).optional(),
+  ReplicationInfoList: z.array(ReplicationInfoStateSchema).optional(),
   ServiceExecutionRoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LogDelivery: z.object({
-    ReplicatorLogDelivery: ReplicatorLogDeliverySchema,
-  }).optional(),
+    ReplicatorLogDelivery: ReplicatorLogDeliveryStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -402,7 +534,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Replicator. Registered at `@swamp/aws/msk/replicator`. */
 export const model = {
   type: "@swamp/aws/msk/replicator",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -486,6 +618,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

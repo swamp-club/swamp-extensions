@@ -219,30 +219,32 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   apiScope: z.string().optional(),
   density: z.string().optional(),
-  fields: z.array(z.object({
-    arrayConfig: z.string(),
-    fieldPath: z.string(),
-    order: z.string(),
-    searchConfig: z.object({
-      geoSpec: z.object({
-        geoJsonIndexingDisabled: z.boolean(),
-      }),
-      textSpec: z.object({
-        indexSpecs: z.array(z.unknown()),
-      }),
-    }),
-    vectorConfig: z.object({
-      dimension: z.number(),
-      flat: z.object({}),
-    }),
-  })).optional(),
+  fields: z.array(
+    z.object({
+      arrayConfig: z.string(),
+      fieldPath: z.string(),
+      order: z.string(),
+      searchConfig: z.object({
+        geoSpec: z.object({
+          geoJsonIndexingDisabled: z.boolean(),
+        }).partial(),
+        textSpec: z.object({
+          indexSpecs: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+      vectorConfig: z.object({
+        dimension: z.number(),
+        flat: z.object({}).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   multikey: z.boolean().optional(),
   name: z.string(),
   queryScope: z.string().optional(),
   searchIndexOptions: z.object({
     textLanguage: z.string(),
     textLanguageOverrideFieldPath: z.string(),
-  }).optional(),
+  }).partial().optional(),
   shardCount: z.number().optional(),
   state: z.string().optional(),
   unique: z.boolean().optional(),
@@ -362,7 +364,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firestore Databases.CollectionGroups.Indexes. Registered at `@swamp/gcp/firestore/databases-collectiongroups-indexes`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-collectiongroups-indexes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -531,6 +533,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

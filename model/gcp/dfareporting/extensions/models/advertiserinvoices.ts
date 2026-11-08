@@ -104,13 +104,15 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  campaign_summaries: z.array(z.object({
-    billingInvoiceCode: z.string(),
-    campaignId: z.string(),
-    preTaxAmountMicros: z.string(),
-    taxAmountMicros: z.string(),
-    totalAmountMicros: z.string(),
-  })).optional(),
+  campaign_summaries: z.array(
+    z.object({
+      billingInvoiceCode: z.string(),
+      campaignId: z.string(),
+      preTaxAmountMicros: z.string(),
+      taxAmountMicros: z.string(),
+      totalAmountMicros: z.string(),
+    }).partial(),
+  ).optional(),
   correctedInvoiceId: z.string().optional(),
   currencyCode: z.string().optional(),
   dueDate: z.string().optional(),
@@ -173,7 +175,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 AdvertiserInvoices. Registered at `@swamp/gcp/dfareporting/advertiserinvoices`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/advertiserinvoices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -292,6 +294,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

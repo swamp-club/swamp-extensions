@@ -193,6 +193,109 @@ const PromptVariantSchema = z.object({
   ).optional(),
 });
 
+const TextS3LocationStateSchema = z.object({
+  Bucket: z.string(),
+  Key: z.string(),
+  Version: z.string(),
+}).partial();
+
+const PromptInputVariableStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const CachePointBlockStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const TextPromptTemplateConfigurationStateSchema = z.object({
+  Text: z.string(),
+  TextS3Location: TextS3LocationStateSchema,
+  InputVariables: z.array(PromptInputVariableStateSchema),
+  CachePoint: CachePointBlockStateSchema,
+}).partial();
+
+const MessageStateSchema = z.object({
+  Role: z.string(),
+  Content: z.array(
+    z.object({
+      Text: z.string(),
+      CachePoint: CachePointBlockStateSchema,
+    }).partial(),
+  ),
+}).partial();
+
+const ToolSpecificationStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  InputSchema: z.object({
+    Json: z.record(z.string(), z.unknown()),
+  }).partial(),
+}).partial();
+
+const SpecificToolChoiceStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const ToolConfigurationStateSchema = z.object({
+  Tools: z.array(
+    z.object({
+      ToolSpec: ToolSpecificationStateSchema,
+      CachePoint: CachePointBlockStateSchema,
+    }).partial(),
+  ),
+  ToolChoice: z.object({
+    Auto: z.record(z.string(), z.unknown()),
+    Any: z.record(z.string(), z.unknown()),
+    Tool: SpecificToolChoiceStateSchema,
+  }).partial(),
+}).partial();
+
+const ChatPromptTemplateConfigurationStateSchema = z.object({
+  Messages: z.array(MessageStateSchema),
+  System: z.array(
+    z.object({
+      Text: z.string(),
+      CachePoint: CachePointBlockStateSchema,
+    }).partial(),
+  ),
+  ToolConfiguration: ToolConfigurationStateSchema,
+  InputVariables: z.array(PromptInputVariableStateSchema),
+}).partial();
+
+const PromptModelInferenceConfigurationStateSchema = z.object({
+  Temperature: z.number(),
+  TopP: z.number(),
+  MaxTokens: z.number(),
+  StopSequences: z.array(z.string()),
+}).partial();
+
+const PromptAgentResourceStateSchema = z.object({
+  AgentIdentifier: z.string(),
+}).partial();
+
+const PromptMetadataEntryStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const PromptVariantStateSchema = z.object({
+  Name: z.string(),
+  TemplateType: z.string(),
+  TemplateConfiguration: z.object({
+    Text: TextPromptTemplateConfigurationStateSchema,
+    Chat: ChatPromptTemplateConfigurationStateSchema,
+  }).partial(),
+  ModelId: z.string(),
+  InferenceConfiguration: z.object({
+    Text: PromptModelInferenceConfigurationStateSchema,
+  }).partial(),
+  GenAiResource: z.object({
+    Agent: PromptAgentResourceStateSchema,
+  }).partial(),
+  AdditionalModelRequestFields: z.record(z.string(), z.unknown()),
+  Metadata: z.array(PromptMetadataEntryStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -238,13 +341,13 @@ const StateSchema = z.object({
   Id: z.string().optional(),
   Name: z.string().optional(),
   UpdatedAt: z.string().optional(),
-  Variants: z.array(PromptVariantSchema).optional(),
+  Variants: z.array(PromptVariantStateSchema).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   CustomerEncryptionKeyArn: z.string().optional(),
   Version: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -292,7 +395,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock Prompt. Registered at `@swamp/aws/bedrock/prompt`. */
 export const model = {
   type: "@swamp/aws/bedrock/prompt",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -361,6 +464,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

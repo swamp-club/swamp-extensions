@@ -197,11 +197,13 @@ const StateSchema = z.object({
   name: z.string(),
   pemCrl: z.string().optional(),
   revisionId: z.string().optional(),
-  revokedCertificates: z.array(z.object({
-    certificate: z.string(),
-    hexSerialNumber: z.string(),
-    revocationReason: z.string(),
-  })).optional(),
+  revokedCertificates: z.array(
+    z.object({
+      certificate: z.string(),
+      hexSerialNumber: z.string(),
+      revocationReason: z.string(),
+    }).partial(),
+  ).optional(),
   sequenceNumber: z.string().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
@@ -301,7 +303,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/privateca/capools-certificateauthorities-certificaterevocationlists",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -453,6 +455,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

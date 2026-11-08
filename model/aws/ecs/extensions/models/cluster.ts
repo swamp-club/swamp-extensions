@@ -107,6 +107,41 @@ const TagSchema = z.object({
   ).optional(),
 });
 
+const ClusterSettingsStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const CapacityProviderStrategyItemStateSchema = z.object({
+  CapacityProvider: z.string(),
+  Weight: z.number(),
+  Base: z.number(),
+}).partial();
+
+const ManagedStorageConfigurationStateSchema = z.object({
+  FargateEphemeralStorageKmsKeyId: z.string(),
+  KmsKeyId: z.string(),
+}).partial();
+
+const ExecuteCommandLogConfigurationStateSchema = z.object({
+  S3EncryptionEnabled: z.boolean(),
+  CloudWatchEncryptionEnabled: z.boolean(),
+  CloudWatchLogGroupName: z.string(),
+  S3KeyPrefix: z.string(),
+  S3BucketName: z.string(),
+}).partial();
+
+const ExecuteCommandConfigurationStateSchema = z.object({
+  Logging: z.string(),
+  KmsKeyId: z.string(),
+  LogConfiguration: ExecuteCommandLogConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -156,23 +191,24 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ClusterSettings: z.array(ClusterSettingsSchema).optional(),
-  DefaultCapacityProviderStrategy: z.array(CapacityProviderStrategyItemSchema)
-    .optional(),
+  ClusterSettings: z.array(ClusterSettingsStateSchema).optional(),
+  DefaultCapacityProviderStrategy: z.array(
+    CapacityProviderStrategyItemStateSchema,
+  ).optional(),
   Configuration: z.object({
-    ManagedStorageConfiguration: ManagedStorageConfigurationSchema,
-    ExecuteCommandConfiguration: ExecuteCommandConfigurationSchema,
-  }).optional(),
+    ManagedStorageConfiguration: ManagedStorageConfigurationStateSchema,
+    ExecuteCommandConfiguration: ExecuteCommandConfigurationStateSchema,
+  }).partial().optional(),
   ServiceConnectDefaults: z.object({
     Namespace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CapacityProviders: z.array(z.string()).optional(),
   ClusterName: z.string(),
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -233,7 +269,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Cluster. Registered at `@swamp/aws/ecs/cluster`. */
 export const model = {
   type: "@swamp/aws/ecs/cluster",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -292,6 +328,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

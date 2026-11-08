@@ -501,152 +501,160 @@ const StateSchema = z.object({
     logView: z.string(),
     openTelemetry: z.object({
       semconvVersion: z.string(),
-    }),
+    }).partial(),
     sessionScope: z.object({
-      filter: z.array(z.object({
-        duration: z.object({
-          comparisonOperator: z.unknown(),
-          value: z.unknown(),
-        }),
-        modelCallErrors: z.object({
-          comparisonOperator: z.unknown(),
-          value: z.unknown(),
-        }),
-        modelCalls: z.object({
-          comparisonOperator: z.unknown(),
-          value: z.unknown(),
-        }),
-        serviceVersion: z.object({
-          values: z.unknown(),
-        }),
-        toolCallErrors: z.object({
-          comparisonOperator: z.unknown(),
-          value: z.unknown(),
-        }),
-        toolCalls: z.object({
-          comparisonOperator: z.unknown(),
-          value: z.unknown(),
-        }),
-        totalTokenUsage: z.object({
-          comparisonOperator: z.unknown(),
-          value: z.unknown(),
-        }),
-        userTurns: z.object({
-          comparisonOperator: z.unknown(),
-          value: z.unknown(),
-        }),
-      })),
+      filter: z.array(
+        z.object({
+          duration: z.object({
+            comparisonOperator: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          modelCallErrors: z.object({
+            comparisonOperator: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          modelCalls: z.object({
+            comparisonOperator: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          serviceVersion: z.object({
+            values: z.unknown(),
+          }).partial(),
+          toolCallErrors: z.object({
+            comparisonOperator: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          toolCalls: z.object({
+            comparisonOperator: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          totalTokenUsage: z.object({
+            comparisonOperator: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          userTurns: z.object({
+            comparisonOperator: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       inactivityTrigger: z.object({
         threshold: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     traceScope: z.object({
-      filter: z.array(z.object({
-        duration: z.object({
-          comparisonOperator: z.unknown(),
-          value: z.unknown(),
-        }),
-        serviceVersion: z.object({
-          values: z.unknown(),
-        }),
-        totalTokenUsage: z.object({
-          comparisonOperator: z.unknown(),
-          value: z.unknown(),
-        }),
-      })),
-    }),
+      filter: z.array(
+        z.object({
+          duration: z.object({
+            comparisonOperator: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          serviceVersion: z.object({
+            values: z.unknown(),
+          }).partial(),
+          totalTokenUsage: z.object({
+            comparisonOperator: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     traceView: z.string(),
-  }).optional(),
+  }).partial().optional(),
   config: z.object({
     maxEvaluatedSamplesPerRun: z.string(),
     randomSampling: z.object({
       percentage: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
-  metricSources: z.array(z.object({
-    metric: z.object({
-      aggregationMetrics: z.array(z.string()),
-      bleuSpec: z.object({
-        useEffectiveOrder: z.boolean(),
-      }),
-      computationBasedMetricSpec: z.object({
-        parameters: z.record(z.string(), z.unknown()),
-        type: z.string(),
-      }),
-      customCodeExecutionSpec: z.object({
-        evaluationFunction: z.string(),
-      }),
-      exactMatchSpec: z.object({}),
-      llmBasedMetricSpec: z.object({
-        additionalConfig: z.record(z.string(), z.unknown()),
-        judgeAutoraterConfig: z.object({
-          autoraterModel: z.unknown(),
-          flipEnabled: z.unknown(),
-          generationConfig: z.unknown(),
-          samplingCount: z.unknown(),
-        }),
-        metricPromptTemplate: z.string(),
-        predefinedRubricGenerationSpec: z.object({
-          metricSpecName: z.unknown(),
-          metricSpecParameters: z.unknown(),
-        }),
-        resultParserConfig: z.object({
-          customCodeParserConfig: z.unknown(),
-        }),
-        rubricGenerationSpec: z.object({
-          modelConfig: z.unknown(),
-          promptTemplate: z.unknown(),
-          rubricContentType: z.unknown(),
-          rubricTypeOntology: z.unknown(),
-        }),
-        rubricGroupKey: z.string(),
-        systemInstruction: z.string(),
-      }),
-      metadata: z.object({
-        otherMetadata: z.record(z.string(), z.unknown()),
-        scoreRange: z.object({
-          description: z.unknown(),
-          max: z.unknown(),
-          min: z.unknown(),
-          step: z.unknown(),
-        }),
-        title: z.string(),
-      }),
-      pairwiseMetricSpec: z.object({
-        baselineResponseFieldName: z.string(),
-        candidateResponseFieldName: z.string(),
-        customOutputFormatConfig: z.object({
-          returnRawOutput: z.unknown(),
-        }),
-        metricPromptTemplate: z.string(),
-        systemInstruction: z.string(),
-      }),
-      pointwiseMetricSpec: z.object({
-        customOutputFormatConfig: z.object({
-          returnRawOutput: z.unknown(),
-        }),
-        metricPromptTemplate: z.string(),
-        systemInstruction: z.string(),
-      }),
-      predefinedMetricSpec: z.object({
-        metricSpecName: z.string(),
-        metricSpecParameters: z.record(z.string(), z.unknown()),
-      }),
-      rougeSpec: z.object({
-        rougeType: z.string(),
-        splitSummaries: z.boolean(),
-        useStemmer: z.boolean(),
-      }),
-    }),
-    metricResourceName: z.string(),
-  })).optional(),
+  metricSources: z.array(
+    z.object({
+      metric: z.object({
+        aggregationMetrics: z.array(z.string()),
+        bleuSpec: z.object({
+          useEffectiveOrder: z.boolean(),
+        }).partial(),
+        computationBasedMetricSpec: z.object({
+          parameters: z.record(z.string(), z.unknown()),
+          type: z.string(),
+        }).partial(),
+        customCodeExecutionSpec: z.object({
+          evaluationFunction: z.string(),
+        }).partial(),
+        exactMatchSpec: z.object({}).partial(),
+        llmBasedMetricSpec: z.object({
+          additionalConfig: z.record(z.string(), z.unknown()),
+          judgeAutoraterConfig: z.object({
+            autoraterModel: z.unknown(),
+            flipEnabled: z.unknown(),
+            generationConfig: z.unknown(),
+            samplingCount: z.unknown(),
+          }).partial(),
+          metricPromptTemplate: z.string(),
+          predefinedRubricGenerationSpec: z.object({
+            metricSpecName: z.unknown(),
+            metricSpecParameters: z.unknown(),
+          }).partial(),
+          resultParserConfig: z.object({
+            customCodeParserConfig: z.unknown(),
+          }).partial(),
+          rubricGenerationSpec: z.object({
+            modelConfig: z.unknown(),
+            promptTemplate: z.unknown(),
+            rubricContentType: z.unknown(),
+            rubricTypeOntology: z.unknown(),
+          }).partial(),
+          rubricGroupKey: z.string(),
+          systemInstruction: z.string(),
+        }).partial(),
+        metadata: z.object({
+          otherMetadata: z.record(z.string(), z.unknown()),
+          scoreRange: z.object({
+            description: z.unknown(),
+            max: z.unknown(),
+            min: z.unknown(),
+            step: z.unknown(),
+          }).partial(),
+          title: z.string(),
+        }).partial(),
+        pairwiseMetricSpec: z.object({
+          baselineResponseFieldName: z.string(),
+          candidateResponseFieldName: z.string(),
+          customOutputFormatConfig: z.object({
+            returnRawOutput: z.unknown(),
+          }).partial(),
+          metricPromptTemplate: z.string(),
+          systemInstruction: z.string(),
+        }).partial(),
+        pointwiseMetricSpec: z.object({
+          customOutputFormatConfig: z.object({
+            returnRawOutput: z.unknown(),
+          }).partial(),
+          metricPromptTemplate: z.string(),
+          systemInstruction: z.string(),
+        }).partial(),
+        predefinedMetricSpec: z.object({
+          metricSpecName: z.string(),
+          metricSpecParameters: z.record(z.string(), z.unknown()),
+        }).partial(),
+        rougeSpec: z.object({
+          rougeType: z.string(),
+          splitSummaries: z.boolean(),
+          useStemmer: z.boolean(),
+        }).partial(),
+      }).partial(),
+      metricResourceName: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   state: z.string().optional(),
-  stateDetails: z.array(z.object({
-    message: z.string(),
-  })).optional(),
+  stateDetails: z.array(
+    z.object({
+      message: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -1023,7 +1031,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform OnlineEvaluators. Registered at `@swamp/gcp/aiplatform/onlineevaluators`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/onlineevaluators",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -1067,6 +1075,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

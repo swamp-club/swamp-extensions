@@ -484,58 +484,58 @@ const StateSchema = z.object({
       sourceMaxScaleFilter: z.number(),
       sourceMinPrecisionFilter: z.number(),
       sourceMinScaleFilter: z.number(),
-    }),
+    }).partial(),
     sourceTextFilter: z.object({
       sourceMaxLengthFilter: z.string(),
       sourceMinLengthFilter: z.string(),
-    }),
+    }).partial(),
     valueTransformation: z.object({
       applyHash: z.object({
-        uuidFromBytes: z.object({}),
-      }),
-      assignMaxValue: z.object({}),
-      assignMinValue: z.object({}),
-      assignNull: z.object({}),
+        uuidFromBytes: z.object({}).partial(),
+      }).partial(),
+      assignMaxValue: z.object({}).partial(),
+      assignMinValue: z.object({}).partial(),
+      assignNull: z.object({}).partial(),
       assignSpecificValue: z.object({
         value: z.string(),
-      }),
+      }).partial(),
       doubleComparison: z.object({
         value: z.number(),
         valueComparison: z.string(),
-      }),
+      }).partial(),
       intComparison: z.object({
         value: z.string(),
         valueComparison: z.string(),
-      }),
-      isNull: z.object({}),
+      }).partial(),
+      isNull: z.object({}).partial(),
       roundScale: z.object({
         scale: z.number(),
-      }),
+      }).partial(),
       valueList: z.object({
         ignoreCase: z.boolean(),
         valuePresentList: z.string(),
         values: z.array(z.string()),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   convertRowidColumn: z.object({
     onlyIfNoPrimaryKey: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   entityMove: z.object({
     newSchema: z.string(),
-  }).optional(),
+  }).partial().optional(),
   filter: z.object({
     entities: z.array(z.string()),
     entityNameContains: z.string(),
     entityNamePrefix: z.string(),
     entityNameSuffix: z.string(),
     parentEntity: z.string(),
-  }).optional(),
+  }).partial().optional(),
   filterTableColumns: z.object({
     excludeColumns: z.array(z.string()),
     includeColumns: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   multiColumnDataTypeChange: z.object({
     customFeatures: z.record(z.string(), z.unknown()),
     newDataType: z.string(),
@@ -550,16 +550,16 @@ const StateSchema = z.object({
       sourceMaxScaleFilter: z.number(),
       sourceMinPrecisionFilter: z.number(),
       sourceMinScaleFilter: z.number(),
-    }),
+    }).partial(),
     sourceTextFilter: z.object({
       sourceMaxLengthFilter: z.string(),
       sourceMinLengthFilter: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   multiEntityRename: z.object({
     newNamePattern: z.string(),
     sourceNameTransformation: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   revisionCreateTime: z.string().optional(),
   revisionId: z.string().optional(),
@@ -568,7 +568,7 @@ const StateSchema = z.object({
   setTablePrimaryKey: z.object({
     primaryKey: z.string(),
     primaryKeyColumns: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   singleColumnChange: z.object({
     array: z.boolean(),
     arrayLength: z.number(),
@@ -585,17 +585,17 @@ const StateSchema = z.object({
     scale: z.number(),
     setValues: z.array(z.string()),
     udt: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   singleEntityRename: z.object({
     newName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   singlePackageChange: z.object({
     packageBody: z.string(),
     packageDescription: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceSqlChange: z.object({
     sqlCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -964,7 +964,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration ConversionWorkspaces.MappingRules. Registered at `@swamp/gcp/datamigration/conversionworkspaces-mappingrules`. */
 export const model = {
   type: "@swamp/gcp/datamigration/conversionworkspaces-mappingrules",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1124,6 +1124,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

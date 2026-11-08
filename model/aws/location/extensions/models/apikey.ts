@@ -64,6 +64,20 @@ const TagSchema = z.object({
     ),
 });
 
+const AndroidAppStateSchema = z.object({
+  Package: z.string(),
+  CertificateFingerprint: z.string(),
+}).partial();
+
+const AppleAppStateSchema = z.object({
+  BundleId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -129,16 +143,16 @@ const StateSchema = z.object({
     AllowActions: z.array(z.string()),
     AllowResources: z.array(z.string()),
     AllowReferers: z.array(z.string()),
-    AllowAndroidApps: z.array(AndroidAppSchema),
-    AllowAppleApps: z.array(AppleAppSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    AllowAndroidApps: z.array(AndroidAppStateSchema),
+    AllowAppleApps: z.array(AppleAppStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   UpdateTime: z.string().optional(),
   ForceDelete: z.boolean().optional(),
   Arn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -205,7 +219,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Location APIKey. Registered at `@swamp/aws/location/apikey`. */
 export const model = {
   type: "@swamp/aws/location/apikey",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -269,6 +283,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

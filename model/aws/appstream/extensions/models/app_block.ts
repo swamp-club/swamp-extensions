@@ -42,6 +42,11 @@ const S3LocationSchema = z.object({
   S3Key: z.string().optional(),
 });
 
+const S3LocationStateSchema = z.object({
+  S3Bucket: z.string(),
+  S3Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -91,30 +96,35 @@ const StateSchema = z.object({
   Arn: z.string(),
   Description: z.string().optional(),
   DisplayName: z.string().optional(),
-  SourceS3Location: S3LocationSchema.optional(),
+  SourceS3Location: z.object({
+    S3Bucket: z.string(),
+    S3Key: z.string(),
+  }).partial().optional(),
   SetupScriptDetails: z.object({
-    ScriptS3Location: S3LocationSchema,
+    ScriptS3Location: S3LocationStateSchema,
     ExecutablePath: z.string(),
     ExecutableParameters: z.string(),
     TimeoutInSeconds: z.number(),
-  }).optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-    TagKey: z.string(),
-    TagValue: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+      TagKey: z.string(),
+      TagValue: z.string(),
+    }).partial(),
+  ).optional(),
   CreatedTime: z.string().optional(),
   PackagingType: z.string().optional(),
   PostSetupScriptDetails: z.object({
-    ScriptS3Location: S3LocationSchema,
+    ScriptS3Location: S3LocationStateSchema,
     ExecutablePath: z.string(),
     ExecutableParameters: z.string(),
     TimeoutInSeconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -169,7 +179,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream AppBlock. Registered at `@swamp/aws/appstream/app-block`. */
 export const model = {
   type: "@swamp/aws/appstream/app-block",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -228,6 +238,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

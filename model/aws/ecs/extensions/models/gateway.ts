@@ -110,6 +110,52 @@ const TagSchema = z.object({
   Key: z.string().min(1).max(128),
 });
 
+const GatewayTestTrafficHeaderStateSchema = z.object({
+  Values: z.array(z.string()),
+  Name: z.string(),
+}).partial();
+
+const GatewayAlbTestTrafficRulesStateSchema = z.object({
+  Header: GatewayTestTrafficHeaderStateSchema,
+}).partial();
+
+const GatewayElbNetworkConfigurationStateSchema = z.object({
+  IpAddressType: z.string(),
+  Subnets: z.array(z.string()),
+  InboundSecurityGroup: z.string(),
+}).partial();
+
+const GatewayElbAccessLogS3DestinationStateSchema = z.object({
+  Bucket: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const GatewayElbAccessLogDestinationStateSchema = z.object({
+  S3: GatewayElbAccessLogS3DestinationStateSchema,
+}).partial();
+
+const GatewayElbAccessLogConfigurationStateSchema = z.object({
+  Destination: GatewayElbAccessLogDestinationStateSchema,
+}).partial();
+
+const HostSharedAlbConfigurationStateSchema = z.object({
+  MaxAlbCount: z.number(),
+  Scheme: z.string(),
+  TestTrafficRules: GatewayAlbTestTrafficRulesStateSchema,
+  Port: z.number(),
+  CurrentAlbCount: z.number(),
+  NetworkConfiguration: GatewayElbNetworkConfigurationStateSchema,
+  Protocol: z.string(),
+  WebACLArn: z.string(),
+  AccessLogs: GatewayElbAccessLogConfigurationStateSchema,
+  HttpDesync: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -153,8 +199,8 @@ const StateSchema = z.object({
   Status: z.string().optional(),
   InfrastructureRoleArn: z.string().optional(),
   Configuration: z.object({
-    HostSharedAlb: HostSharedAlbConfigurationSchema,
-  }).optional(),
+    HostSharedAlb: HostSharedAlbConfigurationStateSchema,
+  }).partial().optional(),
   PropagateTags: z.string().optional(),
   CreatedAt: z.string().optional(),
   GatewayName: z.string().optional(),
@@ -162,10 +208,10 @@ const StateSchema = z.object({
   Arn: z.string(),
   UpdatedAt: z.string().optional(),
   AccessType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -215,7 +261,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Gateway. Registered at `@swamp/aws/ecs/gateway`. */
 export const model = {
   type: "@swamp/aws/ecs/gateway",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -229,6 +275,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

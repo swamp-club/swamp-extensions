@@ -251,18 +251,20 @@ const StateSchema = z.object({
   codebase: z.object({
     repository: z.string(),
     rootDirectory: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   displayName: z.string().optional(),
   environment: z.string().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
-  managedResources: z.array(z.object({
-    runService: z.object({
-      service: z.string(),
-    }),
-  })).optional(),
+  managedResources: z.array(
+    z.object({
+      runService: z.object({
+        service: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   mode: z.string().optional(),
   name: z.string(),
   reconciling: z.boolean().optional(),
@@ -364,7 +366,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase App Hosting Backends. Registered at `@swamp/gcp/firebaseapphosting/backends`. */
 export const model = {
   type: "@swamp/gcp/firebaseapphosting/backends",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -508,6 +510,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

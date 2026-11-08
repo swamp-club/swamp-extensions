@@ -119,6 +119,85 @@ const ManagedInstancesProviderSchema = z.object({
   InstanceLaunchTemplate: InstanceLaunchTemplateSchema,
 });
 
+const EksAccessEntryStateSchema = z.object({
+  Status: z.string(),
+  DesiredState: z.string(),
+}).partial();
+
+const ComputeScalingPolicyStateSchema = z.object({
+  MinScaleDownDelayMinutes: z.number(),
+}).partial();
+
+const Ec2ConfigurationObjectStateSchema = z.object({
+  ImageIdOverride: z.string(),
+  ImageKubernetesVersion: z.string(),
+  BatchImageStatus: z.string(),
+  ImageType: z.string(),
+}).partial();
+
+const LaunchTemplateSpecificationOverrideStateSchema = z.object({
+  TargetInstanceTypes: z.array(z.string()),
+  UserdataType: z.string(),
+  LaunchTemplateName: z.string(),
+  Version: z.string(),
+  LaunchTemplateId: z.string(),
+}).partial();
+
+const LaunchTemplateSpecificationStateSchema = z.object({
+  UserdataType: z.string(),
+  LaunchTemplateName: z.string(),
+  Version: z.string(),
+  Overrides: z.array(LaunchTemplateSpecificationOverrideStateSchema),
+  LaunchTemplateId: z.string(),
+}).partial();
+
+const InfrastructureOptimizationStateSchema = z.object({
+  ScaleInAfter: z.number(),
+}).partial();
+
+const ManagedInstancesStorageConfigurationStateSchema = z.object({
+  StorageSizeGiB: z.number(),
+}).partial();
+
+const ManagedInstancesNetworkConfigurationStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const InstanceRequirementsStateSchema = z.object({
+  AllowedInstanceTypes: z.array(z.string()),
+}).partial();
+
+const CapacityReservationsStateSchema = z.object({
+  ReservationGroupArn: z.string(),
+  ReservationPreference: z.string(),
+}).partial();
+
+const ManagedInstancesLocalStorageConfigurationStateSchema = z.object({
+  UseLocalStorage: z.boolean(),
+}).partial();
+
+const InstanceLaunchTemplateStateSchema = z.object({
+  Ec2InstanceProfileArn: z.string(),
+  CapacityOptionType: z.string(),
+  FipsEnabled: z.boolean(),
+  InstanceMetadataTagsPropagation: z.boolean(),
+  StorageConfiguration: ManagedInstancesStorageConfigurationStateSchema,
+  NetworkConfiguration: ManagedInstancesNetworkConfigurationStateSchema,
+  InstanceRequirements: InstanceRequirementsStateSchema,
+  CapacityReservations: CapacityReservationsStateSchema,
+  Monitoring: z.string(),
+  LocalStorageConfiguration:
+    ManagedInstancesLocalStorageConfigurationStateSchema,
+}).partial();
+
+const ManagedInstancesProviderStateSchema = z.object({
+  InfrastructureRoleArn: z.string(),
+  PropagateTags: z.string(),
+  InfrastructureOptimization: InfrastructureOptimizationStateSchema,
+  InstanceLaunchTemplate: InstanceLaunchTemplateStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -195,7 +274,7 @@ const StateSchema = z.object({
   UpdatePolicy: z.object({
     JobExecutionTimeoutMinutes: z.number(),
     TerminateJobsOnUpdate: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ComputeEnvironmentArn: z.string(),
   UnmanagedvCpus: z.number().optional(),
   Type: z.string().optional(),
@@ -203,16 +282,16 @@ const StateSchema = z.object({
   ServiceRole: z.string().optional(),
   EksConfiguration: z.object({
     EksClusterArn: z.string(),
-    AccessEntry: EksAccessEntrySchema,
+    AccessEntry: EksAccessEntryStateSchema,
     KubernetesNamespace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ComputeEnvironmentName: z.string().optional(),
   ComputeResources: z.object({
-    ScalingPolicy: ComputeScalingPolicySchema,
+    ScalingPolicy: ComputeScalingPolicyStateSchema,
     SpotIamFleetRole: z.string(),
     MaxvCpus: z.number(),
     CapacityTags: z.record(z.string(), z.unknown()),
-    Ec2Configuration: z.array(Ec2ConfigurationObjectSchema),
+    Ec2Configuration: z.array(Ec2ConfigurationObjectStateSchema),
     BidPercentage: z.number(),
     SecurityGroupIds: z.array(z.string()),
     AllocationStrategy: z.string(),
@@ -220,7 +299,7 @@ const StateSchema = z.object({
     Type: z.string(),
     MinvCpus: z.number(),
     UpdateToLatestImageVersion: z.boolean(),
-    LaunchTemplate: LaunchTemplateSpecificationSchema,
+    LaunchTemplate: LaunchTemplateSpecificationStateSchema,
     ImageId: z.string(),
     InstanceRole: z.string(),
     InstanceTypes: z.array(z.string()),
@@ -228,16 +307,16 @@ const StateSchema = z.object({
     PlacementGroup: z.string(),
     Tags: z.record(z.string(), z.unknown()),
     DesiredvCpus: z.number(),
-    ManagedInstancesProvider: ManagedInstancesProviderSchema,
-  }).optional(),
+    ManagedInstancesProvider: ManagedInstancesProviderStateSchema,
+  }).partial().optional(),
   State: z.string().optional(),
   EcsSettings: z.object({
     ContainerInsights: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -319,7 +398,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch ComputeEnvironment. Registered at `@swamp/aws/batch/compute-environment`. */
 export const model = {
   type: "@swamp/aws/batch/compute-environment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -413,6 +492,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

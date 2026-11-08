@@ -287,7 +287,7 @@ const StateSchema = z.object({
   collectorIlb: z.object({
     canonicalUrl: z.string(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
   enable: z.string().optional(),
@@ -295,25 +295,29 @@ const StateSchema = z.object({
     IPProtocols: z.array(z.string()),
     cidrRanges: z.array(z.string()),
     direction: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   mirroredResources: z.object({
-    instances: z.array(z.object({
-      canonicalUrl: z.string(),
-      url: z.string(),
-    })),
-    subnetworks: z.array(z.object({
-      canonicalUrl: z.string(),
-      url: z.string(),
-    })),
+    instances: z.array(
+      z.object({
+        canonicalUrl: z.string(),
+        url: z.string(),
+      }).partial(),
+    ),
+    subnetworks: z.array(
+      z.object({
+        canonicalUrl: z.string(),
+        url: z.string(),
+      }).partial(),
+    ),
     tags: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   network: z.object({
     canonicalUrl: z.string(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   priority: z.number().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
@@ -433,7 +437,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine PacketMirrorings. Registered at `@swamp/gcp/compute/packetmirrorings`. */
 export const model = {
   type: "@swamp/gcp/compute/packetmirrorings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -587,6 +591,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

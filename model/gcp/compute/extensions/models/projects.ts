@@ -83,12 +83,14 @@ const StateSchema = z.object({
   cloudArmorTier: z.string().optional(),
   commonInstanceMetadata: z.object({
     fingerprint: z.string(),
-    items: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
+    items: z.array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     kind: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTimestamp: z.string().optional(),
   defaultNetworkTier: z.string().optional(),
   defaultServiceAccount: z.string().optional(),
@@ -97,17 +99,19 @@ const StateSchema = z.object({
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
-  quotas: z.array(z.object({
-    limit: z.number(),
-    metric: z.string(),
-    owner: z.string(),
-    usage: z.number(),
-  })).optional(),
+  quotas: z.array(
+    z.object({
+      limit: z.number(),
+      metric: z.string(),
+      owner: z.string(),
+      usage: z.number(),
+    }).partial(),
+  ).optional(),
   selfLink: z.string().optional(),
   usageExportLocation: z.object({
     bucketName: z.string(),
     reportNamePrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   vmDnsSetting: z.string().optional(),
   xpnProjectStatus: z.string().optional(),
 }).passthrough();
@@ -150,7 +154,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Projects. Registered at `@swamp/gcp/compute/projects`. */
 export const model = {
   type: "@swamp/gcp/compute/projects",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -284,6 +288,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

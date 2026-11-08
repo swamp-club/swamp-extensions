@@ -243,23 +243,23 @@ const StateSchema = z.object({
       programStatus: z.string(),
       statusUpdateReason: z.string(),
       statusUpdateTime: z.string(),
-    }),
+    }).partial(),
     channelToStoreLink: z.object({
       billingDetails: z.object({
         billingStatus: z.string(),
-      }),
+      }).partial(),
       merchantAffiliateProgramDetails: z.object({
         status: z.string(),
-      }),
+      }).partial(),
       merchantId: z.string(),
       storeName: z.string(),
       storeUrl: z.string(),
-    }),
+    }).partial(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     linkStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -370,7 +370,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data ThirdPartyLinks. Registered at `@swamp/gcp/youtube/thirdpartylinks`. */
 export const model = {
   type: "@swamp/gcp/youtube/thirdpartylinks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -529,6 +529,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

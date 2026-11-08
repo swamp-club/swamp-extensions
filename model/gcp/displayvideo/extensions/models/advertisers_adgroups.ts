@@ -420,8 +420,8 @@ const StateSchema = z.object({
       allowYoutubeFeed: z.boolean(),
       allowYoutubeShorts: z.boolean(),
       allowYoutubeStream: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   adSource: z.string().optional(),
   advertiserId: z.string().optional(),
   bidStrategy: z.object({
@@ -430,51 +430,55 @@ const StateSchema = z.object({
       effectiveBiddingValueSource: z.string(),
       type: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     fixedBid: z.object({
       bidAmountMicros: z.string(),
-    }),
+    }).partial(),
     maximizeSpendAutoBid: z.object({
       customBiddingAlgorithmId: z.string(),
       maxAverageCpmBidAmountMicros: z.string(),
       performanceGoalType: z.string(),
       raiseBidForDeals: z.boolean(),
-    }),
+    }).partial(),
     performanceGoalAutoBid: z.object({
       customBiddingAlgorithmId: z.string(),
       maxAverageCpmBidAmountMicros: z.string(),
       performanceGoalAmountMicros: z.string(),
       performanceGoalType: z.string(),
-    }),
+    }).partial(),
     youtubeAndPartnersBid: z.object({
       adGroupEffectiveTargetCpaSource: z.string(),
       adGroupEffectiveTargetCpaValue: z.string(),
       type: z.string(),
       value: z.string(),
-    }),
-  }).optional(),
-  creativeAssignments: z.array(z.object({
-    creativeId: z.string(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  creativeAssignments: z.array(
+    z.object({
+      creativeId: z.string(),
+    }).partial(),
+  ).optional(),
   displayName: z.string().optional(),
   entityStatus: z.string().optional(),
   lineItemId: z.string().optional(),
   name: z.string(),
   productFeedData: z.object({
     isFeedDisabled: z.boolean(),
-    productMatchDimensions: z.array(z.object({
-      customLabel: z.object({
-        key: z.string(),
-        value: z.string(),
-      }),
-      productOfferId: z.string(),
-    })),
+    productMatchDimensions: z.array(
+      z.object({
+        customLabel: z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+        productOfferId: z.string(),
+      }).partial(),
+    ),
     productMatchType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetingExpansion: z.object({
     enableOptimizedTargeting: z.boolean(),
     excludeDemographicExpansion: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -744,7 +748,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroups. Registered at `@swamp/gcp/displayvideo/advertisers-adgroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -958,6 +962,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

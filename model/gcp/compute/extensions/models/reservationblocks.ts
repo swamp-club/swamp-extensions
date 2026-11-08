@@ -154,7 +154,7 @@ const StateSchema = z.object({
       degradedSubBlockCount: z.number(),
       healthStatus: z.string(),
       healthySubBlockCount: z.number(),
-    }),
+    }).partial(),
     id: z.string(),
     inUseCount: z.number(),
     inUseHostCount: z.number(),
@@ -163,15 +163,17 @@ const StateSchema = z.object({
     physicalTopology: z.object({
       block: z.string(),
       cluster: z.string(),
-      instances: z.array(z.object({
-        instanceId: z.string(),
-        physicalHostTopology: z.object({
-          host: z.unknown(),
-          subBlock: z.unknown(),
-        }),
-        projectId: z.string(),
-      })),
-    }),
+      instances: z.array(
+        z.object({
+          instanceId: z.string(),
+          physicalHostTopology: z.object({
+            host: z.unknown(),
+            subBlock: z.unknown(),
+          }).partial(),
+          projectId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     reservationMaintenance: z.object({
       instanceMaintenanceOngoingCount: z.number(),
       instanceMaintenancePendingCount: z.number(),
@@ -189,15 +191,15 @@ const StateSchema = z.object({
         type: z.string(),
         windowEndTime: z.string(),
         windowStartTime: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     reservationSubBlockCount: z.number(),
     reservationSubBlockInUseCount: z.number(),
     selfLink: z.string(),
     selfLinkWithId: z.string(),
     status: z.string(),
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -244,7 +246,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ReservationBlocks. Registered at `@swamp/gcp/compute/reservationblocks`. */
 export const model = {
   type: "@swamp/gcp/compute/reservationblocks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -398,6 +400,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -126,15 +126,17 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  claims: z.array(z.object({
-    additionalService: z.string(),
-    googleWorkspaceCustomerId: z.string(),
-    ownerCompanyId: z.string(),
-    resellerId: z.string(),
-    sectionType: z.string(),
-    vacationModeExpireTime: z.string(),
-    vacationModeStartTime: z.string(),
-  })).optional(),
+  claims: z.array(
+    z.object({
+      additionalService: z.string(),
+      googleWorkspaceCustomerId: z.string(),
+      ownerCompanyId: z.string(),
+      resellerId: z.string(),
+      sectionType: z.string(),
+      vacationModeExpireTime: z.string(),
+      vacationModeStartTime: z.string(),
+    }).partial(),
+  ).optional(),
   configuration: z.string().optional(),
   deviceId: z.string().optional(),
   deviceIdentifier: z.object({
@@ -147,10 +149,10 @@ const StateSchema = z.object({
     meid2: z.string(),
     model: z.string(),
     serialNumber: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deviceMetadata: z.object({
     entries: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
 }).passthrough();
 
@@ -195,7 +197,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Device Provisioning Partner Customers.Devices. Registered at `@swamp/gcp/androiddeviceprovisioning/customers-devices`. */
 export const model = {
   type: "@swamp/gcp/androiddeviceprovisioning/customers-devices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -334,6 +336,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

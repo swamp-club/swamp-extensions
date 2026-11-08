@@ -62,6 +62,25 @@ const WorkflowDetailSchema = z.object({
   ),
 });
 
+const ProxyConfigStateSchema = z.object({
+  SftpMode: z.string(),
+}).partial();
+
+const SftpPortWithOptionsStateSchema = z.object({
+  SftpPort: z.number(),
+  CommunicationMode: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const WorkflowDetailStateSchema = z.object({
+  WorkflowId: z.string(),
+  ExecutionRole: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -169,7 +188,7 @@ const StateSchema = z.object({
     VpcEndpointId: z.string(),
     VpcId: z.string(),
     SecurityGroupIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   EndpointType: z.string().optional(),
   IdentityProviderDetails: z.object({
     Url: z.string(),
@@ -177,7 +196,7 @@ const StateSchema = z.object({
     DirectoryId: z.string(),
     Function: z.string(),
     SftpAuthenticationMethods: z.string(),
-  }).optional(),
+  }).partial().optional(),
   IdentityProviderType: z.string().optional(),
   IpAddressType: z.string().optional(),
   LoggingRole: z.string().optional(),
@@ -188,25 +207,25 @@ const StateSchema = z.object({
     TlsSessionResumptionMode: z.string(),
     SetStatOption: z.string(),
     As2Transports: z.array(z.string()),
-    ProxyConfig: ProxyConfigSchema,
-    SftpPorts: z.array(SftpPortWithOptionsSchema),
-  }).optional(),
+    ProxyConfig: ProxyConfigStateSchema,
+    SftpPorts: z.array(SftpPortWithOptionsStateSchema),
+  }).partial().optional(),
   Protocols: z.array(z.string()).optional(),
   S3StorageOptions: z.object({
     DirectoryListingOptimization: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SecurityPolicyName: z.string().optional(),
   ServerId: z.string().optional(),
   State: z.string().optional(),
   StructuredLogDestinations: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   WorkflowDetails: z.object({
-    OnUpload: z.array(WorkflowDetailSchema),
-    OnPartialUpload: z.array(WorkflowDetailSchema),
-  }).optional(),
+    OnUpload: z.array(WorkflowDetailStateSchema),
+    OnPartialUpload: z.array(WorkflowDetailStateSchema),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -312,7 +331,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer Server. Registered at `@swamp/aws/transfer/server`. */
 export const model = {
   type: "@swamp/aws/transfer/server",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -386,6 +405,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

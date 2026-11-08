@@ -198,10 +198,12 @@ const StateSchema = z.object({
   comment: z.string().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
-  feedbackContexts: z.array(z.object({
-    attribute: z.string(),
-    values: z.array(z.string()),
-  })).optional(),
+  feedbackContexts: z.array(
+    z.object({
+      attribute: z.string(),
+      values: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   feedbackType: z.string().optional(),
   name: z.string(),
   reason: z.string().optional(),
@@ -281,7 +283,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee SecurityFeedback. Registered at `@swamp/gcp/apigee/securityfeedback`. */
 export const model = {
   type: "@swamp/gcp/apigee/securityfeedback",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -410,6 +412,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

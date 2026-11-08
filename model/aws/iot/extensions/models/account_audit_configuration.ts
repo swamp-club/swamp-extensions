@@ -80,6 +80,34 @@ const AuditNotificationTargetSchema = z.object({
   ).optional(),
 });
 
+const AuditCheckConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const CertExpirationCheckCustomConfigurationStateSchema = z.object({
+  CertExpirationThresholdInDays: z.string(),
+}).partial();
+
+const DeviceCertExpirationAuditCheckConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  Configuration: CertExpirationCheckCustomConfigurationStateSchema,
+}).partial();
+
+const CertAgeCheckCustomConfigurationStateSchema = z.object({
+  CertAgeThresholdInDays: z.string(),
+}).partial();
+
+const DeviceCertAgeAuditCheckConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  Configuration: CertAgeCheckCustomConfigurationStateSchema,
+}).partial();
+
+const AuditNotificationTargetStateSchema = z.object({
+  TargetArn: z.string(),
+  RoleArn: z.string(),
+  Enabled: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -164,35 +192,36 @@ const StateSchema = z.object({
   AccountId: z.string(),
   AuditCheckConfigurations: z.object({
     AuthenticatedCognitoRoleOverlyPermissiveCheck:
-      AuditCheckConfigurationSchema,
-    CaCertificateExpiringCheck: AuditCheckConfigurationSchema,
-    CaCertificateKeyQualityCheck: AuditCheckConfigurationSchema,
-    ConflictingClientIdsCheck: AuditCheckConfigurationSchema,
+      AuditCheckConfigurationStateSchema,
+    CaCertificateExpiringCheck: AuditCheckConfigurationStateSchema,
+    CaCertificateKeyQualityCheck: AuditCheckConfigurationStateSchema,
+    ConflictingClientIdsCheck: AuditCheckConfigurationStateSchema,
     DeviceCertificateExpiringCheck:
-      DeviceCertExpirationAuditCheckConfigurationSchema,
-    DeviceCertificateKeyQualityCheck: AuditCheckConfigurationSchema,
-    DeviceCertificateSharedCheck: AuditCheckConfigurationSchema,
-    IotPolicyOverlyPermissiveCheck: AuditCheckConfigurationSchema,
+      DeviceCertExpirationAuditCheckConfigurationStateSchema,
+    DeviceCertificateKeyQualityCheck: AuditCheckConfigurationStateSchema,
+    DeviceCertificateSharedCheck: AuditCheckConfigurationStateSchema,
+    IotPolicyOverlyPermissiveCheck: AuditCheckConfigurationStateSchema,
     IotRoleAliasAllowsAccessToUnusedServicesCheck:
-      AuditCheckConfigurationSchema,
-    IotRoleAliasOverlyPermissiveCheck: AuditCheckConfigurationSchema,
-    LoggingDisabledCheck: AuditCheckConfigurationSchema,
-    RevokedCaCertificateStillActiveCheck: AuditCheckConfigurationSchema,
-    RevokedDeviceCertificateStillActiveCheck: AuditCheckConfigurationSchema,
+      AuditCheckConfigurationStateSchema,
+    IotRoleAliasOverlyPermissiveCheck: AuditCheckConfigurationStateSchema,
+    LoggingDisabledCheck: AuditCheckConfigurationStateSchema,
+    RevokedCaCertificateStillActiveCheck: AuditCheckConfigurationStateSchema,
+    RevokedDeviceCertificateStillActiveCheck:
+      AuditCheckConfigurationStateSchema,
     UnauthenticatedCognitoRoleOverlyPermissiveCheck:
-      AuditCheckConfigurationSchema,
+      AuditCheckConfigurationStateSchema,
     IntermediateCaRevokedForActiveDeviceCertificatesCheck:
-      AuditCheckConfigurationSchema,
-    IoTPolicyPotentialMisConfigurationCheck: AuditCheckConfigurationSchema,
-    DeviceCertificateAgeCheck: DeviceCertAgeAuditCheckConfigurationSchema,
-  }).optional(),
+      AuditCheckConfigurationStateSchema,
+    IoTPolicyPotentialMisConfigurationCheck: AuditCheckConfigurationStateSchema,
+    DeviceCertificateAgeCheck: DeviceCertAgeAuditCheckConfigurationStateSchema,
+  }).partial().optional(),
   AuditNotificationTargetConfigurations: z.object({
-    Sns: AuditNotificationTargetSchema,
-  }).optional(),
+    Sns: AuditNotificationTargetStateSchema,
+  }).partial().optional(),
   RoleArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -285,7 +314,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT AccountAuditConfiguration. Registered at `@swamp/aws/iot/account-audit-configuration`. */
 export const model = {
   type: "@swamp/aws/iot/account-audit-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +378,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -52,6 +52,21 @@ const CloudWatchEncryptionSchema = z.object({
   CloudWatchEncryptionMode: z.string().optional(),
 });
 
+const S3EncryptionStateSchema = z.object({
+  KmsKeyArn: z.string(),
+  S3EncryptionMode: z.string(),
+}).partial();
+
+const JobBookmarksEncryptionStateSchema = z.object({
+  KmsKeyArn: z.string(),
+  JobBookmarksEncryptionMode: z.string(),
+}).partial();
+
+const CloudWatchEncryptionStateSchema = z.object({
+  KmsKeyArn: z.string(),
+  CloudWatchEncryptionMode: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -82,14 +97,14 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   EncryptionConfiguration: z.object({
-    S3Encryptions: z.array(S3EncryptionSchema),
-    JobBookmarksEncryption: JobBookmarksEncryptionSchema,
-    CloudWatchEncryption: CloudWatchEncryptionSchema,
-  }).optional(),
+    S3Encryptions: z.array(S3EncryptionStateSchema),
+    JobBookmarksEncryption: JobBookmarksEncryptionStateSchema,
+    CloudWatchEncryption: CloudWatchEncryptionStateSchema,
+  }).partial().optional(),
   Name: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -131,7 +146,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue SecurityConfiguration. Registered at `@swamp/aws/glue/security-configuration`. */
 export const model = {
   type: "@swamp/aws/glue/security-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -155,6 +170,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

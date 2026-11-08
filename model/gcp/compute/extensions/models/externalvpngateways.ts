@@ -201,18 +201,20 @@ const StateSchema = z.object({
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
   id: z.string().optional(),
-  interfaces: z.array(z.object({
-    id: z.number(),
-    ipAddress: z.string(),
-    ipv6Address: z.string(),
-  })).optional(),
+  interfaces: z.array(
+    z.object({
+      id: z.number(),
+      ipAddress: z.string(),
+      ipv6Address: z.string(),
+    }).partial(),
+  ).optional(),
   kind: z.string().optional(),
   labelFingerprint: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   redundancyType: z.string().optional(),
   selfLink: z.string().optional(),
 }).passthrough();
@@ -297,7 +299,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ExternalVpnGateways. Registered at `@swamp/gcp/compute/externalvpngateways`. */
 export const model = {
   type: "@swamp/gcp/compute/externalvpngateways",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -451,6 +453,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

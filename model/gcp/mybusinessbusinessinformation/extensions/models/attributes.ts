@@ -100,10 +100,12 @@ const StateSchema = z.object({
   groupDisplayName: z.string().optional(),
   parent: z.string().optional(),
   repeatable: z.boolean().optional(),
-  valueMetadata: z.array(z.object({
-    displayName: z.string(),
-    value: z.string(),
-  })).optional(),
+  valueMetadata: z.array(
+    z.object({
+      displayName: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   valueType: z.string().optional(),
 }).passthrough();
 
@@ -145,7 +147,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud My Business Business Information Attributes. Registered at `@swamp/gcp/mybusinessbusinessinformation/attributes`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/attributes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -274,6 +276,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

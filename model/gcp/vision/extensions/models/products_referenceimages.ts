@@ -165,16 +165,22 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  boundingPolys: z.array(z.object({
-    normalizedVertices: z.array(z.object({
-      x: z.number(),
-      y: z.number(),
-    })),
-    vertices: z.array(z.object({
-      x: z.number(),
-      y: z.number(),
-    })),
-  })).optional(),
+  boundingPolys: z.array(
+    z.object({
+      normalizedVertices: z.array(
+        z.object({
+          x: z.number(),
+          y: z.number(),
+        }).partial(),
+      ),
+      vertices: z.array(
+        z.object({
+          x: z.number(),
+          y: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   uri: z.string().optional(),
 }).passthrough();
@@ -243,7 +249,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Vision Products.ReferenceImages. Registered at `@swamp/gcp/vision/products-referenceimages`. */
 export const model = {
   type: "@swamp/gcp/vision/products-referenceimages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -377,6 +383,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

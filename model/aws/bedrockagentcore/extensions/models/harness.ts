@@ -541,6 +541,306 @@ const TagSchema = z.object({
   ),
 });
 
+const LifecycleConfigurationStateSchema = z.object({
+  IdleRuntimeSessionTimeout: z.number(),
+  MaxLifetime: z.number(),
+}).partial();
+
+const VpcConfigStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const NetworkConfigurationStateSchema = z.object({
+  NetworkMode: z.string(),
+  NetworkModeConfig: VpcConfigStateSchema,
+}).partial();
+
+const SessionStorageConfigurationStateSchema = z.object({
+  MountPath: z.string(),
+}).partial();
+
+const S3FilesAccessPointConfigurationStateSchema = z.object({
+  AccessPointArn: z.string(),
+  MountPath: z.string(),
+}).partial();
+
+const EfsAccessPointConfigurationStateSchema = z.object({
+  AccessPointArn: z.string(),
+  MountPath: z.string(),
+}).partial();
+
+const FilesystemConfigurationStateSchema = z.object({
+  SessionStorage: SessionStorageConfigurationStateSchema,
+  S3FilesAccessPoint: S3FilesAccessPointConfigurationStateSchema,
+  EfsAccessPoint: EfsAccessPointConfigurationStateSchema,
+}).partial();
+
+const HarnessAgentCoreRuntimeEnvironmentStateSchema = z.object({
+  AgentRuntimeArn: z.string(),
+  AgentRuntimeName: z.string(),
+  AgentRuntimeId: z.string(),
+  LifecycleConfiguration: LifecycleConfigurationStateSchema,
+  NetworkConfiguration: NetworkConfigurationStateSchema,
+  FilesystemConfigurations: z.array(FilesystemConfigurationStateSchema),
+}).partial();
+
+const ContainerConfigurationStateSchema = z.object({
+  ContainerUri: z.string(),
+}).partial();
+
+const ClaimMatchValueTypeStateSchema = z.object({
+  MatchValueString: z.string(),
+  MatchValueStringList: z.array(z.string()),
+}).partial();
+
+const AuthorizingClaimMatchValueTypeStateSchema = z.object({
+  ClaimMatchValue: ClaimMatchValueTypeStateSchema,
+  ClaimMatchOperator: z.string(),
+}).partial();
+
+const CustomClaimValidationTypeStateSchema = z.object({
+  InboundTokenClaimName: z.string(),
+  InboundTokenClaimValueType: z.string(),
+  AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeStateSchema,
+}).partial();
+
+const SelfManagedLatticeResourceStateSchema = z.object({
+  ResourceConfigurationIdentifier: z.string(),
+}).partial();
+
+const ManagedVpcResourceStateSchema = z.object({
+  VpcIdentifier: z.string(),
+  SubnetIds: z.array(z.string()),
+  EndpointIpAddressType: z.string(),
+  SecurityGroupIds: z.array(z.string()),
+  Tags: z.record(z.string(), z.unknown()),
+  RoutingDomain: z.string(),
+}).partial();
+
+const PrivateEndpointStateSchema = z.object({
+  SelfManagedLatticeResource: SelfManagedLatticeResourceStateSchema,
+  ManagedVpcResource: ManagedVpcResourceStateSchema,
+}).partial();
+
+const PrivateEndpointOverrideStateSchema = z.object({
+  Domain: z.string(),
+  PrivateEndpoint: PrivateEndpointStateSchema,
+}).partial();
+
+const CustomJWTAuthorizerConfigurationStateSchema = z.object({
+  DiscoveryUrl: z.string(),
+  AllowedAudience: z.array(z.string()),
+  AllowedClients: z.array(z.string()),
+  AllowedScopes: z.array(z.string()),
+  AdvertisedScopeMapping: z.record(z.string(), z.unknown()),
+  CustomClaims: z.array(CustomClaimValidationTypeStateSchema),
+  PrivateEndpoint: PrivateEndpointStateSchema,
+  PrivateEndpointOverrides: z.array(PrivateEndpointOverrideStateSchema),
+}).partial();
+
+const HarnessBedrockModelConfigStateSchema = z.object({
+  ModelId: z.string(),
+  MaxTokens: z.number(),
+  Temperature: z.number(),
+  TopP: z.number(),
+  ApiFormat: z.string(),
+  AdditionalParams: z.record(z.string(), z.unknown()),
+}).partial();
+
+const HarnessOpenAiModelConfigStateSchema = z.object({
+  ModelId: z.string(),
+  ApiKeyArn: z.string(),
+  ApiBase: z.string(),
+  MaxTokens: z.number(),
+  Temperature: z.number(),
+  TopP: z.number(),
+  ApiFormat: z.string(),
+  AdditionalParams: z.record(z.string(), z.unknown()),
+}).partial();
+
+const HarnessGeminiModelConfigStateSchema = z.object({
+  ModelId: z.string(),
+  ApiKeyArn: z.string(),
+  MaxTokens: z.number(),
+  Temperature: z.number(),
+  TopP: z.number(),
+  TopK: z.number(),
+  AdditionalParams: z.record(z.string(), z.unknown()),
+}).partial();
+
+const HarnessLiteLlmModelConfigStateSchema = z.object({
+  ModelId: z.string(),
+  ApiKeyArn: z.string(),
+  ApiBase: z.string(),
+  MaxTokens: z.number(),
+  Temperature: z.number(),
+  TopP: z.number(),
+  AdditionalParams: z.record(z.string(), z.unknown()),
+}).partial();
+
+const HarnessSystemContentBlockStateSchema = z.object({
+  Text: z.string(),
+}).partial();
+
+const HarnessRemoteMcpConfigStateSchema = z.object({
+  Url: z.string(),
+  Headers: z.record(z.string(), z.unknown()),
+}).partial();
+
+const HarnessAgentCoreBrowserConfigStateSchema = z.object({
+  BrowserArn: z.string(),
+}).partial();
+
+const OAuthCredentialProviderStateSchema = z.object({
+  ProviderArn: z.string(),
+  Scopes: z.array(z.string()),
+  CustomParameters: z.record(z.string(), z.unknown()),
+  GrantType: z.string(),
+  DefaultReturnUrl: z.string(),
+}).partial();
+
+const HarnessGatewayOutboundAuthStateSchema = z.object({
+  AwsIam: z.record(z.string(), z.unknown()),
+  None: z.record(z.string(), z.unknown()),
+  Oauth: OAuthCredentialProviderStateSchema,
+}).partial();
+
+const HarnessAgentCoreGatewayConfigStateSchema = z.object({
+  GatewayArn: z.string(),
+  OutboundAuth: HarnessGatewayOutboundAuthStateSchema,
+}).partial();
+
+const HarnessInlineFunctionConfigStateSchema = z.object({
+  Description: z.string(),
+  InputSchema: z.record(z.string(), z.unknown()),
+}).partial();
+
+const HarnessAgentCoreCodeInterpreterConfigStateSchema = z.object({
+  CodeInterpreterArn: z.string(),
+}).partial();
+
+const HarnessToolConfigurationStateSchema = z.object({
+  RemoteMcp: HarnessRemoteMcpConfigStateSchema,
+  AgentCoreBrowser: HarnessAgentCoreBrowserConfigStateSchema,
+  AgentCoreGateway: HarnessAgentCoreGatewayConfigStateSchema,
+  InlineFunction: HarnessInlineFunctionConfigStateSchema,
+  AgentCoreCodeInterpreter: HarnessAgentCoreCodeInterpreterConfigStateSchema,
+}).partial();
+
+const HarnessToolStateSchema = z.object({
+  Type: z.string(),
+  Name: z.string(),
+  Config: HarnessToolConfigurationStateSchema,
+}).partial();
+
+const HarnessSkillS3SourceStateSchema = z.object({
+  Uri: z.string(),
+}).partial();
+
+const HarnessSkillGitAuthStateSchema = z.object({
+  CredentialArn: z.string(),
+  Username: z.string(),
+}).partial();
+
+const HarnessSkillGitSourceStateSchema = z.object({
+  Url: z.string(),
+  Path: z.string(),
+  Auth: HarnessSkillGitAuthStateSchema,
+}).partial();
+
+const HarnessSkillAwsSkillsSourceStateSchema = z.object({
+  Paths: z.array(z.string()),
+}).partial();
+
+const HarnessSkillStateSchema = z.object({
+  Path: z.string(),
+  S3: HarnessSkillS3SourceStateSchema,
+  Git: HarnessSkillGitSourceStateSchema,
+  AwsSkills: HarnessSkillAwsSkillsSourceStateSchema,
+}).partial();
+
+const HarnessHookLambdaTargetStateSchema = z.object({
+  Arn: z.string(),
+  TimeoutSeconds: z.number(),
+  FailureMode: z.string(),
+}).partial();
+
+const HarnessHookSnsTargetStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const HarnessHookEventBridgeTargetStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const HarnessHookTargetStateSchema = z.object({
+  Lambda: HarnessHookLambdaTargetStateSchema,
+  Sns: HarnessHookSnsTargetStateSchema,
+  EventBridge: HarnessHookEventBridgeTargetStateSchema,
+}).partial();
+
+const HarnessBeforeInvocationHookStateSchema = z.object({
+  Name: z.string(),
+  Target: HarnessHookTargetStateSchema,
+}).partial();
+
+const HarnessAfterInvocationHookStateSchema = z.object({
+  Name: z.string(),
+  Target: HarnessHookTargetStateSchema,
+}).partial();
+
+const HarnessBeforeToolCallHookStateSchema = z.object({
+  Name: z.string(),
+  Target: HarnessHookTargetStateSchema,
+}).partial();
+
+const HarnessAfterToolCallHookStateSchema = z.object({
+  Name: z.string(),
+  Target: HarnessHookTargetStateSchema,
+}).partial();
+
+const HarnessHookStateSchema = z.object({
+  BeforeInvocation: HarnessBeforeInvocationHookStateSchema,
+  AfterInvocation: HarnessAfterInvocationHookStateSchema,
+  BeforeToolCall: HarnessBeforeToolCallHookStateSchema,
+  AfterToolCall: HarnessAfterToolCallHookStateSchema,
+}).partial();
+
+const HarnessAgentCoreMemoryConfigurationStateSchema = z.object({
+  Arn: z.string(),
+  ActorId: z.string(),
+  MessagesCount: z.number(),
+  RetrievalConfig: z.record(z.string(), z.unknown()),
+}).partial();
+
+const HarnessManagedMemoryConfigurationStateSchema = z.object({
+  Arn: z.string(),
+  Strategies: z.array(z.string()),
+  EventExpiryDuration: z.number(),
+  EncryptionKeyArn: z.string(),
+}).partial();
+
+const HarnessSlidingWindowConfigurationStateSchema = z.object({
+  MessagesCount: z.number(),
+}).partial();
+
+const HarnessSummarizationConfigurationStateSchema = z.object({
+  SummaryRatio: z.number(),
+  PreserveRecentMessages: z.number(),
+  SummarizationSystemPrompt: z.string(),
+}).partial();
+
+const HarnessTruncationStrategyConfigurationStateSchema = z.object({
+  SlidingWindow: HarnessSlidingWindowConfigurationStateSchema,
+  Summarization: HarnessSummarizationConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -643,44 +943,45 @@ const StateSchema = z.object({
   Version: z.string().optional(),
   ExecutionRoleArn: z.string().optional(),
   Environment: z.object({
-    AgentCoreRuntimeEnvironment: HarnessAgentCoreRuntimeEnvironmentSchema,
-  }).optional(),
+    AgentCoreRuntimeEnvironment: HarnessAgentCoreRuntimeEnvironmentStateSchema,
+  }).partial().optional(),
   EnvironmentArtifact: z.object({
-    ContainerConfiguration: ContainerConfigurationSchema,
-  }).optional(),
+    ContainerConfiguration: ContainerConfigurationStateSchema,
+  }).partial().optional(),
   EnvironmentVariables: z.record(z.string(), z.unknown()).optional(),
   AuthorizerConfiguration: z.object({
-    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema,
-  }).optional(),
+    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationStateSchema,
+  }).partial().optional(),
   Model: z.object({
-    BedrockModelConfig: HarnessBedrockModelConfigSchema,
-    OpenAiModelConfig: HarnessOpenAiModelConfigSchema,
-    GeminiModelConfig: HarnessGeminiModelConfigSchema,
-    LiteLlmModelConfig: HarnessLiteLlmModelConfigSchema,
-  }).optional(),
-  SystemPrompt: z.array(HarnessSystemContentBlockSchema).optional(),
-  Tools: z.array(HarnessToolSchema).optional(),
-  Skills: z.array(HarnessSkillSchema).optional(),
+    BedrockModelConfig: HarnessBedrockModelConfigStateSchema,
+    OpenAiModelConfig: HarnessOpenAiModelConfigStateSchema,
+    GeminiModelConfig: HarnessGeminiModelConfigStateSchema,
+    LiteLlmModelConfig: HarnessLiteLlmModelConfigStateSchema,
+  }).partial().optional(),
+  SystemPrompt: z.array(HarnessSystemContentBlockStateSchema).optional(),
+  Tools: z.array(HarnessToolStateSchema).optional(),
+  Skills: z.array(HarnessSkillStateSchema).optional(),
   AllowedTools: z.array(z.string()).optional(),
-  Hooks: z.array(HarnessHookSchema).optional(),
+  Hooks: z.array(HarnessHookStateSchema).optional(),
   Memory: z.object({
-    AgentCoreMemoryConfiguration: HarnessAgentCoreMemoryConfigurationSchema,
-    ManagedMemoryConfiguration: HarnessManagedMemoryConfigurationSchema,
+    AgentCoreMemoryConfiguration:
+      HarnessAgentCoreMemoryConfigurationStateSchema,
+    ManagedMemoryConfiguration: HarnessManagedMemoryConfigurationStateSchema,
     Disabled: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   Truncation: z.object({
     Strategy: z.string(),
-    Config: HarnessTruncationStrategyConfigurationSchema,
-  }).optional(),
+    Config: HarnessTruncationStrategyConfigurationStateSchema,
+  }).partial().optional(),
   MaxIterations: z.number().optional(),
   MaxTokens: z.number().optional(),
   TimeoutSeconds: z.number().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -785,7 +1086,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Harness. Registered at `@swamp/aws/bedrockagentcore/harness`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
@@ -864,6 +1165,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

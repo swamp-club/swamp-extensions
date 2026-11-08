@@ -289,58 +289,64 @@ const StateSchema = z.object({
   destinations: z.object({
     endpoint: z.object({
       endpointUri: z.string(),
-      headers: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
-    }),
+      headers: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     pubsub: z.object({
       attributes: z.record(z.string(), z.unknown()),
-      configVariables: z.array(z.object({
-        boolValue: z.boolean(),
-        encryptionKeyValue: z.object({
-          kmsKeyName: z.unknown(),
-          type: z.unknown(),
-        }),
-        intValue: z.string(),
-        key: z.string(),
-        secretValue: z.object({
-          secretVersion: z.unknown(),
-        }),
-        stringValue: z.string(),
-      })),
+      configVariables: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          encryptionKeyValue: z.object({
+            kmsKeyName: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          intValue: z.string(),
+          key: z.string(),
+          secretValue: z.object({
+            secretVersion: z.unknown(),
+          }).partial(),
+          stringValue: z.string(),
+        }).partial(),
+      ),
       projectId: z.string(),
       topicId: z.string(),
-    }),
+    }).partial(),
     serviceAccount: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   eventTypeId: z.string().optional(),
   filter: z.string().optional(),
   jms: z.object({
     name: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   status: z.object({
     description: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   subscriber: z.string().optional(),
   subscriberLink: z.string().optional(),
-  triggerConfigVariables: z.array(z.object({
-    boolValue: z.boolean(),
-    encryptionKeyValue: z.object({
-      kmsKeyName: z.string(),
-      type: z.string(),
-    }),
-    intValue: z.string(),
-    key: z.string(),
-    secretValue: z.object({
-      secretVersion: z.string(),
-    }),
-    stringValue: z.string(),
-  })).optional(),
+  triggerConfigVariables: z.array(
+    z.object({
+      boolValue: z.boolean(),
+      encryptionKeyValue: z.object({
+        kmsKeyName: z.string(),
+        type: z.string(),
+      }).partial(),
+      intValue: z.string(),
+      key: z.string(),
+      secretValue: z.object({
+        secretVersion: z.string(),
+      }).partial(),
+      stringValue: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -503,7 +509,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Connectors Connections.EventSubscriptions. Registered at `@swamp/gcp/connectors/connections-eventsubscriptions`. */
 export const model = {
   type: "@swamp/gcp/connectors/connections-eventsubscriptions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -522,6 +528,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

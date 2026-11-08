@@ -110,18 +110,22 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   averageIndexedItemCount: z.string().optional(),
-  stats: z.array(z.object({
-    date: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-    itemCountByStatus: z.array(z.object({
-      count: z.string(),
-      indexedItemsCount: z.string(),
-      statusCode: z.string(),
-    })),
-  })).optional(),
+  stats: z.array(
+    z.object({
+      date: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+      itemCountByStatus: z.array(
+        z.object({
+          count: z.string(),
+          indexedItemsCount: z.string(),
+          statusCode: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -162,7 +166,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Stats.Index.Datasources. Registered at `@swamp/gcp/cloudsearch/stats-index-datasources`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/stats-index-datasources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -276,6 +280,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

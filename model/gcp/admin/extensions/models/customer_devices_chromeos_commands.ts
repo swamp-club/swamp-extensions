@@ -101,7 +101,7 @@ const StateSchema = z.object({
     errorMessage: z.string(),
     executeTime: z.string(),
     result: z.string(),
-  }).optional(),
+  }).partial().optional(),
   issueTime: z.string().optional(),
   payload: z.string().optional(),
   state: z.string().optional(),
@@ -151,7 +151,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Customer.Devices.Chromeos.Commands. Registered at `@swamp/gcp/admin/customer-devices-chromeos-commands`. */
 export const model = {
   type: "@swamp/gcp/admin/customer-devices-chromeos-commands",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -175,6 +175,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

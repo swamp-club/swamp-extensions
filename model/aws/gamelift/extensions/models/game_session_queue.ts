@@ -62,6 +62,20 @@ const TagSchema = z.object({
   ),
 });
 
+const PlayerLatencyPolicyStateSchema = z.object({
+  PolicyDurationSeconds: z.number(),
+  MaximumIndividualPlayerLatencyMilliseconds: z.number(),
+}).partial();
+
+const GameSessionQueueDestinationStateSchema = z.object({
+  DestinationArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -126,23 +140,23 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   TimeoutInSeconds: z.number().optional(),
-  PlayerLatencyPolicies: z.array(PlayerLatencyPolicySchema).optional(),
-  Destinations: z.array(GameSessionQueueDestinationSchema).optional(),
+  PlayerLatencyPolicies: z.array(PlayerLatencyPolicyStateSchema).optional(),
+  Destinations: z.array(GameSessionQueueDestinationStateSchema).optional(),
   NotificationTarget: z.string().optional(),
   FilterConfiguration: z.object({
     AllowedLocations: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string().optional(),
   CustomEventData: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Name: z.string(),
   PriorityConfiguration: z.object({
     PriorityOrder: z.array(z.string()),
     LocationOrder: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -217,7 +231,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift GameSessionQueue. Registered at `@swamp/aws/gamelift/game-session-queue`. */
 export const model = {
   type: "@swamp/aws/gamelift/game-session-queue",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -286,6 +300,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

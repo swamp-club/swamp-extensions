@@ -237,45 +237,47 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  actions: z.array(z.object({
-    agentUtterance: z.object({
-      text: z.string(),
-    }),
-    flowInvocation: z.object({
-      displayName: z.string(),
-      flow: z.string(),
-      flowState: z.string(),
-    }),
-    flowTransition: z.object({
-      displayName: z.string(),
-      flow: z.string(),
-    }),
-    playbookInvocation: z.object({
-      displayName: z.string(),
-      playbook: z.string(),
-      playbookInput: z.object({
-        precedingConversationSummary: z.string(),
-      }),
-      playbookOutput: z.object({
-        executionSummary: z.string(),
-      }),
-      playbookState: z.string(),
-    }),
-    playbookTransition: z.object({
-      displayName: z.string(),
-      playbook: z.string(),
-    }),
-    toolUse: z.object({
-      action: z.string(),
-      displayName: z.string(),
-      inputActionParameters: z.record(z.string(), z.unknown()),
-      outputActionParameters: z.record(z.string(), z.unknown()),
-      tool: z.string(),
-    }),
-    userUtterance: z.object({
-      text: z.string(),
-    }),
-  })).optional(),
+  actions: z.array(
+    z.object({
+      agentUtterance: z.object({
+        text: z.string(),
+      }).partial(),
+      flowInvocation: z.object({
+        displayName: z.string(),
+        flow: z.string(),
+        flowState: z.string(),
+      }).partial(),
+      flowTransition: z.object({
+        displayName: z.string(),
+        flow: z.string(),
+      }).partial(),
+      playbookInvocation: z.object({
+        displayName: z.string(),
+        playbook: z.string(),
+        playbookInput: z.object({
+          precedingConversationSummary: z.string(),
+        }).partial(),
+        playbookOutput: z.object({
+          executionSummary: z.string(),
+        }).partial(),
+        playbookState: z.string(),
+      }).partial(),
+      playbookTransition: z.object({
+        displayName: z.string(),
+        playbook: z.string(),
+      }).partial(),
+      toolUse: z.object({
+        action: z.string(),
+        displayName: z.string(),
+        inputActionParameters: z.record(z.string(), z.unknown()),
+        outputActionParameters: z.record(z.string(), z.unknown()),
+        tool: z.string(),
+      }).partial(),
+      userUtterance: z.object({
+        text: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   conversationState: z.string().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
@@ -284,10 +286,10 @@ const StateSchema = z.object({
   name: z.string(),
   playbookInput: z.object({
     precedingConversationSummary: z.string(),
-  }).optional(),
+  }).partial().optional(),
   playbookOutput: z.object({
     executionSummary: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tokenCount: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -409,7 +411,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.Playbooks.Examples. Registered at `@swamp/gcp/dialogflow/agents-playbooks-examples`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-playbooks-examples",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -543,6 +545,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

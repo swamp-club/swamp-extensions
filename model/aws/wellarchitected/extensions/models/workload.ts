@@ -126,14 +126,16 @@ const StateSchema = z.object({
   DiscoveryConfig: z.object({
     TrustedAdvisorIntegrationStatus: z.string(),
     WorkloadResourceDefinition: z.array(z.string()),
-  }).optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -213,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WellArchitected Workload. Registered at `@swamp/aws/wellarchitected/workload`. */
 export const model = {
   type: "@swamp/aws/wellarchitected/workload",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -237,6 +239,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

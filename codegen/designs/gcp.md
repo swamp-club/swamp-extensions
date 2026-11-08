@@ -1290,8 +1290,15 @@ annotations").
 
 ### StateSchema — simplified response parsing
 
-No constraints, `.passthrough()`. Primary identifier fields are non-optional;
-everything else is `.optional()`.
+No constraints, `.passthrough()`. Top-level primary identifier fields are
+non-optional; every other top-level field is `.optional()`, and every nested
+object is `.partial()` — no nested child is required, even when the discovery
+schema marks it required, because reads omit create-only parameters and
+conditional feature blocks (swamp-club #2487). Titled nested objects get a
+simplified `<Title>StateSchema` copy rather than reusing the input-side schema;
+GCP discovery schemas rarely carry titles, so GCP StateSchemas are almost
+entirely inline. See the AWS design doc ("StateSchema — simplified response
+parsing") for the naming and recursion rules, which are shared.
 
 ### InputsSchema
 

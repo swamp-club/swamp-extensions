@@ -70,6 +70,40 @@ const PerformanceTargetSchema = z.object({
   Level: z.number().int().min(1).max(100).optional(),
 });
 
+const ConfigParameterStateSchema = z.object({
+  ParameterKey: z.string(),
+  ParameterValue: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const NetworkInterfaceStateSchema = z.object({
+  NetworkInterfaceId: z.string(),
+  SubnetId: z.string(),
+  PrivateIpAddress: z.string(),
+  AvailabilityZone: z.string(),
+}).partial();
+
+const VpcEndpointStateSchema = z.object({
+  VpcEndpointId: z.string(),
+  VpcId: z.string(),
+  NetworkInterfaces: z.array(NetworkInterfaceStateSchema),
+}).partial();
+
+const EndpointStateSchema = z.object({
+  Address: z.string(),
+  Port: z.number(),
+  VpcEndpoints: z.array(VpcEndpointStateSchema),
+}).partial();
+
+const PerformanceTargetStateSchema = z.object({
+  Status: z.string(),
+  Level: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -150,17 +184,20 @@ const StateSchema = z.object({
   BaseCapacity: z.number().optional(),
   MaxCapacity: z.number().optional(),
   EnhancedVpcRouting: z.boolean().optional(),
-  ConfigParameters: z.array(ConfigParameterSchema).optional(),
+  ConfigParameters: z.array(ConfigParameterStateSchema).optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
   SubnetIds: z.array(z.string()).optional(),
   PubliclyAccessible: z.boolean().optional(),
   Port: z.number().optional(),
-  PricePerformanceTarget: PerformanceTargetSchema.optional(),
+  PricePerformanceTarget: z.object({
+    Status: z.string(),
+    Level: z.number(),
+  }).partial().optional(),
   SnapshotArn: z.string().optional(),
   SnapshotName: z.string().optional(),
   SnapshotOwnerAccount: z.string().optional(),
   RecoveryPointId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TrackName: z.string().optional(),
   Workgroup: z.object({
     WorkgroupId: z.string(),
@@ -170,19 +207,19 @@ const StateSchema = z.object({
     BaseCapacity: z.number(),
     MaxCapacity: z.number(),
     EnhancedVpcRouting: z.boolean(),
-    ConfigParameters: z.array(ConfigParameterSchema),
+    ConfigParameters: z.array(ConfigParameterStateSchema),
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
     Status: z.string(),
-    Endpoint: EndpointSchema,
+    Endpoint: EndpointStateSchema,
     PubliclyAccessible: z.boolean(),
     CreationDate: z.string(),
-    PricePerformanceTarget: PerformanceTargetSchema,
+    PricePerformanceTarget: PerformanceTargetStateSchema,
     TrackName: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -269,7 +306,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RedshiftServerless Workgroup. Registered at `@swamp/aws/redshiftserverless/workgroup`. */
 export const model = {
   type: "@swamp/aws/redshiftserverless/workgroup",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -347,6 +384,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

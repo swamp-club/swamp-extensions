@@ -76,6 +76,28 @@ const TagSchema = z.object({
   ),
 });
 
+const ParticipantRecordingHlsConfigurationStateSchema = z.object({
+  TargetSegmentDurationSeconds: z.number(),
+}).partial();
+
+const HlsConfigurationStateSchema = z.object({
+  ParticipantRecordingHlsConfiguration:
+    ParticipantRecordingHlsConfigurationStateSchema,
+}).partial();
+
+const ThumbnailConfigurationStateSchema = z.object({
+  ParticipantThumbnailConfiguration: z.object({
+    RecordingMode: z.string(),
+    Storage: z.array(z.string()),
+    TargetIntervalSeconds: z.number(),
+  }).partial(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -128,15 +150,15 @@ const StateSchema = z.object({
   AutoParticipantRecordingConfiguration: z.object({
     StorageConfigurationArn: z.string(),
     MediaTypes: z.array(z.string()),
-    HlsConfiguration: HlsConfigurationSchema,
+    HlsConfiguration: HlsConfigurationStateSchema,
     RecordingReconnectWindowSeconds: z.number(),
-    ThumbnailConfiguration: ThumbnailConfigurationSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    ThumbnailConfiguration: ThumbnailConfigurationStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ActiveSessionId: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -193,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IVS Stage. Registered at `@swamp/aws/ivs/stage`. */
 export const model = {
   type: "@swamp/aws/ivs/stage",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -252,6 +274,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

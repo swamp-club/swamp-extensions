@@ -57,6 +57,19 @@ const IpamOperatingRegionSchema = z.object({
   RegionName: z.string().describe("The name of the region."),
 });
 
+const IpamResourceDiscoveryOrganizationalUnitExclusionStateSchema = z.object({
+  OrganizationsEntityPath: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const IpamOperatingRegionStateSchema = z.object({
+  RegionName: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -88,7 +101,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   OrganizationalUnitExclusions: z.array(
-    IpamResourceDiscoveryOrganizationalUnitExclusionSchema,
+    IpamResourceDiscoveryOrganizationalUnitExclusionStateSchema,
   ).optional(),
   IsDefault: z.boolean().optional(),
   Description: z.string().optional(),
@@ -96,12 +109,12 @@ const StateSchema = z.object({
   State: z.string().optional(),
   IpamResourceDiscoveryRegion: z.string().optional(),
   IpamResourceDiscoveryArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   IpamResourceDiscoveryId: z.string(),
-  OperatingRegions: z.array(IpamOperatingRegionSchema).optional(),
+  OperatingRegions: z.array(IpamOperatingRegionStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -141,7 +154,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 IPAMResourceDiscovery. Registered at `@swamp/aws/ec2/ipamresource-discovery`. */
 export const model = {
   type: "@swamp/aws/ec2/ipamresource-discovery",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -205,6 +218,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

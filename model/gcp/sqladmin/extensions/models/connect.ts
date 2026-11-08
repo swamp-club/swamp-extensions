@@ -93,35 +93,45 @@ const StateSchema = z.object({
   customSubjectAlternativeNames: z.array(z.string()).optional(),
   databaseVersion: z.string().optional(),
   dnsName: z.string().optional(),
-  dnsNames: z.array(z.object({
-    connectionType: z.string(),
-    dnsScope: z.string(),
-    name: z.string(),
-    recordManager: z.string(),
-  })).optional(),
-  ipAddresses: z.array(z.object({
-    ipAddress: z.string(),
-    timeToRetire: z.string(),
-    type: z.string(),
-  })).optional(),
-  kind: z.string().optional(),
-  mdxProtocolSupport: z.array(z.string()).optional(),
-  nodeCount: z.number().optional(),
-  nodes: z.array(z.object({
-    dnsName: z.string(),
-    dnsNames: z.array(z.object({
+  dnsNames: z.array(
+    z.object({
       connectionType: z.string(),
       dnsScope: z.string(),
       name: z.string(),
       recordManager: z.string(),
-    })),
-    ipAddresses: z.array(z.object({
+    }).partial(),
+  ).optional(),
+  ipAddresses: z.array(
+    z.object({
       ipAddress: z.string(),
       timeToRetire: z.string(),
       type: z.string(),
-    })),
-    name: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
+  kind: z.string().optional(),
+  mdxProtocolSupport: z.array(z.string()).optional(),
+  nodeCount: z.number().optional(),
+  nodes: z.array(
+    z.object({
+      dnsName: z.string(),
+      dnsNames: z.array(
+        z.object({
+          connectionType: z.string(),
+          dnsScope: z.string(),
+          name: z.string(),
+          recordManager: z.string(),
+        }).partial(),
+      ),
+      ipAddresses: z.array(
+        z.object({
+          ipAddress: z.string(),
+          timeToRetire: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   pscEnabled: z.boolean().optional(),
   region: z.string().optional(),
   serverCaCert: z.object({
@@ -134,7 +144,7 @@ const StateSchema = z.object({
     kind: z.string(),
     selfLink: z.string(),
     sha1Fingerprint: z.string(),
-  }).optional(),
+  }).partial().optional(),
   serverCaMode: z.string().optional(),
 }).passthrough();
 
@@ -176,7 +186,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin Connect. Registered at `@swamp/gcp/sqladmin/connect`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/connect",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -320,6 +330,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

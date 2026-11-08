@@ -244,13 +244,13 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endTime: z.string().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   jobDetail: z.object({
     pipelineContext: z.object({
       createTime: z.string(),
@@ -264,7 +264,7 @@ const StateSchema = z.object({
       schemaTitle: z.string(),
       schemaVersion: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     pipelineRunContext: z.object({
       createTime: z.string(),
       description: z.string(),
@@ -277,68 +277,74 @@ const StateSchema = z.object({
       schemaTitle: z.string(),
       schemaVersion: z.string(),
       updateTime: z.string(),
-    }),
-    taskDetails: z.array(z.object({
-      createTime: z.string(),
-      endTime: z.string(),
-      error: z.object({
-        code: z.number(),
-        details: z.array(z.unknown()),
-        message: z.string(),
-      }),
-      execution: z.object({
+    }).partial(),
+    taskDetails: z.array(
+      z.object({
         createTime: z.string(),
-        description: z.string(),
-        displayName: z.string(),
-        etag: z.string(),
-        labels: z.record(z.string(), z.unknown()),
-        metadata: z.record(z.string(), z.unknown()),
-        name: z.string(),
-        schemaTitle: z.string(),
-        schemaVersion: z.string(),
+        endTime: z.string(),
+        error: z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+        execution: z.object({
+          createTime: z.string(),
+          description: z.string(),
+          displayName: z.string(),
+          etag: z.string(),
+          labels: z.record(z.string(), z.unknown()),
+          metadata: z.record(z.string(), z.unknown()),
+          name: z.string(),
+          schemaTitle: z.string(),
+          schemaVersion: z.string(),
+          state: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        executorDetail: z.object({
+          containerDetail: z.object({
+            failedMainJobs: z.unknown(),
+            failedPreCachingCheckJobs: z.unknown(),
+            mainJob: z.unknown(),
+            preCachingCheckJob: z.unknown(),
+          }).partial(),
+          customJobDetail: z.object({
+            failedJobs: z.unknown(),
+            job: z.unknown(),
+          }).partial(),
+        }).partial(),
+        inputs: z.record(z.string(), z.unknown()),
+        outputs: z.record(z.string(), z.unknown()),
+        parentTaskId: z.string(),
+        pipelineTaskStatus: z.array(
+          z.object({
+            error: z.unknown(),
+            state: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+        ),
+        startTime: z.string(),
         state: z.string(),
-        updateTime: z.string(),
-      }),
-      executorDetail: z.object({
-        containerDetail: z.object({
-          failedMainJobs: z.unknown(),
-          failedPreCachingCheckJobs: z.unknown(),
-          mainJob: z.unknown(),
-          preCachingCheckJob: z.unknown(),
-        }),
-        customJobDetail: z.object({
-          failedJobs: z.unknown(),
-          job: z.unknown(),
-        }),
-      }),
-      inputs: z.record(z.string(), z.unknown()),
-      outputs: z.record(z.string(), z.unknown()),
-      parentTaskId: z.string(),
-      pipelineTaskStatus: z.array(z.object({
-        error: z.unknown(),
-        state: z.unknown(),
-        updateTime: z.unknown(),
-      })),
-      startTime: z.string(),
-      state: z.string(),
-      taskId: z.string(),
-      taskName: z.string(),
-      taskUniqueName: z.string(),
-    })),
-  }).optional(),
+        taskId: z.string(),
+        taskName: z.string(),
+        taskUniqueName: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   network: z.string().optional(),
   pipelineSpec: z.record(z.string(), z.unknown()).optional(),
   preflightValidations: z.boolean().optional(),
   pscInterfaceConfig: z.object({
-    dnsPeeringConfigs: z.array(z.object({
-      domain: z.string(),
-      targetNetwork: z.string(),
-      targetProject: z.string(),
-    })),
+    dnsPeeringConfigs: z.array(
+      z.object({
+        domain: z.string(),
+        targetNetwork: z.string(),
+        targetProject: z.string(),
+      }).partial(),
+    ),
     networkAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reservedIpRanges: z.array(z.string()).optional(),
   runtimeConfig: z.object({
     failurePolicy: z.string(),
@@ -346,14 +352,14 @@ const StateSchema = z.object({
     inputArtifacts: z.record(z.string(), z.unknown()),
     parameterValues: z.record(z.string(), z.unknown()),
     parameters: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   scheduleName: z.string().optional(),
   serviceAccount: z.string().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
   templateMetadata: z.object({
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   templateUri: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -486,7 +492,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform PipelineJobs. Registered at `@swamp/gcp/aiplatform/pipelinejobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/pipelinejobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -663,6 +669,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

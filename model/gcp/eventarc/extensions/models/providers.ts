@@ -116,17 +116,21 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   displayName: z.string().optional(),
-  eventTypes: z.array(z.object({
-    description: z.string(),
-    eventSchemaUri: z.string(),
-    filteringAttributes: z.array(z.object({
-      attribute: z.string(),
+  eventTypes: z.array(
+    z.object({
       description: z.string(),
-      pathPatternSupported: z.boolean(),
-      required: z.boolean(),
-    })),
-    type: z.string(),
-  })).optional(),
+      eventSchemaUri: z.string(),
+      filteringAttributes: z.array(
+        z.object({
+          attribute: z.string(),
+          description: z.string(),
+          pathPatternSupported: z.boolean(),
+          required: z.boolean(),
+        }).partial(),
+      ),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
 }).passthrough();
 
@@ -171,7 +175,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Eventarc Providers. Registered at `@swamp/gcp/eventarc/providers`. */
 export const model = {
   type: "@swamp/gcp/eventarc/providers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -300,6 +304,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

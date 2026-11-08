@@ -233,18 +233,20 @@ const StateSchema = z.object({
   fulfillment: z.object({
     displayName: z.string(),
     enabled: z.boolean(),
-    features: z.array(z.object({
-      type: z.string(),
-    })),
+    features: z.array(
+      z.object({
+        type: z.string(),
+      }).partial(),
+    ),
     genericWebService: z.object({
       isCloudFunction: z.boolean(),
       password: z.string(),
       requestHeaders: z.record(z.string(), z.unknown()),
       uri: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   state: z.string().optional(),
   textToSpeechSettings: z.object({
@@ -252,7 +254,7 @@ const StateSchema = z.object({
     outputAudioEncoding: z.string(),
     sampleRateHertz: z.number(),
     synthesizeSpeechConfigs: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -361,7 +363,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agent.Environments. Registered at `@swamp/gcp/dialogflow/agent-environments`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agent-environments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -385,6 +387,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -139,6 +139,44 @@ const TagSchema = z.object({
   Key: z.string().min(1).max(128).describe("The key for this tag."),
 });
 
+const EndpointsStateSchema = z.object({
+  KafkaBootstrapServers: z.array(z.string()),
+}).partial();
+
+const FilterStateSchema = z.object({
+  Pattern: z.string(),
+}).partial();
+
+const OnFailureStateSchema = z.object({
+  Destination: z.string(),
+}).partial();
+
+const SchemaValidationConfigStateSchema = z.object({
+  Attribute: z.string(),
+}).partial();
+
+const SchemaRegistryAccessConfigStateSchema = z.object({
+  Type: z.string(),
+  URI: z.string(),
+}).partial();
+
+const SchemaRegistryConfigStateSchema = z.object({
+  SchemaValidationConfigs: z.array(SchemaValidationConfigStateSchema),
+  SchemaRegistryURI: z.string(),
+  EventRecordFormat: z.string(),
+  AccessConfigs: z.array(SchemaRegistryAccessConfigStateSchema),
+}).partial();
+
+const SourceAccessConfigurationStateSchema = z.object({
+  Type: z.string(),
+  URI: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -317,51 +355,51 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   StartingPosition: z.string().optional(),
   SelfManagedEventSource: z.object({
-    Endpoints: EndpointsSchema,
-  }).optional(),
+    Endpoints: EndpointsStateSchema,
+  }).partial().optional(),
   ParallelizationFactor: z.number().optional(),
   FilterCriteria: z.object({
-    Filters: z.array(FilterSchema),
-  }).optional(),
+    Filters: z.array(FilterStateSchema),
+  }).partial().optional(),
   ProvisionedPollerConfig: z.object({
     PollerGroupName: z.string(),
     MinimumPollers: z.number(),
     MaximumPollers: z.number(),
-  }).optional(),
+  }).partial().optional(),
   MetricsConfig: z.object({
     Metrics: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   FunctionName: z.string().optional(),
   DestinationConfig: z.object({
-    OnFailure: OnFailureSchema,
-  }).optional(),
+    OnFailure: OnFailureStateSchema,
+  }).partial().optional(),
   KmsKeyArn: z.string().optional(),
   AmazonManagedKafkaEventSourceConfig: z.object({
     ConsumerGroupId: z.string(),
-    SchemaRegistryConfig: SchemaRegistryConfigSchema,
-  }).optional(),
-  SourceAccessConfigurations: z.array(SourceAccessConfigurationSchema)
+    SchemaRegistryConfig: SchemaRegistryConfigStateSchema,
+  }).partial().optional(),
+  SourceAccessConfigurations: z.array(SourceAccessConfigurationStateSchema)
     .optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   MaximumBatchingWindowInSeconds: z.number().optional(),
   BatchSize: z.number().optional(),
   MaximumRetryAttempts: z.number().optional(),
   Topics: z.array(z.string()).optional(),
   ScalingConfig: z.object({
     MaximumConcurrency: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Enabled: z.boolean().optional(),
   EventSourceArn: z.string().optional(),
   SelfManagedKafkaEventSourceConfig: z.object({
     ConsumerGroupId: z.string(),
-    SchemaRegistryConfig: SchemaRegistryConfigSchema,
+    SchemaRegistryConfig: SchemaRegistryConfigStateSchema,
     ConsumptionMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DocumentDBEventSourceConfig: z.object({
     FullDocument: z.string(),
     CollectionName: z.string(),
     DatabaseName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   TumblingWindowInSeconds: z.number().optional(),
   BisectBatchOnFunctionError: z.boolean().optional(),
   EventSourceMappingArn: z.string().optional(),
@@ -369,13 +407,13 @@ const StateSchema = z.object({
   StartingPositionTimestamp: z.number().optional(),
   LoggingConfig: z.object({
     SystemLogLevel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Queues: z.array(z.string()).optional(),
   Id: z.string(),
   FunctionResponseTypes: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -561,7 +599,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda EventSourceMapping. Registered at `@swamp/aws/lambda/event-source-mapping`. */
 export const model = {
   type: "@swamp/aws/lambda/event-source-mapping",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -640,6 +678,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

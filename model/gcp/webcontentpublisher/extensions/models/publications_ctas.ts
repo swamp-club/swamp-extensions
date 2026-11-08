@@ -230,24 +230,26 @@ const StateSchema = z.object({
     nameRequired: z.boolean(),
     optInRequired: z.boolean(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   surveyConfig: z.object({
     customMessage: z.string(),
-    questions: z.array(z.object({
-      customQuestion: z.object({
-        answerChoices: z.array(z.unknown()),
-        categoryLabel: z.string(),
-        displayText: z.string(),
-        id: z.string(),
-      }),
-      presetQuestion: z.object({
-        answerIds: z.array(z.unknown()),
-        questionId: z.number(),
-      }),
-    })),
+    questions: z.array(
+      z.object({
+        customQuestion: z.object({
+          answerChoices: z.array(z.unknown()),
+          categoryLabel: z.string(),
+          displayText: z.string(),
+          id: z.string(),
+        }).partial(),
+        presetQuestion: z.object({
+          answerIds: z.array(z.unknown()),
+          questionId: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     reportUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   type: z.string().optional(),
 }).passthrough();
 
@@ -364,7 +366,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Web Content Publisher Publications.Ctas. Registered at `@swamp/gcp/webcontentpublisher/publications-ctas`. */
 export const model = {
   type: "@swamp/gcp/webcontentpublisher/publications-ctas",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -443,6 +445,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

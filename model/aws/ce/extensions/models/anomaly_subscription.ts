@@ -55,6 +55,17 @@ const ResourceTagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
+const SubscriberStateSchema = z.object({
+  Address: z.string(),
+  Status: z.string(),
+  Type: z.string(),
+}).partial();
+
+const ResourceTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -101,14 +112,14 @@ const StateSchema = z.object({
   SubscriptionName: z.string().optional(),
   AccountId: z.string().optional(),
   MonitorArnList: z.array(z.string()).optional(),
-  Subscribers: z.array(SubscriberSchema).optional(),
+  Subscribers: z.array(SubscriberStateSchema).optional(),
   Threshold: z.number().optional(),
   ThresholdExpression: z.string().optional(),
   Frequency: z.string().optional(),
-  ResourceTags: z.array(ResourceTagSchema).optional(),
+  ResourceTags: z.array(ResourceTagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -160,7 +171,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CE AnomalySubscription. Registered at `@swamp/aws/ce/anomaly-subscription`. */
 export const model = {
   type: "@swamp/aws/ce/anomaly-subscription",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -224,6 +235,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

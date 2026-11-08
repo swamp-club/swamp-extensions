@@ -153,15 +153,17 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   metadata: z.object({
     services: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   source: z.object({
-    files: z.array(z.object({
-      content: z.string(),
-      fingerprint: z.string(),
-      name: z.string(),
-    })),
-  }).optional(),
+    files: z.array(
+      z.object({
+        content: z.string(),
+        fingerprint: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -217,7 +219,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase Rules Rulesets. Registered at `@swamp/gcp/firebaserules/rulesets`. */
 export const model = {
   type: "@swamp/gcp/firebaserules/rulesets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +351,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

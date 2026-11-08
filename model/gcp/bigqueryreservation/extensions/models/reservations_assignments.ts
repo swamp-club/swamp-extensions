@@ -205,7 +205,7 @@ const StateSchema = z.object({
     expression: z.string(),
     location: z.string(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   enableGeminiInBigquery: z.boolean().optional(),
   jobType: z.string().optional(),
   name: z.string(),
@@ -214,7 +214,7 @@ const StateSchema = z.object({
   schedulingPolicy: z.object({
     concurrency: z.string(),
     maxSlots: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -313,7 +313,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Reservation Reservations.Assignments. Registered at `@swamp/gcp/bigqueryreservation/reservations-assignments`. */
 export const model = {
   type: "@swamp/gcp/bigqueryreservation/reservations-assignments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -533,6 +533,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

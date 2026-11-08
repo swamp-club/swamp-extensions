@@ -1644,10 +1644,10 @@ const StateSchema = z.object({
             kind: z.unknown(),
             language: z.unknown(),
             value: z.unknown(),
-          }),
+          }).partial(),
           kind: z.string(),
           translatedValues: z.array(z.unknown()),
-        }),
+        }).partial(),
         kind: z.string(),
         privateImageId: z.string(),
         sourceUri: z.object({
@@ -1656,10 +1656,10 @@ const StateSchema = z.object({
             defaultValue: z.unknown(),
             kind: z.unknown(),
             translatedValues: z.unknown(),
-          }),
+          }).partial(),
           uri: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       appTarget: z.object({
         packageName: z.string(),
         targetUri: z.object({
@@ -1670,50 +1670,56 @@ const StateSchema = z.object({
             defaultValue: z.unknown(),
             kind: z.unknown(),
             translatedValues: z.unknown(),
-          }),
+          }).partial(),
           uri: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       description: z.object({
         defaultValue: z.object({
           kind: z.string(),
           language: z.string(),
           value: z.string(),
-        }),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       title: z.object({
         defaultValue: z.object({
           kind: z.string(),
           language: z.string(),
           value: z.string(),
-        }),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
-    }),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
     displayText: z.object({
       defaultValue: z.object({
         kind: z.string(),
         language: z.string(),
         value: z.string(),
-      }),
+      }).partial(),
       kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translatedValues: z.array(
+        z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     iosAppLinkInfo: z.object({
       appLogoImage: z.object({
         contentDescription: z.object({
@@ -1721,10 +1727,10 @@ const StateSchema = z.object({
             kind: z.unknown(),
             language: z.unknown(),
             value: z.unknown(),
-          }),
+          }).partial(),
           kind: z.string(),
           translatedValues: z.array(z.unknown()),
-        }),
+        }).partial(),
         kind: z.string(),
         privateImageId: z.string(),
         sourceUri: z.object({
@@ -1733,10 +1739,10 @@ const StateSchema = z.object({
             defaultValue: z.unknown(),
             kind: z.unknown(),
             translatedValues: z.unknown(),
-          }),
+          }).partial(),
           uri: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       appTarget: z.object({
         packageName: z.string(),
         targetUri: z.object({
@@ -1747,37 +1753,41 @@ const StateSchema = z.object({
             defaultValue: z.unknown(),
             kind: z.unknown(),
             translatedValues: z.unknown(),
-          }),
+          }).partial(),
           uri: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       description: z.object({
         defaultValue: z.object({
           kind: z.string(),
           language: z.string(),
           value: z.string(),
-        }),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       title: z.object({
         defaultValue: z.object({
           kind: z.string(),
           language: z.string(),
           value: z.string(),
-        }),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
-    }),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
     webAppLinkInfo: z.object({
       appLogoImage: z.object({
         contentDescription: z.object({
@@ -1785,10 +1795,10 @@ const StateSchema = z.object({
             kind: z.unknown(),
             language: z.unknown(),
             value: z.unknown(),
-          }),
+          }).partial(),
           kind: z.string(),
           translatedValues: z.array(z.unknown()),
-        }),
+        }).partial(),
         kind: z.string(),
         privateImageId: z.string(),
         sourceUri: z.object({
@@ -1797,10 +1807,10 @@ const StateSchema = z.object({
             defaultValue: z.unknown(),
             kind: z.unknown(),
             translatedValues: z.unknown(),
-          }),
+          }).partial(),
           uri: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       appTarget: z.object({
         packageName: z.string(),
         targetUri: z.object({
@@ -1811,38 +1821,42 @@ const StateSchema = z.object({
             defaultValue: z.unknown(),
             kind: z.unknown(),
             translatedValues: z.unknown(),
-          }),
+          }).partial(),
           uri: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       description: z.object({
         defaultValue: z.object({
           kind: z.string(),
           language: z.string(),
           value: z.string(),
-        }),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       title: z.object({
         defaultValue: z.object({
           kind: z.string(),
           language: z.string(),
           value: z.string(),
-        }),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
-    }),
-  }).optional(),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   barcode: z.object({
     alternateText: z.string(),
     kind: z.string(),
@@ -1852,64 +1866,72 @@ const StateSchema = z.object({
         kind: z.string(),
         language: z.string(),
         value: z.string(),
-      }),
+      }).partial(),
       kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translatedValues: z.array(
+        z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cardTitle: z.object({
     defaultValue: z.object({
       kind: z.string(),
       language: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     kind: z.string(),
-    translatedValues: z.array(z.object({
-      kind: z.string(),
-      language: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
+    translatedValues: z.array(
+      z.object({
+        kind: z.string(),
+        language: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   classId: z.string().optional(),
   genericType: z.string().optional(),
   groupingInfo: z.object({
     groupingId: z.string(),
     sortIndex: z.number(),
-  }).optional(),
+  }).partial().optional(),
   hasUsers: z.boolean().optional(),
   header: z.object({
     defaultValue: z.object({
       kind: z.string(),
       language: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     kind: z.string(),
-    translatedValues: z.array(z.object({
-      kind: z.string(),
-      language: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
+    translatedValues: z.array(
+      z.object({
+        kind: z.string(),
+        language: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   heroImage: z.object({
     contentDescription: z.object({
       defaultValue: z.object({
         kind: z.string(),
         language: z.string(),
         value: z.string(),
-      }),
+      }).partial(),
       kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translatedValues: z.array(
+        z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     kind: z.string(),
     privateImageId: z.string(),
     sourceUri: z.object({
@@ -1919,76 +1941,84 @@ const StateSchema = z.object({
           kind: z.string(),
           language: z.string(),
           value: z.string(),
-        }),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       uri: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   hexBackgroundColor: z.string().optional(),
   id: z.string(),
-  imageModulesData: z.array(z.object({
-    id: z.string(),
-    mainImage: z.object({
-      contentDescription: z.object({
-        defaultValue: z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        }),
+  imageModulesData: z.array(
+    z.object({
+      id: z.string(),
+      mainImage: z.object({
+        contentDescription: z.object({
+          defaultValue: z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          translatedValues: z.array(z.unknown()),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.unknown()),
-      }),
-      kind: z.string(),
-      privateImageId: z.string(),
-      sourceUri: z.object({
-        description: z.string(),
-        localizedDescription: z.object({
-          defaultValue: z.unknown(),
-          kind: z.unknown(),
-          translatedValues: z.unknown(),
-        }),
-        uri: z.string(),
-      }),
-    }),
-  })).optional(),
+        privateImageId: z.string(),
+        sourceUri: z.object({
+          description: z.string(),
+          localizedDescription: z.object({
+            defaultValue: z.unknown(),
+            kind: z.unknown(),
+            translatedValues: z.unknown(),
+          }).partial(),
+          uri: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   linkedObjectIds: z.array(z.string()).optional(),
   linksModuleData: z.object({
-    uris: z.array(z.object({
-      description: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      localizedDescription: z.object({
-        defaultValue: z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        }),
+    uris: z.array(
+      z.object({
+        description: z.string(),
+        id: z.string(),
         kind: z.string(),
-        translatedValues: z.array(z.unknown()),
-      }),
-      uri: z.string(),
-    })),
-  }).optional(),
+        localizedDescription: z.object({
+          defaultValue: z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          translatedValues: z.array(z.unknown()),
+        }).partial(),
+        uri: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   logo: z.object({
     contentDescription: z.object({
       defaultValue: z.object({
         kind: z.string(),
         language: z.string(),
         value: z.string(),
-      }),
+      }).partial(),
       kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translatedValues: z.array(
+        z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     kind: z.string(),
     privateImageId: z.string(),
     sourceUri: z.object({
@@ -1998,110 +2028,124 @@ const StateSchema = z.object({
           kind: z.string(),
           language: z.string(),
           value: z.string(),
-        }),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       uri: z.string(),
-    }),
-  }).optional(),
-  merchantLocations: z.array(z.object({
-    latitude: z.number(),
-    longitude: z.number(),
-  })).optional(),
-  messages: z.array(z.object({
-    body: z.string(),
-    displayInterval: z.object({
-      end: z.object({
-        date: z.string(),
-      }),
-      kind: z.string(),
-      start: z.object({
-        date: z.string(),
-      }),
-    }),
-    header: z.string(),
-    id: z.string(),
-    kind: z.string(),
-    localizedBody: z.object({
-      defaultValue: z.object({
+    }).partial(),
+  }).partial().optional(),
+  merchantLocations: z.array(
+    z.object({
+      latitude: z.number(),
+      longitude: z.number(),
+    }).partial(),
+  ).optional(),
+  messages: z.array(
+    z.object({
+      body: z.string(),
+      displayInterval: z.object({
+        end: z.object({
+          date: z.string(),
+        }).partial(),
         kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      }),
+        start: z.object({
+          date: z.string(),
+        }).partial(),
+      }).partial(),
+      header: z.string(),
+      id: z.string(),
       kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.unknown(),
-        language: z.unknown(),
-        value: z.unknown(),
-      })),
-    }),
-    localizedHeader: z.object({
-      defaultValue: z.object({
+      localizedBody: z.object({
+        defaultValue: z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
         kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      }),
-      kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.unknown(),
-        language: z.unknown(),
-        value: z.unknown(),
-      })),
-    }),
-    messageType: z.string(),
-  })).optional(),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      localizedHeader: z.object({
+        defaultValue: z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
+        kind: z.string(),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      messageType: z.string(),
+    }).partial(),
+  ).optional(),
   notifications: z.object({
     expiryNotification: z.object({
       enableNotification: z.boolean(),
-    }),
+    }).partial(),
     upcomingNotification: z.object({
       enableNotification: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   passConstraints: z.object({
     nfcConstraint: z.array(z.string()),
     screenshotEligibility: z.string(),
-  }).optional(),
+  }).partial().optional(),
   rotatingBarcode: z.object({
     alternateText: z.string(),
     initialRotatingBarcodeValues: z.object({
       periodMillis: z.string(),
       startDateTime: z.string(),
       values: z.array(z.string()),
-    }),
+    }).partial(),
     renderEncoding: z.string(),
     showCodeText: z.object({
       defaultValue: z.object({
         kind: z.string(),
         language: z.string(),
         value: z.string(),
-      }),
+      }).partial(),
       kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translatedValues: z.array(
+        z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     totpDetails: z.object({
       algorithm: z.string(),
-      parameters: z.array(z.object({
-        key: z.string(),
-        valueLength: z.number(),
-      })),
+      parameters: z.array(
+        z.object({
+          key: z.string(),
+          valueLength: z.number(),
+        }).partial(),
+      ),
       periodMillis: z.string(),
-    }),
+    }).partial(),
     type: z.string(),
     valuePattern: z.string(),
-  }).optional(),
+  }).partial().optional(),
   saveRestrictions: z.object({
     restrictToEmailSha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   smartTapRedemptionValue: z.string().optional(),
   state: z.string().optional(),
   subheader: z.object({
@@ -2109,131 +2153,147 @@ const StateSchema = z.object({
       kind: z.string(),
       language: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     kind: z.string(),
-    translatedValues: z.array(z.object({
-      kind: z.string(),
-      language: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
-  textModulesData: z.array(z.object({
-    body: z.string(),
-    header: z.string(),
-    id: z.string(),
-    localizedBody: z.object({
-      defaultValue: z.object({
+    translatedValues: z.array(
+      z.object({
         kind: z.string(),
         language: z.string(),
         value: z.string(),
-      }),
-      kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.unknown(),
-        language: z.unknown(),
-        value: z.unknown(),
-      })),
-    }),
-    localizedHeader: z.object({
-      defaultValue: z.object({
+      }).partial(),
+    ),
+  }).partial().optional(),
+  textModulesData: z.array(
+    z.object({
+      body: z.string(),
+      header: z.string(),
+      id: z.string(),
+      localizedBody: z.object({
+        defaultValue: z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
         kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      }),
-      kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.unknown(),
-        language: z.unknown(),
-        value: z.unknown(),
-      })),
-    }),
-  })).optional(),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      localizedHeader: z.object({
+        defaultValue: z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
+        kind: z.string(),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   validTimeInterval: z.object({
     end: z.object({
       date: z.string(),
-    }),
+    }).partial(),
     kind: z.string(),
     start: z.object({
       date: z.string(),
-    }),
-  }).optional(),
-  valueAddedModuleData: z.array(z.object({
-    body: z.object({
-      defaultValue: z.object({
-        kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      }),
-      kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.unknown(),
-        language: z.unknown(),
-        value: z.unknown(),
-      })),
-    }),
-    header: z.object({
-      defaultValue: z.object({
-        kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      }),
-      kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.unknown(),
-        language: z.unknown(),
-        value: z.unknown(),
-      })),
-    }),
-    image: z.object({
-      contentDescription: z.object({
+    }).partial(),
+  }).partial().optional(),
+  valueAddedModuleData: z.array(
+    z.object({
+      body: z.object({
         defaultValue: z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        }),
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.unknown()),
-      }),
-      kind: z.string(),
-      privateImageId: z.string(),
-      sourceUri: z.object({
-        description: z.string(),
-        localizedDescription: z.object({
-          defaultValue: z.unknown(),
-          kind: z.unknown(),
-          translatedValues: z.unknown(),
-        }),
-        uri: z.string(),
-      }),
-    }),
-    sortIndex: z.number(),
-    uri: z.string(),
-    viewConstraints: z.object({
-      displayInterval: z.object({
-        end: z.object({
-          date: z.unknown(),
-        }),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      header: z.object({
+        defaultValue: z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
         kind: z.string(),
-        start: z.object({
-          date: z.unknown(),
-        }),
-      }),
-    }),
-  })).optional(),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      image: z.object({
+        contentDescription: z.object({
+          defaultValue: z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          translatedValues: z.array(z.unknown()),
+        }).partial(),
+        kind: z.string(),
+        privateImageId: z.string(),
+        sourceUri: z.object({
+          description: z.string(),
+          localizedDescription: z.object({
+            defaultValue: z.unknown(),
+            kind: z.unknown(),
+            translatedValues: z.unknown(),
+          }).partial(),
+          uri: z.string(),
+        }).partial(),
+      }).partial(),
+      sortIndex: z.number(),
+      uri: z.string(),
+      viewConstraints: z.object({
+        displayInterval: z.object({
+          end: z.object({
+            date: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          start: z.object({
+            date: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   wideLogo: z.object({
     contentDescription: z.object({
       defaultValue: z.object({
         kind: z.string(),
         language: z.string(),
         value: z.string(),
-      }),
+      }).partial(),
       kind: z.string(),
-      translatedValues: z.array(z.object({
-        kind: z.string(),
-        language: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translatedValues: z.array(
+        z.object({
+          kind: z.string(),
+          language: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     kind: z.string(),
     privateImageId: z.string(),
     sourceUri: z.object({
@@ -2243,17 +2303,19 @@ const StateSchema = z.object({
           kind: z.string(),
           language: z.string(),
           value: z.string(),
-        }),
+        }).partial(),
         kind: z.string(),
-        translatedValues: z.array(z.object({
-          kind: z.unknown(),
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        translatedValues: z.array(
+          z.object({
+            kind: z.unknown(),
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       uri: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -3805,7 +3867,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Wallet Genericobject. Registered at `@swamp/gcp/walletobjects/genericobject`. */
 export const model = {
   type: "@swamp/gcp/walletobjects/genericobject",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3949,6 +4011,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

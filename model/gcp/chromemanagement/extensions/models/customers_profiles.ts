@@ -153,7 +153,7 @@ const StateSchema = z.object({
     keyTrustLevel: z.string(),
     keyType: z.string(),
     publicKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   browserChannel: z.string().optional(),
   browserVersion: z.string().optional(),
   deviceInfo: z.object({
@@ -161,7 +161,7 @@ const StateSchema = z.object({
     deviceType: z.string(),
     hostname: z.string(),
     machine: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
   extensionCount: z.string().optional(),
@@ -180,42 +180,52 @@ const StateSchema = z.object({
   profilePermanentId: z.string().optional(),
   reportingData: z.object({
     browserExecutablePath: z.string(),
-    extensionData: z.array(z.object({
-      description: z.string(),
-      extensionId: z.string(),
-      extensionType: z.string(),
-      homepageUri: z.string(),
-      installationType: z.string(),
-      isDisabled: z.boolean(),
-      isWebstoreExtension: z.boolean(),
-      manifestVersion: z.number(),
-      name: z.string(),
-      permissions: z.array(z.string()),
-      version: z.string(),
-    })),
-    extensionPolicyData: z.array(z.object({
-      extensionId: z.string(),
-      extensionName: z.string(),
-      policyData: z.array(z.object({
-        conflicts: z.unknown(),
-        error: z.unknown(),
-        name: z.unknown(),
-        source: z.unknown(),
-        value: z.unknown(),
-      })),
-    })),
+    extensionData: z.array(
+      z.object({
+        description: z.string(),
+        extensionId: z.string(),
+        extensionType: z.string(),
+        homepageUri: z.string(),
+        installationType: z.string(),
+        isDisabled: z.boolean(),
+        isWebstoreExtension: z.boolean(),
+        manifestVersion: z.number(),
+        name: z.string(),
+        permissions: z.array(z.string()),
+        version: z.string(),
+      }).partial(),
+    ),
+    extensionPolicyData: z.array(
+      z.object({
+        extensionId: z.string(),
+        extensionName: z.string(),
+        policyData: z.array(
+          z.object({
+            conflicts: z.unknown(),
+            error: z.unknown(),
+            name: z.unknown(),
+            source: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
     installedBrowserVersion: z.string(),
-    policyData: z.array(z.object({
-      conflicts: z.array(z.object({
-        source: z.unknown(),
-      })),
-      error: z.string(),
-      name: z.string(),
-      source: z.string(),
-      value: z.string(),
-    })),
+    policyData: z.array(
+      z.object({
+        conflicts: z.array(
+          z.object({
+            source: z.unknown(),
+          }).partial(),
+        ),
+        error: z.string(),
+        name: z.string(),
+        source: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     profilePath: z.string(),
-  }).optional(),
+  }).partial().optional(),
   supportsFcmNotifications: z.boolean().optional(),
   userEmail: z.string().optional(),
   userId: z.string().optional(),
@@ -262,7 +272,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.Profiles. Registered at `@swamp/gcp/chromemanagement/customers-profiles`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-profiles",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -396,6 +406,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

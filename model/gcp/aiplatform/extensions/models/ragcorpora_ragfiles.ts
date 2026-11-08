@@ -134,63 +134,73 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   description: z.string().optional(),
-  directUploadSource: z.object({}).optional(),
+  directUploadSource: z.object({}).partial().optional(),
   displayName: z.string().optional(),
   fileStatus: z.object({
     errorStatus: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcsSource: z.object({
     uris: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   googleDriveSource: z.object({
-    resourceIds: z.array(z.object({
-      resourceId: z.string(),
-      resourceType: z.string(),
-    })),
-  }).optional(),
+    resourceIds: z.array(
+      z.object({
+        resourceId: z.string(),
+        resourceType: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   jiraSource: z.object({
-    jiraQueries: z.array(z.object({
-      apiKeyConfig: z.object({
-        apiKeySecretVersion: z.string(),
-        apiKeyString: z.string(),
-      }),
-      customQueries: z.array(z.string()),
-      email: z.string(),
-      projects: z.array(z.string()),
-      serverUri: z.string(),
-    })),
-  }).optional(),
+    jiraQueries: z.array(
+      z.object({
+        apiKeyConfig: z.object({
+          apiKeySecretVersion: z.string(),
+          apiKeyString: z.string(),
+        }).partial(),
+        customQueries: z.array(z.string()),
+        email: z.string(),
+        projects: z.array(z.string()),
+        serverUri: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   sharePointSources: z.object({
-    sharePointSources: z.array(z.object({
-      clientId: z.string(),
-      clientSecret: z.object({
-        apiKeySecretVersion: z.string(),
-        apiKeyString: z.string(),
-      }),
-      driveId: z.string(),
-      driveName: z.string(),
-      fileId: z.string(),
-      sharepointFolderId: z.string(),
-      sharepointFolderPath: z.string(),
-      sharepointSiteName: z.string(),
-      tenantId: z.string(),
-    })),
-  }).optional(),
+    sharePointSources: z.array(
+      z.object({
+        clientId: z.string(),
+        clientSecret: z.object({
+          apiKeySecretVersion: z.string(),
+          apiKeyString: z.string(),
+        }).partial(),
+        driveId: z.string(),
+        driveName: z.string(),
+        fileId: z.string(),
+        sharepointFolderId: z.string(),
+        sharepointFolderPath: z.string(),
+        sharepointSiteName: z.string(),
+        tenantId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   slackSource: z.object({
-    channels: z.array(z.object({
-      apiKeyConfig: z.object({
-        apiKeySecretVersion: z.string(),
-        apiKeyString: z.string(),
-      }),
-      channels: z.array(z.object({
-        channelId: z.unknown(),
-        endTime: z.unknown(),
-        startTime: z.unknown(),
-      })),
-    })),
-  }).optional(),
+    channels: z.array(
+      z.object({
+        apiKeyConfig: z.object({
+          apiKeySecretVersion: z.string(),
+          apiKeyString: z.string(),
+        }).partial(),
+        channels: z.array(
+          z.object({
+            channelId: z.unknown(),
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   userMetadata: z.string().optional(),
 }).passthrough();
@@ -239,7 +249,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform RagCorpora.RagFiles. Registered at `@swamp/gcp/aiplatform/ragcorpora-ragfiles`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/ragcorpora-ragfiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -403,6 +413,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

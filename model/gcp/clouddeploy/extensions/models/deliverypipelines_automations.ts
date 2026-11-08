@@ -416,85 +416,91 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  rules: z.array(z.object({
-    advanceRolloutRule: z.object({
-      condition: z.object({
-        targetsPresentCondition: z.object({
-          missingTargets: z.unknown(),
-          status: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        timedPromoteReleaseCondition: z.object({
-          nextPromotionTime: z.unknown(),
-          targetsList: z.unknown(),
-        }),
-      }),
-      id: z.string(),
-      sourcePhases: z.array(z.string()),
-      wait: z.string(),
-    }),
-    promoteReleaseRule: z.object({
-      condition: z.object({
-        targetsPresentCondition: z.object({
-          missingTargets: z.unknown(),
-          status: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        timedPromoteReleaseCondition: z.object({
-          nextPromotionTime: z.unknown(),
-          targetsList: z.unknown(),
-        }),
-      }),
-      destinationPhase: z.string(),
-      destinationTargetId: z.string(),
-      id: z.string(),
-      wait: z.string(),
-    }),
-    repairRolloutRule: z.object({
-      condition: z.object({
-        targetsPresentCondition: z.object({
-          missingTargets: z.unknown(),
-          status: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        timedPromoteReleaseCondition: z.object({
-          nextPromotionTime: z.unknown(),
-          targetsList: z.unknown(),
-        }),
-      }),
-      id: z.string(),
-      jobs: z.array(z.string()),
-      phases: z.array(z.string()),
-      repairPhases: z.array(z.object({
-        retry: z.unknown(),
-        rollback: z.unknown(),
-      })),
-    }),
-    timedPromoteReleaseRule: z.object({
-      condition: z.object({
-        targetsPresentCondition: z.object({
-          missingTargets: z.unknown(),
-          status: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        timedPromoteReleaseCondition: z.object({
-          nextPromotionTime: z.unknown(),
-          targetsList: z.unknown(),
-        }),
-      }),
-      destinationPhase: z.string(),
-      destinationTargetId: z.string(),
-      id: z.string(),
-      schedule: z.string(),
-      timeZone: z.string(),
-    }),
-  })).optional(),
+  rules: z.array(
+    z.object({
+      advanceRolloutRule: z.object({
+        condition: z.object({
+          targetsPresentCondition: z.object({
+            missingTargets: z.unknown(),
+            status: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          timedPromoteReleaseCondition: z.object({
+            nextPromotionTime: z.unknown(),
+            targetsList: z.unknown(),
+          }).partial(),
+        }).partial(),
+        id: z.string(),
+        sourcePhases: z.array(z.string()),
+        wait: z.string(),
+      }).partial(),
+      promoteReleaseRule: z.object({
+        condition: z.object({
+          targetsPresentCondition: z.object({
+            missingTargets: z.unknown(),
+            status: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          timedPromoteReleaseCondition: z.object({
+            nextPromotionTime: z.unknown(),
+            targetsList: z.unknown(),
+          }).partial(),
+        }).partial(),
+        destinationPhase: z.string(),
+        destinationTargetId: z.string(),
+        id: z.string(),
+        wait: z.string(),
+      }).partial(),
+      repairRolloutRule: z.object({
+        condition: z.object({
+          targetsPresentCondition: z.object({
+            missingTargets: z.unknown(),
+            status: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          timedPromoteReleaseCondition: z.object({
+            nextPromotionTime: z.unknown(),
+            targetsList: z.unknown(),
+          }).partial(),
+        }).partial(),
+        id: z.string(),
+        jobs: z.array(z.string()),
+        phases: z.array(z.string()),
+        repairPhases: z.array(
+          z.object({
+            retry: z.unknown(),
+            rollback: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      timedPromoteReleaseRule: z.object({
+        condition: z.object({
+          targetsPresentCondition: z.object({
+            missingTargets: z.unknown(),
+            status: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          timedPromoteReleaseCondition: z.object({
+            nextPromotionTime: z.unknown(),
+            targetsList: z.unknown(),
+          }).partial(),
+        }).partial(),
+        destinationPhase: z.string(),
+        destinationTargetId: z.string(),
+        id: z.string(),
+        schedule: z.string(),
+        timeZone: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   selector: z.object({
-    targets: z.array(z.object({
-      id: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-    })),
-  }).optional(),
+    targets: z.array(
+      z.object({
+        id: z.string(),
+        labels: z.record(z.string(), z.unknown()),
+      }).partial(),
+    ),
+  }).partial().optional(),
   serviceAccount: z.string().optional(),
   suspended: z.boolean().optional(),
   uid: z.string().optional(),
@@ -756,7 +762,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deploy DeliveryPipelines.Automations. Registered at `@swamp/gcp/clouddeploy/deliverypipelines-automations`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/deliverypipelines-automations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -905,6 +911,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

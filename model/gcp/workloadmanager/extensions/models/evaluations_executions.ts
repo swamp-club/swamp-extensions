@@ -141,30 +141,36 @@ const StateSchema = z.object({
   endTime: z.string().optional(),
   engine: z.string().optional(),
   evaluationId: z.string().optional(),
-  externalDataSources: z.array(z.object({
-    assetType: z.string(),
-    name: z.string(),
-    type: z.string(),
-    uri: z.string(),
-  })).optional(),
+  externalDataSources: z.array(
+    z.object({
+      assetType: z.string(),
+      name: z.string(),
+      type: z.string(),
+      uri: z.string(),
+    }).partial(),
+  ).optional(),
   inventoryTime: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  notices: z.array(z.object({
-    message: z.string(),
-  })).optional(),
+  notices: z.array(
+    z.object({
+      message: z.string(),
+    }).partial(),
+  ).optional(),
   resultSummary: z.object({
     failures: z.string(),
     newFailures: z.string(),
     newFixes: z.string(),
-  }).optional(),
-  ruleResults: z.array(z.object({
-    message: z.string(),
-    resultCount: z.string(),
-    rule: z.string(),
-    scannedResourceCount: z.string(),
-    state: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  ruleResults: z.array(
+    z.object({
+      message: z.string(),
+      resultCount: z.string(),
+      rule: z.string(),
+      scannedResourceCount: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   runType: z.string().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
@@ -214,7 +220,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workload Manager Evaluations.Executions. Registered at `@swamp/gcp/workloadmanager/evaluations-executions`. */
 export const model = {
   type: "@swamp/gcp/workloadmanager/evaluations-executions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -343,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

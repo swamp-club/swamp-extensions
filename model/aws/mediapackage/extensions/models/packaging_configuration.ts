@@ -174,6 +174,70 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const EncryptionContractConfigurationStateSchema = z.object({
+  PresetSpeke20Audio: z.string(),
+  PresetSpeke20Video: z.string(),
+}).partial();
+
+const SpekeKeyProviderStateSchema = z.object({
+  EncryptionContractConfiguration: EncryptionContractConfigurationStateSchema,
+  RoleArn: z.string(),
+  SystemIds: z.array(z.string()),
+  Url: z.string(),
+}).partial();
+
+const CmafEncryptionStateSchema = z.object({
+  SpekeKeyProvider: SpekeKeyProviderStateSchema,
+}).partial();
+
+const StreamSelectionStateSchema = z.object({
+  MaxVideoBitsPerSecond: z.number(),
+  MinVideoBitsPerSecond: z.number(),
+  StreamOrder: z.string(),
+}).partial();
+
+const HlsManifestStateSchema = z.object({
+  AdMarkers: z.string(),
+  IncludeIframeOnlyStream: z.boolean(),
+  ManifestName: z.string(),
+  ProgramDateTimeIntervalSeconds: z.number(),
+  RepeatExtXKey: z.boolean(),
+  StreamSelection: StreamSelectionStateSchema,
+}).partial();
+
+const DashManifestStateSchema = z.object({
+  ManifestLayout: z.string(),
+  ManifestName: z.string(),
+  MinBufferTimeSeconds: z.number(),
+  Profile: z.string(),
+  ScteMarkersSource: z.string(),
+  StreamSelection: StreamSelectionStateSchema,
+}).partial();
+
+const DashEncryptionStateSchema = z.object({
+  SpekeKeyProvider: SpekeKeyProviderStateSchema,
+}).partial();
+
+const HlsEncryptionStateSchema = z.object({
+  ConstantInitializationVector: z.string(),
+  EncryptionMethod: z.string(),
+  SpekeKeyProvider: SpekeKeyProviderStateSchema,
+}).partial();
+
+const MssEncryptionStateSchema = z.object({
+  SpekeKeyProvider: SpekeKeyProviderStateSchema,
+}).partial();
+
+const MssManifestStateSchema = z.object({
+  ManifestName: z.string(),
+  StreamSelection: StreamSelectionStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -272,36 +336,36 @@ const StateSchema = z.object({
   PackagingGroupId: z.string().optional(),
   Arn: z.string().optional(),
   CmafPackage: z.object({
-    Encryption: CmafEncryptionSchema,
-    HlsManifests: z.array(HlsManifestSchema),
+    Encryption: CmafEncryptionStateSchema,
+    HlsManifests: z.array(HlsManifestStateSchema),
     SegmentDurationSeconds: z.number(),
     IncludeEncoderConfigurationInSegments: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   DashPackage: z.object({
-    DashManifests: z.array(DashManifestSchema),
-    Encryption: DashEncryptionSchema,
+    DashManifests: z.array(DashManifestStateSchema),
+    Encryption: DashEncryptionStateSchema,
     PeriodTriggers: z.array(z.string()),
     SegmentDurationSeconds: z.number(),
     SegmentTemplateFormat: z.string(),
     IncludeEncoderConfigurationInSegments: z.boolean(),
     IncludeIframeOnlyStream: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   HlsPackage: z.object({
-    Encryption: HlsEncryptionSchema,
-    HlsManifests: z.array(HlsManifestSchema),
+    Encryption: HlsEncryptionStateSchema,
+    HlsManifests: z.array(HlsManifestStateSchema),
     IncludeDvbSubtitles: z.boolean(),
     SegmentDurationSeconds: z.number(),
     UseAudioRenditionGroup: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   MssPackage: z.object({
-    Encryption: MssEncryptionSchema,
-    MssManifests: z.array(MssManifestSchema),
+    Encryption: MssEncryptionStateSchema,
+    MssManifests: z.array(MssManifestStateSchema),
     SegmentDurationSeconds: z.number(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -407,7 +471,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackage PackagingConfiguration. Registered at `@swamp/aws/mediapackage/packaging-configuration`. */
 export const model = {
   type: "@swamp/aws/mediapackage/packaging-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -471,6 +535,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -305,43 +305,45 @@ const StateSchema = z.object({
   expireTime: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   managed: z.object({
-    authorizationAttemptInfo: z.array(z.object({
-      attemptTime: z.string(),
-      details: z.string(),
-      domain: z.string(),
-      failureReason: z.string(),
-      state: z.string(),
-      troubleshooting: z.object({
-        cname: z.object({
-          expectedData: z.unknown(),
-          name: z.unknown(),
-          resolvedData: z.unknown(),
-        }),
-        ips: z.object({
-          resolved: z.unknown(),
-          serving: z.unknown(),
-          servingOnAltPorts: z.unknown(),
-        }),
-        issues: z.array(z.unknown()),
-      }),
-    })),
+    authorizationAttemptInfo: z.array(
+      z.object({
+        attemptTime: z.string(),
+        details: z.string(),
+        domain: z.string(),
+        failureReason: z.string(),
+        state: z.string(),
+        troubleshooting: z.object({
+          cname: z.object({
+            expectedData: z.unknown(),
+            name: z.unknown(),
+            resolvedData: z.unknown(),
+          }).partial(),
+          ips: z.object({
+            resolved: z.unknown(),
+            serving: z.unknown(),
+            servingOnAltPorts: z.unknown(),
+          }).partial(),
+          issues: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    ),
     dnsAuthorizations: z.array(z.string()),
     domains: z.array(z.string()),
     issuanceConfig: z.string(),
     provisioningIssue: z.object({
       details: z.string(),
       reason: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   managedIdentity: z.object({
     identity: z.string(),
     provisioningIssue: z.object({
       details: z.string(),
       reason: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   pemCertificate: z.string().optional(),
   sanDnsnames: z.array(z.string()).optional(),
@@ -349,12 +351,14 @@ const StateSchema = z.object({
   selfManaged: z.object({
     pemCertificate: z.string(),
     pemPrivateKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tags: z.record(z.string(), z.unknown()).optional(),
   updateTime: z.string().optional(),
-  usedBy: z.array(z.object({
-    name: z.string(),
-  })).optional(),
+  usedBy: z.array(
+    z.object({
+      name: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -531,7 +535,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Certificate Manager Certificates. Registered at `@swamp/gcp/certificatemanager/certificates`. */
 export const model = {
   type: "@swamp/gcp/certificatemanager/certificates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -675,6 +679,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -116,6 +116,53 @@ const RecipeSelectionSchema = z.object({
   SemanticVersion: z.string().describe("The recipe version."),
 });
 
+const IncludeResourcesStateSchema = z.object({
+  Amis: z.boolean(),
+  Containers: z.boolean(),
+  Snapshots: z.boolean(),
+}).partial();
+
+const ActionStateSchema = z.object({
+  Type: z.string(),
+  IncludeResources: IncludeResourcesStateSchema,
+}).partial();
+
+const FilterStateSchema = z.object({
+  Type: z.string(),
+  Value: z.number(),
+  Unit: z.string(),
+  RetainAtLeast: z.number(),
+}).partial();
+
+const LastLaunchedStateSchema = z.object({
+  Value: z.number(),
+  Unit: z.string(),
+}).partial();
+
+const AmiExclusionRulesStateSchema = z.object({
+  IsPublic: z.boolean(),
+  Regions: z.array(z.string()),
+  SharedAccounts: z.array(z.string()),
+  LastLaunched: LastLaunchedStateSchema,
+  TagMap: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ExclusionRulesStateSchema = z.object({
+  TagMap: z.record(z.string(), z.unknown()),
+  Amis: AmiExclusionRulesStateSchema,
+}).partial();
+
+const PolicyDetailStateSchema = z.object({
+  Action: ActionStateSchema,
+  Filter: FilterStateSchema,
+  ExclusionRules: ExclusionRulesStateSchema,
+}).partial();
+
+const RecipeSelectionStateSchema = z.object({
+  Name: z.string(),
+  SemanticVersion: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -166,15 +213,15 @@ const StateSchema = z.object({
   Status: z.string().optional(),
   ExecutionRole: z.string().optional(),
   ResourceType: z.string().optional(),
-  PolicyDetails: z.array(PolicyDetailSchema).optional(),
+  PolicyDetails: z.array(PolicyDetailStateSchema).optional(),
   ResourceSelection: z.object({
-    Recipes: z.array(RecipeSelectionSchema),
+    Recipes: z.array(RecipeSelectionStateSchema),
     TagMap: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -228,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder LifecyclePolicy. Registered at `@swamp/aws/imagebuilder/lifecycle-policy`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/lifecycle-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -292,6 +339,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

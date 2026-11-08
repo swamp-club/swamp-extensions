@@ -258,26 +258,28 @@ const StateSchema = z.object({
   linkedYoutubeAsset: z.object({
     affiliateLocationAssetFilter: z.object({
       affiliateLocationMatchingFunction: z.object({
-        chains: z.array(z.object({
-          chainId: z.unknown(),
-        })),
-      }),
+        chains: z.array(
+          z.object({
+            chainId: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       affiliateLocationMatchingType: z.string(),
       assetSetId: z.string(),
-    }),
+    }).partial(),
     locationAssetFilter: z.object({
       assetSetId: z.string(),
       locationMatchingFunction: z.object({
         business: z.string(),
         labels: z.array(z.string()),
         locationAssetIds: z.array(z.string()),
-      }),
+      }).partial(),
       locationMatchingType: z.string(),
-    }),
+    }).partial(),
     sitelinkAsset: z.object({
       assetId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   youtubeAssetType: z.string().optional(),
 }).passthrough();
@@ -400,7 +402,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-lineitems-youtubeassettypes-youtubeassetassociations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -534,6 +536,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

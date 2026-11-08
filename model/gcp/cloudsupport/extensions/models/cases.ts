@@ -197,7 +197,7 @@ const StateSchema = z.object({
   classification: z.object({
     displayName: z.string(),
     id: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contactEmail: z.string().optional(),
   createTime: z.string().optional(),
   creator: z.object({
@@ -205,7 +205,7 @@ const StateSchema = z.object({
     email: z.string(),
     googleSupport: z.boolean(),
     username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   escalated: z.boolean().optional(),
@@ -309,7 +309,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Cloud Support Cases. Registered at `@swamp/gcp/cloudsupport/cases`. */
 export const model = {
   type: "@swamp/gcp/cloudsupport/cases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -463,6 +463,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

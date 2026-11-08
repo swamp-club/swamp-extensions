@@ -51,6 +51,20 @@ const MethodResponseSchema = z.object({
   ResponseModels: z.record(z.string(), z.string()).optional(),
 });
 
+const IntegrationResponseStateSchema = z.object({
+  ResponseTemplates: z.record(z.string(), z.unknown()),
+  SelectionPattern: z.string(),
+  ContentHandling: z.string(),
+  ResponseParameters: z.record(z.string(), z.unknown()),
+  StatusCode: z.string(),
+}).partial();
+
+const MethodResponseStateSchema = z.object({
+  ResponseParameters: z.record(z.string(), z.unknown()),
+  StatusCode: z.string(),
+  ResponseModels: z.record(z.string(), z.unknown()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -107,7 +121,7 @@ const StateSchema = z.object({
   Integration: z.object({
     CacheNamespace: z.string(),
     ConnectionType: z.string(),
-    IntegrationResponses: z.array(IntegrationResponseSchema),
+    IntegrationResponses: z.array(IntegrationResponseStateSchema),
     IntegrationHttpMethod: z.string(),
     ResponseTransferMode: z.string(),
     Uri: z.string(),
@@ -121,14 +135,14 @@ const StateSchema = z.object({
     RequestTemplates: z.record(z.string(), z.unknown()),
     TimeoutInMillis: z.number(),
     Credentials: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OperationName: z.string().optional(),
   RequestModels: z.record(z.string(), z.unknown()).optional(),
   RestApiId: z.string(),
   AuthorizationScopes: z.array(z.string()).optional(),
   RequestValidatorId: z.string().optional(),
   RequestParameters: z.record(z.string(), z.unknown()).optional(),
-  MethodResponses: z.array(MethodResponseSchema).optional(),
+  MethodResponses: z.array(MethodResponseStateSchema).optional(),
   AuthorizerId: z.string().optional(),
   ResourceId: z.string(),
   ApiKeyRequired: z.boolean().optional(),
@@ -136,7 +150,7 @@ const StateSchema = z.object({
   HttpMethod: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -199,7 +213,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGateway Method. Registered at `@swamp/aws/apigateway/method`. */
 export const model = {
   type: "@swamp/aws/apigateway/method",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -258,6 +272,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

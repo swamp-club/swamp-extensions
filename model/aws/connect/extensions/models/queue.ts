@@ -57,6 +57,15 @@ const TagSchema = z.object({
   ),
 });
 
+const EmailAddressStateSchema = z.object({
+  EmailAddressArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -143,8 +152,8 @@ const StateSchema = z.object({
     OutboundCallerIdNumberArn: z.string(),
     OutboundFlowArn: z.string(),
     OutboundCallerIdName: z.string(),
-  }).optional(),
-  AdditionalEmailAddresses: z.array(EmailAddressSchema).optional(),
+  }).partial().optional(),
+  AdditionalEmailAddresses: z.array(EmailAddressStateSchema).optional(),
   MaxContacts: z.number().optional(),
   LastModifiedRegion: z.string().optional(),
   Name: z.string().optional(),
@@ -153,13 +162,13 @@ const StateSchema = z.object({
   InstanceArn: z.string().optional(),
   OutboundEmailConfig: z.object({
     OutboundEmailAddressId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LastModifiedTime: z.number().optional(),
   QueueArn: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -248,7 +257,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Queue. Registered at `@swamp/aws/connect/queue`. */
 export const model = {
   type: "@swamp/aws/connect/queue",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -327,6 +336,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

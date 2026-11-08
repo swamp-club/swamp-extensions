@@ -115,9 +115,11 @@ const StateSchema = z.object({
   groupId: z.string().optional(),
   name: z.string(),
   resolutionStatus: z.string().optional(),
-  trackingIssues: z.array(z.object({
-    url: z.string(),
-  })).optional(),
+  trackingIssues: z.array(
+    z.object({
+      url: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -177,7 +179,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Error Reporting Groups. Registered at `@swamp/gcp/clouderrorreporting/groups`. */
 export const model = {
   type: "@swamp/gcp/clouderrorreporting/groups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -306,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

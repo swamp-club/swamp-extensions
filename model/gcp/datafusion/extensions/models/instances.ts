@@ -311,21 +311,25 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  accelerators: z.array(z.object({
-    acceleratorType: z.string(),
-    state: z.string(),
-  })).optional(),
+  accelerators: z.array(
+    z.object({
+      acceleratorType: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   apiEndpoint: z.string().optional(),
-  availableVersion: z.array(z.object({
-    availableFeatures: z.array(z.string()),
-    defaultVersion: z.boolean(),
-    type: z.string(),
-    versionNumber: z.string(),
-  })).optional(),
+  availableVersion: z.array(
+    z.object({
+      availableFeatures: z.array(z.string()),
+      defaultVersion: z.boolean(),
+      type: z.string(),
+      versionNumber: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   cryptoKeyConfig: z.object({
     keyReference: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataplexDataLineageIntegrationEnabled: z.boolean().optional(),
   dataprocServiceAccount: z.string().optional(),
   description: z.string().optional(),
@@ -338,36 +342,38 @@ const StateSchema = z.object({
   eventPublishConfig: z.object({
     enabled: z.boolean(),
     topic: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcsBucket: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   loggingConfig: z.object({
     enableInstanceV2Logs: z.boolean(),
     instanceCloudLoggingDisabled: z.boolean(),
-  }).optional(),
-  maintenanceEvents: z.array(z.object({
-    endTime: z.string(),
-    startTime: z.string(),
-    state: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  maintenanceEvents: z.array(
+    z.object({
+      endTime: z.string(),
+      startTime: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   maintenancePolicy: z.object({
     maintenanceExclusionWindow: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
+    }).partial(),
     maintenanceWindow: z.object({
       recurringTimeWindow: z.object({
         recurrence: z.string(),
         window: z.object({
           endTime: z.string(),
           startTime: z.string(),
-        }),
-      }),
-    }),
-  }).optional(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   monitoringConfig: z.object({
     enableInstanceV2Metrics: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   networkConfig: z.object({
     connectionType: z.string(),
@@ -377,8 +383,8 @@ const StateSchema = z.object({
       effectiveUnreachableCidrBlock: z.string(),
       networkAttachment: z.string(),
       unreachableCidrBlock: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   options: z.record(z.string(), z.unknown()).optional(),
   p4ServiceAccount: z.string().optional(),
   patchRevision: z.string().optional(),
@@ -578,7 +584,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Data Fusion Instances. Registered at `@swamp/gcp/datafusion/instances`. */
 export const model = {
   type: "@swamp/gcp/datafusion/instances",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -758,6 +764,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

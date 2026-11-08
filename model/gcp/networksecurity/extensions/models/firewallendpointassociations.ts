@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Network Security FirewallEndpointAssociations.
  *
- * Message describing Association object
+ * Message describing a firewall endpoint association.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -172,27 +172,27 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   disabled: z.boolean().describe(
-    "Optional. Whether the association is disabled. True indicates that traffic won't be intercepted",
+    "Optional. Whether the association is disabled. Setting this to `true` indicates that traffic isn't intercepted. The default value is `false`.",
   ).optional(),
   firewallEndpoint: z.string().describe(
-    "Required. The URL of the FirewallEndpoint that is being associated.",
+    "Required. The URL of the `FirewallEndpoint` that is being associated.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
-  name: z.string().describe("Immutable. Identifier. name of resource")
+  name: z.string().describe("Immutable. Identifier. The name of the resource.")
     .optional(),
   network: z.string().describe(
     "Required. The URL of the network that is being associated.",
   ).optional(),
   tlsInspectionPolicy: z.string().describe(
-    "Optional. The URL of the TlsInspectionPolicy that is being associated.",
+    "Optional. The URL of the `TlsInspectionPolicy` that is being associated.",
   ).optional(),
   firewallEndpointAssociationId: z.string().describe(
-    "Optional. Id of the requesting object. If auto-generating Id server-side, remove this field and firewall_endpoint_association_id from the method_signature of Create RPC.",
+    "Optional. The ID to use for the firewall endpoint association, which becomes the final component of the association's resource name. This value must be 1-63 characters long, start with a lowercase letter, contain only lowercase letters, numbers, and hyphens, and cannot end with a hyphen.",
   ).optional(),
   requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server knows to ignore the request if it has already been completed. The server guarantees that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if the original operation with the same request ID was received, and if so, ignores the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (`00000000-0000-0000-0000-000000000000`).",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -222,27 +222,27 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   disabled: z.boolean().describe(
-    "Optional. Whether the association is disabled. True indicates that traffic won't be intercepted",
+    "Optional. Whether the association is disabled. Setting this to `true` indicates that traffic isn't intercepted. The default value is `false`.",
   ).optional(),
   firewallEndpoint: z.string().describe(
-    "Required. The URL of the FirewallEndpoint that is being associated.",
+    "Required. The URL of the `FirewallEndpoint` that is being associated.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
-  name: z.string().describe("Immutable. Identifier. name of resource")
+  name: z.string().describe("Immutable. Identifier. The name of the resource.")
     .optional(),
   network: z.string().describe(
     "Required. The URL of the network that is being associated.",
   ).optional(),
   tlsInspectionPolicy: z.string().describe(
-    "Optional. The URL of the TlsInspectionPolicy that is being associated.",
+    "Optional. The URL of the `TlsInspectionPolicy` that is being associated.",
   ).optional(),
   firewallEndpointAssociationId: z.string().describe(
-    "Optional. Id of the requesting object. If auto-generating Id server-side, remove this field and firewall_endpoint_association_id from the method_signature of Create RPC.",
+    "Optional. The ID to use for the firewall endpoint association, which becomes the final component of the association's resource name. This value must be 1-63 characters long, start with a lowercase letter, contain only lowercase letters, numbers, and hyphens, and cannot end with a hyphen.",
   ).optional(),
   requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server knows to ignore the request if it has already been completed. The server guarantees that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if the original operation with the same request ID was received, and if so, ignores the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (`00000000-0000-0000-0000-000000000000`).",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -275,7 +275,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security FirewallEndpointAssociations. Registered at `@swamp/gcp/networksecurity/firewallendpointassociations`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/firewallendpointassociations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -412,12 +412,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Message describing Association object",
+      description: "Message describing a firewall endpoint association.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -734,11 +739,11 @@ export const model = {
     list: {
       description: "List firewallEndpointAssociations resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results").optional(),
-        orderBy: z.string().describe("Hint for how to order the results")
+        filter: z.string().describe("Optional. Filtering results.").optional(),
+        orderBy: z.string().describe("Hint for how to order the results.")
           .optional(),
         pageSize: z.number().describe(
-          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+          "Optional. Requested page size. The server might return fewer items than requested. The maximum value is 1000; values above 1000 are coerced to 1000. If unspecified, the server picks an appropriate default.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

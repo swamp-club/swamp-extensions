@@ -117,6 +117,85 @@ const CustomEmailSenderSchema = z.object({
   LambdaVersion: z.string().optional(),
 });
 
+const PasswordPolicyStateSchema = z.object({
+  RequireNumbers: z.boolean(),
+  MinimumLength: z.number(),
+  TemporaryPasswordValidityDays: z.number(),
+  RequireUppercase: z.boolean(),
+  RequireLowercase: z.boolean(),
+  RequireSymbols: z.boolean(),
+  PasswordHistorySize: z.number(),
+}).partial();
+
+const SignInPolicyStateSchema = z.object({
+  AllowedFirstAuthFactors: z.array(z.string()),
+}).partial();
+
+const StringAttributeConstraintsStateSchema = z.object({
+  MinLength: z.string(),
+  MaxLength: z.string(),
+}).partial();
+
+const NumberAttributeConstraintsStateSchema = z.object({
+  MinValue: z.string(),
+  MaxValue: z.string(),
+}).partial();
+
+const SchemaAttributeStateSchema = z.object({
+  DeveloperOnlyAttribute: z.boolean(),
+  Mutable: z.boolean(),
+  AttributeDataType: z.string(),
+  StringAttributeConstraints: StringAttributeConstraintsStateSchema,
+  Required: z.boolean(),
+  NumberAttributeConstraints: NumberAttributeConstraintsStateSchema,
+  Name: z.string(),
+}).partial();
+
+const InviteMessageTemplateStateSchema = z.object({
+  EmailMessage: z.string(),
+  SMSMessage: z.string(),
+  EmailSubject: z.string(),
+}).partial();
+
+const EumsSmsConfigurationStateSchema = z.object({
+  InTemplateId: z.string(),
+  InEntityId: z.string(),
+  ExternalId: z.string(),
+  CallerArn: z.string(),
+  ConfigurationSetName: z.string(),
+  Region: z.string(),
+  OriginationIdentity: z.string(),
+}).partial();
+
+const RecoveryOptionStateSchema = z.object({
+  Priority: z.number(),
+  Name: z.string(),
+}).partial();
+
+const AdvancedSecurityAdditionalFlowsStateSchema = z.object({
+  CustomAuthMode: z.string(),
+}).partial();
+
+const InboundFederationStateSchema = z.object({
+  LambdaArn: z.string(),
+  LambdaVersion: z.string(),
+}).partial();
+
+const CustomSMSSenderStateSchema = z.object({
+  LambdaArn: z.string(),
+  LambdaVersion: z.string(),
+}).partial();
+
+const PreTokenGenerationConfigStateSchema = z.object({
+  LambdaArn: z.string(),
+  LambdaVersion: z.string(),
+}).partial();
+
+const CustomEmailSenderStateSchema = z.object({
+  LambdaArn: z.string(),
+  LambdaVersion: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -236,47 +315,47 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   UserPoolTags: z.record(z.string(), z.unknown()).optional(),
   Policies: z.object({
-    PasswordPolicy: PasswordPolicySchema,
-    SignInPolicy: SignInPolicySchema,
-  }).optional(),
+    PasswordPolicy: PasswordPolicyStateSchema,
+    SignInPolicy: SignInPolicyStateSchema,
+  }).partial().optional(),
   KeyConfiguration: z.object({
     KeyType: z.string(),
     KmsKeyArn: z.string(),
-  }).optional(),
-  Schema: z.array(SchemaAttributeSchema).optional(),
+  }).partial().optional(),
+  Schema: z.array(SchemaAttributeStateSchema).optional(),
   AdminCreateUserConfig: z.object({
-    InviteMessageTemplate: InviteMessageTemplateSchema,
+    InviteMessageTemplate: InviteMessageTemplateStateSchema,
     UnusedAccountValidityDays: z.number(),
     AllowAdminCreateUserOnly: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   UserPoolTier: z.string().optional(),
   UsernameConfiguration: z.object({
     CaseSensitive: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   UserPoolName: z.string().optional(),
   SmsVerificationMessage: z.string().optional(),
   UserAttributeUpdateSettings: z.object({
     AttributesRequireVerificationBeforeUpdate: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   EmailConfiguration: z.object({
     ReplyToEmailAddress: z.string(),
     ConfigurationSet: z.string(),
     EmailSendingAccount: z.string(),
     SourceArn: z.string(),
     From: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SmsConfiguration: z.object({
     SnsRegion: z.string(),
     ExternalId: z.string(),
-    EumsSms: EumsSmsConfigurationSchema,
+    EumsSms: EumsSmsConfigurationStateSchema,
     SnsCallerArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EmailVerificationSubject: z.string().optional(),
   WebAuthnRelyingPartyID: z.string().optional(),
   EmailAuthenticationSubject: z.string().optional(),
   AccountRecoverySetting: z.object({
-    RecoveryMechanisms: z.array(RecoveryOptionSchema),
-  }).optional(),
+    RecoveryMechanisms: z.array(RecoveryOptionStateSchema),
+  }).partial().optional(),
   VerificationMessageTemplate: z.object({
     EmailMessageByLink: z.string(),
     EmailMessage: z.string(),
@@ -284,10 +363,10 @@ const StateSchema = z.object({
     EmailSubject: z.string(),
     DefaultEmailOption: z.string(),
     EmailSubjectByLink: z.string(),
-  }).optional(),
+  }).partial().optional(),
   IssuerConfiguration: z.object({
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ProviderURL: z.string().optional(),
   MfaConfiguration: z.string().optional(),
   DeletionProtection: z.string().optional(),
@@ -295,9 +374,9 @@ const StateSchema = z.object({
   SmsAuthenticationMessage: z.string().optional(),
   WebAuthnUserVerification: z.string().optional(),
   UserPoolAddOns: z.object({
-    AdvancedSecurityAdditionalFlows: AdvancedSecurityAdditionalFlowsSchema,
+    AdvancedSecurityAdditionalFlows: AdvancedSecurityAdditionalFlowsStateSchema,
     AdvancedSecurityMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ProviderName: z.string().optional(),
   UserPoolId: z.string(),
   EmailAuthenticationMessage: z.string().optional(),
@@ -313,24 +392,24 @@ const StateSchema = z.object({
     PreAuthentication: z.string(),
     DefineAuthChallenge: z.string(),
     PreTokenGeneration: z.string(),
-    InboundFederation: InboundFederationSchema,
-    CustomSMSSender: CustomSMSSenderSchema,
+    InboundFederation: InboundFederationStateSchema,
+    CustomSMSSender: CustomSMSSenderStateSchema,
     PostConfirmation: z.string(),
     CustomMessage: z.string(),
-    PreTokenGenerationConfig: PreTokenGenerationConfigSchema,
-    CustomEmailSender: CustomEmailSenderSchema,
-  }).optional(),
+    PreTokenGenerationConfig: PreTokenGenerationConfigStateSchema,
+    CustomEmailSender: CustomEmailSenderStateSchema,
+  }).partial().optional(),
   Arn: z.string().optional(),
   UsernameAttributes: z.array(z.string()).optional(),
   AutoVerifiedAttributes: z.array(z.string()).optional(),
   DeviceConfiguration: z.object({
     DeviceOnlyRememberedOnUserPrompt: z.boolean(),
     ChallengeRequiredOnNewDevice: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   EmailVerificationMessage: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -457,7 +536,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito UserPool. Registered at `@swamp/aws/cognito/user-pool`. */
 export const model = {
   type: "@swamp/aws/cognito/user-pool",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -536,6 +615,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

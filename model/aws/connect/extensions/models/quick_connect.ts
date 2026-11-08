@@ -89,6 +89,29 @@ const TagSchema = z.object({
   ),
 });
 
+const PhoneNumberQuickConnectConfigStateSchema = z.object({
+  PhoneNumber: z.string(),
+}).partial();
+
+const QueueQuickConnectConfigStateSchema = z.object({
+  ContactFlowArn: z.string(),
+  QueueArn: z.string(),
+}).partial();
+
+const UserQuickConnectConfigStateSchema = z.object({
+  ContactFlowArn: z.string(),
+  UserArn: z.string(),
+}).partial();
+
+const FlowQuickConnectConfigStateSchema = z.object({
+  ContactFlowArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -142,17 +165,17 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   QuickConnectConfig: z.object({
     QuickConnectType: z.string(),
-    PhoneConfig: PhoneNumberQuickConnectConfigSchema,
-    QueueConfig: QueueQuickConnectConfigSchema,
-    UserConfig: UserQuickConnectConfigSchema,
-    FlowConfig: FlowQuickConnectConfigSchema,
-  }).optional(),
+    PhoneConfig: PhoneNumberQuickConnectConfigStateSchema,
+    QueueConfig: QueueQuickConnectConfigStateSchema,
+    UserConfig: UserQuickConnectConfigStateSchema,
+    FlowConfig: FlowQuickConnectConfigStateSchema,
+  }).partial().optional(),
   QuickConnectArn: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   QuickConnectType: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -210,7 +233,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect QuickConnect. Registered at `@swamp/aws/connect/quick-connect`. */
 export const model = {
   type: "@swamp/aws/connect/quick-connect",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -284,6 +307,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

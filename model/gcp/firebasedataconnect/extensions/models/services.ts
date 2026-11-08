@@ -327,83 +327,99 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
-  connectors: z.array(z.object({
-    annotations: z.record(z.string(), z.unknown()),
-    clientCache: z.object({
-      entityIdIncluded: z.boolean(),
-      strictValidationEnabled: z.boolean(),
-    }),
-    createTime: z.string(),
-    displayName: z.string(),
-    etag: z.string(),
-    labels: z.record(z.string(), z.unknown()),
-    name: z.string(),
-    reconciling: z.boolean(),
-    source: z.object({
-      files: z.array(z.object({
-        content: z.unknown(),
-        path: z.unknown(),
-      })),
-    }),
-    uid: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  connectors: z.array(
+    z.object({
+      annotations: z.record(z.string(), z.unknown()),
+      clientCache: z.object({
+        entityIdIncluded: z.boolean(),
+        strictValidationEnabled: z.boolean(),
+      }).partial(),
+      createTime: z.string(),
+      displayName: z.string(),
+      etag: z.string(),
+      labels: z.record(z.string(), z.unknown()),
+      name: z.string(),
+      reconciling: z.boolean(),
+      source: z.object({
+        files: z.array(
+          z.object({
+            content: z.unknown(),
+            path: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      uid: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
   graphqlSource: z.object({
-    files: z.array(z.object({
-      content: z.string(),
-      path: z.string(),
-    })),
-  }).optional(),
+    files: z.array(
+      z.object({
+        content: z.string(),
+        path: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   reconciling: z.boolean().optional(),
-  schemas: z.array(z.object({
-    annotations: z.record(z.string(), z.unknown()),
-    createTime: z.string(),
-    datasources: z.array(z.object({
-      httpGraphql: z.object({
-        timeout: z.unknown(),
-        uri: z.unknown(),
-      }),
-      postgresql: z.object({
-        cloudSql: z.unknown(),
-        database: z.unknown(),
-        ephemeral: z.unknown(),
-        schema: z.unknown(),
-        schemaMigration: z.unknown(),
-        schemaValidation: z.unknown(),
-        unlinked: z.unknown(),
-      }),
-    })),
-    displayName: z.string(),
-    etag: z.string(),
-    labels: z.record(z.string(), z.unknown()),
-    name: z.string(),
-    reconciling: z.boolean(),
-    source: z.object({
-      files: z.array(z.object({
-        content: z.unknown(),
-        path: z.unknown(),
-      })),
-    }),
-    uid: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  schemas: z.array(
+    z.object({
+      annotations: z.record(z.string(), z.unknown()),
+      createTime: z.string(),
+      datasources: z.array(
+        z.object({
+          httpGraphql: z.object({
+            timeout: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+          postgresql: z.object({
+            cloudSql: z.unknown(),
+            database: z.unknown(),
+            ephemeral: z.unknown(),
+            schema: z.unknown(),
+            schemaMigration: z.unknown(),
+            schemaValidation: z.unknown(),
+            unlinked: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      displayName: z.string(),
+      etag: z.string(),
+      labels: z.record(z.string(), z.unknown()),
+      name: z.string(),
+      reconciling: z.boolean(),
+      source: z.object({
+        files: z.array(
+          z.object({
+            content: z.unknown(),
+            path: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      uid: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   source: z.object({
-    files: z.array(z.object({
-      content: z.string(),
-      path: z.string(),
-    })),
-  }).optional(),
+    files: z.array(
+      z.object({
+        content: z.string(),
+        path: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   sqlSource: z.object({
-    files: z.array(z.object({
-      content: z.string(),
-      path: z.string(),
-    })),
-  }).optional(),
+    files: z.array(
+      z.object({
+        content: z.string(),
+        path: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -578,7 +594,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase SQL Connect Services. Registered at `@swamp/gcp/firebasedataconnect/services`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services",
-  version: "2026.11.04.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -767,6 +783,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

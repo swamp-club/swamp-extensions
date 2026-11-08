@@ -267,6 +267,125 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const DateTimeValueStateSchema = z.object({
+  Type: z.string(),
+  Value: z.string(),
+}).partial();
+
+const DateTimeRangeStateSchema = z.object({
+  StartTime: DateTimeValueStateSchema,
+  EndTime: DateTimeValueStateSchema,
+}).partial();
+
+const GroupDefinitionStateSchema = z.object({
+  Key: z.string(),
+  Type: z.string(),
+}).partial();
+
+const DimensionValuesStateSchema = z.object({
+  Key: z.string(),
+  Values: z.array(z.string()),
+  MatchOptions: z.array(z.string()),
+}).partial();
+
+const TagValuesStateSchema = z.object({
+  Key: z.string(),
+  Values: z.array(z.string()),
+  MatchOptions: z.array(z.string()),
+}).partial();
+
+const CostCategoryValuesStateSchema = z.object({
+  Key: z.string(),
+  Values: z.array(z.string()),
+  MatchOptions: z.array(z.string()),
+}).partial();
+
+const CostAndUsageExpressionStateSchema = z.object({
+  Or: z.array(z.record(z.string(), z.unknown())),
+  And: z.array(z.record(z.string(), z.unknown())),
+  Not: z.record(z.string(), z.unknown()),
+  Dimensions: DimensionValuesStateSchema,
+  Tags: TagValuesStateSchema,
+  CostCategories: CostCategoryValuesStateSchema,
+}).partial();
+
+const CostAndUsageQueryStateSchema = z.object({
+  Metrics: z.array(z.string()),
+  TimeRange: DateTimeRangeStateSchema,
+  Granularity: z.string(),
+  GroupBy: z.array(GroupDefinitionStateSchema),
+  Filter: CostAndUsageExpressionStateSchema,
+}).partial();
+
+const ExpressionStateSchema = z.object({
+  And: z.array(z.record(z.string(), z.unknown())),
+  Not: z.record(z.string(), z.unknown()),
+  Dimensions: DimensionValuesStateSchema,
+  Tags: TagValuesStateSchema,
+  CostCategories: CostCategoryValuesStateSchema,
+}).partial();
+
+const SavingsPlansCoverageQueryStateSchema = z.object({
+  TimeRange: DateTimeRangeStateSchema,
+  Metrics: z.array(z.string()),
+  Granularity: z.string(),
+  GroupBy: z.array(GroupDefinitionStateSchema),
+  Filter: ExpressionStateSchema,
+}).partial();
+
+const SavingsPlansUtilizationQueryStateSchema = z.object({
+  TimeRange: DateTimeRangeStateSchema,
+  Granularity: z.string(),
+  Filter: ExpressionStateSchema,
+}).partial();
+
+const ReservationCoverageQueryStateSchema = z.object({
+  TimeRange: DateTimeRangeStateSchema,
+  GroupBy: z.array(GroupDefinitionStateSchema),
+  Granularity: z.string(),
+  Filter: ExpressionStateSchema,
+  Metrics: z.array(z.string()),
+}).partial();
+
+const ReservationUtilizationQueryStateSchema = z.object({
+  TimeRange: DateTimeRangeStateSchema,
+  GroupBy: z.array(GroupDefinitionStateSchema),
+  Granularity: z.string(),
+  Filter: ExpressionStateSchema,
+}).partial();
+
+const QueryParametersStateSchema = z.object({
+  CostAndUsage: CostAndUsageQueryStateSchema,
+  SavingsPlansCoverage: SavingsPlansCoverageQueryStateSchema,
+  SavingsPlansUtilization: SavingsPlansUtilizationQueryStateSchema,
+  ReservationCoverage: ReservationCoverageQueryStateSchema,
+  ReservationUtilization: ReservationUtilizationQueryStateSchema,
+}).partial();
+
+const DisplayConfigStateSchema = z.object({
+  Graph: z.record(z.string(), z.unknown()),
+  Table: z.record(z.string(), z.unknown()),
+}).partial();
+
+const WidgetConfigStateSchema = z.object({
+  QueryParameters: QueryParametersStateSchema,
+  DisplayConfig: DisplayConfigStateSchema,
+}).partial();
+
+const WidgetStateSchema = z.object({
+  Title: z.string(),
+  Description: z.string(),
+  Width: z.number(),
+  Height: z.number(),
+  HorizontalOffset: z.number(),
+  Configs: z.array(WidgetConfigStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -298,13 +417,13 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   Type: z.string().optional(),
-  Widgets: z.array(WidgetSchema).optional(),
+  Widgets: z.array(WidgetStateSchema).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -341,7 +460,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BCM Dashboard. Registered at `@swamp/aws/bcm/dashboard`. */
 export const model = {
   type: "@swamp/aws/bcm/dashboard",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -375,6 +494,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

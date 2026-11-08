@@ -124,105 +124,135 @@ const StateSchema = z.object({
     releaseType: z.string(),
     version: z.string(),
     versionId: z.string(),
-  }).optional(),
-  checks: z.array(z.object({
-    citations: z.array(z.object({
+  }).partial().optional(),
+  checks: z.array(
+    z.object({
+      citations: z.array(
+        z.object({
+          type: z.string(),
+        }).partial(),
+      ),
+      evidence: z.object({
+        dataSecurity: z.object({
+          dataInTransitInfo: z.array(z.unknown()),
+        }).partial(),
+        dataTypes: z.array(
+          z.object({
+            dataType: z.unknown(),
+            dataTypeEvidence: z.unknown(),
+          }).partial(),
+        ),
+        endpointRestrictionViolations: z.array(
+          z.object({
+            endpointDetails: z.unknown(),
+          }).partial(),
+        ),
+        endpoints: z.array(
+          z.object({
+            endpoint: z.unknown(),
+          }).partial(),
+        ),
+        permissionRestrictionViolations: z.array(
+          z.object({
+            permissionDetails: z.unknown(),
+          }).partial(),
+        ),
+        permissions: z.array(
+          z.object({
+            permission: z.unknown(),
+          }).partial(),
+        ),
+        privacyPolicyTexts: z.array(
+          z.object({
+            policyFragment: z.unknown(),
+          }).partial(),
+        ),
+        sdkIssues: z.array(
+          z.object({
+            sdk: z.unknown(),
+            sdkVersion: z.unknown(),
+          }).partial(),
+        ),
+        sdkRestrictionViolations: z.array(
+          z.object({
+            sdkDetails: z.unknown(),
+          }).partial(),
+        ),
+        sdks: z.array(
+          z.object({
+            sdk: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      regionCodes: z.array(z.string()),
+      severity: z.string(),
+      state: z.string(),
+      stateMetadata: z.object({
+        badges: z.array(z.string()),
+        firstFailingTime: z.string(),
+        lastFailingTime: z.string(),
+      }).partial(),
       type: z.string(),
-    })),
-    evidence: z.object({
-      dataSecurity: z.object({
-        dataInTransitInfo: z.array(z.unknown()),
-      }),
-      dataTypes: z.array(z.object({
-        dataType: z.unknown(),
-        dataTypeEvidence: z.unknown(),
-      })),
-      endpointRestrictionViolations: z.array(z.object({
-        endpointDetails: z.unknown(),
-      })),
-      endpoints: z.array(z.object({
-        endpoint: z.unknown(),
-      })),
-      permissionRestrictionViolations: z.array(z.object({
-        permissionDetails: z.unknown(),
-      })),
-      permissions: z.array(z.object({
-        permission: z.unknown(),
-      })),
-      privacyPolicyTexts: z.array(z.object({
-        policyFragment: z.unknown(),
-      })),
-      sdkIssues: z.array(z.object({
-        sdk: z.unknown(),
-        sdkVersion: z.unknown(),
-      })),
-      sdkRestrictionViolations: z.array(z.object({
-        sdkDetails: z.unknown(),
-      })),
-      sdks: z.array(z.object({
-        sdk: z.unknown(),
-      })),
-    }),
-    regionCodes: z.array(z.string()),
-    severity: z.string(),
-    state: z.string(),
-    stateMetadata: z.object({
-      badges: z.array(z.string()),
-      firstFailingTime: z.string(),
-      lastFailingTime: z.string(),
-    }),
-    type: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   dataMonitoring: z.object({
-    dataTypes: z.array(z.object({
-      dataType: z.string(),
-      dataTypeEvidence: z.object({
-        endpoints: z.array(z.unknown()),
-        permissions: z.array(z.unknown()),
-        privacyPolicyTexts: z.array(z.unknown()),
-      }),
-      metadata: z.object({
-        badges: z.array(z.unknown()),
-        firstDetectedTime: z.string(),
-        lastDetectedAppVersion: z.string(),
-        lastDetectedTime: z.string(),
-      }),
-    })),
-    endpoints: z.array(z.object({
-      endpoint: z.object({
-        domain: z.string(),
-      }),
-      hitCount: z.number(),
-      metadata: z.object({
-        badges: z.array(z.unknown()),
-        firstDetectedTime: z.string(),
-        lastDetectedAppVersion: z.string(),
-        lastDetectedTime: z.string(),
-      }),
-    })),
-    permissions: z.array(z.object({
-      metadata: z.object({
-        badges: z.array(z.unknown()),
-        firstDetectedTime: z.string(),
-        lastDetectedAppVersion: z.string(),
-        lastDetectedTime: z.string(),
-      }),
-      permission: z.object({
-        id: z.string(),
-      }),
-    })),
-    sdks: z.array(z.object({
-      metadata: z.object({
-        badges: z.array(z.unknown()),
-        firstDetectedTime: z.string(),
-        lastDetectedAppVersion: z.string(),
-        lastDetectedTime: z.string(),
-      }),
-      sdk: z.object({
-        id: z.string(),
-      }),
-    })),
-  }).optional(),
+    dataTypes: z.array(
+      z.object({
+        dataType: z.string(),
+        dataTypeEvidence: z.object({
+          endpoints: z.array(z.unknown()),
+          permissions: z.array(z.unknown()),
+          privacyPolicyTexts: z.array(z.unknown()),
+        }).partial(),
+        metadata: z.object({
+          badges: z.array(z.unknown()),
+          firstDetectedTime: z.string(),
+          lastDetectedAppVersion: z.string(),
+          lastDetectedTime: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+    endpoints: z.array(
+      z.object({
+        endpoint: z.object({
+          domain: z.string(),
+        }).partial(),
+        hitCount: z.number(),
+        metadata: z.object({
+          badges: z.array(z.unknown()),
+          firstDetectedTime: z.string(),
+          lastDetectedAppVersion: z.string(),
+          lastDetectedTime: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+    permissions: z.array(
+      z.object({
+        metadata: z.object({
+          badges: z.array(z.unknown()),
+          firstDetectedTime: z.string(),
+          lastDetectedAppVersion: z.string(),
+          lastDetectedTime: z.string(),
+        }).partial(),
+        permission: z.object({
+          id: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+    sdks: z.array(
+      z.object({
+        metadata: z.object({
+          badges: z.array(z.unknown()),
+          firstDetectedTime: z.string(),
+          lastDetectedAppVersion: z.string(),
+          lastDetectedTime: z.string(),
+        }).partial(),
+        sdk: z.object({
+          id: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   resultsUri: z.string().optional(),
 }).passthrough();
@@ -268,7 +298,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Checks Accounts.Apps.Reports. Registered at `@swamp/gcp/checks/accounts-apps-reports`. */
 export const model = {
   type: "@swamp/gcp/checks/accounts-apps-reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -397,6 +427,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

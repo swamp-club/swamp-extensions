@@ -191,7 +191,7 @@ const StateSchema = z.object({
     observabilityMode: z.boolean(),
     service: z.string(),
     supportedEvents: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   phase: z.string().optional(),
@@ -277,7 +277,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services ProducerExtensions. Registered at `@swamp/gcp/networkservices/producerextensions`. */
 export const model = {
   type: "@swamp/gcp/networkservices/producerextensions",
-  version: "2026.10.26.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.22.1",
@@ -296,6 +296,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

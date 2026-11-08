@@ -106,7 +106,7 @@ const StateSchema = z.object({
     openWorldHint: z.boolean(),
     readOnlyHint: z.boolean(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dependsOn: z.array(z.string()).optional(),
   description: z.string().optional(),
   inputSchema: z.object({
@@ -159,7 +159,7 @@ const StateSchema = z.object({
     type: z.array(z.string()),
     uniqueItems: z.boolean(),
     writeOnly: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   outputSchema: z.object({
     $comment: z.string(),
@@ -211,7 +211,7 @@ const StateSchema = z.object({
     type: z.array(z.string()),
     uniqueItems: z.boolean(),
     writeOnly: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -258,7 +258,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Connectors Connections.Tools. Registered at `@swamp/gcp/connectors/connections-tools`. */
 export const model = {
   type: "@swamp/gcp/connectors/connections-tools",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -427,6 +427,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

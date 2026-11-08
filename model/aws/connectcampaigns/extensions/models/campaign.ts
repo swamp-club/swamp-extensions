@@ -82,6 +82,30 @@ const TagSchema = z.object({
   ),
 });
 
+const ProgressiveDialerConfigStateSchema = z.object({
+  BandwidthAllocation: z.number(),
+  DialingCapacity: z.number(),
+}).partial();
+
+const PredictiveDialerConfigStateSchema = z.object({
+  BandwidthAllocation: z.number(),
+  DialingCapacity: z.number(),
+}).partial();
+
+const AgentlessDialerConfigStateSchema = z.object({
+  DialingCapacity: z.number(),
+}).partial();
+
+const AnswerMachineDetectionConfigStateSchema = z.object({
+  EnableAnswerMachineDetection: z.boolean(),
+  AwaitAnswerMachinePrompt: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -142,22 +166,22 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ConnectInstanceArn: z.string().optional(),
   DialerConfig: z.object({
-    ProgressiveDialerConfig: ProgressiveDialerConfigSchema,
-    PredictiveDialerConfig: PredictiveDialerConfigSchema,
-    AgentlessDialerConfig: AgentlessDialerConfigSchema,
-  }).optional(),
+    ProgressiveDialerConfig: ProgressiveDialerConfigStateSchema,
+    PredictiveDialerConfig: PredictiveDialerConfigStateSchema,
+    AgentlessDialerConfig: AgentlessDialerConfigStateSchema,
+  }).partial().optional(),
   Arn: z.string(),
   Name: z.string().optional(),
   OutboundCallConfig: z.object({
     ConnectContactFlowArn: z.string(),
     ConnectSourcePhoneNumber: z.string(),
     ConnectQueueArn: z.string(),
-    AnswerMachineDetectionConfig: AnswerMachineDetectionConfigSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    AnswerMachineDetectionConfig: AnswerMachineDetectionConfigStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -226,7 +250,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ConnectCampaigns Campaign. Registered at `@swamp/aws/connectcampaigns/campaign`. */
 export const model = {
   type: "@swamp/aws/connectcampaigns/campaign",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -290,6 +314,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

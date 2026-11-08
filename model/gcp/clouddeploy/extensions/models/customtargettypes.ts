@@ -311,25 +311,27 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   customActions: z.object({
     deployAction: z.string(),
-    includeSkaffoldModules: z.array(z.object({
-      configs: z.array(z.string()),
-      git: z.object({
-        path: z.string(),
-        ref: z.string(),
-        repo: z.string(),
-      }),
-      googleCloudBuildRepo: z.object({
-        path: z.string(),
-        ref: z.string(),
-        repository: z.string(),
-      }),
-      googleCloudStorage: z.object({
-        path: z.string(),
-        source: z.string(),
-      }),
-    })),
+    includeSkaffoldModules: z.array(
+      z.object({
+        configs: z.array(z.string()),
+        git: z.object({
+          path: z.string(),
+          ref: z.string(),
+          repo: z.string(),
+        }).partial(),
+        googleCloudBuildRepo: z.object({
+          path: z.string(),
+          ref: z.string(),
+          repository: z.string(),
+        }).partial(),
+        googleCloudStorage: z.object({
+          path: z.string(),
+          source: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     renderAction: z.string(),
-  }).optional(),
+  }).partial().optional(),
   customTargetTypeId: z.string().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
@@ -342,17 +344,17 @@ const StateSchema = z.object({
         command: z.array(z.string()),
         env: z.record(z.string(), z.unknown()),
         image: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     render: z.object({
       container: z.object({
         args: z.array(z.string()),
         command: z.array(z.string()),
         env: z.record(z.string(), z.unknown()),
         image: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -511,7 +513,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deploy CustomTargetTypes. Registered at `@swamp/gcp/clouddeploy/customtargettypes`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/customtargettypes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -700,6 +702,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

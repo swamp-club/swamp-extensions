@@ -103,6 +103,52 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256).describe("The tag's value."),
 });
 
+const CommandParameterValueStateSchema = z.object({
+  S: z.string(),
+  B: z.boolean(),
+  I: z.number(),
+  L: z.string(),
+  D: z.number(),
+  BIN: z.string(),
+  UL: z.string(),
+}).partial();
+
+const CommandParameterValueNumberRangeStateSchema = z.object({
+  Min: z.string(),
+  Max: z.string(),
+}).partial();
+
+const CommandParameterValueComparisonOperandStateSchema = z.object({
+  Number: z.string(),
+  Numbers: z.array(z.string()),
+  String: z.string(),
+  Strings: z.array(z.string()),
+  NumberRange: CommandParameterValueNumberRangeStateSchema,
+}).partial();
+
+const CommandParameterValueConditionStateSchema = z.object({
+  ComparisonOperator: z.string(),
+  Operand: CommandParameterValueComparisonOperandStateSchema,
+}).partial();
+
+const CommandParameterStateSchema = z.object({
+  Name: z.string(),
+  Value: CommandParameterValueStateSchema,
+  DefaultValue: CommandParameterValueStateSchema,
+  Description: z.string(),
+  Type: z.string(),
+  ValueConditions: z.array(CommandParameterValueConditionStateSchema),
+}).partial();
+
+const AwsJsonSubstitutionCommandPreprocessorConfigStateSchema = z.object({
+  OutputFormat: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -167,22 +213,23 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   DisplayName: z.string().optional(),
   LastUpdatedAt: z.string().optional(),
-  MandatoryParameters: z.array(CommandParameterSchema).optional(),
+  MandatoryParameters: z.array(CommandParameterStateSchema).optional(),
   Namespace: z.string().optional(),
   RoleArn: z.string().optional(),
   Payload: z.object({
     Content: z.string(),
     ContentType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   PayloadTemplate: z.string().optional(),
   Preprocessor: z.object({
-    AwsJsonSubstitution: AwsJsonSubstitutionCommandPreprocessorConfigSchema,
-  }).optional(),
+    AwsJsonSubstitution:
+      AwsJsonSubstitutionCommandPreprocessorConfigStateSchema,
+  }).partial().optional(),
   PendingDeletion: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -251,7 +298,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT Command. Registered at `@swamp/aws/iot/command`. */
 export const model = {
   type: "@swamp/aws/iot/command",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -315,6 +362,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

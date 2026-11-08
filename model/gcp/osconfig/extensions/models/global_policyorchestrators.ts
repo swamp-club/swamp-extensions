@@ -338,25 +338,33 @@ const StateSchema = z.object({
       etag: z.string(),
       instanceFilter: z.object({
         all: z.boolean(),
-        exclusionLabels: z.array(z.object({
-          labels: z.unknown(),
-        })),
-        inclusionLabels: z.array(z.object({
-          labels: z.unknown(),
-        })),
-        inventories: z.array(z.object({
-          osShortName: z.unknown(),
-          osVersion: z.unknown(),
-        })),
-      }),
+        exclusionLabels: z.array(
+          z.object({
+            labels: z.unknown(),
+          }).partial(),
+        ),
+        inclusionLabels: z.array(
+          z.object({
+            labels: z.unknown(),
+          }).partial(),
+        ),
+        inventories: z.array(
+          z.object({
+            osShortName: z.unknown(),
+            osVersion: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       name: z.string(),
-      osPolicies: z.array(z.object({
-        allowNoResourceGroupMatch: z.boolean(),
-        description: z.string(),
-        id: z.string(),
-        mode: z.string(),
-        resourceGroups: z.array(z.unknown()),
-      })),
+      osPolicies: z.array(
+        z.object({
+          allowNoResourceGroupMatch: z.boolean(),
+          description: z.string(),
+          id: z.string(),
+          mode: z.string(),
+          resourceGroups: z.array(z.unknown()),
+        }).partial(),
+      ),
       reconciling: z.boolean(),
       revisionCreateTime: z.string(),
       revisionId: z.string(),
@@ -364,31 +372,33 @@ const StateSchema = z.object({
         disruptionBudget: z.object({
           fixed: z.number(),
           percent: z.number(),
-        }),
+        }).partial(),
         minWaitDuration: z.string(),
-      }),
+      }).partial(),
       rolloutState: z.string(),
       uid: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   orchestrationScope: z.object({
-    selectors: z.array(z.object({
-      locationSelector: z.object({
-        includedLocations: z.array(z.unknown()),
-      }),
-      resourceHierarchySelector: z.object({
-        includedFolders: z.array(z.unknown()),
-        includedProjects: z.array(z.unknown()),
-      }),
-    })),
-  }).optional(),
+    selectors: z.array(
+      z.object({
+        locationSelector: z.object({
+          includedLocations: z.array(z.unknown()),
+        }).partial(),
+        resourceHierarchySelector: z.object({
+          includedFolders: z.array(z.unknown()),
+          includedProjects: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   orchestrationState: z.object({
     currentIterationState: z.object({
       error: z.object({
         code: z.number(),
         details: z.array(z.record(z.string(), z.unknown())),
         message: z.string(),
-      }),
+      }).partial(),
       failedActions: z.string(),
       finishTime: z.string(),
       iterationId: z.string(),
@@ -396,13 +406,13 @@ const StateSchema = z.object({
       progress: z.number(),
       startTime: z.string(),
       state: z.string(),
-    }),
+    }).partial(),
     previousIterationState: z.object({
       error: z.object({
         code: z.number(),
         details: z.array(z.record(z.string(), z.unknown())),
         message: z.string(),
-      }),
+      }).partial(),
       failedActions: z.string(),
       finishTime: z.string(),
       iterationId: z.string(),
@@ -410,8 +420,8 @@ const StateSchema = z.object({
       progress: z.number(),
       startTime: z.string(),
       state: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
@@ -605,7 +615,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud OS Config Global.PolicyOrchestrators. Registered at `@swamp/gcp/osconfig/global-policyorchestrators`. */
 export const model = {
   type: "@swamp/gcp/osconfig/global-policyorchestrators",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -787,6 +797,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

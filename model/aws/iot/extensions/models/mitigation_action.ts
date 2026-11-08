@@ -79,6 +79,37 @@ const UpdateDeviceCertificateParamsSchema = z.object({
   Action: z.enum(["DEACTIVATE", "UNSET_VALUE"]),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const AddThingsToThingGroupParamsStateSchema = z.object({
+  OverrideDynamicGroups: z.boolean(),
+  ThingGroupNames: z.array(z.string()),
+}).partial();
+
+const EnableIoTLoggingParamsStateSchema = z.object({
+  LogLevel: z.string(),
+  RoleArnForLogging: z.string(),
+}).partial();
+
+const PublishFindingToSnsParamsStateSchema = z.object({
+  TopicArn: z.string(),
+}).partial();
+
+const ReplaceDefaultPolicyVersionParamsStateSchema = z.object({
+  TemplateName: z.string(),
+}).partial();
+
+const UpdateCACertificateParamsStateSchema = z.object({
+  Action: z.string(),
+}).partial();
+
+const UpdateDeviceCertificateParamsStateSchema = z.object({
+  Action: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -126,20 +157,21 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ActionName: z.string(),
   RoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ActionParams: z.object({
-    AddThingsToThingGroupParams: AddThingsToThingGroupParamsSchema,
-    EnableIoTLoggingParams: EnableIoTLoggingParamsSchema,
-    PublishFindingToSnsParams: PublishFindingToSnsParamsSchema,
-    ReplaceDefaultPolicyVersionParams: ReplaceDefaultPolicyVersionParamsSchema,
-    UpdateCACertificateParams: UpdateCACertificateParamsSchema,
-    UpdateDeviceCertificateParams: UpdateDeviceCertificateParamsSchema,
-  }).optional(),
+    AddThingsToThingGroupParams: AddThingsToThingGroupParamsStateSchema,
+    EnableIoTLoggingParams: EnableIoTLoggingParamsStateSchema,
+    PublishFindingToSnsParams: PublishFindingToSnsParamsStateSchema,
+    ReplaceDefaultPolicyVersionParams:
+      ReplaceDefaultPolicyVersionParamsStateSchema,
+    UpdateCACertificateParams: UpdateCACertificateParamsStateSchema,
+    UpdateDeviceCertificateParams: UpdateDeviceCertificateParamsStateSchema,
+  }).partial().optional(),
   MitigationActionArn: z.string().optional(),
   MitigationActionId: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -196,7 +228,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT MitigationAction. Registered at `@swamp/aws/iot/mitigation-action`. */
 export const model = {
   type: "@swamp/aws/iot/mitigation-action",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -260,6 +292,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

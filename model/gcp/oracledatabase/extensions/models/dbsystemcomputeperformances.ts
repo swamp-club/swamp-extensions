@@ -92,12 +92,14 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  computePerformances: z.array(z.object({
-    computeCount: z.number(),
-    computeModel: z.string(),
-    cpuCoreCount: z.number(),
-    memoryInGbs: z.number(),
-  })).optional(),
+  computePerformances: z.array(
+    z.object({
+      computeCount: z.number(),
+      computeModel: z.string(),
+      cpuCoreCount: z.number(),
+      memoryInGbs: z.number(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   shape: z.string().optional(),
 }).passthrough();
@@ -143,7 +145,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud DbSystemComputePerformances. Registered at `@swamp/gcp/oracledatabase/dbsystemcomputeperformances`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/dbsystemcomputeperformances",
-  version: "2026.11.03.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

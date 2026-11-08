@@ -204,6 +204,87 @@ const TagSchema = z.object({
   Key: z.string().describe("The tag key."),
 });
 
+const Phase2EncryptionAlgorithmsRequestListValueStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const Phase2DHGroupNumbersRequestListValueStateSchema = z.object({
+  Value: z.number(),
+}).partial();
+
+const IKEVersionsRequestListValueStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const CloudwatchLogOptionsSpecificationStateSchema = z.object({
+  BgpLogEnabled: z.boolean(),
+  LogEnabled: z.boolean(),
+  LogOutputFormat: z.string(),
+  BgpLogGroupArn: z.string(),
+  LogGroupArn: z.string(),
+  BgpLogOutputFormat: z.string(),
+}).partial();
+
+const VpnTunnelLogOptionsSpecificationStateSchema = z.object({
+  CloudwatchLogOptions: CloudwatchLogOptionsSpecificationStateSchema,
+}).partial();
+
+const Phase1DHGroupNumbersRequestListValueStateSchema = z.object({
+  Value: z.number(),
+}).partial();
+
+const Phase2IntegrityAlgorithmsRequestListValueStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const Phase1IntegrityAlgorithmsRequestListValueStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const Phase1EncryptionAlgorithmsRequestListValueStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const VpnTunnelOptionsSpecificationStateSchema = z.object({
+  Phase2EncryptionAlgorithms: z.array(
+    Phase2EncryptionAlgorithmsRequestListValueStateSchema,
+  ),
+  Phase2DHGroupNumbers: z.array(
+    Phase2DHGroupNumbersRequestListValueStateSchema,
+  ),
+  TunnelInsideIpv6Cidr: z.string(),
+  StartupAction: z.string(),
+  TunnelInsideCidr: z.string(),
+  IKEVersions: z.array(IKEVersionsRequestListValueStateSchema),
+  LogOptions: VpnTunnelLogOptionsSpecificationStateSchema,
+  Phase1DHGroupNumbers: z.array(
+    Phase1DHGroupNumbersRequestListValueStateSchema,
+  ),
+  ReplayWindowSize: z.number(),
+  EnableTunnelLifecycleControl: z.boolean(),
+  RekeyMarginTimeSeconds: z.number(),
+  DPDTimeoutAction: z.string(),
+  Phase2LifetimeSeconds: z.number(),
+  Phase2IntegrityAlgorithms: z.array(
+    Phase2IntegrityAlgorithmsRequestListValueStateSchema,
+  ),
+  Phase1IntegrityAlgorithms: z.array(
+    Phase1IntegrityAlgorithmsRequestListValueStateSchema,
+  ),
+  PreSharedKey: z.string(),
+  Phase1LifetimeSeconds: z.number(),
+  RekeyFuzzPercentage: z.number(),
+  Phase1EncryptionAlgorithms: z.array(
+    Phase1EncryptionAlgorithmsRequestListValueStateSchema,
+  ),
+  DPDTimeoutSeconds: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -275,8 +356,9 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   RemoteIpv6NetworkCidr: z.string().optional(),
   RemoteIpv4NetworkCidr: z.string().optional(),
-  VpnTunnelOptionsSpecifications: z.array(VpnTunnelOptionsSpecificationSchema)
-    .optional(),
+  VpnTunnelOptionsSpecifications: z.array(
+    VpnTunnelOptionsSpecificationStateSchema,
+  ).optional(),
   CustomerGatewayId: z.string().optional(),
   OutsideIpAddressType: z.string().optional(),
   StaticRoutesOnly: z.boolean().optional(),
@@ -292,10 +374,10 @@ const StateSchema = z.object({
   LocalIpv6NetworkCidr: z.string().optional(),
   VpnConnectionId: z.string(),
   TunnelInsideIpVersion: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -374,7 +456,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VPNConnection. Registered at `@swamp/aws/ec2/vpnconnection`. */
 export const model = {
   type: "@swamp/aws/ec2/vpnconnection",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -448,6 +530,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

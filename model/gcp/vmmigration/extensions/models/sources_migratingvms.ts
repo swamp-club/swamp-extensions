@@ -559,45 +559,51 @@ const StateSchema = z.object({
   awsSourceVmDetails: z.object({
     architecture: z.string(),
     committedStorageBytes: z.string(),
-    disks: z.array(z.object({
-      diskNumber: z.number(),
-      sizeGb: z.string(),
-      volumeId: z.string(),
-    })),
+    disks: z.array(
+      z.object({
+        diskNumber: z.number(),
+        sizeGb: z.string(),
+        volumeId: z.string(),
+      }).partial(),
+    ),
     firmware: z.string(),
     vmCapabilitiesInfo: z.object({
       lastOsCapabilitiesUpdateTime: z.string(),
       osCapabilities: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   azureSourceVmDetails: z.object({
     architecture: z.string(),
     committedStorageBytes: z.string(),
-    disks: z.array(z.object({
-      diskId: z.string(),
-      diskNumber: z.number(),
-      sizeGb: z.string(),
-    })),
+    disks: z.array(
+      z.object({
+        diskId: z.string(),
+        diskNumber: z.number(),
+        sizeGb: z.string(),
+      }).partial(),
+    ),
     firmware: z.string(),
     vmCapabilitiesInfo: z.object({
       lastOsCapabilitiesUpdateTime: z.string(),
       osCapabilities: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   computeEngineDisksTargetDefaults: z.object({
-    disks: z.array(z.object({
-      additionalLabels: z.record(z.string(), z.unknown()),
-      diskName: z.string(),
-      diskType: z.string(),
-      encryption: z.object({
-        kmsKey: z.string(),
-      }),
-      sourceDiskNumber: z.number(),
-      vmAttachmentDetails: z.object({
-        deviceName: z.string(),
-      }),
-    })),
-    disksTargetDefaults: z.object({}),
+    disks: z.array(
+      z.object({
+        additionalLabels: z.record(z.string(), z.unknown()),
+        diskName: z.string(),
+        diskType: z.string(),
+        encryption: z.object({
+          kmsKey: z.string(),
+        }).partial(),
+        sourceDiskNumber: z.number(),
+        vmAttachmentDetails: z.object({
+          deviceName: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+    disksTargetDefaults: z.object({}).partial(),
     targetProject: z.string(),
     vmTargetDefaults: z.object({
       additionalLicenses: z.array(z.string()),
@@ -607,99 +613,111 @@ const StateSchema = z.object({
         diskType: z.string(),
         encryption: z.object({
           kmsKey: z.string(),
-        }),
+        }).partial(),
         image: z.object({
           sourceImage: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       computeScheduling: z.object({
         minNodeCpus: z.number(),
-        nodeAffinities: z.array(z.object({
-          key: z.unknown(),
-          operator: z.unknown(),
-          values: z.unknown(),
-        })),
+        nodeAffinities: z.array(
+          z.object({
+            key: z.unknown(),
+            operator: z.unknown(),
+            values: z.unknown(),
+          }).partial(),
+        ),
         onHostMaintenance: z.string(),
         restartType: z.string(),
-      }),
+      }).partial(),
       enableIntegrityMonitoring: z.boolean(),
       enableVtpm: z.boolean(),
       encryption: z.object({
         kmsKey: z.string(),
-      }),
+      }).partial(),
       hostname: z.string(),
       labels: z.record(z.string(), z.unknown()),
       machineType: z.string(),
       machineTypeSeries: z.string(),
       metadata: z.record(z.string(), z.unknown()),
-      networkInterfaces: z.array(z.object({
-        externalIp: z.string(),
-        internalIp: z.string(),
-        network: z.string(),
-        networkTier: z.string(),
-        subnetwork: z.string(),
-      })),
+      networkInterfaces: z.array(
+        z.object({
+          externalIp: z.string(),
+          internalIp: z.string(),
+          network: z.string(),
+          networkTier: z.string(),
+          subnetwork: z.string(),
+        }).partial(),
+      ),
       networkTags: z.array(z.string()),
       secureBoot: z.boolean(),
       serviceAccount: z.string(),
       vmName: z.string(),
-    }),
+    }).partial(),
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   computeEngineTargetDefaults: z.object({
-    adaptationModifiers: z.array(z.object({
-      modifier: z.string(),
-      value: z.string(),
-    })),
+    adaptationModifiers: z.array(
+      z.object({
+        modifier: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     additionalLicenses: z.array(z.string()),
     appliedLicense: z.object({
       osLicense: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     bootConversion: z.string(),
     bootOption: z.string(),
     computeScheduling: z.object({
       minNodeCpus: z.number(),
-      nodeAffinities: z.array(z.object({
-        key: z.string(),
-        operator: z.string(),
-        values: z.array(z.unknown()),
-      })),
+      nodeAffinities: z.array(
+        z.object({
+          key: z.string(),
+          operator: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+      ),
       onHostMaintenance: z.string(),
       restartType: z.string(),
-    }),
+    }).partial(),
     diskReplicaZones: z.array(z.string()),
     diskType: z.string(),
-    disks: z.array(z.object({
-      additionalLabels: z.record(z.string(), z.unknown()),
-      diskName: z.string(),
-      diskType: z.string(),
-      encryption: z.object({
-        kmsKey: z.string(),
-      }),
-      sourceDiskNumber: z.number(),
-      vmAttachmentDetails: z.object({
-        deviceName: z.string(),
-      }),
-    })),
+    disks: z.array(
+      z.object({
+        additionalLabels: z.record(z.string(), z.unknown()),
+        diskName: z.string(),
+        diskType: z.string(),
+        encryption: z.object({
+          kmsKey: z.string(),
+        }).partial(),
+        sourceDiskNumber: z.number(),
+        vmAttachmentDetails: z.object({
+          deviceName: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     enableIntegrityMonitoring: z.boolean(),
     enableVtpm: z.boolean(),
     encryption: z.object({
       kmsKey: z.string(),
-    }),
+    }).partial(),
     hostname: z.string(),
     labels: z.record(z.string(), z.unknown()),
     licenseType: z.string(),
     machineType: z.string(),
     machineTypeSeries: z.string(),
     metadata: z.record(z.string(), z.unknown()),
-    networkInterfaces: z.array(z.object({
-      externalIp: z.string(),
-      internalIp: z.string(),
-      network: z.string(),
-      networkTier: z.string(),
-      subnetwork: z.string(),
-    })),
+    networkInterfaces: z.array(
+      z.object({
+        externalIp: z.string(),
+        internalIp: z.string(),
+        network: z.string(),
+        networkTier: z.string(),
+        subnetwork: z.string(),
+      }).partial(),
+    ),
     networkTags: z.array(z.string()),
     secureBoot: z.boolean(),
     serviceAccount: z.string(),
@@ -707,7 +725,7 @@ const StateSchema = z.object({
     targetProject: z.string(),
     vmName: z.string(),
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   currentSyncInfo: z.object({
     cycleNumber: z.number(),
@@ -716,56 +734,62 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     name: z.string(),
     progressPercent: z.number(),
     startTime: z.string(),
     state: z.string(),
-    steps: z.array(z.object({
-      endTime: z.string(),
-      initializingReplication: z.object({}),
-      postProcessing: z.object({}),
-      replicating: z.object({
-        lastThirtyMinutesAverageBytesPerSecond: z.string(),
-        lastTwoMinutesAverageBytesPerSecond: z.string(),
-        replicatedBytes: z.string(),
-        totalBytes: z.string(),
-      }),
-      startTime: z.string(),
-    })),
+    steps: z.array(
+      z.object({
+        endTime: z.string(),
+        initializingReplication: z.object({}).partial(),
+        postProcessing: z.object({}).partial(),
+        replicating: z.object({
+          lastThirtyMinutesAverageBytesPerSecond: z.string(),
+          lastTwoMinutesAverageBytesPerSecond: z.string(),
+          replicatedBytes: z.string(),
+          totalBytes: z.string(),
+        }).partial(),
+        startTime: z.string(),
+      }).partial(),
+    ),
     totalPauseDuration: z.string(),
-    warnings: z.array(z.object({
-      actionItem: z.object({
-        locale: z.string(),
-        message: z.string(),
-      }),
-      code: z.string(),
-      helpLinks: z.array(z.object({
-        description: z.unknown(),
-        url: z.unknown(),
-      })),
-      warningMessage: z.object({
-        locale: z.string(),
-        message: z.string(),
-      }),
-      warningTime: z.string(),
-    })),
-  }).optional(),
+    warnings: z.array(
+      z.object({
+        actionItem: z.object({
+          locale: z.string(),
+          message: z.string(),
+        }).partial(),
+        code: z.string(),
+        helpLinks: z.array(
+          z.object({
+            description: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+        ),
+        warningMessage: z.object({
+          locale: z.string(),
+          message: z.string(),
+        }).partial(),
+        warningTime: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   cutoverForecast: z.object({
     estimatedCutoverJobDuration: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   expiration: z.object({
     expireTime: z.string(),
     extendable: z.boolean(),
     extensionCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   group: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   lastReplicationCycle: z.object({
@@ -775,225 +799,251 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     name: z.string(),
     progressPercent: z.number(),
     startTime: z.string(),
     state: z.string(),
-    steps: z.array(z.object({
-      endTime: z.string(),
-      initializingReplication: z.object({}),
-      postProcessing: z.object({}),
-      replicating: z.object({
-        lastThirtyMinutesAverageBytesPerSecond: z.string(),
-        lastTwoMinutesAverageBytesPerSecond: z.string(),
-        replicatedBytes: z.string(),
-        totalBytes: z.string(),
-      }),
-      startTime: z.string(),
-    })),
+    steps: z.array(
+      z.object({
+        endTime: z.string(),
+        initializingReplication: z.object({}).partial(),
+        postProcessing: z.object({}).partial(),
+        replicating: z.object({
+          lastThirtyMinutesAverageBytesPerSecond: z.string(),
+          lastTwoMinutesAverageBytesPerSecond: z.string(),
+          replicatedBytes: z.string(),
+          totalBytes: z.string(),
+        }).partial(),
+        startTime: z.string(),
+      }).partial(),
+    ),
     totalPauseDuration: z.string(),
-    warnings: z.array(z.object({
-      actionItem: z.object({
-        locale: z.string(),
-        message: z.string(),
-      }),
-      code: z.string(),
-      helpLinks: z.array(z.object({
-        description: z.unknown(),
-        url: z.unknown(),
-      })),
-      warningMessage: z.object({
-        locale: z.string(),
-        message: z.string(),
-      }),
-      warningTime: z.string(),
-    })),
-  }).optional(),
+    warnings: z.array(
+      z.object({
+        actionItem: z.object({
+          locale: z.string(),
+          message: z.string(),
+        }).partial(),
+        code: z.string(),
+        helpLinks: z.array(
+          z.object({
+            description: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+        ),
+        warningMessage: z.object({
+          locale: z.string(),
+          message: z.string(),
+        }).partial(),
+        warningTime: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   lastSync: z.object({
     lastSyncTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   policy: z.object({
     idleDuration: z.string(),
     skipOsAdaptation: z.boolean(),
-  }).optional(),
-  recentCloneJobs: z.array(z.object({
-    computeEngineDisksTargetDetails: z.object({
-      disks: z.array(z.object({
-        diskUri: z.unknown(),
-        sourceDiskNumber: z.unknown(),
-      })),
-      disksTargetDetails: z.object({}),
-      vmTargetDetails: z.object({
-        vmUri: z.string(),
-      }),
-    }),
-    computeEngineTargetDetails: z.object({
-      adaptationModifiers: z.array(z.object({
-        modifier: z.unknown(),
-        value: z.unknown(),
-      })),
-      additionalLicenses: z.array(z.string()),
-      appliedLicense: z.object({
-        osLicense: z.string(),
-        type: z.string(),
-      }),
-      bootConversion: z.string(),
-      bootOption: z.string(),
-      computeScheduling: z.object({
-        minNodeCpus: z.number(),
-        nodeAffinities: z.array(z.unknown()),
-        onHostMaintenance: z.string(),
-        restartType: z.string(),
-      }),
-      diskReplicaZones: z.array(z.string()),
-      diskType: z.string(),
-      enableIntegrityMonitoring: z.boolean(),
-      enableVtpm: z.boolean(),
-      encryption: z.object({
-        kmsKey: z.string(),
-      }),
-      hostname: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-      licenseType: z.string(),
-      machineType: z.string(),
-      machineTypeSeries: z.string(),
-      metadata: z.record(z.string(), z.unknown()),
-      networkInterfaces: z.array(z.object({
-        externalIp: z.unknown(),
-        internalIp: z.unknown(),
-        network: z.unknown(),
-        networkTier: z.unknown(),
-        subnetwork: z.unknown(),
-      })),
-      networkTags: z.array(z.string()),
-      project: z.string(),
-      secureBoot: z.boolean(),
-      serviceAccount: z.string(),
-      storagePool: z.string(),
-      vmName: z.string(),
-      zone: z.string(),
-    }),
-    createTime: z.string(),
-    endTime: z.string(),
-    error: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    name: z.string(),
-    state: z.string(),
-    stateTime: z.string(),
-    steps: z.array(z.object({
-      adaptingOs: z.object({}),
+  }).partial().optional(),
+  recentCloneJobs: z.array(
+    z.object({
+      computeEngineDisksTargetDetails: z.object({
+        disks: z.array(
+          z.object({
+            diskUri: z.unknown(),
+            sourceDiskNumber: z.unknown(),
+          }).partial(),
+        ),
+        disksTargetDetails: z.object({}).partial(),
+        vmTargetDetails: z.object({
+          vmUri: z.string(),
+        }).partial(),
+      }).partial(),
+      computeEngineTargetDetails: z.object({
+        adaptationModifiers: z.array(
+          z.object({
+            modifier: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        additionalLicenses: z.array(z.string()),
+        appliedLicense: z.object({
+          osLicense: z.string(),
+          type: z.string(),
+        }).partial(),
+        bootConversion: z.string(),
+        bootOption: z.string(),
+        computeScheduling: z.object({
+          minNodeCpus: z.number(),
+          nodeAffinities: z.array(z.unknown()),
+          onHostMaintenance: z.string(),
+          restartType: z.string(),
+        }).partial(),
+        diskReplicaZones: z.array(z.string()),
+        diskType: z.string(),
+        enableIntegrityMonitoring: z.boolean(),
+        enableVtpm: z.boolean(),
+        encryption: z.object({
+          kmsKey: z.string(),
+        }).partial(),
+        hostname: z.string(),
+        labels: z.record(z.string(), z.unknown()),
+        licenseType: z.string(),
+        machineType: z.string(),
+        machineTypeSeries: z.string(),
+        metadata: z.record(z.string(), z.unknown()),
+        networkInterfaces: z.array(
+          z.object({
+            externalIp: z.unknown(),
+            internalIp: z.unknown(),
+            network: z.unknown(),
+            networkTier: z.unknown(),
+            subnetwork: z.unknown(),
+          }).partial(),
+        ),
+        networkTags: z.array(z.string()),
+        project: z.string(),
+        secureBoot: z.boolean(),
+        serviceAccount: z.string(),
+        storagePool: z.string(),
+        vmName: z.string(),
+        zone: z.string(),
+      }).partial(),
+      createTime: z.string(),
       endTime: z.string(),
-      instantiatingMigratedVm: z.object({}),
-      preparingVmDisks: z.object({}),
-      startTime: z.string(),
-    })),
-  })).optional(),
-  recentCutoverJobs: z.array(z.object({
-    computeEngineDisksTargetDetails: z.object({
-      disks: z.array(z.object({
-        diskUri: z.unknown(),
-        sourceDiskNumber: z.unknown(),
-      })),
-      disksTargetDetails: z.object({}),
-      vmTargetDetails: z.object({
-        vmUri: z.string(),
-      }),
-    }),
-    computeEngineTargetDetails: z.object({
-      adaptationModifiers: z.array(z.object({
-        modifier: z.unknown(),
-        value: z.unknown(),
-      })),
-      additionalLicenses: z.array(z.string()),
-      appliedLicense: z.object({
-        osLicense: z.string(),
-        type: z.string(),
-      }),
-      bootConversion: z.string(),
-      bootOption: z.string(),
-      computeScheduling: z.object({
-        minNodeCpus: z.number(),
-        nodeAffinities: z.array(z.unknown()),
-        onHostMaintenance: z.string(),
-        restartType: z.string(),
-      }),
-      diskReplicaZones: z.array(z.string()),
-      diskType: z.string(),
-      enableIntegrityMonitoring: z.boolean(),
-      enableVtpm: z.boolean(),
-      encryption: z.object({
-        kmsKey: z.string(),
-      }),
-      hostname: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-      licenseType: z.string(),
-      machineType: z.string(),
-      machineTypeSeries: z.string(),
-      metadata: z.record(z.string(), z.unknown()),
-      networkInterfaces: z.array(z.object({
-        externalIp: z.unknown(),
-        internalIp: z.unknown(),
-        network: z.unknown(),
-        networkTier: z.unknown(),
-        subnetwork: z.unknown(),
-      })),
-      networkTags: z.array(z.string()),
-      project: z.string(),
-      secureBoot: z.boolean(),
-      serviceAccount: z.string(),
-      storagePool: z.string(),
-      vmName: z.string(),
-      zone: z.string(),
-    }),
-    createTime: z.string(),
-    endTime: z.string(),
-    error: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    name: z.string(),
-    progressPercent: z.number(),
-    state: z.string(),
-    stateMessage: z.string(),
-    stateTime: z.string(),
-    steps: z.array(z.object({
+      error: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      name: z.string(),
+      state: z.string(),
+      stateTime: z.string(),
+      steps: z.array(
+        z.object({
+          adaptingOs: z.object({}).partial(),
+          endTime: z.string(),
+          instantiatingMigratedVm: z.object({}).partial(),
+          preparingVmDisks: z.object({}).partial(),
+          startTime: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
+  recentCutoverJobs: z.array(
+    z.object({
+      computeEngineDisksTargetDetails: z.object({
+        disks: z.array(
+          z.object({
+            diskUri: z.unknown(),
+            sourceDiskNumber: z.unknown(),
+          }).partial(),
+        ),
+        disksTargetDetails: z.object({}).partial(),
+        vmTargetDetails: z.object({
+          vmUri: z.string(),
+        }).partial(),
+      }).partial(),
+      computeEngineTargetDetails: z.object({
+        adaptationModifiers: z.array(
+          z.object({
+            modifier: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        additionalLicenses: z.array(z.string()),
+        appliedLicense: z.object({
+          osLicense: z.string(),
+          type: z.string(),
+        }).partial(),
+        bootConversion: z.string(),
+        bootOption: z.string(),
+        computeScheduling: z.object({
+          minNodeCpus: z.number(),
+          nodeAffinities: z.array(z.unknown()),
+          onHostMaintenance: z.string(),
+          restartType: z.string(),
+        }).partial(),
+        diskReplicaZones: z.array(z.string()),
+        diskType: z.string(),
+        enableIntegrityMonitoring: z.boolean(),
+        enableVtpm: z.boolean(),
+        encryption: z.object({
+          kmsKey: z.string(),
+        }).partial(),
+        hostname: z.string(),
+        labels: z.record(z.string(), z.unknown()),
+        licenseType: z.string(),
+        machineType: z.string(),
+        machineTypeSeries: z.string(),
+        metadata: z.record(z.string(), z.unknown()),
+        networkInterfaces: z.array(
+          z.object({
+            externalIp: z.unknown(),
+            internalIp: z.unknown(),
+            network: z.unknown(),
+            networkTier: z.unknown(),
+            subnetwork: z.unknown(),
+          }).partial(),
+        ),
+        networkTags: z.array(z.string()),
+        project: z.string(),
+        secureBoot: z.boolean(),
+        serviceAccount: z.string(),
+        storagePool: z.string(),
+        vmName: z.string(),
+        zone: z.string(),
+      }).partial(),
+      createTime: z.string(),
       endTime: z.string(),
-      finalSync: z.object({
-        cycleNumber: z.unknown(),
-        endTime: z.unknown(),
-        error: z.unknown(),
-        name: z.unknown(),
-        progressPercent: z.unknown(),
-        startTime: z.unknown(),
-        state: z.unknown(),
-        steps: z.unknown(),
-        totalPauseDuration: z.unknown(),
-        warnings: z.unknown(),
-      }),
-      instantiatingMigratedVm: z.object({}),
-      preparingVmDisks: z.object({}),
-      previousReplicationCycle: z.object({
-        cycleNumber: z.unknown(),
-        endTime: z.unknown(),
-        error: z.unknown(),
-        name: z.unknown(),
-        progressPercent: z.unknown(),
-        startTime: z.unknown(),
-        state: z.unknown(),
-        steps: z.unknown(),
-        totalPauseDuration: z.unknown(),
-        warnings: z.unknown(),
-      }),
-      shuttingDownSourceVm: z.object({}),
-      startTime: z.string(),
-    })),
-  })).optional(),
+      error: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      name: z.string(),
+      progressPercent: z.number(),
+      state: z.string(),
+      stateMessage: z.string(),
+      stateTime: z.string(),
+      steps: z.array(
+        z.object({
+          endTime: z.string(),
+          finalSync: z.object({
+            cycleNumber: z.unknown(),
+            endTime: z.unknown(),
+            error: z.unknown(),
+            name: z.unknown(),
+            progressPercent: z.unknown(),
+            startTime: z.unknown(),
+            state: z.unknown(),
+            steps: z.unknown(),
+            totalPauseDuration: z.unknown(),
+            warnings: z.unknown(),
+          }).partial(),
+          instantiatingMigratedVm: z.object({}).partial(),
+          preparingVmDisks: z.object({}).partial(),
+          previousReplicationCycle: z.object({
+            cycleNumber: z.unknown(),
+            endTime: z.unknown(),
+            error: z.unknown(),
+            name: z.unknown(),
+            progressPercent: z.unknown(),
+            startTime: z.unknown(),
+            state: z.unknown(),
+            steps: z.unknown(),
+            totalPauseDuration: z.unknown(),
+            warnings: z.unknown(),
+          }).partial(),
+          shuttingDownSourceVm: z.object({}).partial(),
+          startTime: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   sourceVmId: z.string().optional(),
   state: z.string().optional(),
   stateTime: z.string().optional(),
@@ -1001,17 +1051,19 @@ const StateSchema = z.object({
   vmwareSourceVmDetails: z.object({
     architecture: z.string(),
     committedStorageBytes: z.string(),
-    disks: z.array(z.object({
-      diskNumber: z.number(),
-      label: z.string(),
-      sizeGb: z.string(),
-    })),
+    disks: z.array(
+      z.object({
+        diskNumber: z.number(),
+        label: z.string(),
+        sizeGb: z.string(),
+      }).partial(),
+    ),
     firmware: z.string(),
     vmCapabilitiesInfo: z.object({
       lastOsCapabilitiesUpdateTime: z.string(),
       osCapabilities: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1430,7 +1482,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VM Migration Sources.MigratingVms. Registered at `@swamp/gcp/vmmigration/sources-migratingvms`. */
 export const model = {
   type: "@swamp/gcp/vmmigration/sources-migratingvms",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1604,6 +1656,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

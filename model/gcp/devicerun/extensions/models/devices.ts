@@ -116,28 +116,28 @@ const StateSchema = z.object({
   androidDetails: z.object({
     buildType: z.string(),
     supportedAbis: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   availability: z.object({
     available: z.string(),
     capacity: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   formFactor: z.string().optional(),
   hardwareType: z.string().optional(),
-  iosDetails: z.object({}).optional(),
+  iosDetails: z.object({}).partial().optional(),
   labInfo: z.object({
     displayName: z.string(),
     regionCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   lifecycle: z.object({
     removalDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   manufacturer: z.string().optional(),
   modelCode: z.string().optional(),
   name: z.string(),
@@ -147,13 +147,15 @@ const StateSchema = z.object({
     densityDpi: z.number(),
     heightPx: z.number(),
     widthPx: z.number(),
-  }).optional(),
-  supportedProducts: z.array(z.object({
-    automation: z.object({}),
-    deviceStreaming: z.object({
-      minimumAndroidStudioVersion: z.string(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  supportedProducts: z.array(
+    z.object({
+      automation: z.object({}).partial(),
+      deviceStreaming: z.object({
+        minimumAndroidStudioVersion: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -197,7 +199,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Device Run Devices. Registered at `@swamp/gcp/devicerun/devices`. */
 export const model = {
   type: "@swamp/gcp/devicerun/devices",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -211,6 +213,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

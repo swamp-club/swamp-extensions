@@ -124,18 +124,18 @@ const StateSchema = z.object({
       queryObservationWindow: z.string(),
       riskyQueryCount: z.string(),
       totalQueryCount: z.string(),
-    }),
+    }).partial(),
     lastUpdateTimestamp: z.string(),
     severity: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
   recommendation: z.object({
     content: z.string(),
     referenceUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
 }).passthrough();
@@ -178,7 +178,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ReliabilityRisks. Registered at `@swamp/gcp/compute/reliabilityrisks`. */
 export const model = {
   type: "@swamp/gcp/compute/reliabilityrisks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -207,6 +207,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

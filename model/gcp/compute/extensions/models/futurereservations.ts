@@ -447,33 +447,37 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   aggregateReservation: z.object({
-    inUseResources: z.array(z.object({
-      accelerator: z.object({
-        acceleratorCount: z.number(),
-        acceleratorType: z.string(),
-      }),
-    })),
-    reservedResources: z.array(z.object({
-      accelerator: z.object({
-        acceleratorCount: z.number(),
-        acceleratorType: z.string(),
-      }),
-    })),
+    inUseResources: z.array(
+      z.object({
+        accelerator: z.object({
+          acceleratorCount: z.number(),
+          acceleratorType: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+    reservedResources: z.array(
+      z.object({
+        accelerator: z.object({
+          acceleratorCount: z.number(),
+          acceleratorType: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     vmFamily: z.string(),
     workloadType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   autoCreatedReservationsDeleteTime: z.string().optional(),
   autoCreatedReservationsDuration: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   autoDeleteAutoCreatedReservations: z.boolean().optional(),
   colocationResource: z.string().optional(),
   commitmentInfo: z.object({
     commitmentName: z.string(),
     commitmentPlan: z.string(),
     previousCommitmentTerms: z.string(),
-  }).optional(),
+  }).partial().optional(),
   confidentialComputeType: z.string().optional(),
   creationTimestamp: z.string().optional(),
   deploymentType: z.string().optional(),
@@ -485,14 +489,14 @@ const StateSchema = z.object({
   namePrefix: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   planningStatus: z.string().optional(),
   reservationMode: z.string().optional(),
   reservationName: z.string().optional(),
   resourceMetadata: z.object({
     apiVersion: z.string(),
     resourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resourceName: z.string().optional(),
   schedulingType: z.string().optional(),
   selfLink: z.string().optional(),
@@ -500,25 +504,29 @@ const StateSchema = z.object({
   shareSettings: z.object({
     projectMap: z.record(z.string(), z.unknown()),
     shareType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   specificReservationRequired: z.boolean().optional(),
   specificSkuProperties: z.object({
     instanceProperties: z.object({
-      guestAccelerators: z.array(z.object({
-        acceleratorCount: z.number(),
-        acceleratorType: z.string(),
-      })),
-      localSsds: z.array(z.object({
-        diskSizeGb: z.string(),
-        interface: z.string(),
-      })),
+      guestAccelerators: z.array(
+        z.object({
+          acceleratorCount: z.number(),
+          acceleratorType: z.string(),
+        }).partial(),
+      ),
+      localSsds: z.array(
+        z.object({
+          diskSizeGb: z.string(),
+          interface: z.string(),
+        }).partial(),
+      ),
       locationHint: z.string(),
       machineType: z.string(),
       minCpuPlatform: z.string(),
-    }),
+    }).partial(),
     sourceInstanceTemplate: z.string(),
     totalCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     amendmentStatus: z.string(),
     autoCreatedReservations: z.array(z.string()),
@@ -526,23 +534,23 @@ const StateSchema = z.object({
       capacityOptimized: z.string(),
       readOptimized: z.string(),
       writeOptimized: z.string(),
-    }),
+    }).partial(),
     existingMatchingUsageInfo: z.object({
       count: z.string(),
       timestamp: z.string(),
-    }),
+    }).partial(),
     fulfilledCount: z.string(),
     lastKnownGoodState: z.object({
       description: z.string(),
       existingMatchingUsageInfo: z.object({
         count: z.string(),
         timestamp: z.string(),
-      }),
+      }).partial(),
       futureReservationSpecs: z.object({
         shareSettings: z.object({
           projectMap: z.record(z.string(), z.unknown()),
           shareType: z.string(),
-        }),
+        }).partial(),
         specificSkuProperties: z.object({
           instanceProperties: z.object({
             guestAccelerators: z.unknown(),
@@ -550,55 +558,55 @@ const StateSchema = z.object({
             locationHint: z.unknown(),
             machineType: z.unknown(),
             minCpuPlatform: z.unknown(),
-          }),
+          }).partial(),
           sourceInstanceTemplate: z.string(),
           totalCount: z.string(),
-        }),
+        }).partial(),
         timeWindow: z.object({
           duration: z.object({
             nanos: z.unknown(),
             seconds: z.unknown(),
-          }),
+          }).partial(),
           endTime: z.string(),
           startTime: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       lockTime: z.string(),
       namePrefix: z.string(),
       procurementStatus: z.string(),
-    }),
+    }).partial(),
     lockTime: z.string(),
     procurementStatus: z.string(),
     specificSkuProperties: z.object({
       sourceInstanceTemplateId: z.string(),
-    }),
+    }).partial(),
     storagePoolProvisionedCapacity: z.object({
       poolProvisionedCapacityGb: z.string(),
       poolProvisionedIops: z.string(),
       poolProvisionedThroughput: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   storagePoolProperties: z.object({
     requestedExapoolProvisionedCapacityGb: z.object({
       capacityOptimized: z.string(),
       readOptimized: z.string(),
       writeOptimized: z.string(),
-    }),
+    }).partial(),
     requestedStoragePoolProvisionedCapacity: z.object({
       poolProvisionedCapacityGb: z.string(),
       poolProvisionedIops: z.string(),
       poolProvisionedThroughput: z.string(),
-    }),
+    }).partial(),
     storagePoolType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   timeWindow: z.object({
     duration: z.object({
       nanos: z.number(),
       seconds: z.string(),
-    }),
+    }).partial(),
     endTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   zone: z.string().optional(),
 }).passthrough();
 
@@ -875,7 +883,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine FutureReservations. Registered at `@swamp/gcp/compute/futurereservations`. */
 export const model = {
   type: "@swamp/gcp/compute/futurereservations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1064,6 +1072,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

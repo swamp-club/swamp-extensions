@@ -178,6 +178,90 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag"),
 });
 
+const VpcConfigStateSchema = z.object({
+  VpcArn: z.string(),
+  SecurityGroupArns: z.array(z.string()),
+  SubnetArns: z.array(z.string()),
+}).partial();
+
+const GitHubRepositoryResourceStateSchema = z.object({
+  Name: z.string(),
+  Owner: z.string(),
+}).partial();
+
+const GitHubCapabilitiesResourceStateSchema = z.object({
+  LeaveComments: z.boolean(),
+  RemediateCode: z.boolean(),
+}).partial();
+
+const GitLabRepositoryResourceStateSchema = z.object({
+  Name: z.string(),
+  Namespace: z.string(),
+}).partial();
+
+const GitLabCapabilitiesResourceStateSchema = z.object({
+  LeaveComments: z.boolean(),
+  RemediateCode: z.boolean(),
+}).partial();
+
+const BitbucketRepositoryResourceStateSchema = z.object({
+  Name: z.string(),
+  Workspace: z.string(),
+}).partial();
+
+const BitbucketCapabilitiesResourceStateSchema = z.object({
+  LeaveComments: z.boolean(),
+  RemediateCode: z.boolean(),
+}).partial();
+
+const ConfluenceDocumentResourceStateSchema = z.object({
+  Name: z.string(),
+  SpaceKey: z.string(),
+  PageId: z.string(),
+  Title: z.string(),
+  SpaceTitle: z.string(),
+}).partial();
+
+const ConfluenceCapabilitiesResourceStateSchema = z.object({
+  FetchDocument: z.boolean(),
+  CreateDocument: z.boolean(),
+  UpdateDocument: z.boolean(),
+}).partial();
+
+const AzureDevOpsRepositoryResourceStateSchema = z.object({
+  Name: z.string(),
+  Project: z.string(),
+  Organization: z.string(),
+}).partial();
+
+const AzureDevOpsCapabilitiesResourceStateSchema = z.object({
+  LeaveComments: z.boolean(),
+  RemediateCode: z.boolean(),
+}).partial();
+
+const ProviderResourceStateSchema = z.object({
+  GitHubRepository: GitHubRepositoryResourceStateSchema,
+  GitHubCapabilities: GitHubCapabilitiesResourceStateSchema,
+  GitLabRepository: GitLabRepositoryResourceStateSchema,
+  GitLabCapabilities: GitLabCapabilitiesResourceStateSchema,
+  BitbucketRepository: BitbucketRepositoryResourceStateSchema,
+  BitbucketCapabilities: BitbucketCapabilitiesResourceStateSchema,
+  ConfluenceDocument: ConfluenceDocumentResourceStateSchema,
+  ConfluenceCapabilities: ConfluenceCapabilitiesResourceStateSchema,
+  AzureDevOpsRepository: AzureDevOpsRepositoryResourceStateSchema,
+  AzureDevOpsCapabilities: AzureDevOpsCapabilitiesResourceStateSchema,
+}).partial();
+
+const IntegratedResourceStateSchema = z.object({
+  Integration: z.string(),
+  ProviderResources: z.array(ProviderResourceStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -234,26 +318,26 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   AwsResources: z.object({
-    Vpcs: z.array(VpcConfigSchema),
+    Vpcs: z.array(VpcConfigStateSchema),
     LogGroups: z.array(z.string()),
     S3Buckets: z.array(z.string()),
     SecretArns: z.array(z.string()),
     LambdaFunctionArns: z.array(z.string()),
     IamRoles: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   CodeReviewSettings: z.object({
     ControlsScanning: z.boolean(),
     GeneralPurposeScanning: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   KmsKeyId: z.string().optional(),
-  IntegratedResources: z.array(IntegratedResourceSchema).optional(),
+  IntegratedResources: z.array(IntegratedResourceStateSchema).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   TargetDomainIds: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -315,7 +399,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent AgentSpace. Registered at `@swamp/aws/securityagent/agent-space`. */
 export const model = {
   type: "@swamp/aws/securityagent/agent-space",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -399,6 +483,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

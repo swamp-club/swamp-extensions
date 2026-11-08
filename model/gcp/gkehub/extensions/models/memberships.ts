@@ -359,7 +359,7 @@ const StateSchema = z.object({
     scopeTenancyIdentityProvider: z.string(),
     scopeTenancyWorkloadIdentityPool: z.string(),
     workloadIdentityPool: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clusterTier: z.string().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
@@ -367,14 +367,14 @@ const StateSchema = z.object({
   endpoint: z.object({
     applianceCluster: z.object({
       resourceLink: z.string(),
-    }),
+    }).partial(),
     edgeCluster: z.object({
       resourceLink: z.string(),
-    }),
+    }).partial(),
     gkeCluster: z.object({
       clusterMissing: z.boolean(),
       resourceLink: z.string(),
-    }),
+    }).partial(),
     googleManaged: z.boolean(),
     kubernetesMetadata: z.object({
       kubernetesApiServerVersion: z.string(),
@@ -383,35 +383,39 @@ const StateSchema = z.object({
       nodeProviderId: z.string(),
       updateTime: z.string(),
       vcpuCount: z.number(),
-    }),
+    }).partial(),
     kubernetesResource: z.object({
-      connectResources: z.array(z.object({
-        clusterScoped: z.boolean(),
-        manifest: z.string(),
-      })),
+      connectResources: z.array(
+        z.object({
+          clusterScoped: z.boolean(),
+          manifest: z.string(),
+        }).partial(),
+      ),
       membershipCrManifest: z.string(),
-      membershipResources: z.array(z.object({
-        clusterScoped: z.boolean(),
-        manifest: z.string(),
-      })),
+      membershipResources: z.array(
+        z.object({
+          clusterScoped: z.boolean(),
+          manifest: z.string(),
+        }).partial(),
+      ),
       resourceOptions: z.object({
         connectVersion: z.string(),
         k8sGitVersion: z.string(),
         k8sVersion: z.string(),
         v1beta1Crd: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     multiCloudCluster: z.object({
       clusterMissing: z.boolean(),
       resourceLink: z.string(),
-    }),
+    }).partial(),
     onPremCluster: z.object({
       adminCluster: z.boolean(),
       clusterMissing: z.boolean(),
       clusterType: z.string(),
       resourceLink: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   externalId: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   lastConnectionTime: z.string().optional(),
@@ -422,11 +426,11 @@ const StateSchema = z.object({
     kubernetesMetricsPrefix: z.string(),
     location: z.string(),
     projectId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   state: z.object({
     code: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uniqueId: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -643,7 +647,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Memberships. Registered at `@swamp/gcp/gkehub/memberships`. */
 export const model = {
   type: "@swamp/gcp/gkehub/memberships",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -716,6 +720,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

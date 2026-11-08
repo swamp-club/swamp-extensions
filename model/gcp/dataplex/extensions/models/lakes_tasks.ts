@@ -339,7 +339,7 @@ const StateSchema = z.object({
     maxJobExecutionLifetime: z.string(),
     project: z.string(),
     serviceAccount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   executionStatus: z.object({
     latestJob: z.object({
       endTime: z.string(),
@@ -349,7 +349,7 @@ const StateSchema = z.object({
         maxJobExecutionLifetime: z.string(),
         project: z.string(),
         serviceAccount: z.string(),
-      }),
+      }).partial(),
       labels: z.record(z.string(), z.unknown()),
       message: z.string(),
       name: z.string(),
@@ -360,9 +360,9 @@ const StateSchema = z.object({
       state: z.string(),
       trigger: z.string(),
       uid: z.string(),
-    }),
+    }).partial(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   notebook: z.object({
@@ -372,21 +372,21 @@ const StateSchema = z.object({
       batch: z.object({
         executorsCount: z.number(),
         maxExecutorsCount: z.number(),
-      }),
+      }).partial(),
       containerImage: z.object({
         image: z.string(),
         javaJars: z.array(z.string()),
         properties: z.record(z.string(), z.unknown()),
         pythonPackages: z.array(z.string()),
-      }),
+      }).partial(),
       vpcNetwork: z.object({
         network: z.string(),
         networkTags: z.array(z.string()),
         subNetwork: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     notebook: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spark: z.object({
     archiveUris: z.array(z.string()),
     fileUris: z.array(z.string()),
@@ -394,25 +394,25 @@ const StateSchema = z.object({
       batch: z.object({
         executorsCount: z.number(),
         maxExecutorsCount: z.number(),
-      }),
+      }).partial(),
       containerImage: z.object({
         image: z.string(),
         javaJars: z.array(z.string()),
         properties: z.record(z.string(), z.unknown()),
         pythonPackages: z.array(z.string()),
-      }),
+      }).partial(),
       vpcNetwork: z.object({
         network: z.string(),
         networkTags: z.array(z.string()),
         subNetwork: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     mainClass: z.string(),
     mainJarFileUri: z.string(),
     pythonScriptFile: z.string(),
     sqlScript: z.string(),
     sqlScriptFile: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   triggerSpec: z.object({
     disabled: z.boolean(),
@@ -420,7 +420,7 @@ const StateSchema = z.object({
     schedule: z.string(),
     startTime: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -621,7 +621,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex Lakes.Tasks. Registered at `@swamp/gcp/dataplex/lakes-tasks`. */
 export const model = {
   type: "@swamp/gcp/dataplex/lakes-tasks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -808,6 +808,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

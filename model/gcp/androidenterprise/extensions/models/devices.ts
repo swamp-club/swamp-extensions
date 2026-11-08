@@ -326,48 +326,56 @@ const StateSchema = z.object({
     maintenanceWindow: z.object({
       durationMs: z.string(),
       startTimeAfterMidnightMs: z.string(),
-    }),
+    }).partial(),
     policyId: z.string(),
     productAvailabilityPolicy: z.string(),
-    productPolicy: z.array(z.object({
-      autoInstallPolicy: z.object({
-        autoInstallConstraint: z.array(z.unknown()),
-        autoInstallMode: z.string(),
-        autoInstallPriority: z.number(),
-        minimumVersionCode: z.number(),
-      }),
-      autoUpdateMode: z.string(),
-      enterpriseAuthenticationAppLinkConfigs: z.array(z.object({
-        uri: z.unknown(),
-      })),
-      managedConfiguration: z.object({
-        configurationVariables: z.object({
-          mcmId: z.unknown(),
-          variableSet: z.unknown(),
-        }),
-        kind: z.string(),
-        managedProperty: z.array(z.unknown()),
+    productPolicy: z.array(
+      z.object({
+        autoInstallPolicy: z.object({
+          autoInstallConstraint: z.array(z.unknown()),
+          autoInstallMode: z.string(),
+          autoInstallPriority: z.number(),
+          minimumVersionCode: z.number(),
+        }).partial(),
+        autoUpdateMode: z.string(),
+        enterpriseAuthenticationAppLinkConfigs: z.array(
+          z.object({
+            uri: z.unknown(),
+          }).partial(),
+        ),
+        managedConfiguration: z.object({
+          configurationVariables: z.object({
+            mcmId: z.unknown(),
+            variableSet: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          managedProperty: z.array(z.unknown()),
+          productId: z.string(),
+        }).partial(),
         productId: z.string(),
-      }),
-      productId: z.string(),
-      trackIds: z.array(z.string()),
-      tracks: z.array(z.string()),
-    })),
-  }).optional(),
+        trackIds: z.array(z.string()),
+        tracks: z.array(z.string()),
+      }).partial(),
+    ),
+  }).partial().optional(),
   product: z.string().optional(),
   report: z.object({
-    appState: z.array(z.object({
-      keyedAppState: z.array(z.object({
-        data: z.unknown(),
-        key: z.unknown(),
-        message: z.unknown(),
-        severity: z.unknown(),
-        stateTimestampMillis: z.unknown(),
-      })),
-      packageName: z.string(),
-    })),
+    appState: z.array(
+      z.object({
+        keyedAppState: z.array(
+          z.object({
+            data: z.unknown(),
+            key: z.unknown(),
+            message: z.unknown(),
+            severity: z.unknown(),
+            stateTimestampMillis: z.unknown(),
+          }).partial(),
+        ),
+        packageName: z.string(),
+      }).partial(),
+    ),
     lastUpdatedTimestampMillis: z.string(),
-  }).optional(),
+  }).partial().optional(),
   retailBrand: z.string().optional(),
   sdkVersion: z.number().optional(),
 }).passthrough();
@@ -577,7 +585,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play EMM Devices. Registered at `@swamp/gcp/androidenterprise/devices`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/devices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -721,6 +729,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

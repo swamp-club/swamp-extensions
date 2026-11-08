@@ -109,6 +109,40 @@ const AWSServiceSchema = z.object({
   ServiceName: z.string().describe("The name of the AWS service.").optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const DelegationStateSchema = z.object({
+  LastUpdated: z.number(),
+  ControlSetId: z.string(),
+  CreationTime: z.number(),
+  CreatedBy: z.string(),
+  RoleArn: z.string(),
+  AssessmentName: z.string(),
+  Comment: z.string(),
+  Id: z.string(),
+  RoleType: z.string(),
+  AssessmentId: z.string(),
+  Status: z.string(),
+}).partial();
+
+const RoleStateSchema = z.object({
+  RoleArn: z.string(),
+  RoleType: z.string(),
+}).partial();
+
+const AWSAccountStateSchema = z.object({
+  Id: z.string(),
+  EmailAddress: z.string(),
+  Name: z.string(),
+}).partial();
+
+const AWSServiceStateSchema = z.object({
+  ServiceName: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -179,26 +213,30 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   FrameworkId: z.string().optional(),
   AssessmentId: z.string(),
-  AwsAccount: AWSAccountSchema.optional(),
+  AwsAccount: z.object({
+    Id: z.string(),
+    EmailAddress: z.string(),
+    Name: z.string(),
+  }).partial().optional(),
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  Delegations: z.array(DelegationSchema).optional(),
-  Roles: z.array(RoleSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  Delegations: z.array(DelegationStateSchema).optional(),
+  Roles: z.array(RoleStateSchema).optional(),
   Scope: z.object({
-    AwsAccounts: z.array(AWSAccountSchema),
-    AwsServices: z.array(AWSServiceSchema),
-  }).optional(),
+    AwsAccounts: z.array(AWSAccountStateSchema),
+    AwsServices: z.array(AWSServiceStateSchema),
+  }).partial().optional(),
   AssessmentReportsDestination: z.object({
     Destination: z.string(),
     DestinationType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   CreationTime: z.number().optional(),
   Name: z.string().optional(),
   Description: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -276,7 +314,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AuditManager Assessment. Registered at `@swamp/aws/auditmanager/assessment`. */
 export const model = {
   type: "@swamp/aws/auditmanager/assessment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -335,6 +373,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -201,14 +201,18 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   interceptEndpointGroup: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
-  locations: z.array(z.object({
-    location: z.string(),
-    state: z.string(),
-  })).optional(),
-  locationsDetails: z.array(z.object({
-    location: z.string(),
-    state: z.string(),
-  })).optional(),
+  locations: z.array(
+    z.object({
+      location: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
+  locationsDetails: z.array(
+    z.object({
+      location: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   network: z.string().optional(),
   networkCookie: z.number().optional(),
@@ -275,7 +279,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security InterceptEndpointGroupAssociations. Registered at `@swamp/gcp/networksecurity/interceptendpointgroupassociations`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/interceptendpointgroupassociations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -419,6 +423,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

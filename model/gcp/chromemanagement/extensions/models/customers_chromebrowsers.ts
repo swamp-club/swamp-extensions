@@ -411,75 +411,91 @@ const StateSchema = z.object({
     keyTrustLevel: z.string(),
     keyType: z.string(),
     publicKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   browserPermanentId: z.string().optional(),
   browserVersions: z.array(z.string()).optional(),
-  browsers: z.array(z.object({
-    browserVersion: z.string(),
-    channel: z.string(),
-    executablePath: z.string(),
-    lastPolicyFetchTime: z.string(),
-    lastStatusReportTime: z.string(),
-    pendingInstallVersion: z.string(),
-    plugins: z.array(z.object({
-      description: z.string(),
-      filename: z.string(),
-      pluginName: z.string(),
-    })),
-    profiles: z.array(z.object({
-      chromeSignedInUserEmail: z.string(),
-      extensionPolicies: z.array(z.unknown()),
-      extensions: z.array(z.unknown()),
-      id: z.string(),
+  browsers: z.array(
+    z.object({
+      browserVersion: z.string(),
+      channel: z.string(),
+      executablePath: z.string(),
       lastPolicyFetchTime: z.string(),
       lastStatusReportTime: z.string(),
-      profileName: z.string(),
-      safeBrowsingWarnings: z.string(),
-      safeBrowsingWarningsClickThroughs: z.string(),
-      safeBrowsingWarningsResetTime: z.string(),
-      userPolicies: z.array(z.unknown()),
-    })),
-  })).optional(),
+      pendingInstallVersion: z.string(),
+      plugins: z.array(
+        z.object({
+          description: z.string(),
+          filename: z.string(),
+          pluginName: z.string(),
+        }).partial(),
+      ),
+      profiles: z.array(
+        z.object({
+          chromeSignedInUserEmail: z.string(),
+          extensionPolicies: z.array(z.unknown()),
+          extensions: z.array(z.unknown()),
+          id: z.string(),
+          lastPolicyFetchTime: z.string(),
+          lastStatusReportTime: z.string(),
+          profileName: z.string(),
+          safeBrowsingWarnings: z.string(),
+          safeBrowsingWarningsClickThroughs: z.string(),
+          safeBrowsingWarningsResetTime: z.string(),
+          userPolicies: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   deviceIdentifiersHistory: z.object({
     deviceIdCollision: z.boolean(),
     lastDeviceIdCollisionDetectionTime: z.string(),
-    records: z.array(z.object({
-      firstRecordTime: z.string(),
-      identifiers: z.object({
-        hostName: z.string(),
-        machineName: z.string(),
-        serialNumber: z.string(),
-      }),
-      lastActivityTime: z.string(),
-    })),
-  }).optional(),
+    records: z.array(
+      z.object({
+        firstRecordTime: z.string(),
+        identifiers: z.object({
+          hostName: z.string(),
+          machineName: z.string(),
+          serialNumber: z.string(),
+        }).partial(),
+        lastActivityTime: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   extensionCount: z.string().optional(),
   lastActivityTime: z.string().optional(),
   lastDeviceUser: z.string().optional(),
-  lastDeviceUsers: z.array(z.object({
-    lastStatusReportTime: z.string(),
-    userName: z.string(),
-  })).optional(),
+  lastDeviceUsers: z.array(
+    z.object({
+      lastStatusReportTime: z.string(),
+      userName: z.string(),
+    }).partial(),
+  ).optional(),
   lastPolicyFetchTime: z.string().optional(),
   lastRegistrationTime: z.string().optional(),
   lastStatusReportTime: z.string().optional(),
-  machineExtensionPolicies: z.array(z.object({
-    extensionId: z.string(),
-    extensionName: z.string(),
-    policies: z.array(z.object({
+  machineExtensionPolicies: z.array(
+    z.object({
+      extensionId: z.string(),
+      extensionName: z.string(),
+      policies: z.array(
+        z.object({
+          error: z.string(),
+          policyName: z.string(),
+          source: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
+  machineName: z.string().optional(),
+  machinePolicies: z.array(
+    z.object({
       error: z.string(),
       policyName: z.string(),
       source: z.string(),
       value: z.string(),
-    })),
-  })).optional(),
-  machineName: z.string().optional(),
-  machinePolicies: z.array(z.object({
-    error: z.string(),
-    policyName: z.string(),
-    source: z.string(),
-    value: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   omahaRecentFetchTime: z.string().optional(),
   orgUnitId: z.string().optional(),
@@ -772,7 +788,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.ChromeBrowsers. Registered at `@swamp/gcp/chromemanagement/customers-chromebrowsers`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-chromebrowsers",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -801,6 +817,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

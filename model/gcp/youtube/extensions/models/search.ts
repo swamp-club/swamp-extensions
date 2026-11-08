@@ -189,7 +189,7 @@ const StateSchema = z.object({
     kind: z.string(),
     playlistId: z.string(),
     videoId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   snippet: z.object({
     channelId: z.string(),
@@ -202,50 +202,50 @@ const StateSchema = z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       fhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       high: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       maxres: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       medium: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       qhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       shortsAspectRatio: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       standard: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       uhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -289,7 +289,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Search. Registered at `@swamp/gcp/youtube/search`. */
 export const model = {
   type: "@swamp/gcp/youtube/search",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -443,6 +443,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

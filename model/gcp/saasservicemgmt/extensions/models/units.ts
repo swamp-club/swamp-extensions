@@ -226,40 +226,50 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   application: z.string().optional(),
-  conditions: z.array(z.object({
-    lastTransitionTime: z.string(),
-    message: z.string(),
-    reason: z.string(),
-    status: z.string(),
-    type: z.string(),
-  })).optional(),
+  conditions: z.array(
+    z.object({
+      lastTransitionTime: z.string(),
+      message: z.string(),
+      reason: z.string(),
+      status: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
-  dependencies: z.array(z.object({
-    alias: z.string(),
-    unit: z.string(),
-  })).optional(),
-  dependents: z.array(z.object({
-    alias: z.string(),
-    unit: z.string(),
-  })).optional(),
+  dependencies: z.array(
+    z.object({
+      alias: z.string(),
+      unit: z.string(),
+    }).partial(),
+  ).optional(),
+  dependents: z.array(
+    z.object({
+      alias: z.string(),
+      unit: z.string(),
+    }).partial(),
+  ).optional(),
   etag: z.string().optional(),
-  inputVariables: z.array(z.object({
-    type: z.string(),
-    value: z.string(),
-    variable: z.string(),
-  })).optional(),
+  inputVariables: z.array(
+    z.object({
+      type: z.string(),
+      value: z.string(),
+      variable: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   maintenance: z.object({
     pinnedUntilTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   managementMode: z.string().optional(),
   name: z.string(),
   ongoingOperations: z.array(z.string()).optional(),
-  outputVariables: z.array(z.object({
-    type: z.string(),
-    value: z.string(),
-    variable: z.string(),
-  })).optional(),
+  outputVariables: z.array(
+    z.object({
+      type: z.string(),
+      value: z.string(),
+      variable: z.string(),
+    }).partial(),
+  ).optional(),
   pendingOperations: z.array(z.string()).optional(),
   release: z.string().optional(),
   satisfiesPzi: z.boolean().optional(),
@@ -351,7 +361,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager Units. Registered at `@swamp/gcp/saasservicemgmt/units`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/units",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -540,6 +550,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

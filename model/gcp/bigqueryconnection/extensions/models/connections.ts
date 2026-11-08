@@ -411,26 +411,26 @@ const StateSchema = z.object({
     accessRole: z.object({
       iamRoleId: z.string(),
       identity: z.string(),
-    }),
+    }).partial(),
     crossCloudCacheOptions: z.object({
       enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   azure: z.object({
     application: z.string(),
     clientId: z.string(),
     crossCloudCacheOptions: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     customerTenantId: z.string(),
     federatedApplicationClientId: z.string(),
     identity: z.string(),
     objectId: z.string(),
     redirectUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cloudResource: z.object({
     serviceAccountId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cloudSpanner: z.object({
     database: z.string(),
     databaseRole: z.string(),
@@ -438,22 +438,22 @@ const StateSchema = z.object({
     useDataBoost: z.boolean(),
     useParallelism: z.boolean(),
     useServerlessAnalytics: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   cloudSql: z.object({
     credential: z.object({
       password: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     database: z.string(),
     instanceId: z.string(),
     serviceAccountId: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   configuration: z.object({
     asset: z.object({
       database: z.string(),
       googleCloudResource: z.string(),
-    }),
+    }).partial(),
     authentication: z.object({
       parameters: z.record(z.string(), z.unknown()),
       serviceAccount: z.string(),
@@ -461,28 +461,28 @@ const StateSchema = z.object({
         password: z.object({
           plaintext: z.string(),
           secretType: z.string(),
-        }),
+        }).partial(),
         username: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     connectorId: z.string(),
     endpoint: z.object({
       hostPort: z.string(),
-    }),
+    }).partial(),
     network: z.object({
       privateServiceConnect: z.object({
         networkAttachment: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     parameters: z.record(z.string(), z.unknown()),
     tls: z.object({
       mode: z.string(),
       privatePki: z.object({
         trustedCertificatesPem: z.string(),
-      }),
-      webPki: z.object({}),
-    }),
-  }).optional(),
+      }).partial(),
+      webPki: z.object({}).partial(),
+    }).partial(),
+  }).partial().optional(),
   creationTime: z.string().optional(),
   description: z.string().optional(),
   friendlyName: z.string().optional(),
@@ -493,20 +493,20 @@ const StateSchema = z.object({
   salesforceDataCloud: z.object({
     crossCloudCacheOptions: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     identity: z.string(),
     instanceUri: z.string(),
     tenantId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spark: z.object({
     metastoreServiceConfig: z.object({
       metastoreService: z.string(),
-    }),
+    }).partial(),
     serviceAccountId: z.string(),
     sparkHistoryServerConfig: z.object({
       dataprocCluster: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -794,7 +794,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Connection Connections. Registered at `@swamp/gcp/bigqueryconnection/connections`. */
 export const model = {
   type: "@swamp/gcp/bigqueryconnection/connections",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -978,6 +978,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

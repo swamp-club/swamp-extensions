@@ -415,6 +415,31 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const X12DetailsStateSchema = z.object({
+  TransactionSet: z.string(),
+  Version: z.string(),
+}).partial();
+
+const S3LocationStateSchema = z.object({
+  BucketName: z.string(),
+  Key: z.string(),
+}).partial();
+
+const EdiConfigurationStateSchema = z.object({
+  CapabilityDirection: z.string(),
+  Type: z.object({
+    X12Details: X12DetailsStateSchema,
+  }).partial(),
+  InputLocation: S3LocationStateSchema,
+  OutputLocation: S3LocationStateSchema,
+  TransformerId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -444,17 +469,17 @@ const StateSchema = z.object({
   CapabilityArn: z.string().optional(),
   CapabilityId: z.string(),
   Configuration: z.object({
-    Edi: EdiConfigurationSchema,
-  }).optional(),
+    Edi: EdiConfigurationStateSchema,
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
-  InstructionsDocuments: z.array(S3LocationSchema).optional(),
+  InstructionsDocuments: z.array(S3LocationStateSchema).optional(),
   ModifiedAt: z.string().optional(),
   Name: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Type: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -490,7 +515,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for B2BI Capability. Registered at `@swamp/aws/b2bi/capability`. */
 export const model = {
   type: "@swamp/aws/b2bi/capability",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -554,6 +579,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

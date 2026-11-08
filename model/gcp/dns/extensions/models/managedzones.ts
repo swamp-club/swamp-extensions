@@ -315,35 +315,41 @@ const StateSchema = z.object({
   cloudLoggingConfig: z.object({
     enableLogging: z.boolean(),
     kind: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTime: z.string().optional(),
   description: z.string().optional(),
   dnsName: z.string().optional(),
   dnssecConfig: z.object({
-    defaultKeySpecs: z.array(z.object({
-      algorithm: z.string(),
-      keyLength: z.number(),
-      keyType: z.string(),
-      kind: z.string(),
-    })),
+    defaultKeySpecs: z.array(
+      z.object({
+        algorithm: z.string(),
+        keyLength: z.number(),
+        keyType: z.string(),
+        kind: z.string(),
+      }).partial(),
+    ),
     kind: z.string(),
     nonExistence: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   forwardingConfig: z.object({
     kind: z.string(),
-    outboundEndpoints: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-    })),
-    targetNameServers: z.array(z.object({
-      domainName: z.string(),
-      forwardingPath: z.string(),
-      ipv4Address: z.string(),
-      ipv6Address: z.string(),
-      kind: z.string(),
-    })),
-  }).optional(),
+    outboundEndpoints: z.array(
+      z.object({
+        kind: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    targetNameServers: z.array(
+      z.object({
+        domainName: z.string(),
+        forwardingPath: z.string(),
+        ipv4Address: z.string(),
+        ipv6Address: z.string(),
+        kind: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -356,30 +362,34 @@ const StateSchema = z.object({
       deactivateTime: z.string(),
       kind: z.string(),
       networkUrl: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   privateVisibilityConfig: z.object({
-    gkeClusters: z.array(z.object({
-      gkeClusterName: z.string(),
-      kind: z.string(),
-    })),
+    gkeClusters: z.array(
+      z.object({
+        gkeClusterName: z.string(),
+        kind: z.string(),
+      }).partial(),
+    ),
     kind: z.string(),
-    networks: z.array(z.object({
-      kind: z.string(),
-      networkUrl: z.string(),
-    })),
-  }).optional(),
+    networks: z.array(
+      z.object({
+        kind: z.string(),
+        networkUrl: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   reverseLookupConfig: z.object({
     kind: z.string(),
-  }).optional(),
+  }).partial().optional(),
   serviceDirectoryConfig: z.object({
     kind: z.string(),
     namespace: z.object({
       deletionTime: z.string(),
       kind: z.string(),
       namespaceUrl: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   visibility: z.string().optional(),
 }).passthrough();
 
@@ -556,7 +566,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS ManagedZones. Registered at `@swamp/gcp/dns/managedzones`. */
 export const model = {
   type: "@swamp/gcp/dns/managedzones",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -710,6 +720,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

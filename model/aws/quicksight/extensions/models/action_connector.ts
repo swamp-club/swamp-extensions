@@ -109,6 +109,66 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256).describe("Tag value."),
 });
 
+const AuthorizationCodeGrantDetailsStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  TokenEndpoint: z.string(),
+  AuthorizationEndpoint: z.string(),
+}).partial();
+
+const AuthorizationCodeGrantMetadataStateSchema = z.object({
+  BaseEndpoint: z.string(),
+  RedirectUrl: z.string(),
+  AuthorizationCodeGrantCredentialsSource: z.string(),
+  AuthorizationCodeGrantCredentialsDetails: z.object({
+    AuthorizationCodeGrantDetails: AuthorizationCodeGrantDetailsStateSchema,
+  }).partial(),
+}).partial();
+
+const ClientCredentialsGrantDetailsStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  TokenEndpoint: z.string(),
+}).partial();
+
+const ClientCredentialsGrantMetadataStateSchema = z.object({
+  BaseEndpoint: z.string(),
+  ClientCredentialsSource: z.string(),
+  ClientCredentialsDetails: z.object({
+    ClientCredentialsGrantDetails: ClientCredentialsGrantDetailsStateSchema,
+  }).partial(),
+}).partial();
+
+const BasicAuthConnectionMetadataStateSchema = z.object({
+  BaseEndpoint: z.string(),
+  Username: z.string(),
+  Password: z.string(),
+}).partial();
+
+const APIKeyConnectionMetadataStateSchema = z.object({
+  BaseEndpoint: z.string(),
+  ApiKey: z.string(),
+  Email: z.string(),
+}).partial();
+
+const NoneConnectionMetadataStateSchema = z.object({
+  BaseEndpoint: z.string(),
+}).partial();
+
+const IAMConnectionMetadataStateSchema = z.object({
+  RoleArn: z.string(),
+}).partial();
+
+const ResourcePermissionStateSchema = z.object({
+  Principal: z.string(),
+  Actions: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -195,28 +255,28 @@ const StateSchema = z.object({
   AuthenticationConfig: z.object({
     AuthenticationType: z.string(),
     AuthenticationMetadata: z.object({
-      AuthorizationCodeGrantMetadata: AuthorizationCodeGrantMetadataSchema,
-      ClientCredentialsGrantMetadata: ClientCredentialsGrantMetadataSchema,
-      BasicAuthConnectionMetadata: BasicAuthConnectionMetadataSchema,
-      ApiKeyConnectionMetadata: APIKeyConnectionMetadataSchema,
-      NoneConnectionMetadata: NoneConnectionMetadataSchema,
-      IamConnectionMetadata: IAMConnectionMetadataSchema,
-    }),
-  }).optional(),
+      AuthorizationCodeGrantMetadata: AuthorizationCodeGrantMetadataStateSchema,
+      ClientCredentialsGrantMetadata: ClientCredentialsGrantMetadataStateSchema,
+      BasicAuthConnectionMetadata: BasicAuthConnectionMetadataStateSchema,
+      ApiKeyConnectionMetadata: APIKeyConnectionMetadataStateSchema,
+      NoneConnectionMetadata: NoneConnectionMetadataStateSchema,
+      IamConnectionMetadata: IAMConnectionMetadataStateSchema,
+    }).partial(),
+  }).partial().optional(),
   AwsAccountId: z.string(),
   CreatedTime: z.string().optional(),
   Description: z.string().optional(),
   EnabledActions: z.array(z.string()).optional(),
   LastUpdatedTime: z.string().optional(),
   Name: z.string().optional(),
-  Permissions: z.array(ResourcePermissionSchema).optional(),
+  Permissions: z.array(ResourcePermissionStateSchema).optional(),
   Status: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Type: z.string().optional(),
   VpcConnectionArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -307,7 +367,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight ActionConnector. Registered at `@swamp/aws/quicksight/action-connector`. */
 export const model = {
   type: "@swamp/aws/quicksight/action-connector",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -376,6 +436,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

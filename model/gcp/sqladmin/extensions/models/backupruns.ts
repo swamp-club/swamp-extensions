@@ -242,18 +242,18 @@ const StateSchema = z.object({
     confidentialMode: z.boolean(),
     kind: z.string(),
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   diskEncryptionStatus: z.object({
     kind: z.string(),
     kmsKeyVersionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endTime: z.string().optional(),
   enqueuedTime: z.string().optional(),
   error: z.object({
     code: z.string(),
     kind: z.string(),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string(),
   instance: z.string().optional(),
   kind: z.string().optional(),
@@ -378,7 +378,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin BackupRuns. Registered at `@swamp/gcp/sqladmin/backupruns`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/backupruns",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -527,6 +527,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

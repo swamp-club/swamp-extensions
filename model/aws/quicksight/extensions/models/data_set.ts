@@ -914,6 +914,146 @@ const SourceTableSchema = z.object({
   DataSet: ParentDataSetSchema.optional(),
 });
 
+const ColumnLevelPermissionRuleStateSchema = z.object({
+  ColumnNames: z.array(z.string()),
+  Principals: z.array(z.string()),
+}).partial();
+
+const ResourcePermissionStateSchema = z.object({
+  Actions: z.array(z.string()),
+  Principal: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const UploadedDocumentMetadataStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const InlineCustomInstructionStateSchema = z.object({
+  InstructionText: z.string(),
+  UploadedDocumentMetadata: UploadedDocumentMetadataStateSchema,
+}).partial();
+
+const CustomInstructionStateSchema = z.object({
+  InlineCustomInstruction: InlineCustomInstructionStateSchema,
+}).partial();
+
+const DataSetSemanticDescriptionStateSchema = z.object({
+  Text: z.string(),
+}).partial();
+
+const DataSetSemanticMetadataStateSchema = z.object({
+  CustomInstructions: z.array(CustomInstructionStateSchema),
+  Description: DataSetSemanticDescriptionStateSchema,
+}).partial();
+
+const UniqueKeyStateSchema = z.object({
+  ColumnNames: z.array(z.string()),
+}).partial();
+
+const LookbackWindowStateSchema = z.object({
+  ColumnName: z.string(),
+  SizeUnit: z.string(),
+  Size: z.number(),
+}).partial();
+
+const IncrementalRefreshStateSchema = z.object({
+  LookbackWindow: LookbackWindowStateSchema,
+}).partial();
+
+const RefreshConfigurationStateSchema = z.object({
+  IncrementalRefresh: IncrementalRefreshStateSchema,
+}).partial();
+
+const RefreshFailureEmailAlertStateSchema = z.object({
+  AlertStatus: z.string(),
+}).partial();
+
+const RefreshFailureConfigurationStateSchema = z.object({
+  EmailAlert: RefreshFailureEmailAlertStateSchema,
+}).partial();
+
+const RowLevelPermissionTagRuleStateSchema = z.object({
+  ColumnName: z.string(),
+  TagKey: z.string(),
+  MatchAllValue: z.string(),
+  TagMultiValueDelimiter: z.string(),
+}).partial();
+
+const GeoSpatialColumnGroupStateSchema = z.object({
+  Columns: z.array(z.string()),
+  CountryCode: z.string(),
+  Name: z.string(),
+}).partial();
+
+const ColumnGroupStateSchema = z.object({
+  GeoSpatialColumnGroup: GeoSpatialColumnGroupStateSchema,
+}).partial();
+
+const IntegerDatasetParameterDefaultValuesStateSchema = z.object({
+  StaticValues: z.array(z.number()),
+}).partial();
+
+const IntegerDatasetParameterStateSchema = z.object({
+  ValueType: z.string(),
+  DefaultValues: IntegerDatasetParameterDefaultValuesStateSchema,
+  Id: z.string(),
+  Name: z.string(),
+}).partial();
+
+const DateTimeDatasetParameterDefaultValuesStateSchema = z.object({
+  StaticValues: z.array(z.string()),
+}).partial();
+
+const DateTimeDatasetParameterStateSchema = z.object({
+  ValueType: z.string(),
+  TimeGranularity: z.string(),
+  DefaultValues: DateTimeDatasetParameterDefaultValuesStateSchema,
+  Id: z.string(),
+  Name: z.string(),
+}).partial();
+
+const DecimalDatasetParameterDefaultValuesStateSchema = z.object({
+  StaticValues: z.array(z.number()),
+}).partial();
+
+const DecimalDatasetParameterStateSchema = z.object({
+  ValueType: z.string(),
+  DefaultValues: DecimalDatasetParameterDefaultValuesStateSchema,
+  Id: z.string(),
+  Name: z.string(),
+}).partial();
+
+const StringDatasetParameterDefaultValuesStateSchema = z.object({
+  StaticValues: z.array(z.string()),
+}).partial();
+
+const StringDatasetParameterStateSchema = z.object({
+  ValueType: z.string(),
+  DefaultValues: StringDatasetParameterDefaultValuesStateSchema,
+  Id: z.string(),
+  Name: z.string(),
+}).partial();
+
+const DatasetParameterStateSchema = z.object({
+  IntegerDatasetParameter: IntegerDatasetParameterStateSchema,
+  DateTimeDatasetParameter: DateTimeDatasetParameterStateSchema,
+  DecimalDatasetParameter: DecimalDatasetParameterStateSchema,
+  StringDatasetParameter: StringDatasetParameterStateSchema,
+}).partial();
+
+const OutputColumnStateSchema = z.object({
+  Type: z.string(),
+  Description: z.string(),
+  SubType: z.string(),
+  Id: z.string(),
+  Name: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -1028,59 +1168,62 @@ const StateSchema = z.object({
   CreatedTime: z.string().optional(),
   FolderArns: z.array(z.string()).optional(),
   ConsumedSpiceCapacityInBytes: z.number().optional(),
-  RowLevelPermissionDataSet: RowLevelPermissionDataSetSchema.optional(),
+  RowLevelPermissionDataSet: z.object({
+    Status: z.string(),
+    FormatVersion: z.string(),
+    Arn: z.string(),
+    Namespace: z.string(),
+    PermissionPolicy: z.string(),
+  }).partial().optional(),
   IngestionWaitPolicy: z.object({
     WaitForSpiceIngestion: z.boolean(),
     IngestionWaitTimeInHours: z.number(),
-  }).optional(),
-  ColumnLevelPermissionRules: z.array(ColumnLevelPermissionRuleSchema)
+  }).partial().optional(),
+  ColumnLevelPermissionRules: z.array(ColumnLevelPermissionRuleStateSchema)
     .optional(),
   Name: z.string().optional(),
-  Permissions: z.array(ResourcePermissionSchema).optional(),
+  Permissions: z.array(ResourcePermissionStateSchema).optional(),
   UseAs: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   PhysicalTableMap: z.record(z.string(), z.unknown()).optional(),
   FieldFolders: z.record(z.string(), z.unknown()).optional(),
   LastUpdatedTime: z.string().optional(),
   SemanticModelConfiguration: z.object({
-    SemanticMetadata: z.array(DataSetSemanticMetadataSchema),
+    SemanticMetadata: z.array(DataSetSemanticMetadataStateSchema),
     TableMap: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   DataSetId: z.string(),
   PerformanceConfiguration: z.object({
-    UniqueKeys: z.array(UniqueKeySchema),
-  }).optional(),
+    UniqueKeys: z.array(UniqueKeyStateSchema),
+  }).partial().optional(),
   DataSetRefreshProperties: z.object({
-    RefreshConfiguration: RefreshConfigurationSchema,
-    FailureConfiguration: RefreshFailureConfigurationSchema,
-  }).optional(),
-  RowLevelPermissionTagConfiguration: RowLevelPermissionTagConfigurationSchema
-    .optional(),
-  ColumnGroups: z.array(ColumnGroupSchema).optional(),
+    RefreshConfiguration: RefreshConfigurationStateSchema,
+    FailureConfiguration: RefreshFailureConfigurationStateSchema,
+  }).partial().optional(),
+  RowLevelPermissionTagConfiguration: z.object({
+    Status: z.string(),
+    TagRules: z.array(RowLevelPermissionTagRuleStateSchema),
+    TagRuleConfigurations: z.array(z.array(z.string())),
+  }).partial().optional(),
+  ColumnGroups: z.array(ColumnGroupStateSchema).optional(),
   ImportMode: z.string().optional(),
-  DatasetParameters: z.array(DatasetParameterSchema).optional(),
+  DatasetParameters: z.array(DatasetParameterStateSchema).optional(),
   LogicalTableMap: z.record(z.string(), z.unknown()).optional(),
   AwsAccountId: z.string(),
   DataSetUsageConfiguration: z.object({
     DisableUseAsImportedSource: z.boolean(),
     DisableUseAsDirectQuerySource: z.boolean(),
-  }).optional(),
-  OutputColumns: z.array(z.object({
-    Type: z.string(),
-    Description: z.string(),
-    SubType: z.string(),
-    Id: z.string(),
-    Name: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  OutputColumns: z.array(OutputColumnStateSchema).optional(),
   DataPrepConfiguration: z.object({
     DestinationTableMap: z.record(z.string(), z.unknown()),
     TransformStepMap: z.record(z.string(), z.unknown()),
     SourceTableMap: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -1202,7 +1345,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight DataSet. Registered at `@swamp/aws/quicksight/data-set`. */
 export const model = {
   type: "@swamp/aws/quicksight/data-set",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1281,6 +1424,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

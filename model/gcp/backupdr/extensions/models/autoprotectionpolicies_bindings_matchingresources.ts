@@ -127,9 +127,9 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lastEvaluationTime: z.string().optional(),
   name: z.string(),
   resource: z.string().optional(),
@@ -179,10 +179,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service AutoProtectionPolicies.Bindings.MatchingResources. Registered at `@swamp/gcp/backupdr/autoprotectionpolicies-bindings-matchingresources`. */
 export const model = {
   type: "@swamp/gcp/backupdr/autoprotectionpolicies-bindings-matchingresources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

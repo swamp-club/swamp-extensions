@@ -56,6 +56,22 @@ const TemplateLinkedPolicyDefinitionSchema = z.object({
   Resource: EntityIdentifierSchema.optional(),
 });
 
+const StaticPolicyDefinitionStateSchema = z.object({
+  Description: z.string(),
+  Statement: z.string(),
+}).partial();
+
+const EntityIdentifierStateSchema = z.object({
+  EntityType: z.string(),
+  EntityId: z.string(),
+}).partial();
+
+const TemplateLinkedPolicyDefinitionStateSchema = z.object({
+  PolicyTemplateId: z.string(),
+  Principal: EntityIdentifierStateSchema,
+  Resource: EntityIdentifierStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -84,16 +100,16 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Definition: z.object({
-    Static: StaticPolicyDefinitionSchema,
-    TemplateLinked: TemplateLinkedPolicyDefinitionSchema,
-  }).optional(),
+    Static: StaticPolicyDefinitionStateSchema,
+    TemplateLinked: TemplateLinkedPolicyDefinitionStateSchema,
+  }).partial().optional(),
   PolicyId: z.string(),
   PolicyStoreId: z.string(),
   PolicyType: z.string().optional(),
   Name: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -130,7 +146,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for VerifiedPermissions Policy. Registered at `@swamp/aws/verifiedpermissions/policy`. */
 export const model = {
   type: "@swamp/aws/verifiedpermissions/policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -199,6 +215,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

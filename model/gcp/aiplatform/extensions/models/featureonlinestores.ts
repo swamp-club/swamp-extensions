@@ -270,40 +270,42 @@ const StateSchema = z.object({
       cpuUtilizationTarget: z.number(),
       maxNodeCount: z.number(),
       minNodeCount: z.number(),
-    }),
+    }).partial(),
     bigtableMetadata: z.object({
       instanceId: z.string(),
       tableId: z.string(),
       tenantProjectId: z.string(),
-    }),
+    }).partial(),
     enableDirectBigtableAccess: z.boolean(),
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dedicatedServingEndpoint: z.object({
     privateServiceConnectConfig: z.object({
       enablePrivateServiceConnect: z.boolean(),
       projectAllowlist: z.array(z.string()),
-      pscAutomationConfigs: z.array(z.object({
-        errorMessage: z.string(),
-        forwardingRule: z.string(),
-        ipAddress: z.string(),
-        network: z.string(),
-        projectId: z.string(),
-        state: z.string(),
-      })),
+      pscAutomationConfigs: z.array(
+        z.object({
+          errorMessage: z.string(),
+          forwardingRule: z.string(),
+          ipAddress: z.string(),
+          network: z.string(),
+          projectId: z.string(),
+          state: z.string(),
+        }).partial(),
+      ),
       serviceAttachment: z.string(),
-    }),
+    }).partial(),
     publicEndpointDomainName: z.string(),
     serviceAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  optimized: z.object({}).optional(),
+  optimized: z.object({}).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   state: z.string().optional(),
@@ -446,7 +448,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform FeatureOnlineStores. Registered at `@swamp/gcp/aiplatform/featureonlinestores`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/featureonlinestores",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -654,6 +656,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

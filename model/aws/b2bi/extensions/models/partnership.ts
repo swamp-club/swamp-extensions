@@ -132,6 +132,72 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const X12InterchangeControlHeadersStateSchema = z.object({
+  SenderIdQualifier: z.string(),
+  SenderId: z.string(),
+  ReceiverIdQualifier: z.string(),
+  ReceiverId: z.string(),
+  RepetitionSeparator: z.string(),
+  AcknowledgmentRequestedCode: z.string(),
+  UsageIndicatorCode: z.string(),
+}).partial();
+
+const X12FunctionalGroupHeadersStateSchema = z.object({
+  ApplicationSenderCode: z.string(),
+  ApplicationReceiverCode: z.string(),
+  ResponsibleAgencyCode: z.string(),
+}).partial();
+
+const X12DelimitersStateSchema = z.object({
+  ComponentSeparator: z.string(),
+  DataElementSeparator: z.string(),
+  SegmentTerminator: z.string(),
+}).partial();
+
+const X12ControlNumbersStateSchema = z.object({
+  StartingInterchangeControlNumber: z.number(),
+  StartingFunctionalGroupControlNumber: z.number(),
+  StartingTransactionSetControlNumber: z.number(),
+}).partial();
+
+const X12OutboundEdiHeadersStateSchema = z.object({
+  InterchangeControlHeaders: X12InterchangeControlHeadersStateSchema,
+  FunctionalGroupHeaders: X12FunctionalGroupHeadersStateSchema,
+  Delimiters: X12DelimitersStateSchema,
+  ValidateEdi: z.boolean(),
+  ControlNumbers: X12ControlNumbersStateSchema,
+  Gs05TimeFormat: z.string(),
+}).partial();
+
+const WrapOptionsStateSchema = z.object({
+  WrapBy: z.string(),
+  LineTerminator: z.string(),
+  LineLength: z.number(),
+}).partial();
+
+const X12EnvelopeStateSchema = z.object({
+  Common: X12OutboundEdiHeadersStateSchema,
+  WrapOptions: WrapOptionsStateSchema,
+}).partial();
+
+const X12AcknowledgmentOptionsStateSchema = z.object({
+  FunctionalAcknowledgment: z.string(),
+  TechnicalAcknowledgment: z.string(),
+}).partial();
+
+const X12InboundEdiOptionsStateSchema = z.object({
+  AcknowledgmentOptions: X12AcknowledgmentOptionsStateSchema,
+}).partial();
+
+const InboundEdiOptionsStateSchema = z.object({
+  X12: X12InboundEdiOptionsStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -175,10 +241,10 @@ const StateSchema = z.object({
   Capabilities: z.array(z.string()).optional(),
   CapabilityOptions: z.object({
     OutboundEdi: z.object({
-      X12: X12EnvelopeSchema,
-    }),
-    InboundEdi: InboundEdiOptionsSchema,
-  }).optional(),
+      X12: X12EnvelopeStateSchema,
+    }).partial(),
+    InboundEdi: InboundEdiOptionsStateSchema,
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   Email: z.string().optional(),
   ModifiedAt: z.string().optional(),
@@ -187,11 +253,11 @@ const StateSchema = z.object({
   PartnershipId: z.string(),
   Phone: z.string().optional(),
   ProfileId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TradingPartnerId: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -241,7 +307,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for B2BI Partnership. Registered at `@swamp/aws/b2bi/partnership`. */
 export const model = {
   type: "@swamp/aws/b2bi/partnership",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -305,6 +371,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

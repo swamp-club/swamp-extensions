@@ -221,41 +221,43 @@ const StateSchema = z.object({
   compilationResult: z.string().optional(),
   dataEncryptionState: z.object({
     kmsKeyVersionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   internalMetadata: z.string().optional(),
   invocationConfig: z.object({
     concurrentActionsLimit: z.number(),
     endUserAuthConfig: z.object({
       oauthConfig: z.object({
         additionalOauthScopes: z.array(z.string()),
-      }),
+      }).partial(),
       userEmail: z.string(),
-    }),
+    }).partial(),
     executionMode: z.string(),
     fullyRefreshIncrementalTablesEnabled: z.boolean(),
     includedTags: z.array(z.string()),
-    includedTargets: z.array(z.object({
-      database: z.string(),
-      name: z.string(),
-      schema: z.string(),
-    })),
+    includedTargets: z.array(
+      z.object({
+        database: z.string(),
+        name: z.string(),
+        schema: z.string(),
+      }).partial(),
+    ),
     queryPriority: z.string(),
     serviceAccount: z.string(),
     transitiveDependenciesIncluded: z.boolean(),
     transitiveDependentsIncluded: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   invocationTiming: z.object({
     endTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   pipelineConfig: z.object({
     path: z.string(),
     pipelineType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   privateResourceMetadata: z.object({
     userScoped: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   resolvedCompilationResult: z.string().optional(),
   state: z.string().optional(),
   workflowConfig: z.string().optional(),
@@ -373,7 +375,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.WorkflowInvocations. Registered at `@swamp/gcp/dataform/repositories-workflowinvocations`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-workflowinvocations",
-  version: "2026.11.04.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -536,6 +538,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

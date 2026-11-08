@@ -70,6 +70,20 @@ const ImageBuildConfigurationSchema = z.object({
   ).optional(),
 });
 
+const ImageSourceStateSchema = z.object({
+  Uri: z.string(),
+}).partial();
+
+const ImageBuildConfigurationStateSchema = z.object({
+  Type: z.string(),
+  DockerfileLocation: z.string(),
+  Buildpack: z.string(),
+  Architecture: z.string(),
+  CodeBuildServiceRole: z.string(),
+  ComputeType: z.string(),
+  TimeoutInMinutes: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -141,21 +155,21 @@ const StateSchema = z.object({
   SourceBundle: z.object({
     S3Bucket: z.string(),
     S3Key: z.string(),
-  }).optional(),
+  }).partial().optional(),
   BuildConfiguration: z.object({
     CodeBuildServiceRole: z.string(),
     Image: z.string(),
     ComputeType: z.string(),
     TimeoutInMinutes: z.number(),
     ArtifactName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ImageConfiguration: z.object({
-    Source: ImageSourceSchema,
-    Build: ImageBuildConfigurationSchema,
-  }).optional(),
+    Source: ImageSourceStateSchema,
+    Build: ImageBuildConfigurationStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -230,7 +244,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticBeanstalk ApplicationVersion. Registered at `@swamp/aws/elasticbeanstalk/application-version`. */
 export const model = {
   type: "@swamp/aws/elasticbeanstalk/application-version",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -299,6 +313,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -367,7 +367,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   agentRegistryDeployment: z.object({
     agentRegistryServiceName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   appVersion: z.string().optional(),
   channelProfile: z.object({
     channelType: z.string(),
@@ -378,11 +378,11 @@ const StateSchema = z.object({
       displayName: z.string(),
       instagramAccountId: z.string(),
       thumbnailUrl: z.string(),
-    }),
+    }).partial(),
     noiseSuppressionLevel: z.string(),
     personaProperty: z.object({
       persona: z.string(),
-    }),
+    }).partial(),
     profileId: z.string(),
     webWidgetConfig: z.object({
       modality: z.string(),
@@ -391,10 +391,10 @@ const StateSchema = z.object({
         enableOriginCheck: z.boolean(),
         enablePublicAccess: z.boolean(),
         enableRecaptcha: z.boolean(),
-      }),
+      }).partial(),
       theme: z.string(),
       webWidgetTitle: z.string(),
-    }),
+    }).partial(),
     whatsappConfig: z.object({
       description: z.string(),
       displayName: z.string(),
@@ -402,31 +402,33 @@ const StateSchema = z.object({
       phoneNumberId: z.string(),
       thumbnailUrl: z.string(),
       wabaId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
   experimentConfig: z.object({
     versionRelease: z.object({
       state: z.string(),
-      trafficAllocations: z.array(z.object({
-        appVersion: z.string(),
-        id: z.string(),
-        trafficPercentage: z.number(),
-      })),
-    }),
-  }).optional(),
+      trafficAllocations: z.array(
+        z.object({
+          appVersion: z.string(),
+          id: z.string(),
+          trafficPercentage: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   instagramCredentials: z.object({
     authCode: z.string(),
     conversationProfileId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   modality: z.string().optional(),
   modelSettings: z.object({
     model: z.string(),
     temperature: z.number(),
     thinkingLevel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   updateTime: z.string().optional(),
   whatsappCredentials: z.object({
@@ -436,7 +438,7 @@ const StateSchema = z.object({
     phoneNumber: z.string(),
     pin: z.string(),
     wabaId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -678,7 +680,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Deployments. Registered at `@swamp/gcp/ces/apps-deployments`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-deployments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -839,6 +841,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

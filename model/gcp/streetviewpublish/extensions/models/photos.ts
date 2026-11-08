@@ -95,21 +95,25 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   captureTime: z.string().optional(),
-  connections: z.array(z.object({
-    target: z.object({
-      id: z.string(),
-    }),
-  })).optional(),
+  connections: z.array(
+    z.object({
+      target: z.object({
+        id: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   downloadUrl: z.string().optional(),
   mapsPublishStatus: z.string().optional(),
   photoId: z.object({
     id: z.string(),
-  }).optional(),
-  places: z.array(z.object({
-    languageCode: z.string(),
-    name: z.string(),
-    placeId: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  places: z.array(
+    z.object({
+      languageCode: z.string(),
+      name: z.string(),
+      placeId: z.string(),
+    }).partial(),
+  ).optional(),
   pose: z.object({
     accuracyMeters: z.number(),
     altitude: z.number(),
@@ -118,20 +122,20 @@ const StateSchema = z.object({
     latLngPair: z.object({
       latitude: z.number(),
       longitude: z.number(),
-    }),
+    }).partial(),
     level: z.object({
       name: z.string(),
       number: z.number(),
-    }),
+    }).partial(),
     pitch: z.number(),
     roll: z.number(),
-  }).optional(),
+  }).partial().optional(),
   shareLink: z.string().optional(),
   thumbnailUrl: z.string().optional(),
   transferStatus: z.string().optional(),
   uploadReference: z.object({
     uploadUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uploadTime: z.string().optional(),
   viewCount: z.string().optional(),
 }).passthrough();
@@ -174,7 +178,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Street View Publish Photos. Registered at `@swamp/gcp/streetviewpublish/photos`. */
 export const model = {
   type: "@swamp/gcp/streetviewpublish/photos",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -298,6 +302,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

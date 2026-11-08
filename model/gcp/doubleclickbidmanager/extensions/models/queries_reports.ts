@@ -119,37 +119,39 @@ const StateSchema = z.object({
   key: z.object({
     queryId: z.string(),
     reportId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   metadata: z.object({
     googleCloudStoragePath: z.string(),
     reportDataEndDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     reportDataStartDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     status: z.object({
       finishTime: z.string(),
       format: z.string(),
       state: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   params: z.object({
-    filters: z.array(z.object({
-      type: z.string(),
-      value: z.string(),
-    })),
+    filters: z.array(
+      z.object({
+        type: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     groupBys: z.array(z.string()),
     metrics: z.array(z.string()),
     options: z.object({
       includeOnlyTargetedUserLists: z.boolean(),
-    }),
+    }).partial(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -193,7 +195,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DoubleClick Bid Manager Queries.Reports. Registered at `@swamp/gcp/doubleclickbidmanager/queries-reports`. */
 export const model = {
   type: "@swamp/gcp/doubleclickbidmanager/queries-reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -312,6 +314,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

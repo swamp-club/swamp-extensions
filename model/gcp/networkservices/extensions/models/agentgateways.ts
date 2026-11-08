@@ -234,13 +234,13 @@ const StateSchema = z.object({
     mtlsEndpoint: z.string(),
     rootCertificates: z.array(z.string()),
     serviceExtensionsServiceAccount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
   googleManaged: z.object({
     governedAccessPath: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   networkConfig: z.object({
@@ -248,17 +248,17 @@ const StateSchema = z.object({
       domains: z.array(z.string()),
       targetNetwork: z.string(),
       targetProject: z.string(),
-    }),
+    }).partial(),
     egress: z.object({
       networkAttachment: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   protocols: z.array(z.string()).optional(),
   registries: z.array(z.string()).optional(),
   selfManaged: z.object({
     resourceUri: z.string(),
     resourceUris: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -362,7 +362,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services AgentGateways. Registered at `@swamp/gcp/networkservices/agentgateways`. */
 export const model = {
   type: "@swamp/gcp/networkservices/agentgateways",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -386,6 +386,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

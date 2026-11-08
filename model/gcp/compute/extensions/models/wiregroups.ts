@@ -278,31 +278,37 @@ const StateSchema = z.object({
   reconciling: z.boolean().optional(),
   selfLink: z.string().optional(),
   topology: z.object({
-    endpoints: z.array(z.object({
-      city: z.string(),
-      label: z.string(),
-    })),
-  }).optional(),
+    endpoints: z.array(
+      z.object({
+        city: z.string(),
+        label: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   wireProperties: z.object({
     bandwidthAllocation: z.string(),
     bandwidthUnmetered: z.string(),
     faultResponse: z.string(),
     flowManagement: z.string(),
-  }).optional(),
-  wires: z.array(z.object({
-    adminEnabled: z.boolean(),
-    endpoints: z.array(z.object({
-      interconnect: z.string(),
-      vlanTag: z.number(),
-    })),
-    label: z.string(),
-    wireProperties: z.object({
-      bandwidthAllocation: z.string(),
-      bandwidthUnmetered: z.string(),
-      faultResponse: z.string(),
-      flowManagement: z.string(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  wires: z.array(
+    z.object({
+      adminEnabled: z.boolean(),
+      endpoints: z.array(
+        z.object({
+          interconnect: z.string(),
+          vlanTag: z.number(),
+        }).partial(),
+      ),
+      label: z.string(),
+      wireProperties: z.object({
+        bandwidthAllocation: z.string(),
+        bandwidthUnmetered: z.string(),
+        faultResponse: z.string(),
+        flowManagement: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -392,7 +398,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine WireGroups. Registered at `@swamp/gcp/compute/wiregroups`. */
 export const model = {
   type: "@swamp/gcp/compute/wiregroups",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -554,6 +560,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

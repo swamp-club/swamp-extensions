@@ -553,13 +553,13 @@ const budgetEnsureMethods = {
 
 const StateSchema = z.object({
   amount: z.object({
-    lastPeriodAmount: z.object({}),
+    lastPeriodAmount: z.object({}).partial(),
     specifiedAmount: z.object({
       currencyCode: z.string(),
       nanos: z.number(),
       units: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   budgetFilter: z.object({
     calendarPeriod: z.string(),
     creditTypes: z.array(z.string()),
@@ -569,19 +569,19 @@ const StateSchema = z.object({
         day: z.number(),
         month: z.number(),
         year: z.number(),
-      }),
+      }).partial(),
       startDate: z.object({
         day: z.number(),
         month: z.number(),
         year: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     labels: z.record(z.string(), z.unknown()),
     projects: z.array(z.string()),
     resourceAncestors: z.array(z.string()),
     services: z.array(z.string()),
     subaccounts: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
   name: z.string(),
@@ -591,17 +591,19 @@ const StateSchema = z.object({
     monitoringNotificationChannels: z.array(z.string()),
     pubsubTopic: z.string(),
     schemaVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ownershipScope: z.string().optional(),
   spendCap: z.object({
     inputState: z.string(),
     outputState: z.string(),
     reconciling: z.boolean(),
-  }).optional(),
-  thresholdRules: z.array(z.object({
-    spendBasis: z.string(),
-    thresholdPercent: z.number(),
-  })).optional(),
+  }).partial().optional(),
+  thresholdRules: z.array(
+    z.object({
+      spendBasis: z.string(),
+      thresholdPercent: z.number(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -797,7 +799,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Billing Budget Budgets. Registered at `@swamp/gcp/billingbudgets/budgets`. */
 export const model = {
   type: "@swamp/gcp/billingbudgets/budgets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -951,6 +953,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

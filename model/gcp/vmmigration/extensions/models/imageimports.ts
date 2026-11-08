@@ -359,164 +359,180 @@ const StateSchema = z.object({
     additionalLicenses: z.array(z.string()),
     dataDiskImageImport: z.object({
       guestOsFeatures: z.array(z.string()),
-    }),
+    }).partial(),
     description: z.string(),
     encryption: z.object({
       kmsKey: z.string(),
-    }),
+    }).partial(),
     familyName: z.string(),
     imageName: z.string(),
     labels: z.record(z.string(), z.unknown()),
     osAdaptationParameters: z.object({
-      adaptationModifiers: z.array(z.object({
-        modifier: z.string(),
-        value: z.string(),
-      })),
+      adaptationModifiers: z.array(
+        z.object({
+          modifier: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       bootConversion: z.string(),
       generalize: z.boolean(),
       licenseType: z.string(),
-    }),
+    }).partial(),
     singleRegionStorage: z.boolean(),
     targetProject: z.string(),
-  }).optional(),
+  }).partial().optional(),
   encryption: z.object({
     kmsKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   machineImageTargetDefaults: z.object({
     additionalLicenses: z.array(z.string()),
     description: z.string(),
     encryption: z.object({
       kmsKey: z.string(),
-    }),
+    }).partial(),
     labels: z.record(z.string(), z.unknown()),
     machineImageName: z.string(),
     machineImageParametersOverrides: z.object({
       machineType: z.string(),
-    }),
-    networkInterfaces: z.array(z.object({
-      externalIp: z.string(),
-      internalIp: z.string(),
-      network: z.string(),
-      networkTier: z.string(),
-      subnetwork: z.string(),
-    })),
+    }).partial(),
+    networkInterfaces: z.array(
+      z.object({
+        externalIp: z.string(),
+        internalIp: z.string(),
+        network: z.string(),
+        networkTier: z.string(),
+        subnetwork: z.string(),
+      }).partial(),
+    ),
     osAdaptationParameters: z.object({
-      adaptationModifiers: z.array(z.object({
-        modifier: z.string(),
-        value: z.string(),
-      })),
+      adaptationModifiers: z.array(
+        z.object({
+          modifier: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       bootConversion: z.string(),
       generalize: z.boolean(),
       licenseType: z.string(),
-    }),
+    }).partial(),
     serviceAccount: z.object({
       email: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     shieldedInstanceConfig: z.object({
       enableIntegrityMonitoring: z.boolean(),
       enableVtpm: z.boolean(),
       secureBoot: z.string(),
-    }),
+    }).partial(),
     singleRegionStorage: z.boolean(),
-    skipOsAdaptation: z.object({}),
+    skipOsAdaptation: z.object({}).partial(),
     tags: z.array(z.string()),
     targetProject: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  recentImageImportJobs: z.array(z.object({
-    cloudStorageUri: z.string(),
-    createTime: z.string(),
-    createdResources: z.array(z.string()),
-    diskImageTargetDetails: z.object({
-      additionalLicenses: z.array(z.string()),
-      dataDiskImageImport: z.object({
-        guestOsFeatures: z.array(z.unknown()),
-      }),
-      description: z.string(),
-      encryption: z.object({
-        kmsKey: z.string(),
-      }),
-      familyName: z.string(),
-      imageName: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-      osAdaptationParameters: z.object({
-        adaptationModifiers: z.array(z.unknown()),
-        bootConversion: z.string(),
-        generalize: z.boolean(),
-        licenseType: z.string(),
-      }),
-      singleRegionStorage: z.boolean(),
-      targetProject: z.string(),
-    }),
-    endTime: z.string(),
-    errors: z.array(z.object({
-      code: z.number(),
-      details: z.array(z.unknown()),
-      message: z.string(),
-    })),
-    machineImageTargetDetails: z.object({
-      additionalLicenses: z.array(z.string()),
-      description: z.string(),
-      encryption: z.object({
-        kmsKey: z.string(),
-      }),
-      labels: z.record(z.string(), z.unknown()),
-      machineImageName: z.string(),
-      machineImageParametersOverrides: z.object({
-        machineType: z.string(),
-      }),
-      networkInterfaces: z.array(z.object({
-        externalIp: z.unknown(),
-        internalIp: z.unknown(),
-        network: z.unknown(),
-        networkTier: z.unknown(),
-        subnetwork: z.unknown(),
-      })),
-      osAdaptationParameters: z.object({
-        adaptationModifiers: z.array(z.unknown()),
-        bootConversion: z.string(),
-        generalize: z.boolean(),
-        licenseType: z.string(),
-      }),
-      serviceAccount: z.object({
-        email: z.string(),
-        scopes: z.array(z.unknown()),
-      }),
-      shieldedInstanceConfig: z.object({
-        enableIntegrityMonitoring: z.boolean(),
-        enableVtpm: z.boolean(),
-        secureBoot: z.string(),
-      }),
-      singleRegionStorage: z.boolean(),
-      skipOsAdaptation: z.object({}),
-      tags: z.array(z.string()),
-      targetProject: z.string(),
-    }),
-    name: z.string(),
-    state: z.string(),
-    steps: z.array(z.object({
-      adaptingOs: z.object({}),
-      creatingImage: z.object({}),
+  recentImageImportJobs: z.array(
+    z.object({
+      cloudStorageUri: z.string(),
+      createTime: z.string(),
+      createdResources: z.array(z.string()),
+      diskImageTargetDetails: z.object({
+        additionalLicenses: z.array(z.string()),
+        dataDiskImageImport: z.object({
+          guestOsFeatures: z.array(z.unknown()),
+        }).partial(),
+        description: z.string(),
+        encryption: z.object({
+          kmsKey: z.string(),
+        }).partial(),
+        familyName: z.string(),
+        imageName: z.string(),
+        labels: z.record(z.string(), z.unknown()),
+        osAdaptationParameters: z.object({
+          adaptationModifiers: z.array(z.unknown()),
+          bootConversion: z.string(),
+          generalize: z.boolean(),
+          licenseType: z.string(),
+        }).partial(),
+        singleRegionStorage: z.boolean(),
+        targetProject: z.string(),
+      }).partial(),
       endTime: z.string(),
-      initializing: z.object({}),
-      loadingSourceFiles: z.object({}),
-      startTime: z.string(),
-    })),
-    warnings: z.array(z.object({
-      actionItem: z.object({
-        locale: z.unknown(),
-        message: z.unknown(),
-      }),
-      code: z.string(),
-      helpLinks: z.array(z.unknown()),
-      warningMessage: z.object({
-        locale: z.unknown(),
-        message: z.unknown(),
-      }),
-      warningTime: z.string(),
-    })),
-  })).optional(),
+      errors: z.array(
+        z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+      ),
+      machineImageTargetDetails: z.object({
+        additionalLicenses: z.array(z.string()),
+        description: z.string(),
+        encryption: z.object({
+          kmsKey: z.string(),
+        }).partial(),
+        labels: z.record(z.string(), z.unknown()),
+        machineImageName: z.string(),
+        machineImageParametersOverrides: z.object({
+          machineType: z.string(),
+        }).partial(),
+        networkInterfaces: z.array(
+          z.object({
+            externalIp: z.unknown(),
+            internalIp: z.unknown(),
+            network: z.unknown(),
+            networkTier: z.unknown(),
+            subnetwork: z.unknown(),
+          }).partial(),
+        ),
+        osAdaptationParameters: z.object({
+          adaptationModifiers: z.array(z.unknown()),
+          bootConversion: z.string(),
+          generalize: z.boolean(),
+          licenseType: z.string(),
+        }).partial(),
+        serviceAccount: z.object({
+          email: z.string(),
+          scopes: z.array(z.unknown()),
+        }).partial(),
+        shieldedInstanceConfig: z.object({
+          enableIntegrityMonitoring: z.boolean(),
+          enableVtpm: z.boolean(),
+          secureBoot: z.string(),
+        }).partial(),
+        singleRegionStorage: z.boolean(),
+        skipOsAdaptation: z.object({}).partial(),
+        tags: z.array(z.string()),
+        targetProject: z.string(),
+      }).partial(),
+      name: z.string(),
+      state: z.string(),
+      steps: z.array(
+        z.object({
+          adaptingOs: z.object({}).partial(),
+          creatingImage: z.object({}).partial(),
+          endTime: z.string(),
+          initializing: z.object({}).partial(),
+          loadingSourceFiles: z.object({}).partial(),
+          startTime: z.string(),
+        }).partial(),
+      ),
+      warnings: z.array(
+        z.object({
+          actionItem: z.object({
+            locale: z.unknown(),
+            message: z.unknown(),
+          }).partial(),
+          code: z.string(),
+          helpLinks: z.array(z.unknown()),
+          warningMessage: z.object({
+            locale: z.unknown(),
+            message: z.unknown(),
+          }).partial(),
+          warningTime: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -757,7 +773,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VM Migration ImageImports. Registered at `@swamp/gcp/vmmigration/imageimports`. */
 export const model = {
   type: "@swamp/gcp/vmmigration/imageimports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -896,6 +912,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

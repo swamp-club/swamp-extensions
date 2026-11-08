@@ -47,6 +47,23 @@ const ConfigurationDefinitionSchema = z.object({
   id: z.string().optional(),
 });
 
+const ConfigurationDefinitionStateSchema = z.object({
+  Type: z.string(),
+  Parameters: z.record(z.string(), z.unknown()),
+  TypeVersion: z.string(),
+  LocalDeploymentExecutionRoleName: z.string(),
+  LocalDeploymentAdministrationRoleArn: z.string(),
+  id: z.string(),
+}).partial();
+
+const StatusSummaryStateSchema = z.object({
+  StatusType: z.string(),
+  Status: z.string(),
+  StatusMessage: z.string(),
+  LastUpdatedAt: z.string(),
+  StatusDetails: z.record(z.string(), z.unknown()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -73,23 +90,18 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ConfigurationDefinitions: z.array(ConfigurationDefinitionSchema).optional(),
+  ConfigurationDefinitions: z.array(ConfigurationDefinitionStateSchema)
+    .optional(),
   CreatedAt: z.string().optional(),
   Description: z.string().optional(),
   LastModifiedAt: z.string().optional(),
   ManagerArn: z.string(),
   Name: z.string().optional(),
-  StatusSummaries: z.array(z.object({
-    StatusType: z.string(),
-    Status: z.string(),
-    StatusMessage: z.string(),
-    LastUpdatedAt: z.string(),
-    StatusDetails: z.record(z.string(), z.unknown()),
-  })).optional(),
+  StatusSummaries: z.array(StatusSummaryStateSchema).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -125,7 +137,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSMQuickSetup ConfigurationManager. Registered at `@swamp/aws/ssmquicksetup/configuration-manager`. */
 export const model = {
   type: "@swamp/aws/ssmquicksetup/configuration-manager",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -194,6 +206,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

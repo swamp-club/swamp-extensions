@@ -536,6 +536,247 @@ const TagSchema = z.object({
   ).optional(),
 });
 
+const InferenceAcceleratorStateSchema = z.object({
+  DeviceType: z.string(),
+  DeviceName: z.string(),
+}).partial();
+
+const TaskDefinitionPlacementConstraintStateSchema = z.object({
+  Type: z.string(),
+  Expression: z.string(),
+}).partial();
+
+const KeyValuePairStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const AuthorizationConfigStateSchema = z.object({
+  IAM: z.string(),
+  AccessPointId: z.string(),
+}).partial();
+
+const EFSVolumeConfigurationStateSchema = z.object({
+  FilesystemId: z.string(),
+  TransitEncryption: z.string(),
+  AuthorizationConfig: AuthorizationConfigStateSchema,
+  RootDirectory: z.string(),
+  TransitEncryptionPort: z.number(),
+}).partial();
+
+const S3FilesVolumeConfigurationStateSchema = z.object({
+  FileSystemArn: z.string(),
+  AccessPointArn: z.string(),
+  RootDirectory: z.string(),
+  TransitEncryptionPort: z.number(),
+}).partial();
+
+const HostVolumePropertiesStateSchema = z.object({
+  SourcePath: z.string(),
+}).partial();
+
+const DockerVolumeConfigurationStateSchema = z.object({
+  DriverOpts: z.record(z.string(), z.unknown()),
+  Scope: z.string(),
+  Autoprovision: z.boolean(),
+  Driver: z.string(),
+  Labels: z.record(z.string(), z.unknown()),
+}).partial();
+
+const FSxAuthorizationConfigStateSchema = z.object({
+  CredentialsParameter: z.string(),
+  Domain: z.string(),
+}).partial();
+
+const FSxWindowsFileServerVolumeConfigurationStateSchema = z.object({
+  AuthorizationConfig: FSxAuthorizationConfigStateSchema,
+  FileSystemId: z.string(),
+  RootDirectory: z.string(),
+}).partial();
+
+const VolumeStateSchema = z.object({
+  EFSVolumeConfiguration: EFSVolumeConfigurationStateSchema,
+  S3FilesVolumeConfiguration: S3FilesVolumeConfigurationStateSchema,
+  Host: HostVolumePropertiesStateSchema,
+  ConfiguredAtLaunch: z.boolean(),
+  DockerVolumeConfiguration: DockerVolumeConfigurationStateSchema,
+  FSxWindowsFileServerVolumeConfiguration:
+    FSxWindowsFileServerVolumeConfigurationStateSchema,
+  Name: z.string(),
+}).partial();
+
+const SecretStateSchema = z.object({
+  ValueFrom: z.string(),
+  Name: z.string(),
+}).partial();
+
+const HealthCheckStateSchema = z.object({
+  Command: z.array(z.string()),
+  Timeout: z.number(),
+  Retries: z.number(),
+  Interval: z.number(),
+  StartPeriod: z.number(),
+}).partial();
+
+const VolumeFromStateSchema = z.object({
+  ReadOnly: z.boolean(),
+  SourceContainer: z.string(),
+}).partial();
+
+const LogConfigurationStateSchema = z.object({
+  SecretOptions: z.array(SecretStateSchema),
+  Options: z.record(z.string(), z.unknown()),
+  LogDriver: z.string(),
+}).partial();
+
+const NvidiaMpsAllocationStateSchema = z.object({
+  Memory: z.number(),
+  MaxComputePercent: z.number(),
+}).partial();
+
+const SharingStrategyStateSchema = z.object({
+  NvidiaMps: NvidiaMpsAllocationStateSchema,
+}).partial();
+
+const ResourceRequirementStateSchema = z.object({
+  Type: z.string(),
+  SharingStrategy: SharingStrategyStateSchema,
+  Value: z.string(),
+}).partial();
+
+const EnvironmentFileStateSchema = z.object({
+  Type: z.string(),
+  Value: z.string(),
+}).partial();
+
+const FirelensConfigurationStateSchema = z.object({
+  Options: z.record(z.string(), z.unknown()),
+  Type: z.string(),
+}).partial();
+
+const SystemControlStateSchema = z.object({
+  Value: z.string(),
+  Namespace: z.string(),
+}).partial();
+
+const UlimitStateSchema = z.object({
+  SoftLimit: z.number(),
+  HardLimit: z.number(),
+  Name: z.string(),
+}).partial();
+
+const RepositoryCredentialsStateSchema = z.object({
+  CredentialsParameter: z.string(),
+}).partial();
+
+const HostEntryStateSchema = z.object({
+  Hostname: z.string(),
+  IpAddress: z.string(),
+}).partial();
+
+const KernelCapabilitiesStateSchema = z.object({
+  Add: z.array(z.string()),
+  Drop: z.array(z.string()),
+}).partial();
+
+const TmpfsStateSchema = z.object({
+  Size: z.number(),
+  ContainerPath: z.string(),
+  MountOptions: z.array(z.string()),
+}).partial();
+
+const DeviceStateSchema = z.object({
+  HostPath: z.string(),
+  Permissions: z.array(z.string()),
+  ContainerPath: z.string(),
+}).partial();
+
+const LinuxParametersStateSchema = z.object({
+  Capabilities: KernelCapabilitiesStateSchema,
+  Swappiness: z.number(),
+  Tmpfs: z.array(TmpfsStateSchema),
+  SharedMemorySize: z.number(),
+  Devices: z.array(DeviceStateSchema),
+  InitProcessEnabled: z.boolean(),
+  MaxSwap: z.number(),
+}).partial();
+
+const RestartPolicyStateSchema = z.object({
+  IgnoredExitCodes: z.array(z.number()),
+  RestartAttemptPeriod: z.number(),
+  Enabled: z.boolean(),
+}).partial();
+
+const MountPointStateSchema = z.object({
+  ReadOnly: z.boolean(),
+  SourceVolume: z.string(),
+  ContainerPath: z.string(),
+}).partial();
+
+const ContainerDependencyStateSchema = z.object({
+  Condition: z.string(),
+  ContainerName: z.string(),
+}).partial();
+
+const PortMappingStateSchema = z.object({
+  AppProtocol: z.string(),
+  ContainerPortRange: z.string(),
+  HostPort: z.number(),
+  ContainerPort: z.number(),
+  Protocol: z.string(),
+  Name: z.string(),
+}).partial();
+
+const ContainerDefinitionStateSchema = z.object({
+  User: z.string(),
+  Secrets: z.array(SecretStateSchema),
+  Memory: z.number(),
+  Privileged: z.boolean(),
+  HealthCheck: HealthCheckStateSchema,
+  StartTimeout: z.number(),
+  VolumesFrom: z.array(VolumeFromStateSchema),
+  Cpu: z.number(),
+  EntryPoint: z.array(z.string()),
+  DnsServers: z.array(z.string()),
+  ReadonlyRootFilesystem: z.boolean(),
+  Image: z.string(),
+  Essential: z.boolean(),
+  LogConfiguration: LogConfigurationStateSchema,
+  ResourceRequirements: z.array(ResourceRequirementStateSchema),
+  EnvironmentFiles: z.array(EnvironmentFileStateSchema),
+  Name: z.string(),
+  FirelensConfiguration: FirelensConfigurationStateSchema,
+  DockerSecurityOptions: z.array(z.string()),
+  SystemControls: z.array(SystemControlStateSchema),
+  Interactive: z.boolean(),
+  DnsSearchDomains: z.array(z.string()),
+  CredentialSpecs: z.array(z.string()),
+  Ulimits: z.array(UlimitStateSchema),
+  StopTimeout: z.number(),
+  WorkingDirectory: z.string(),
+  MemoryReservation: z.number(),
+  RepositoryCredentials: RepositoryCredentialsStateSchema,
+  ExtraHosts: z.array(HostEntryStateSchema),
+  Hostname: z.string(),
+  LinuxParameters: LinuxParametersStateSchema,
+  VersionConsistency: z.string(),
+  RestartPolicy: RestartPolicyStateSchema,
+  DisableNetworking: z.boolean(),
+  PseudoTerminal: z.boolean(),
+  MountPoints: z.array(MountPointStateSchema),
+  DependsOn: z.array(ContainerDependencyStateSchema),
+  DockerLabels: z.record(z.string(), z.unknown()),
+  PortMappings: z.array(PortMappingStateSchema),
+  Command: z.array(z.string()),
+  Environment: z.array(KeyValuePairStateSchema),
+  Links: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -629,9 +870,9 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   TaskRoleArn: z.string().optional(),
   IpcMode: z.string().optional(),
-  InferenceAccelerators: z.array(InferenceAcceleratorSchema).optional(),
+  InferenceAccelerators: z.array(InferenceAcceleratorStateSchema).optional(),
   Memory: z.string().optional(),
-  PlacementConstraints: z.array(TaskDefinitionPlacementConstraintSchema)
+  PlacementConstraints: z.array(TaskDefinitionPlacementConstraintStateSchema)
     .optional(),
   Cpu: z.string().optional(),
   RequiresCompatibilities: z.array(z.string()).optional(),
@@ -642,23 +883,23 @@ const StateSchema = z.object({
   RuntimePlatform: z.object({
     OperatingSystemFamily: z.string(),
     CpuArchitecture: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ProxyConfiguration: z.object({
-    ProxyConfigurationProperties: z.array(KeyValuePairSchema),
+    ProxyConfigurationProperties: z.array(KeyValuePairStateSchema),
     Type: z.string(),
     ContainerName: z.string(),
-  }).optional(),
-  Volumes: z.array(VolumeSchema).optional(),
-  ContainerDefinitions: z.array(ContainerDefinitionSchema).optional(),
+  }).partial().optional(),
+  Volumes: z.array(VolumeStateSchema).optional(),
+  ContainerDefinitions: z.array(ContainerDefinitionStateSchema).optional(),
   Family: z.string().optional(),
   EphemeralStorage: z.object({
     SizeInGiB: z.number(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TaskDefinitionArn: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -759,7 +1000,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS TaskDefinition. Registered at `@swamp/aws/ecs/task-definition`. */
 export const model = {
   type: "@swamp/aws/ecs/task-definition",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -843,6 +1084,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

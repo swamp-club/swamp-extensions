@@ -51,6 +51,12 @@ const QueryParameterSchema = z.object({
   ).optional(),
 });
 
+const QueryParameterStateSchema = z.object({
+  Name: z.string(),
+  DefaultValue: z.string(),
+  Description: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -92,10 +98,10 @@ const StateSchema = z.object({
   LogGroupNames: z.array(z.string()).optional(),
   QueryDefinitionId: z.string(),
   QueryLanguage: z.string().optional(),
-  Parameters: z.array(QueryParameterSchema).optional(),
+  Parameters: z.array(QueryParameterStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -141,7 +147,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Logs QueryDefinition. Registered at `@swamp/aws/logs/query-definition`. */
 export const model = {
   type: "@swamp/aws/logs/query-definition",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -205,6 +211,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

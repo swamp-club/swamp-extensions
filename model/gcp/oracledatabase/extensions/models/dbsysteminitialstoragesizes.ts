@@ -91,17 +91,21 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   name: z.string(),
   properties: z.object({
-    launchFromBackupStorageSizeDetails: z.array(z.object({
-      dataStorageSizeInGbs: z.number(),
-      recoStorageSizeInGbs: z.number(),
-    })),
+    launchFromBackupStorageSizeDetails: z.array(
+      z.object({
+        dataStorageSizeInGbs: z.number(),
+        recoStorageSizeInGbs: z.number(),
+      }).partial(),
+    ),
     shapeType: z.string(),
     storageManagement: z.string(),
-    storageSizeDetails: z.array(z.object({
-      dataStorageSizeInGbs: z.number(),
-      recoStorageSizeInGbs: z.number(),
-    })),
-  }).optional(),
+    storageSizeDetails: z.array(
+      z.object({
+        dataStorageSizeInGbs: z.number(),
+        recoStorageSizeInGbs: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -145,7 +149,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud DbSystemInitialStorageSizes. Registered at `@swamp/gcp/oracledatabase/dbsysteminitialstoragesizes`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/dbsysteminitialstoragesizes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -264,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

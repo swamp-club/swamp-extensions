@@ -45,6 +45,11 @@ const RevisionWeightSchema = z.object({
   ),
 });
 
+const RevisionWeightStateSchema = z.object({
+  RevisionId: z.string(),
+  Weight: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -105,14 +110,14 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   EndpointType: z.string().optional(),
   AuthType: z.string().optional(),
-  RevisionWeights: z.array(RevisionWeightSchema).optional(),
+  RevisionWeights: z.array(RevisionWeightStateSchema).optional(),
   Regions: z.array(z.string()).optional(),
   ScalingConfig: z.object({
     MaxEnvironments: z.number(),
-  }).optional(),
+  }).partial().optional(),
   ThrottleConfig: z.object({
     RateLimit: z.number(),
-  }).optional(),
+  }).partial().optional(),
   DomainName: z.string().optional(),
   State: z.string().optional(),
   StateReason: z.string().optional(),
@@ -123,7 +128,7 @@ const StateSchema = z.object({
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -186,7 +191,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda WebFunctionEndpoint. Registered at `@swamp/aws/lambda/web-function-endpoint`. */
 export const model = {
   type: "@swamp/aws/lambda/web-function-endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -200,6 +205,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

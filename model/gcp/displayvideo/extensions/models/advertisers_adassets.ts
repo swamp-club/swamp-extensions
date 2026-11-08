@@ -230,7 +230,7 @@ const StateSchema = z.object({
   syntheticContentAttestationStatus: z.string().optional(),
   youtubeVideoAsset: z.object({
     youtubeVideoId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -337,7 +337,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdAssets. Registered at `@swamp/gcp/displayvideo/advertisers-adassets`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adassets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -477,6 +477,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

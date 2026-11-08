@@ -265,6 +265,105 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The tag value."),
 });
 
+const InstanceRequirementsStateSchema = z.object({
+  AllowedInstanceTypes: z.array(z.string()),
+}).partial();
+
+const EphemeralEBSVolumeConfigurationStateSchema = z.object({
+  Encrypted: z.boolean(),
+  Iops: z.number(),
+  KmsKeyId: z.string(),
+  SnapshotId: z.string(),
+  VolumeSize: z.number(),
+  VolumeType: z.string(),
+  Throughput: z.number(),
+  VolumeInitializationRate: z.number(),
+  EbsCardIndex: z.number(),
+}).partial();
+
+const EphemeralBlockDeviceMappingStateSchema = z.object({
+  DeviceName: z.string(),
+  VirtualName: z.string(),
+  Ebs: EphemeralEBSVolumeConfigurationStateSchema,
+}).partial();
+
+const LicenseSpecificationStateSchema = z.object({
+  LicenseConfigurationArn: z.string(),
+}).partial();
+
+const CapacityReservationTargetStateSchema = z.object({
+  CapacityReservationId: z.string(),
+  CapacityReservationResourceGroupArn: z.string(),
+}).partial();
+
+const CapacityReservationSpecificationStateSchema = z.object({
+  CapacityReservationPreference: z.string(),
+  CapacityReservationTarget: CapacityReservationTargetStateSchema,
+}).partial();
+
+const LaunchParametersStateSchema = z.object({
+  OperatingSystem: z.string(),
+  InstanceRequirements: InstanceRequirementsStateSchema,
+  EphemeralVolumes: z.array(EphemeralBlockDeviceMappingStateSchema),
+  Monitoring: z.string(),
+  LicenseSpecifications: z.array(LicenseSpecificationStateSchema),
+  CapacityReservationSpecification: CapacityReservationSpecificationStateSchema,
+  SshKeyName: z.string(),
+  InstanceProfileArn: z.string(),
+  PropagatedTags: z.record(z.string(), z.unknown()),
+}).partial();
+
+const LaunchTemplateSourceStateSchema = z.object({
+  LaunchParameters: LaunchParametersStateSchema,
+}).partial();
+
+const VpcConfigurationStateSchema = z.object({
+  Subnets: z.array(z.string()),
+  SecurityGroups: z.array(z.string()),
+}).partial();
+
+const EbsVolumeConfigurationStateSchema = z.object({
+  Name: z.string(),
+  SizeGiB: z.number(),
+  VolumeType: z.string(),
+  Iops: z.number(),
+  Throughput: z.number(),
+  Encrypted: z.boolean(),
+  KmsKeyId: z.string(),
+  SnapshotId: z.string(),
+}).partial();
+
+const VolumeConfigurationStateSchema = z.object({
+  EbsConfiguration: EbsVolumeConfigurationStateSchema,
+}).partial();
+
+const RootVolumeConfigurationStateSchema = z.object({
+  FreeSpaceGiB: z.number(),
+  VolumeType: z.string(),
+  Iops: z.number(),
+  Throughput: z.number(),
+  Encrypted: z.boolean(),
+  KmsKeyId: z.string(),
+}).partial();
+
+const InstanceLifecycleConfigurationStateSchema = z.object({
+  IdleInstanceTimeout: z.number(),
+  MaxLifetime: z.number(),
+}).partial();
+
+const Ec2ConfigurationStateSchema = z.object({
+  LaunchTemplateSource: LaunchTemplateSourceStateSchema,
+  VpcConfiguration: VpcConfigurationStateSchema,
+  Volumes: z.array(VolumeConfigurationStateSchema),
+  RootVolume: RootVolumeConfigurationStateSchema,
+  LifecycleConfiguration: InstanceLifecycleConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -313,11 +412,11 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   PermissionsConfiguration: z.object({
     CapacityProviderOperatorRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ComputeConfiguration: z.object({
-    Ec2Configuration: Ec2ConfigurationSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    Ec2Configuration: Ec2ConfigurationStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CapacityProviderId: z.string().optional(),
   Arn: z.string(),
   Status: z.string().optional(),
@@ -325,7 +424,7 @@ const StateSchema = z.object({
   LastUpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -379,7 +478,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore CapacityProvider. Registered at `@swamp/aws/bedrockagentcore/capacity-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/capacity-provider",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -408,6 +507,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

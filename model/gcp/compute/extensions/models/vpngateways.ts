@@ -236,16 +236,18 @@ const StateSchema = z.object({
   network: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
   stackType: z.string().optional(),
-  vpnInterfaces: z.array(z.object({
-    id: z.number(),
-    interconnectAttachment: z.string(),
-    ipAddress: z.string(),
-    ipv6Address: z.string(),
-  })).optional(),
+  vpnInterfaces: z.array(
+    z.object({
+      id: z.number(),
+      interconnectAttachment: z.string(),
+      ipAddress: z.string(),
+      ipv6Address: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -335,7 +337,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine VpnGateways. Registered at `@swamp/gcp/compute/vpngateways`. */
 export const model = {
   type: "@swamp/gcp/compute/vpngateways",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -489,6 +491,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

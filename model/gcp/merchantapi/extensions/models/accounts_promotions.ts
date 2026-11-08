@@ -524,7 +524,7 @@ const StateSchema = z.object({
     freeGiftValue: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     genericRedemptionCode: z.string(),
     getThisQuantityDiscounted: z.string(),
     googleProductCategories: z.array(z.string()),
@@ -536,31 +536,31 @@ const StateSchema = z.object({
     limitValue: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     longTitle: z.string(),
     maxDiscountAmount: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     maxMoneyOffAmount: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     maxPercentOff: z.string(),
     minMoneyOffAmount: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     minPercentOff: z.string(),
     minimumPurchaseAmount: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     minimumPurchaseQuantity: z.string(),
     moneyOffAmount: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     offerType: z.string(),
     percentOff: z.string(),
     productApplicability: z.string(),
@@ -570,46 +570,52 @@ const StateSchema = z.object({
     promotionDisplayTimePeriod: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
+    }).partial(),
     promotionEffectiveTimePeriod: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
+    }).partial(),
     promotionUrl: z.string(),
     redemptionRestriction: z.string(),
     regionIdInclusion: z.array(z.string()),
     storeApplicability: z.string(),
     storeCodesExclusion: z.array(z.string()),
     storeCodesInclusion: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   contentLanguage: z.string().optional(),
-  customAttributes: z.array(z.object({
-    groupValues: z.array(z.record(z.string(), z.unknown())),
-    name: z.string(),
-    value: z.string(),
-  })).optional(),
+  customAttributes: z.array(
+    z.object({
+      groupValues: z.array(z.record(z.string(), z.unknown())),
+      name: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   dataSource: z.string().optional(),
   name: z.string(),
   promotionId: z.string().optional(),
   promotionStatus: z.object({
     creationDate: z.string(),
-    destinationStatuses: z.array(z.object({
-      reportingContext: z.string(),
-      status: z.string(),
-    })),
-    itemLevelIssues: z.array(z.object({
-      applicableCountries: z.array(z.string()),
-      attribute: z.string(),
-      code: z.string(),
-      description: z.string(),
-      detail: z.string(),
-      documentation: z.string(),
-      reportingContext: z.string(),
-      resolution: z.string(),
-      severity: z.string(),
-    })),
+    destinationStatuses: z.array(
+      z.object({
+        reportingContext: z.string(),
+        status: z.string(),
+      }).partial(),
+    ),
+    itemLevelIssues: z.array(
+      z.object({
+        applicableCountries: z.array(z.string()),
+        attribute: z.string(),
+        code: z.string(),
+        description: z.string(),
+        detail: z.string(),
+        documentation: z.string(),
+        reportingContext: z.string(),
+        resolution: z.string(),
+        severity: z.string(),
+      }).partial(),
+    ),
     lastUpdateDate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   redemptionChannel: z.array(z.string()).optional(),
   targetCountry: z.string().optional(),
   versionNumber: z.string().optional(),
@@ -1039,7 +1045,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Promotions. Registered at `@swamp/gcp/merchantapi/accounts-promotions`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-promotions",
-  version: "2026.10.27.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1068,6 +1074,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -63,11 +63,11 @@ const StateSchema = z.object({
   Arn: z.string().optional(),
   AttributePayload: z.object({
     Attributes: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   ThingName: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -100,7 +100,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT Thing. Registered at `@swamp/aws/iot/thing`. */
 export const model = {
   type: "@swamp/aws/iot/thing",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -159,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

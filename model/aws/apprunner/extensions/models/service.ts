@@ -147,6 +147,69 @@ const IngressConfigurationSchema = z.object({
   ),
 });
 
+const SourceCodeVersionStateSchema = z.object({
+  Type: z.string(),
+  Value: z.string(),
+}).partial();
+
+const KeyValuePairStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CodeConfigurationValuesStateSchema = z.object({
+  Runtime: z.string(),
+  BuildCommand: z.string(),
+  StartCommand: z.string(),
+  Port: z.string(),
+  RuntimeEnvironmentVariables: z.array(KeyValuePairStateSchema),
+  RuntimeEnvironmentSecrets: z.array(KeyValuePairStateSchema),
+}).partial();
+
+const CodeConfigurationStateSchema = z.object({
+  ConfigurationSource: z.string(),
+  CodeConfigurationValues: CodeConfigurationValuesStateSchema,
+}).partial();
+
+const CodeRepositoryStateSchema = z.object({
+  RepositoryUrl: z.string(),
+  SourceCodeVersion: SourceCodeVersionStateSchema,
+  CodeConfiguration: CodeConfigurationStateSchema,
+  SourceDirectory: z.string(),
+}).partial();
+
+const ImageConfigurationStateSchema = z.object({
+  StartCommand: z.string(),
+  Port: z.string(),
+  RuntimeEnvironmentVariables: z.array(KeyValuePairStateSchema),
+  RuntimeEnvironmentSecrets: z.array(KeyValuePairStateSchema),
+}).partial();
+
+const ImageRepositoryStateSchema = z.object({
+  ImageIdentifier: z.string(),
+  ImageConfiguration: ImageConfigurationStateSchema,
+  ImageRepositoryType: z.string(),
+}).partial();
+
+const AuthenticationConfigurationStateSchema = z.object({
+  ConnectionArn: z.string(),
+  AccessRoleArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const EgressConfigurationStateSchema = z.object({
+  EgressType: z.string(),
+  VpcConnectorArn: z.string(),
+}).partial();
+
+const IngressConfigurationStateSchema = z.object({
+  IsPubliclyAccessible: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -249,20 +312,20 @@ const StateSchema = z.object({
   ServiceUrl: z.string().optional(),
   Status: z.string().optional(),
   SourceConfiguration: z.object({
-    CodeRepository: CodeRepositorySchema,
-    ImageRepository: ImageRepositorySchema,
+    CodeRepository: CodeRepositoryStateSchema,
+    ImageRepository: ImageRepositoryStateSchema,
     AutoDeploymentsEnabled: z.boolean(),
-    AuthenticationConfiguration: AuthenticationConfigurationSchema,
-  }).optional(),
+    AuthenticationConfiguration: AuthenticationConfigurationStateSchema,
+  }).partial().optional(),
   InstanceConfiguration: z.object({
     Cpu: z.string(),
     Memory: z.string(),
     InstanceRoleArn: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   EncryptionConfiguration: z.object({
     KmsKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   HealthCheckConfiguration: z.object({
     Protocol: z.string(),
     Path: z.string(),
@@ -270,20 +333,20 @@ const StateSchema = z.object({
     Timeout: z.number(),
     HealthyThreshold: z.number(),
     UnhealthyThreshold: z.number(),
-  }).optional(),
+  }).partial().optional(),
   ObservabilityConfiguration: z.object({
     ObservabilityEnabled: z.boolean(),
     ObservabilityConfigurationArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AutoScalingConfigurationArn: z.string().optional(),
   NetworkConfiguration: z.object({
-    EgressConfiguration: EgressConfigurationSchema,
-    IngressConfiguration: IngressConfigurationSchema,
+    EgressConfiguration: EgressConfigurationStateSchema,
+    IngressConfiguration: IngressConfigurationStateSchema,
     IpAddressType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -390,7 +453,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppRunner Service. Registered at `@swamp/aws/apprunner/service`. */
 export const model = {
   type: "@swamp/aws/apprunner/service",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -454,6 +517,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

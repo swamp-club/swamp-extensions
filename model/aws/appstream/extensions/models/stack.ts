@@ -90,6 +90,39 @@ const AgentAccessSettingSchema = z.object({
   ),
 });
 
+const StorageConnectorStateSchema = z.object({
+  Domains: z.array(z.string()),
+  ResourceIdentifier: z.string(),
+  ConnectorType: z.string(),
+}).partial();
+
+const UserSettingStateSchema = z.object({
+  Permission: z.string(),
+  Action: z.string(),
+  MaximumLength: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const AccessEndpointStateSchema = z.object({
+  EndpointType: z.string(),
+  VpceId: z.string(),
+}).partial();
+
+const UrlRedirectionConfigStateSchema = z.object({
+  Enabled: z.boolean(),
+  AllowedUrls: z.array(z.string()),
+  DeniedUrls: z.array(z.string()),
+}).partial();
+
+const AgentAccessSettingStateSchema = z.object({
+  AgentAction: z.string(),
+  Permission: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -184,39 +217,39 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Description: z.string().optional(),
-  StorageConnectors: z.array(StorageConnectorSchema).optional(),
+  StorageConnectors: z.array(StorageConnectorStateSchema).optional(),
   DeleteStorageConnectors: z.boolean().optional(),
   EmbedHostDomains: z.array(z.string()).optional(),
-  UserSettings: z.array(UserSettingSchema).optional(),
+  UserSettings: z.array(UserSettingStateSchema).optional(),
   AttributesToDelete: z.array(z.string()).optional(),
   RedirectURL: z.string().optional(),
   StreamingExperienceSettings: z.object({
     PreferredProtocol: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Name: z.string(),
   FeedbackURL: z.string().optional(),
   ApplicationSettings: z.object({
     SettingsGroup: z.string(),
     Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   DisplayName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  AccessEndpoints: z.array(AccessEndpointSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  AccessEndpoints: z.array(AccessEndpointStateSchema).optional(),
   ContentRedirection: z.object({
-    HostToClient: UrlRedirectionConfigSchema,
-  }).optional(),
+    HostToClient: UrlRedirectionConfigStateSchema,
+  }).partial().optional(),
   AgentAccessConfig: z.object({
-    Settings: z.array(AgentAccessSettingSchema),
+    Settings: z.array(AgentAccessSettingStateSchema),
     ScreenResolution: z.string(),
     ScreenImageFormat: z.string(),
     S3BucketArn: z.string(),
     ScreenshotsUploadEnabled: z.boolean(),
     UserControlMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   StorageConnectorAuthentication: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -321,7 +354,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream Stack. Registered at `@swamp/aws/appstream/stack`. */
 export const model = {
   type: "@swamp/aws/appstream/stack",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -395,6 +428,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

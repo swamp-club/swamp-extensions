@@ -785,128 +785,152 @@ const StateSchema = z.object({
   databaseDeploymentDetails: z.object({
     aggregatedStats: z.object({
       databaseCount: z.number(),
-    }),
-    awsRds: z.object({}),
+    }).partial(),
+    awsRds: z.object({}).partial(),
     edition: z.string(),
     generatedId: z.string(),
     manualUniqueId: z.string(),
     mysql: z.object({
-      plugins: z.array(z.object({
-        enabled: z.boolean(),
-        plugin: z.string(),
-        version: z.string(),
-      })),
-      properties: z.array(z.object({
-        enabled: z.boolean(),
-        numericValue: z.string(),
-        property: z.string(),
-      })),
+      plugins: z.array(
+        z.object({
+          enabled: z.boolean(),
+          plugin: z.string(),
+          version: z.string(),
+        }).partial(),
+      ),
+      properties: z.array(
+        z.object({
+          enabled: z.boolean(),
+          numericValue: z.string(),
+          property: z.string(),
+        }).partial(),
+      ),
       resourceGroupsCount: z.number(),
-      variables: z.array(z.object({
-        category: z.string(),
-        value: z.string(),
-        variable: z.string(),
-      })),
-    }),
+      variables: z.array(
+        z.object({
+          category: z.string(),
+          value: z.string(),
+          variable: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     postgresql: z.object({
-      properties: z.array(z.object({
-        enabled: z.boolean(),
-        numericValue: z.string(),
-        property: z.string(),
-      })),
-      settings: z.array(z.object({
-        boolValue: z.boolean(),
-        intValue: z.string(),
-        realValue: z.number(),
-        setting: z.string(),
-        source: z.string(),
-        stringValue: z.string(),
-        unit: z.string(),
-      })),
-    }),
+      properties: z.array(
+        z.object({
+          enabled: z.boolean(),
+          numericValue: z.string(),
+          property: z.string(),
+        }).partial(),
+      ),
+      settings: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          intValue: z.string(),
+          realValue: z.number(),
+          setting: z.string(),
+          source: z.string(),
+          stringValue: z.string(),
+          unit: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     sqlServer: z.object({
-      features: z.array(z.object({
-        enabled: z.boolean(),
-        featureName: z.string(),
-      })),
-      serverFlags: z.array(z.object({
-        serverFlagName: z.string(),
-        value: z.string(),
-        valueInUse: z.string(),
-      })),
-      traceFlags: z.array(z.object({
-        scope: z.string(),
-        traceFlagName: z.string(),
-      })),
-    }),
+      features: z.array(
+        z.object({
+          enabled: z.boolean(),
+          featureName: z.string(),
+        }).partial(),
+      ),
+      serverFlags: z.array(
+        z.object({
+          serverFlagName: z.string(),
+          value: z.string(),
+          valueInUse: z.string(),
+        }).partial(),
+      ),
+      traceFlags: z.array(
+        z.object({
+          scope: z.string(),
+          traceFlagName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     topology: z.object({
       coreCount: z.number(),
       coreLimit: z.number(),
       diskAllocatedBytes: z.string(),
       diskUsedBytes: z.string(),
-      instances: z.array(z.object({
-        instanceName: z.string(),
-        network: z.object({
-          hostNames: z.unknown(),
-          ipAddresses: z.unknown(),
-          primaryMacAddress: z.unknown(),
-        }),
-        role: z.string(),
-      })),
+      instances: z.array(
+        z.object({
+          instanceName: z.string(),
+          network: z.object({
+            hostNames: z.unknown(),
+            ipAddresses: z.unknown(),
+            primaryMacAddress: z.unknown(),
+          }).partial(),
+          role: z.string(),
+        }).partial(),
+      ),
       memoryBytes: z.string(),
       memoryLimitBytes: z.string(),
       physicalCoreCount: z.number(),
       physicalCoreLimit: z.number(),
-    }),
+    }).partial(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   databaseDetails: z.object({
     allocatedStorageBytes: z.string(),
     databaseName: z.string(),
     parentDatabaseDeployment: z.object({
       generatedId: z.string(),
       manualUniqueId: z.string(),
-    }),
-    schemas: z.array(z.object({
-      mysql: z.object({
-        storageEngines: z.array(z.unknown()),
-      }),
-      objects: z.array(z.object({
-        category: z.unknown(),
-        count: z.unknown(),
-      })),
-      postgresql: z.object({
-        foreignTablesCount: z.number(),
-        postgresqlExtensions: z.array(z.unknown()),
-      }),
-      schemaName: z.string(),
-      sqlServer: z.object({
-        clrObjectCount: z.number(),
-      }),
-      tablesSizeBytes: z.string(),
-    })),
-  }).optional(),
+    }).partial(),
+    schemas: z.array(
+      z.object({
+        mysql: z.object({
+          storageEngines: z.array(z.unknown()),
+        }).partial(),
+        objects: z.array(
+          z.object({
+            category: z.unknown(),
+            count: z.unknown(),
+          }).partial(),
+        ),
+        postgresql: z.object({
+          foreignTablesCount: z.number(),
+          postgresqlExtensions: z.array(z.unknown()),
+        }).partial(),
+        schemaName: z.string(),
+        sqlServer: z.object({
+          clrObjectCount: z.number(),
+        }).partial(),
+        tablesSizeBytes: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   hidden: z.boolean().optional(),
   hideReason: z.string().optional(),
   hideTime: z.string().optional(),
   insightList: z.object({
-    insights: z.array(z.object({
-      genericInsight: z.object({
-        additionalInformation: z.array(z.unknown()),
-        defaultMessage: z.string(),
-        messageId: z.string(),
-      }),
-      migrationInsight: z.object({
-        computeEngineTarget: z.object({
-          shape: z.unknown(),
-        }),
-        fit: z.object({
-          fitLevel: z.unknown(),
-        }),
-      }),
-    })),
+    insights: z.array(
+      z.object({
+        genericInsight: z.object({
+          additionalInformation: z.array(z.unknown()),
+          defaultMessage: z.string(),
+          messageId: z.string(),
+        }).partial(),
+        migrationInsight: z.object({
+          computeEngineTarget: z.object({
+            shape: z.unknown(),
+          }).partial(),
+          fit: z.object({
+            fitLevel: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   machineDetails: z.object({
     architecture: z.object({
@@ -918,10 +942,10 @@ const StateSchema = z.object({
           day: z.number(),
           month: z.number(),
           year: z.number(),
-        }),
+        }).partial(),
         smbiosUuid: z.string(),
         version: z.string(),
-      }),
+      }).partial(),
       cpuArchitecture: z.string(),
       cpuManufacturer: z.string(),
       cpuName: z.string(),
@@ -930,116 +954,122 @@ const StateSchema = z.object({
       firmwareType: z.string(),
       hyperthreading: z.string(),
       vendor: z.string(),
-    }),
+    }).partial(),
     coreCount: z.number(),
     createTime: z.string(),
     diskPartitions: z.object({
       freeSpaceBytes: z.string(),
       partitions: z.object({
-        entries: z.array(z.object({
-          capacityBytes: z.unknown(),
-          fileSystem: z.unknown(),
-          freeBytes: z.unknown(),
-          mountPoint: z.unknown(),
-          subPartitions: z.unknown(),
-          type: z.unknown(),
-          uuid: z.unknown(),
-        })),
-      }),
+        entries: z.array(
+          z.object({
+            capacityBytes: z.unknown(),
+            fileSystem: z.unknown(),
+            freeBytes: z.unknown(),
+            mountPoint: z.unknown(),
+            subPartitions: z.unknown(),
+            type: z.unknown(),
+            uuid: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       totalCapacityBytes: z.string(),
-    }),
+    }).partial(),
     disks: z.object({
       disks: z.object({
-        entries: z.array(z.object({
-          capacityBytes: z.unknown(),
-          diskLabel: z.unknown(),
-          diskLabelType: z.unknown(),
-          freeBytes: z.unknown(),
-          hwAddress: z.unknown(),
-          interfaceType: z.unknown(),
-          partitions: z.unknown(),
-          vmware: z.unknown(),
-        })),
-      }),
+        entries: z.array(
+          z.object({
+            capacityBytes: z.unknown(),
+            diskLabel: z.unknown(),
+            diskLabelType: z.unknown(),
+            freeBytes: z.unknown(),
+            hwAddress: z.unknown(),
+            interfaceType: z.unknown(),
+            partitions: z.unknown(),
+            vmware: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       totalCapacityBytes: z.string(),
       totalFreeBytes: z.string(),
-    }),
+    }).partial(),
     guestOs: z.object({
       config: z.object({
         fstab: z.object({
           entries: z.array(z.unknown()),
-        }),
+        }).partial(),
         hosts: z.object({
           entries: z.array(z.unknown()),
-        }),
+        }).partial(),
         issue: z.string(),
         nfsExports: z.object({
           entries: z.array(z.unknown()),
-        }),
+        }).partial(),
         selinuxMode: z.string(),
-      }),
+      }).partial(),
       family: z.string(),
       osName: z.string(),
       runtime: z.object({
         domain: z.string(),
         installedApps: z.object({
           entries: z.array(z.unknown()),
-        }),
+        }).partial(),
         lastBootTime: z.string(),
         machineName: z.string(),
         network: z.object({
           connections: z.object({
             entries: z.unknown(),
-          }),
+          }).partial(),
           scanTime: z.string(),
-        }),
+        }).partial(),
         openFileList: z.object({
           entries: z.array(z.unknown()),
-        }),
+        }).partial(),
         processes: z.object({
           entries: z.array(z.unknown()),
-        }),
+        }).partial(),
         services: z.object({
           entries: z.array(z.unknown()),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       version: z.string(),
-    }),
+    }).partial(),
     machineName: z.string(),
     memoryMb: z.number(),
     network: z.object({
       adapters: z.object({
-        entries: z.array(z.object({
-          adapterType: z.unknown(),
-          addresses: z.unknown(),
-          macAddress: z.unknown(),
-        })),
-      }),
+        entries: z.array(
+          z.object({
+            adapterType: z.unknown(),
+            addresses: z.unknown(),
+            macAddress: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       defaultGateway: z.string(),
       primaryIpAddress: z.string(),
       primaryMacAddress: z.string(),
       publicIpAddress: z.string(),
-    }),
+    }).partial(),
     platform: z.object({
       awsEc2Details: z.object({
         hyperthreading: z.string(),
         location: z.string(),
         machineTypeLabel: z.string(),
-      }),
+      }).partial(),
       azureVmDetails: z.object({
         hyperthreading: z.string(),
         location: z.string(),
         machineTypeLabel: z.string(),
         provisioningState: z.string(),
-      }),
+      }).partial(),
       genericDetails: z.object({
         hyperthreading: z.string(),
         location: z.string(),
-      }),
+      }).partial(),
       physicalDetails: z.object({
         hyperthreading: z.string(),
         location: z.string(),
-      }),
+      }).partial(),
       vmwareDetails: z.object({
         esxHyperthreading: z.string(),
         esxVersion: z.string(),
@@ -1048,71 +1078,73 @@ const StateSchema = z.object({
         vcenterUri: z.string(),
         vcenterVersion: z.string(),
         vcenterVmId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     powerState: z.string(),
     uuid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   performanceData: z.object({
-    dailyResourceUsageAggregations: z.array(z.object({
-      cpu: z.object({
-        utilizationPercentage: z.object({
-          average: z.unknown(),
-          median: z.unknown(),
-          ninteyFifthPercentile: z.unknown(),
-          peak: z.unknown(),
-        }),
-      }),
-      date: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-      disk: z.object({
-        iops: z.object({
-          average: z.unknown(),
-          median: z.unknown(),
-          ninteyFifthPercentile: z.unknown(),
-          peak: z.unknown(),
-        }),
-        readIops: z.object({
-          average: z.unknown(),
-          median: z.unknown(),
-          ninteyFifthPercentile: z.unknown(),
-          peak: z.unknown(),
-        }),
-        writeIops: z.object({
-          average: z.unknown(),
-          median: z.unknown(),
-          ninteyFifthPercentile: z.unknown(),
-          peak: z.unknown(),
-        }),
-      }),
-      memory: z.object({
-        utilizationPercentage: z.object({
-          average: z.unknown(),
-          median: z.unknown(),
-          ninteyFifthPercentile: z.unknown(),
-          peak: z.unknown(),
-        }),
-      }),
-      network: z.object({
-        egressBps: z.object({
-          average: z.unknown(),
-          median: z.unknown(),
-          ninteyFifthPercentile: z.unknown(),
-          peak: z.unknown(),
-        }),
-        ingressBps: z.object({
-          average: z.unknown(),
-          median: z.unknown(),
-          ninteyFifthPercentile: z.unknown(),
-          peak: z.unknown(),
-        }),
-      }),
-    })),
-  }).optional(),
+    dailyResourceUsageAggregations: z.array(
+      z.object({
+        cpu: z.object({
+          utilizationPercentage: z.object({
+            average: z.unknown(),
+            median: z.unknown(),
+            ninteyFifthPercentile: z.unknown(),
+            peak: z.unknown(),
+          }).partial(),
+        }).partial(),
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+        disk: z.object({
+          iops: z.object({
+            average: z.unknown(),
+            median: z.unknown(),
+            ninteyFifthPercentile: z.unknown(),
+            peak: z.unknown(),
+          }).partial(),
+          readIops: z.object({
+            average: z.unknown(),
+            median: z.unknown(),
+            ninteyFifthPercentile: z.unknown(),
+            peak: z.unknown(),
+          }).partial(),
+          writeIops: z.object({
+            average: z.unknown(),
+            median: z.unknown(),
+            ninteyFifthPercentile: z.unknown(),
+            peak: z.unknown(),
+          }).partial(),
+        }).partial(),
+        memory: z.object({
+          utilizationPercentage: z.object({
+            average: z.unknown(),
+            median: z.unknown(),
+            ninteyFifthPercentile: z.unknown(),
+            peak: z.unknown(),
+          }).partial(),
+        }).partial(),
+        network: z.object({
+          egressBps: z.object({
+            average: z.unknown(),
+            median: z.unknown(),
+            ninteyFifthPercentile: z.unknown(),
+            peak: z.unknown(),
+          }).partial(),
+          ingressBps: z.object({
+            average: z.unknown(),
+            median: z.unknown(),
+            ninteyFifthPercentile: z.unknown(),
+            peak: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   sources: z.array(z.string()).optional(),
   title: z.string().optional(),
   updateTime: z.string().optional(),
@@ -1774,7 +1806,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Migration Center Assets. Registered at `@swamp/gcp/migrationcenter/assets`. */
 export const model = {
   type: "@swamp/gcp/migrationcenter/assets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1923,6 +1955,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

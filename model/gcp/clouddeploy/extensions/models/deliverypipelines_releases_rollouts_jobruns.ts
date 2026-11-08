@@ -124,48 +124,54 @@ const StateSchema = z.object({
   advanceChildRolloutJobRun: z.object({
     rollout: z.string(),
     rolloutPhaseId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   analysisJobRun: z.object({
-    alertPolicyAnalyses: z.array(z.object({
-      alertPolicies: z.array(z.string()),
-      failedAlertPolicies: z.array(z.object({
-        alertPolicy: z.unknown(),
-        alerts: z.unknown(),
-      })),
-      failureMessage: z.string(),
-      id: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-    })),
-    customCheckAnalyses: z.array(z.object({
-      failureCause: z.string(),
-      failureMessage: z.string(),
-      frequency: z.string(),
-      id: z.string(),
-      latestBuild: z.string(),
-      metadata: z.object({
-        values: z.record(z.string(), z.unknown()),
-      }),
-      task: z.object({
-        container: z.object({
-          args: z.unknown(),
-          command: z.unknown(),
-          env: z.unknown(),
-          image: z.unknown(),
-        }),
-      }),
-    })),
+    alertPolicyAnalyses: z.array(
+      z.object({
+        alertPolicies: z.array(z.string()),
+        failedAlertPolicies: z.array(
+          z.object({
+            alertPolicy: z.unknown(),
+            alerts: z.unknown(),
+          }).partial(),
+        ),
+        failureMessage: z.string(),
+        id: z.string(),
+        labels: z.record(z.string(), z.unknown()),
+      }).partial(),
+    ),
+    customCheckAnalyses: z.array(
+      z.object({
+        failureCause: z.string(),
+        failureMessage: z.string(),
+        frequency: z.string(),
+        id: z.string(),
+        latestBuild: z.string(),
+        metadata: z.object({
+          values: z.record(z.string(), z.unknown()),
+        }).partial(),
+        task: z.object({
+          container: z.object({
+            args: z.unknown(),
+            command: z.unknown(),
+            env: z.unknown(),
+            image: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
     failedCheckId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createChildRolloutJobRun: z.object({
     rollout: z.string(),
     rolloutPhaseId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deployJobRun: z.object({
     artifact: z.object({
       artifactUri: z.string(),
       manifestPaths: z.array(z.string()),
-    }),
+    }).partial(),
     build: z.string(),
     failureCause: z.string(),
     failureMessage: z.string(),
@@ -177,15 +183,15 @@ const StateSchema = z.object({
         service: z.string(),
         serviceUrls: z.array(z.string()),
         workerPool: z.string(),
-      }),
+      }).partial(),
       custom: z.object({
         values: z.record(z.string(), z.unknown()),
-      }),
+      }).partial(),
       customTarget: z.object({
         skipMessage: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   endTime: z.string().optional(),
   etag: z.string().optional(),
   jobId: z.string().optional(),
@@ -198,9 +204,9 @@ const StateSchema = z.object({
     metadata: z.object({
       custom: z.object({
         values: z.record(z.string(), z.unknown()),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   predeployJobRun: z.object({
     build: z.string(),
     failureCause: z.string(),
@@ -208,9 +214,9 @@ const StateSchema = z.object({
     metadata: z.object({
       custom: z.object({
         values: z.record(z.string(), z.unknown()),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
   uid: z.string().optional(),
@@ -223,9 +229,9 @@ const StateSchema = z.object({
     metadata: z.object({
       custom: z.object({
         values: z.record(z.string(), z.unknown()),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -272,7 +278,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deploy DeliveryPipelines.Releases.Rollouts.JobRuns. Registered at `@swamp/gcp/clouddeploy/deliverypipelines-releases-rollouts-jobruns`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/deliverypipelines-releases-rollouts-jobruns",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -421,6 +427,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

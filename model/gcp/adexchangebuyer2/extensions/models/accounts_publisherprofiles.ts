@@ -120,11 +120,13 @@ const StateSchema = z.object({
   isParent: z.boolean().optional(),
   logoUrl: z.string().optional(),
   mediaKitUrl: z.string().optional(),
-  mobileApps: z.array(z.object({
-    appStore: z.string(),
-    externalAppId: z.string(),
-    name: z.string(),
-  })).optional(),
+  mobileApps: z.array(
+    z.object({
+      appStore: z.string(),
+      externalAppId: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   overview: z.string().optional(),
   programmaticDealsContact: z.string().optional(),
   publisherProfileId: z.string().optional(),
@@ -133,7 +135,7 @@ const StateSchema = z.object({
   seller: z.object({
     accountId: z.string(),
     subAccountId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   topHeadlines: z.array(z.string()).optional(),
 }).passthrough();
 
@@ -176,7 +178,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Accounts.PublisherProfiles. Registered at `@swamp/gcp/adexchangebuyer2/accounts-publisherprofiles`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/accounts-publisherprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -300,6 +302,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

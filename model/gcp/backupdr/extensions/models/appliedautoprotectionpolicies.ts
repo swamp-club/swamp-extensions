@@ -95,24 +95,28 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  backupPlanDetails: z.array(z.object({
-    backupPlan: z.string(),
-    resourceType: z.string(),
-  })).optional(),
+  backupPlanDetails: z.array(
+    z.object({
+      backupPlan: z.string(),
+      resourceType: z.string(),
+    }).partial(),
+  ).optional(),
   bindingEvaluationSummary: z.object({
     failedResourceCount: z.string(),
     matchingResourceCount: z.string(),
     protectedResourceCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   criteria: z.object({
-    matchingConditions: z.array(z.object({
-      labelCondition: z.object({
-        key: z.string(),
-        values: z.array(z.unknown()),
-      }),
-    })),
-  }).optional(),
+    matchingConditions: z.array(
+      z.object({
+        labelCondition: z.object({
+          key: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   sourceBinding: z.string().optional(),
   status: z.string().optional(),
@@ -160,10 +164,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service AppliedAutoProtectionPolicies. Registered at `@swamp/gcp/backupdr/appliedautoprotectionpolicies`. */
 export const model = {
   type: "@swamp/gcp/backupdr/appliedautoprotectionpolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

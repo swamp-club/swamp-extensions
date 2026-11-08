@@ -182,6 +182,61 @@ const WorkerTypeSpecificationInputSchema = z.object({
   ).optional(),
 });
 
+const WorkerConfigurationStateSchema = z.object({
+  Cpu: z.string(),
+  Memory: z.string(),
+  Disk: z.string(),
+  DiskType: z.string(),
+}).partial();
+
+const InitialCapacityConfigStateSchema = z.object({
+  WorkerCount: z.number(),
+  WorkerConfiguration: WorkerConfigurationStateSchema,
+}).partial();
+
+const InitialCapacityConfigKeyValuePairStateSchema = z.object({
+  Key: z.string(),
+  Value: InitialCapacityConfigStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const S3MonitoringConfigurationStateSchema = z.object({
+  LogUri: z.string(),
+  EncryptionKeyArn: z.string(),
+}).partial();
+
+const ManagedPersistenceMonitoringConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  EncryptionKeyArn: z.string(),
+}).partial();
+
+const LogTypeMapKeyValuePairStateSchema = z.object({
+  Key: z.string(),
+  Value: z.array(z.string()),
+}).partial();
+
+const CloudWatchLoggingConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  LogGroupName: z.string(),
+  LogStreamNamePrefix: z.string(),
+  EncryptionKeyArn: z.string(),
+  LogTypeMap: z.array(LogTypeMapKeyValuePairStateSchema),
+}).partial();
+
+const PrometheusMonitoringConfigurationStateSchema = z.object({
+  RemoteWriteUrl: z.string(),
+}).partial();
+
+const ConfigurationObjectStateSchema = z.object({
+  Classification: z.string(),
+  Properties: z.record(z.string(), z.unknown()),
+  Configurations: z.array(z.record(z.string(), z.unknown())),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -326,51 +381,55 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   ReleaseLabel: z.string().optional(),
   Type: z.string().optional(),
-  InitialCapacity: z.array(InitialCapacityConfigKeyValuePairSchema).optional(),
+  InitialCapacity: z.array(InitialCapacityConfigKeyValuePairStateSchema)
+    .optional(),
   MaximumCapacity: z.object({
     Cpu: z.string(),
     Memory: z.string(),
     Disk: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   AutoStartConfiguration: z.object({
     Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   AutoStopConfiguration: z.object({
     Enabled: z.boolean(),
     IdleTimeoutMinutes: z.number(),
-  }).optional(),
-  ImageConfiguration: ImageConfigurationInputSchema.optional(),
+  }).partial().optional(),
+  ImageConfiguration: z.object({
+    ImageUri: z.string(),
+  }).partial().optional(),
   MonitoringConfiguration: z.object({
-    S3MonitoringConfiguration: S3MonitoringConfigurationSchema,
+    S3MonitoringConfiguration: S3MonitoringConfigurationStateSchema,
     ManagedPersistenceMonitoringConfiguration:
-      ManagedPersistenceMonitoringConfigurationSchema,
-    CloudWatchLoggingConfiguration: CloudWatchLoggingConfigurationSchema,
-    PrometheusMonitoringConfiguration: PrometheusMonitoringConfigurationSchema,
-  }).optional(),
-  RuntimeConfiguration: z.array(ConfigurationObjectSchema).optional(),
+      ManagedPersistenceMonitoringConfigurationStateSchema,
+    CloudWatchLoggingConfiguration: CloudWatchLoggingConfigurationStateSchema,
+    PrometheusMonitoringConfiguration:
+      PrometheusMonitoringConfigurationStateSchema,
+  }).partial().optional(),
+  RuntimeConfiguration: z.array(ConfigurationObjectStateSchema).optional(),
   InteractiveConfiguration: z.object({
     LivyEndpointEnabled: z.boolean(),
     StudioEnabled: z.boolean(),
     SessionEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   NetworkConfiguration: z.object({
     SubnetIds: z.array(z.string()),
     SecurityGroupIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string().optional(),
   ApplicationId: z.string(),
   WorkerTypeSpecifications: z.record(z.string(), z.unknown()).optional(),
   SchedulerConfiguration: z.object({
     QueueTimeoutMinutes: z.number(),
     MaxConcurrentRuns: z.number(),
-  }).optional(),
+  }).partial().optional(),
   IdentityCenterConfiguration: z.object({
     IdentityCenterInstanceArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -520,7 +579,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRServerless Application. Registered at `@swamp/aws/emrserverless/application`. */
 export const model = {
   type: "@swamp/aws/emrserverless/application",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -594,6 +653,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

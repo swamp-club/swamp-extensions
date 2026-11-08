@@ -219,19 +219,21 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   advertiserId: z.string().optional(),
   archived: z.boolean().optional(),
-  deepLinks: z.array(z.object({
-    appUrl: z.string(),
-    fallbackUrl: z.string(),
-    kind: z.string(),
-    mobileApp: z.object({
-      directory: z.string(),
-      id: z.string(),
+  deepLinks: z.array(
+    z.object({
+      appUrl: z.string(),
+      fallbackUrl: z.string(),
       kind: z.string(),
-      publisherName: z.string(),
-      title: z.string(),
-    }),
-    remarketingListIds: z.array(z.string()),
-  })).optional(),
+      mobileApp: z.object({
+        directory: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        publisherName: z.string(),
+        title: z.string(),
+      }).partial(),
+      remarketingListIds: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   id: z.string(),
   kind: z.string().optional(),
   name: z.string().optional(),
@@ -327,7 +329,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 AdvertiserLandingPages. Registered at `@swamp/gcp/dfareporting/advertiserlandingpages`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/advertiserlandingpages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -461,6 +463,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

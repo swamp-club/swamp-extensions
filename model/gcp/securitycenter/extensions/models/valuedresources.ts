@@ -101,9 +101,11 @@ const StateSchema = z.object({
   resource: z.string().optional(),
   resourceType: z.string().optional(),
   resourceValue: z.string().optional(),
-  resourceValueConfigsUsed: z.array(z.object({
-    name: z.string(),
-  })).optional(),
+  resourceValueConfigsUsed: z.array(
+    z.object({
+      name: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -147,7 +149,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center ValuedResources. Registered at `@swamp/gcp/securitycenter/valuedresources`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/valuedresources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -281,6 +283,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -102,6 +102,36 @@ const LevelFiveSchema = z.object({
   Name: z.string().describe("The name of the hierarchy level."),
 });
 
+const LevelOneStateSchema = z.object({
+  HierarchyLevelArn: z.string(),
+  HierarchyLevelId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const LevelTwoStateSchema = z.object({
+  HierarchyLevelArn: z.string(),
+  HierarchyLevelId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const LevelThreeStateSchema = z.object({
+  HierarchyLevelArn: z.string(),
+  HierarchyLevelId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const LevelFourStateSchema = z.object({
+  HierarchyLevelArn: z.string(),
+  HierarchyLevelId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const LevelFiveStateSchema = z.object({
+  HierarchyLevelArn: z.string(),
+  HierarchyLevelId: z.string(),
+  Name: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -141,15 +171,15 @@ const StateSchema = z.object({
   InstanceArn: z.string().optional(),
   UserHierarchyStructureArn: z.string(),
   UserHierarchyStructure: z.object({
-    LevelOne: LevelOneSchema,
-    LevelTwo: LevelTwoSchema,
-    LevelThree: LevelThreeSchema,
-    LevelFour: LevelFourSchema,
-    LevelFive: LevelFiveSchema,
-  }).optional(),
+    LevelOne: LevelOneStateSchema,
+    LevelTwo: LevelTwoStateSchema,
+    LevelThree: LevelThreeStateSchema,
+    LevelFour: LevelFourStateSchema,
+    LevelFive: LevelFiveStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -195,7 +225,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect UserHierarchyStructure. Registered at `@swamp/aws/connect/user-hierarchy-structure`. */
 export const model = {
   type: "@swamp/aws/connect/user-hierarchy-structure",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -254,6 +284,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

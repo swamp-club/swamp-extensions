@@ -366,7 +366,7 @@ const StateSchema = z.object({
       map: z.array(z.record(z.string(), z.unknown())),
       type: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     convertNullToValue: z.object({
       isWeakReference: z.boolean(),
       key: z.string(),
@@ -374,7 +374,7 @@ const StateSchema = z.object({
       map: z.array(z.record(z.string(), z.unknown())),
       type: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     convertToBoolean: z.boolean(),
     convertToNumber: z.string(),
     convertTrueToValue: z.object({
@@ -384,7 +384,7 @@ const StateSchema = z.object({
       map: z.array(z.record(z.string(), z.unknown())),
       type: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     convertUndefinedToValue: z.object({
       isWeakReference: z.boolean(),
       key: z.string(),
@@ -392,18 +392,20 @@ const StateSchema = z.object({
       map: z.array(z.record(z.string(), z.unknown())),
       type: z.string(),
       value: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   notes: z.string().optional(),
-  parameter: z.array(z.object({
-    isWeakReference: z.boolean(),
-    key: z.string(),
-    list: z.array(z.record(z.string(), z.unknown())),
-    map: z.array(z.record(z.string(), z.unknown())),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
+  parameter: z.array(
+    z.object({
+      isWeakReference: z.boolean(),
+      key: z.string(),
+      list: z.array(z.record(z.string(), z.unknown())),
+      map: z.array(z.record(z.string(), z.unknown())),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   parentFolderId: z.string().optional(),
   path: z.string().optional(),
   scheduleEndMs: z.string().optional(),
@@ -647,7 +649,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tag Manager Accounts.Containers.Workspaces.Variables. Registered at `@swamp/gcp/tagmanager/accounts-containers-workspaces-variables`. */
 export const model = {
   type: "@swamp/gcp/tagmanager/accounts-containers-workspaces-variables",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -826,6 +828,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

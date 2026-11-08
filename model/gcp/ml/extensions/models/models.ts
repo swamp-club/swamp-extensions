@@ -182,27 +182,33 @@ const StateSchema = z.object({
     acceleratorConfig: z.object({
       count: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     autoScaling: z.object({
       maxNodes: z.number(),
-      metrics: z.array(z.object({
-        name: z.string(),
-        target: z.number(),
-      })),
+      metrics: z.array(
+        z.object({
+          name: z.string(),
+          target: z.number(),
+        }).partial(),
+      ),
       minNodes: z.number(),
-    }),
+    }).partial(),
     container: z.object({
       args: z.array(z.string()),
       command: z.array(z.string()),
-      env: z.array(z.object({
-        name: z.string(),
-        value: z.string(),
-      })),
+      env: z.array(
+        z.object({
+          name: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       image: z.string(),
-      ports: z.array(z.object({
-        containerPort: z.number(),
-      })),
-    }),
+      ports: z.array(
+        z.object({
+          containerPort: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
     createTime: z.string(),
     deploymentUri: z.string(),
     description: z.string(),
@@ -211,14 +217,14 @@ const StateSchema = z.object({
     explanationConfig: z.object({
       integratedGradientsAttribution: z.object({
         numIntegralSteps: z.number(),
-      }),
+      }).partial(),
       sampledShapleyAttribution: z.object({
         numPaths: z.number(),
-      }),
+      }).partial(),
       xraiAttribution: z.object({
         numIntegralSteps: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     framework: z.string(),
     isDefault: z.boolean(),
     labels: z.record(z.string(), z.unknown()),
@@ -228,7 +234,7 @@ const StateSchema = z.object({
     machineType: z.string(),
     manualScaling: z.object({
       nodes: z.number(),
-    }),
+    }).partial(),
     name: z.string(),
     packageUris: z.array(z.string()),
     predictionClass: z.string(),
@@ -236,15 +242,15 @@ const StateSchema = z.object({
     requestLoggingConfig: z.object({
       bigqueryTableName: z.string(),
       samplingPercentage: z.number(),
-    }),
+    }).partial(),
     routes: z.object({
       health: z.string(),
       predict: z.string(),
-    }),
+    }).partial(),
     runtimeVersion: z.string(),
     serviceAccount: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -312,7 +318,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AI Platform Training & Prediction Models. Registered at `@swamp/gcp/ml/models`. */
 export const model = {
   type: "@swamp/gcp/ml/models",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -464,6 +470,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

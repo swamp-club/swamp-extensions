@@ -125,9 +125,9 @@ const StateSchema = z.object({
     pluginInstanceActionSource: z.object({
       actionId: z.string(),
       pluginInstance: z.string(),
-    }),
+    }).partial(),
     sourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceTypes: z.array(z.string()).optional(),
   style: z.string().optional(),
   unknownOperationsCount: z.string().optional(),
@@ -175,7 +175,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub DiscoveredApiObservations. Registered at `@swamp/gcp/apihub/discoveredapiobservations`. */
 export const model = {
   type: "@swamp/gcp/apihub/discoveredapiobservations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -304,6 +304,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

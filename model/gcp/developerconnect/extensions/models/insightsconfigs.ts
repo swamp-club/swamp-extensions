@@ -236,49 +236,55 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   appHubApplication: z.string().optional(),
-  artifactConfigs: z.array(z.object({
-    googleArtifactAnalysis: z.object({
-      projectId: z.string(),
-    }),
-    googleArtifactRegistry: z.object({
-      artifactRegistryPackage: z.string(),
-      projectId: z.string(),
-    }),
-    uri: z.string(),
-  })).optional(),
+  artifactConfigs: z.array(
+    z.object({
+      googleArtifactAnalysis: z.object({
+        projectId: z.string(),
+      }).partial(),
+      googleArtifactRegistry: z.object({
+        artifactRegistryPackage: z.string(),
+        projectId: z.string(),
+      }).partial(),
+      uri: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
-  errors: z.array(z.object({
-    code: z.number(),
-    details: z.array(z.record(z.string(), z.unknown())),
-    message: z.string(),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      code: z.number(),
+      details: z.array(z.record(z.string(), z.unknown())),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   projects: z.object({
     projectIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
-  runtimeConfigs: z.array(z.object({
-    appHubService: z.object({
-      apphubService: z.string(),
-      criticality: z.string(),
-      environment: z.string(),
-    }),
-    appHubWorkload: z.object({
-      criticality: z.string(),
-      environment: z.string(),
-      workload: z.string(),
-    }),
-    gkeWorkload: z.object({
-      cluster: z.string(),
-      deployment: z.string(),
-    }),
-    googleCloudRun: z.object({
-      serviceUri: z.string(),
-    }),
-    state: z.string(),
-    uri: z.string(),
-  })).optional(),
+  runtimeConfigs: z.array(
+    z.object({
+      appHubService: z.object({
+        apphubService: z.string(),
+        criticality: z.string(),
+        environment: z.string(),
+      }).partial(),
+      appHubWorkload: z.object({
+        criticality: z.string(),
+        environment: z.string(),
+        workload: z.string(),
+      }).partial(),
+      gkeWorkload: z.object({
+        cluster: z.string(),
+        deployment: z.string(),
+      }).partial(),
+      googleCloudRun: z.object({
+        serviceUri: z.string(),
+      }).partial(),
+      state: z.string(),
+      uri: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -373,7 +379,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Developer Connect InsightsConfigs. Registered at `@swamp/gcp/developerconnect/insightsconfigs`. */
 export const model = {
   type: "@swamp/gcp/developerconnect/insightsconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -517,6 +523,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

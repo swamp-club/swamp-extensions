@@ -265,6 +265,127 @@ const ExclusionWindowSchema = z.object({
   ).optional(),
 });
 
+const DimensionStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const MetricStateSchema = z.object({
+  MetricName: z.string(),
+  Dimensions: z.array(DimensionStateSchema),
+  Namespace: z.string(),
+}).partial();
+
+const MetricStatStateSchema = z.object({
+  Period: z.number(),
+  Metric: MetricStateSchema,
+  Stat: z.string(),
+  Unit: z.string(),
+}).partial();
+
+const MetricDataQueryStateSchema = z.object({
+  MetricStat: MetricStatStateSchema,
+  Id: z.string(),
+  ReturnData: z.boolean(),
+  Expression: z.string(),
+  AccountId: z.string(),
+}).partial();
+
+const DependencyConfigStateSchema = z.object({
+  DependencyKeyAttributes: z.record(z.string(), z.unknown()),
+  DependencyOperationName: z.string(),
+}).partial();
+
+const MetricSourceStateSchema = z.object({
+  MetricSourceKeyAttributes: z.record(z.string(), z.unknown()),
+  MetricSourceAttributes: z.record(z.string(), z.unknown()),
+}).partial();
+
+const SelectionConfigStateSchema = z.object({
+  Type: z.string(),
+  Pattern: z.string(),
+}).partial();
+
+const CompositeSliComponentStateSchema = z.object({
+  OperationName: z.string(),
+}).partial();
+
+const CompositeSliConfigStateSchema = z.object({
+  SelectionConfig: SelectionConfigStateSchema,
+  CompositeSliComponents: z.array(CompositeSliComponentStateSchema),
+}).partial();
+
+const SliMetricStateSchema = z.object({
+  KeyAttributes: z.record(z.string(), z.unknown()),
+  OperationName: z.string(),
+  MetricType: z.string(),
+  Statistic: z.string(),
+  PeriodSeconds: z.number(),
+  MetricDataQueries: z.array(MetricDataQueryStateSchema),
+  DependencyConfig: DependencyConfigStateSchema,
+  MetricSource: MetricSourceStateSchema,
+  MetricName: z.string(),
+  CompositeSliConfig: CompositeSliConfigStateSchema,
+}).partial();
+
+const MonitoredRequestCountMetricStateSchema = z.object({
+  GoodCountMetric: z.array(MetricDataQueryStateSchema),
+  BadCountMetric: z.array(MetricDataQueryStateSchema),
+}).partial();
+
+const RequestBasedSliMetricStateSchema = z.object({
+  KeyAttributes: z.record(z.string(), z.unknown()),
+  OperationName: z.string(),
+  MetricType: z.string(),
+  TotalRequestCountMetric: z.array(MetricDataQueryStateSchema),
+  MonitoredRequestCountMetric: MonitoredRequestCountMetricStateSchema,
+  DependencyConfig: DependencyConfigStateSchema,
+  MetricSource: MetricSourceStateSchema,
+  MetricName: z.string(),
+  CompositeSliConfig: CompositeSliConfigStateSchema,
+}).partial();
+
+const RollingIntervalStateSchema = z.object({
+  DurationUnit: z.string(),
+  Duration: z.number(),
+}).partial();
+
+const CalendarIntervalStateSchema = z.object({
+  StartTime: z.number(),
+  DurationUnit: z.string(),
+  Duration: z.number(),
+}).partial();
+
+const IntervalStateSchema = z.object({
+  RollingInterval: RollingIntervalStateSchema,
+  CalendarInterval: CalendarIntervalStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const BurnRateConfigurationStateSchema = z.object({
+  LookBackWindowMinutes: z.number(),
+}).partial();
+
+const WindowStateSchema = z.object({
+  DurationUnit: z.string(),
+  Duration: z.number(),
+}).partial();
+
+const RecurrenceRuleStateSchema = z.object({
+  Expression: z.string(),
+}).partial();
+
+const ExclusionWindowStateSchema = z.object({
+  Window: WindowStateSchema,
+  StartTime: z.string(),
+  RecurrenceRule: RecurrenceRuleStateSchema,
+  Reason: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -354,27 +475,27 @@ const StateSchema = z.object({
   CreatedTime: z.number().optional(),
   LastUpdatedTime: z.number().optional(),
   Sli: z.object({
-    SliMetric: SliMetricSchema,
+    SliMetric: SliMetricStateSchema,
     MetricThreshold: z.number(),
     ComparisonOperator: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RequestBasedSli: z.object({
-    RequestBasedSliMetric: RequestBasedSliMetricSchema,
+    RequestBasedSliMetric: RequestBasedSliMetricStateSchema,
     MetricThreshold: z.number(),
     ComparisonOperator: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EvaluationType: z.string().optional(),
   Goal: z.object({
-    Interval: IntervalSchema,
+    Interval: IntervalStateSchema,
     AttainmentGoal: z.number(),
     WarningThreshold: z.number(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
-  BurnRateConfigurations: z.array(BurnRateConfigurationSchema).optional(),
-  ExclusionWindows: z.array(ExclusionWindowSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  BurnRateConfigurations: z.array(BurnRateConfigurationStateSchema).optional(),
+  ExclusionWindows: z.array(ExclusionWindowStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -467,7 +588,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApplicationSignals ServiceLevelObjective. Registered at `@swamp/aws/applicationsignals/service-level-objective`. */
 export const model = {
   type: "@swamp/aws/applicationsignals/service-level-objective",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -536,6 +657,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

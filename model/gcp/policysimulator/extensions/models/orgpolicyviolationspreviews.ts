@@ -234,52 +234,56 @@ const StateSchema = z.object({
   customConstraints: z.array(z.string()).optional(),
   name: z.string(),
   overlay: z.object({
-    customConstraints: z.array(z.object({
-      customConstraint: z.object({
-        actionType: z.string(),
-        condition: z.string(),
-        description: z.string(),
-        displayName: z.string(),
-        methodTypes: z.array(z.unknown()),
-        name: z.string(),
-        resourceTypes: z.array(z.unknown()),
-        updateTime: z.string(),
-      }),
-      customConstraintParent: z.string(),
-    })),
-    policies: z.array(z.object({
-      policy: z.object({
-        alternate: z.object({
-          launch: z.unknown(),
-          spec: z.unknown(),
-        }),
-        dryRunSpec: z.object({
-          etag: z.unknown(),
-          inheritFromParent: z.unknown(),
-          reset: z.unknown(),
-          rules: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        etag: z.string(),
-        name: z.string(),
-        spec: z.object({
-          etag: z.unknown(),
-          inheritFromParent: z.unknown(),
-          reset: z.unknown(),
-          rules: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-      }),
-      policyParent: z.string(),
-    })),
-  }).optional(),
+    customConstraints: z.array(
+      z.object({
+        customConstraint: z.object({
+          actionType: z.string(),
+          condition: z.string(),
+          description: z.string(),
+          displayName: z.string(),
+          methodTypes: z.array(z.unknown()),
+          name: z.string(),
+          resourceTypes: z.array(z.unknown()),
+          updateTime: z.string(),
+        }).partial(),
+        customConstraintParent: z.string(),
+      }).partial(),
+    ),
+    policies: z.array(
+      z.object({
+        policy: z.object({
+          alternate: z.object({
+            launch: z.unknown(),
+            spec: z.unknown(),
+          }).partial(),
+          dryRunSpec: z.object({
+            etag: z.unknown(),
+            inheritFromParent: z.unknown(),
+            reset: z.unknown(),
+            rules: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          etag: z.string(),
+          name: z.string(),
+          spec: z.object({
+            etag: z.unknown(),
+            inheritFromParent: z.unknown(),
+            reset: z.unknown(),
+            rules: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+        }).partial(),
+        policyParent: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   resourceCounts: z.object({
     compliant: z.number(),
     errors: z.number(),
     noncompliant: z.number(),
     scanned: z.number(),
     unenforced: z.number(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   violationsCount: z.number().optional(),
 }).passthrough();
@@ -424,7 +428,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Policy Simulator OrgPolicyViolationsPreviews. Registered at `@swamp/gcp/policysimulator/orgpolicyviolationspreviews`. */
 export const model = {
   type: "@swamp/gcp/policysimulator/orgpolicyviolationspreviews",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -596,6 +600,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

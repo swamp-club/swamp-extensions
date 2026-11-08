@@ -58,6 +58,18 @@ const TagSchema = z.object({
   ),
 });
 
+const ConnectPeerBgpConfigurationStateSchema = z.object({
+  CoreNetworkAsn: z.number(),
+  PeerAsn: z.number(),
+  CoreNetworkAddress: z.string(),
+  PeerAddress: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -112,7 +124,7 @@ const StateSchema = z.object({
   CoreNetworkAddress: z.string().optional(),
   BgpOptions: z.object({
     PeerAsn: z.number(),
-  }).optional(),
+  }).partial().optional(),
   InsideCidrBlocks: z.array(z.string()).optional(),
   CoreNetworkId: z.string().optional(),
   ConnectAttachmentId: z.string().optional(),
@@ -125,14 +137,14 @@ const StateSchema = z.object({
     PeerAddress: z.string(),
     InsideCidrBlocks: z.array(z.string()),
     Protocol: z.string(),
-    BgpConfigurations: z.array(ConnectPeerBgpConfigurationSchema),
-  }).optional(),
+    BgpConfigurations: z.array(ConnectPeerBgpConfigurationStateSchema),
+  }).partial().optional(),
   SubnetArn: z.string().optional(),
   LastModificationErrors: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -192,7 +204,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager ConnectPeer. Registered at `@swamp/aws/networkmanager/connect-peer`. */
 export const model = {
   type: "@swamp/aws/networkmanager/connect-peer",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -256,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

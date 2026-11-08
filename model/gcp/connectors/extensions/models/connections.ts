@@ -1063,30 +1063,34 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  adminFilters: z.array(z.object({
-    filterKey: z.string(),
-    filterType: z.string(),
-    intValue: z.string(),
-    stringListValues: z.object({
-      listValues: z.array(z.string()),
-    }),
-    stringValue: z.string(),
-  })).optional(),
+  adminFilters: z.array(
+    z.object({
+      filterKey: z.string(),
+      filterType: z.string(),
+      intValue: z.string(),
+      stringListValues: z.object({
+        listValues: z.array(z.string()),
+      }).partial(),
+      stringValue: z.string(),
+    }).partial(),
+  ).optional(),
   asyncOperationsEnabled: z.boolean().optional(),
   authConfig: z.object({
-    additionalVariables: z.array(z.object({
-      boolValue: z.boolean(),
-      encryptionKeyValue: z.object({
-        kmsKeyName: z.string(),
-        type: z.string(),
-      }),
-      intValue: z.string(),
-      key: z.string(),
-      secretValue: z.object({
-        secretVersion: z.string(),
-      }),
-      stringValue: z.string(),
-    })),
+    additionalVariables: z.array(
+      z.object({
+        boolValue: z.boolean(),
+        encryptionKeyValue: z.object({
+          kmsKeyName: z.string(),
+          type: z.string(),
+        }).partial(),
+        intValue: z.string(),
+        key: z.string(),
+        secretValue: z.object({
+          secretVersion: z.string(),
+        }).partial(),
+        stringValue: z.string(),
+      }).partial(),
+    ),
     authKey: z.string(),
     authType: z.string(),
     oauth2AuthCodeFlow: z.object({
@@ -1095,67 +1099,69 @@ const StateSchema = z.object({
       clientId: z.string(),
       clientSecret: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       enablePkce: z.boolean(),
       pkceVerifier: z.string(),
       redirectUri: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     oauth2AuthCodeFlowGoogleManaged: z.object({
       authCode: z.string(),
       redirectUri: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     oauth2ClientCredentials: z.object({
       clientId: z.string(),
       clientSecret: z.object({
         secretVersion: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     oauth2JwtBearer: z.object({
       clientKey: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       jwtClaims: z.object({
         audience: z.string(),
         issuer: z.string(),
         subject: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sshPublicKey: z.object({
       certType: z.string(),
       sshClientCert: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       sshClientCertPass: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
+    }).partial(),
     userPassword: z.object({
       password: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   authOverrideEnabled: z.boolean().optional(),
   billingConfig: z.object({
     billingCategory: z.string(),
-  }).optional(),
-  configVariables: z.array(z.object({
-    boolValue: z.boolean(),
-    encryptionKeyValue: z.object({
-      kmsKeyName: z.string(),
-      type: z.string(),
-    }),
-    intValue: z.string(),
-    key: z.string(),
-    secretValue: z.object({
-      secretVersion: z.string(),
-    }),
-    stringValue: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  configVariables: z.array(
+    z.object({
+      boolValue: z.boolean(),
+      encryptionKeyValue: z.object({
+        kmsKeyName: z.string(),
+        type: z.string(),
+      }).partial(),
+      intValue: z.string(),
+      key: z.string(),
+      secretValue: z.object({
+        secretVersion: z.string(),
+      }).partial(),
+      stringValue: z.string(),
+    }).partial(),
+  ).optional(),
   connectionRevision: z.string().optional(),
   connectorVersion: z.string().optional(),
   connectorVersionInfraConfig: z.object({
@@ -1165,47 +1171,53 @@ const StateSchema = z.object({
     hpaConfig: z.object({
       cpuUtilizationThreshold: z.string(),
       memoryUtilizationThreshold: z.string(),
-    }),
+    }).partial(),
     internalclientRatelimitThreshold: z.string(),
     maxInstanceRequestConcurrency: z.number(),
     ratelimitThreshold: z.string(),
     resourceLimits: z.object({
       cpu: z.string(),
       memory: z.string(),
-    }),
+    }).partial(),
     resourceRequests: z.object({
       cpu: z.string(),
       memory: z.string(),
-    }),
+    }).partial(),
     sharedDeployment: z.string(),
     tlsMigrationState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   connectorVersionLaunchStage: z.string().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
-  destinationConfigs: z.array(z.object({
-    destinations: z.array(z.object({
-      host: z.string(),
-      port: z.number(),
-      serviceAttachment: z.string(),
-    })),
-    key: z.string(),
-  })).optional(),
+  destinationConfigs: z.array(
+    z.object({
+      destinations: z.array(
+        z.object({
+          host: z.string(),
+          port: z.number(),
+          serviceAttachment: z.string(),
+        }).partial(),
+      ),
+      key: z.string(),
+    }).partial(),
+  ).optional(),
   envoyImageLocation: z.string().optional(),
   euaOauthAuthConfig: z.object({
-    additionalVariables: z.array(z.object({
-      boolValue: z.boolean(),
-      encryptionKeyValue: z.object({
-        kmsKeyName: z.string(),
-        type: z.string(),
-      }),
-      intValue: z.string(),
-      key: z.string(),
-      secretValue: z.object({
-        secretVersion: z.string(),
-      }),
-      stringValue: z.string(),
-    })),
+    additionalVariables: z.array(
+      z.object({
+        boolValue: z.boolean(),
+        encryptionKeyValue: z.object({
+          kmsKeyName: z.string(),
+          type: z.string(),
+        }).partial(),
+        intValue: z.string(),
+        key: z.string(),
+        secretValue: z.object({
+          secretVersion: z.string(),
+        }).partial(),
+        stringValue: z.string(),
+      }).partial(),
+    ),
     authKey: z.string(),
     authType: z.string(),
     oauth2AuthCodeFlow: z.object({
@@ -1214,79 +1226,83 @@ const StateSchema = z.object({
       clientId: z.string(),
       clientSecret: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       enablePkce: z.boolean(),
       pkceVerifier: z.string(),
       redirectUri: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     oauth2AuthCodeFlowGoogleManaged: z.object({
       authCode: z.string(),
       redirectUri: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     oauth2ClientCredentials: z.object({
       clientId: z.string(),
       clientSecret: z.object({
         secretVersion: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     oauth2JwtBearer: z.object({
       clientKey: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       jwtClaims: z.object({
         audience: z.string(),
         issuer: z.string(),
         subject: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sshPublicKey: z.object({
       certType: z.string(),
       sshClientCert: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       sshClientCertPass: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
+    }).partial(),
     userPassword: z.object({
       password: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   eventingConfig: z.object({
-    additionalVariables: z.array(z.object({
-      boolValue: z.boolean(),
-      encryptionKeyValue: z.object({
-        kmsKeyName: z.string(),
-        type: z.string(),
-      }),
-      intValue: z.string(),
-      key: z.string(),
-      secretValue: z.object({
-        secretVersion: z.string(),
-      }),
-      stringValue: z.string(),
-    })),
-    allowedEventTypes: z.array(z.string()),
-    authConfig: z.object({
-      additionalVariables: z.array(z.object({
+    additionalVariables: z.array(
+      z.object({
         boolValue: z.boolean(),
         encryptionKeyValue: z.object({
-          kmsKeyName: z.unknown(),
-          type: z.unknown(),
-        }),
+          kmsKeyName: z.string(),
+          type: z.string(),
+        }).partial(),
         intValue: z.string(),
         key: z.string(),
         secretValue: z.object({
-          secretVersion: z.unknown(),
-        }),
+          secretVersion: z.string(),
+        }).partial(),
         stringValue: z.string(),
-      })),
+      }).partial(),
+    ),
+    allowedEventTypes: z.array(z.string()),
+    authConfig: z.object({
+      additionalVariables: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          encryptionKeyValue: z.object({
+            kmsKeyName: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          intValue: z.string(),
+          key: z.string(),
+          secretValue: z.object({
+            secretVersion: z.unknown(),
+          }).partial(),
+          stringValue: z.string(),
+        }).partial(),
+      ),
       authKey: z.string(),
       authType: z.string(),
       oauth2AuthCodeFlow: z.object({
@@ -1295,74 +1311,76 @@ const StateSchema = z.object({
         clientId: z.string(),
         clientSecret: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         enablePkce: z.boolean(),
         pkceVerifier: z.string(),
         redirectUri: z.string(),
         scopes: z.array(z.string()),
-      }),
+      }).partial(),
       oauth2AuthCodeFlowGoogleManaged: z.object({
         authCode: z.string(),
         redirectUri: z.string(),
         scopes: z.array(z.string()),
-      }),
+      }).partial(),
       oauth2ClientCredentials: z.object({
         clientId: z.string(),
         clientSecret: z.object({
           secretVersion: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       oauth2JwtBearer: z.object({
         clientKey: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         jwtClaims: z.object({
           audience: z.string(),
           issuer: z.string(),
           subject: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       sshPublicKey: z.object({
         certType: z.string(),
         sshClientCert: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         sshClientCertPass: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         username: z.string(),
-      }),
+      }).partial(),
       userPassword: z.object({
         password: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         username: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     deadLetterConfig: z.object({
       projectId: z.string(),
       topic: z.string(),
-    }),
+    }).partial(),
     enrichmentConfig: z.object({
       appendAcl: z.boolean(),
-    }),
+    }).partial(),
     enrichmentEnabled: z.boolean(),
     eventsListenerIngressEndpoint: z.string(),
     globalEventFilter: z.string(),
     listenerAuthConfig: z.object({
-      additionalVariables: z.array(z.object({
-        boolValue: z.boolean(),
-        encryptionKeyValue: z.object({
-          kmsKeyName: z.unknown(),
-          type: z.unknown(),
-        }),
-        intValue: z.string(),
-        key: z.string(),
-        secretValue: z.object({
-          secretVersion: z.unknown(),
-        }),
-        stringValue: z.string(),
-      })),
+      additionalVariables: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          encryptionKeyValue: z.object({
+            kmsKeyName: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          intValue: z.string(),
+          key: z.string(),
+          secretValue: z.object({
+            secretVersion: z.unknown(),
+          }).partial(),
+          stringValue: z.string(),
+        }).partial(),
+      ),
       authKey: z.string(),
       authType: z.string(),
       oauth2AuthCodeFlow: z.object({
@@ -1371,101 +1389,107 @@ const StateSchema = z.object({
         clientId: z.string(),
         clientSecret: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         enablePkce: z.boolean(),
         pkceVerifier: z.string(),
         redirectUri: z.string(),
         scopes: z.array(z.string()),
-      }),
+      }).partial(),
       oauth2AuthCodeFlowGoogleManaged: z.object({
         authCode: z.string(),
         redirectUri: z.string(),
         scopes: z.array(z.string()),
-      }),
+      }).partial(),
       oauth2ClientCredentials: z.object({
         clientId: z.string(),
         clientSecret: z.object({
           secretVersion: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       oauth2JwtBearer: z.object({
         clientKey: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         jwtClaims: z.object({
           audience: z.string(),
           issuer: z.string(),
           subject: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       sshPublicKey: z.object({
         certType: z.string(),
         sshClientCert: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         sshClientCertPass: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         username: z.string(),
-      }),
+      }).partial(),
       userPassword: z.object({
         password: z.object({
           secretVersion: z.string(),
-        }),
+        }).partial(),
         username: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     privateConnectivityAllowlistedProjects: z.array(z.string()),
     privateConnectivityEnabled: z.boolean(),
     proxyDestinationConfig: z.object({
-      destinations: z.array(z.object({
-        host: z.string(),
-        port: z.number(),
-        serviceAttachment: z.string(),
-      })),
+      destinations: z.array(
+        z.object({
+          host: z.string(),
+          port: z.number(),
+          serviceAttachment: z.string(),
+        }).partial(),
+      ),
       key: z.string(),
-    }),
+    }).partial(),
     registrationDestinationConfig: z.object({
-      destinations: z.array(z.object({
-        host: z.string(),
-        port: z.number(),
-        serviceAttachment: z.string(),
-      })),
+      destinations: z.array(
+        z.object({
+          host: z.string(),
+          port: z.number(),
+          serviceAttachment: z.string(),
+        }).partial(),
+      ),
       key: z.string(),
-    }),
+    }).partial(),
     sslConfig: z.object({
-      additionalVariables: z.array(z.object({
-        boolValue: z.boolean(),
-        encryptionKeyValue: z.object({
-          kmsKeyName: z.unknown(),
-          type: z.unknown(),
-        }),
-        intValue: z.string(),
-        key: z.string(),
-        secretValue: z.object({
-          secretVersion: z.unknown(),
-        }),
-        stringValue: z.string(),
-      })),
+      additionalVariables: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          encryptionKeyValue: z.object({
+            kmsKeyName: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          intValue: z.string(),
+          key: z.string(),
+          secretValue: z.object({
+            secretVersion: z.unknown(),
+          }).partial(),
+          stringValue: z.string(),
+        }).partial(),
+      ),
       clientCertType: z.string(),
       clientCertificate: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       clientPrivateKey: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       clientPrivateKeyPass: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       privateServerCertificate: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       serverCertType: z.string(),
       trustModel: z.string(),
       type: z.string(),
       useSsl: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   eventingEnablementType: z.string().optional(),
   eventingRuntimeData: z.object({
     eventsListenerEndpoint: z.string(),
@@ -1473,21 +1497,23 @@ const StateSchema = z.object({
     status: z.object({
       description: z.string(),
       state: z.string(),
-    }),
+    }).partial(),
     webhookData: z.object({
-      additionalVariables: z.array(z.object({
-        boolValue: z.boolean(),
-        encryptionKeyValue: z.object({
-          kmsKeyName: z.unknown(),
-          type: z.unknown(),
-        }),
-        intValue: z.string(),
-        key: z.string(),
-        secretValue: z.object({
-          secretVersion: z.unknown(),
-        }),
-        stringValue: z.string(),
-      })),
+      additionalVariables: z.array(
+        z.object({
+          boolValue: z.boolean(),
+          encryptionKeyValue: z.object({
+            kmsKeyName: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          intValue: z.string(),
+          key: z.string(),
+          secretValue: z.object({
+            secretVersion: z.unknown(),
+          }).partial(),
+          stringValue: z.string(),
+        }).partial(),
+      ),
       createTime: z.string(),
       eventSubscriptions: z.array(z.string()),
       eventTypes: z.array(z.string()),
@@ -1495,20 +1521,22 @@ const StateSchema = z.object({
       name: z.string(),
       nextRefreshTime: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     webhookSubscriptions: z.object({
-      webhookData: z.array(z.object({
-        additionalVariables: z.array(z.unknown()),
-        createTime: z.string(),
-        eventSubscriptions: z.array(z.unknown()),
-        eventTypes: z.array(z.unknown()),
-        id: z.string(),
-        name: z.string(),
-        nextRefreshTime: z.string(),
-        updateTime: z.string(),
-      })),
-    }),
-  }).optional(),
+      webhookData: z.array(
+        z.object({
+          additionalVariables: z.array(z.unknown()),
+          createTime: z.string(),
+          eventSubscriptions: z.array(z.unknown()),
+          eventTypes: z.array(z.unknown()),
+          id: z.string(),
+          name: z.string(),
+          nextRefreshTime: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   fallbackOnAdminCredentials: z.boolean().optional(),
   host: z.string().optional(),
   imageLocation: z.string().optional(),
@@ -1517,62 +1545,66 @@ const StateSchema = z.object({
   lockConfig: z.object({
     locked: z.boolean(),
     reason: z.string(),
-  }).optional(),
+  }).partial().optional(),
   logConfig: z.object({
     enabled: z.boolean(),
     level: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   nodeConfig: z.object({
     maxNodeCount: z.number(),
     minNodeCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   serviceAccount: z.string().optional(),
   serviceDirectory: z.string().optional(),
   sslConfig: z.object({
-    additionalVariables: z.array(z.object({
-      boolValue: z.boolean(),
-      encryptionKeyValue: z.object({
-        kmsKeyName: z.string(),
-        type: z.string(),
-      }),
-      intValue: z.string(),
-      key: z.string(),
-      secretValue: z.object({
-        secretVersion: z.string(),
-      }),
-      stringValue: z.string(),
-    })),
+    additionalVariables: z.array(
+      z.object({
+        boolValue: z.boolean(),
+        encryptionKeyValue: z.object({
+          kmsKeyName: z.string(),
+          type: z.string(),
+        }).partial(),
+        intValue: z.string(),
+        key: z.string(),
+        secretValue: z.object({
+          secretVersion: z.string(),
+        }).partial(),
+        stringValue: z.string(),
+      }).partial(),
+    ),
     clientCertType: z.string(),
     clientCertificate: z.object({
       secretVersion: z.string(),
-    }),
+    }).partial(),
     clientPrivateKey: z.object({
       secretVersion: z.string(),
-    }),
+    }).partial(),
     clientPrivateKeyPass: z.object({
       secretVersion: z.string(),
-    }),
+    }).partial(),
     privateServerCertificate: z.object({
       secretVersion: z.string(),
-    }),
+    }).partial(),
     serverCertType: z.string(),
     trustModel: z.string(),
     type: z.string(),
     useSsl: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     description: z.string(),
     state: z.string(),
     status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   subscriptionType: z.string().optional(),
   suspended: z.boolean().optional(),
   tlsServiceDirectory: z.string().optional(),
-  trafficShapingConfigs: z.array(z.object({
-    duration: z.string(),
-    quotaLimit: z.string(),
-  })).optional(),
+  trafficShapingConfigs: z.array(
+    z.object({
+      duration: z.string(),
+      quotaLimit: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -2502,7 +2534,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Connectors Connections. Registered at `@swamp/gcp/connectors/connections`. */
 export const model = {
   type: "@swamp/gcp/connectors/connections",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -2611,6 +2643,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -64,6 +64,32 @@ const ConfigurationItemSchema = z.object({
   Parameters: z.array(ConfigurationParameterSchema).optional(),
 });
 
+const TagFilterStateSchema = z.object({
+  Key: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const QueryStateSchema = z.object({
+  ResourceTypeFilters: z.array(z.string()),
+  StackIdentifier: z.string(),
+  TagFilters: z.array(TagFilterStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ConfigurationParameterStateSchema = z.object({
+  Name: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const ConfigurationItemStateSchema = z.object({
+  Type: z.string(),
+  Parameters: z.array(ConfigurationParameterStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -95,15 +121,15 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   ResourceQuery: z.object({
     Type: z.string(),
-    Query: QuerySchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    Query: QueryStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Arn: z.string().optional(),
-  Configuration: z.array(ConfigurationItemSchema).optional(),
+  Configuration: z.array(ConfigurationItemStateSchema).optional(),
   Resources: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -143,7 +169,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ResourceGroups Group. Registered at `@swamp/aws/resourcegroups/group`. */
 export const model = {
   type: "@swamp/aws/resourcegroups/group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -207,6 +233,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -221,19 +221,25 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   meshes: z.array(z.string()).optional(),
   name: z.string(),
-  rules: z.array(z.object({
-    action: z.object({
-      destinations: z.array(z.object({
-        serviceName: z.unknown(),
-        weight: z.unknown(),
-      })),
-      idleTimeout: z.string(),
-    }),
-    matches: z.array(z.object({
-      alpn: z.array(z.unknown()),
-      sniHost: z.array(z.unknown()),
-    })),
-  })).optional(),
+  rules: z.array(
+    z.object({
+      action: z.object({
+        destinations: z.array(
+          z.object({
+            serviceName: z.unknown(),
+            weight: z.unknown(),
+          }).partial(),
+        ),
+        idleTimeout: z.string(),
+      }).partial(),
+      matches: z.array(
+        z.object({
+          alpn: z.array(z.unknown()),
+          sniHost: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   selfLink: z.string().optional(),
   targetProxies: z.array(z.string()).optional(),
   updateTime: z.string().optional(),
@@ -331,7 +337,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services TlsRoutes. Registered at `@swamp/gcp/networkservices/tlsroutes`. */
 export const model = {
   type: "@swamp/gcp/networkservices/tlsroutes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -475,6 +481,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

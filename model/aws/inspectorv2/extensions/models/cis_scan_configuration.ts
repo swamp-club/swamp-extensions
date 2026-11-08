@@ -57,6 +57,25 @@ const MonthlyScheduleSchema = z.object({
   Day: z.enum(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]),
 });
 
+const TimeStateSchema = z.object({
+  TimeOfDay: z.string(),
+  TimeZone: z.string(),
+}).partial();
+
+const DailyScheduleStateSchema = z.object({
+  StartTime: TimeStateSchema,
+}).partial();
+
+const WeeklyScheduleStateSchema = z.object({
+  StartTime: TimeStateSchema,
+  Days: z.array(z.string()),
+}).partial();
+
+const MonthlyScheduleStateSchema = z.object({
+  StartTime: TimeStateSchema,
+  Day: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -96,19 +115,19 @@ const StateSchema = z.object({
   SecurityLevel: z.string().optional(),
   Schedule: z.object({
     OneTime: z.record(z.string(), z.unknown()),
-    Daily: DailyScheduleSchema,
-    Weekly: WeeklyScheduleSchema,
-    Monthly: MonthlyScheduleSchema,
-  }).optional(),
+    Daily: DailyScheduleStateSchema,
+    Weekly: WeeklyScheduleStateSchema,
+    Monthly: MonthlyScheduleStateSchema,
+  }).partial().optional(),
   Targets: z.object({
     AccountIds: z.array(z.string()),
     TargetResourceTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -153,7 +172,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for InspectorV2 CisScanConfiguration. Registered at `@swamp/aws/inspectorv2/cis-scan-configuration`. */
 export const model = {
   type: "@swamp/aws/inspectorv2/cis-scan-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -222,6 +241,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

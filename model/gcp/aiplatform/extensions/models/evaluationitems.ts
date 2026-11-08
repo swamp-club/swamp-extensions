@@ -364,131 +364,143 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   evaluationItemType: z.string().optional(),
   evaluationRequest: z.object({
-    candidateResponses: z.array(z.object({
-      agentData: z.object({
-        agents: z.record(z.string(), z.unknown()),
-        turns: z.array(z.unknown()),
-      }),
-      candidate: z.string(),
-      error: z.object({
-        code: z.number(),
-        details: z.array(z.unknown()),
-        message: z.string(),
-      }),
-      text: z.string(),
-      value: z.string(),
-    })),
-    goldenResponse: z.object({
-      agentData: z.object({
-        agents: z.record(z.string(), z.unknown()),
-        turns: z.array(z.object({
-          events: z.unknown(),
-          turnId: z.unknown(),
-          turnIndex: z.unknown(),
-        })),
-      }),
-      candidate: z.string(),
-      error: z.object({
-        code: z.number(),
-        details: z.array(z.record(z.string(), z.unknown())),
-        message: z.string(),
-      }),
-      text: z.string(),
-      value: z.string(),
-    }),
-    prompt: z.object({
-      agentData: z.object({
-        agents: z.record(z.string(), z.unknown()),
-        turns: z.array(z.object({
-          events: z.unknown(),
-          turnId: z.unknown(),
-          turnIndex: z.unknown(),
-        })),
-      }),
-      promptTemplateData: z.object({
-        values: z.record(z.string(), z.unknown()),
-      }),
-      text: z.string(),
-      userScenario: z.object({
-        conversationPlan: z.string(),
-        startingPrompt: z.string(),
-      }),
-      value: z.string(),
-    }),
-    rubrics: z.record(z.string(), z.unknown()),
-  }).optional(),
-  evaluationResponse: z.object({
-    candidateResults: z.array(z.object({
-      additionalResults: z.string(),
-      candidate: z.string(),
-      error: z.object({
-        code: z.number(),
-        details: z.array(z.unknown()),
-        message: z.string(),
-      }),
-      explanation: z.string(),
-      metric: z.string(),
-      rubricVerdicts: z.array(z.object({
-        evaluatedRubric: z.unknown(),
-        reasoning: z.unknown(),
-        verdict: z.unknown(),
-      })),
-      score: z.number(),
-    })),
-    evaluationRequest: z.string(),
-    evaluationRun: z.string(),
-    metadata: z.string(),
-    metric: z.string(),
-    request: z.object({
-      candidateResponses: z.array(z.object({
-        agentData: z.object({
-          agents: z.unknown(),
-          turns: z.unknown(),
-        }),
-        candidate: z.string(),
-        error: z.object({
-          code: z.unknown(),
-          details: z.unknown(),
-          message: z.unknown(),
-        }),
-        text: z.string(),
-        value: z.string(),
-      })),
-      goldenResponse: z.object({
+    candidateResponses: z.array(
+      z.object({
         agentData: z.object({
           agents: z.record(z.string(), z.unknown()),
           turns: z.array(z.unknown()),
-        }),
+        }).partial(),
         candidate: z.string(),
         error: z.object({
           code: z.number(),
           details: z.array(z.unknown()),
           message: z.string(),
-        }),
+        }).partial(),
         text: z.string(),
         value: z.string(),
-      }),
+      }).partial(),
+    ),
+    goldenResponse: z.object({
+      agentData: z.object({
+        agents: z.record(z.string(), z.unknown()),
+        turns: z.array(
+          z.object({
+            events: z.unknown(),
+            turnId: z.unknown(),
+            turnIndex: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      candidate: z.string(),
+      error: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      text: z.string(),
+      value: z.string(),
+    }).partial(),
+    prompt: z.object({
+      agentData: z.object({
+        agents: z.record(z.string(), z.unknown()),
+        turns: z.array(
+          z.object({
+            events: z.unknown(),
+            turnId: z.unknown(),
+            turnIndex: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      promptTemplateData: z.object({
+        values: z.record(z.string(), z.unknown()),
+      }).partial(),
+      text: z.string(),
+      userScenario: z.object({
+        conversationPlan: z.string(),
+        startingPrompt: z.string(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+    rubrics: z.record(z.string(), z.unknown()),
+  }).partial().optional(),
+  evaluationResponse: z.object({
+    candidateResults: z.array(
+      z.object({
+        additionalResults: z.string(),
+        candidate: z.string(),
+        error: z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+        explanation: z.string(),
+        metric: z.string(),
+        rubricVerdicts: z.array(
+          z.object({
+            evaluatedRubric: z.unknown(),
+            reasoning: z.unknown(),
+            verdict: z.unknown(),
+          }).partial(),
+        ),
+        score: z.number(),
+      }).partial(),
+    ),
+    evaluationRequest: z.string(),
+    evaluationRun: z.string(),
+    metadata: z.string(),
+    metric: z.string(),
+    request: z.object({
+      candidateResponses: z.array(
+        z.object({
+          agentData: z.object({
+            agents: z.unknown(),
+            turns: z.unknown(),
+          }).partial(),
+          candidate: z.string(),
+          error: z.object({
+            code: z.unknown(),
+            details: z.unknown(),
+            message: z.unknown(),
+          }).partial(),
+          text: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      goldenResponse: z.object({
+        agentData: z.object({
+          agents: z.record(z.string(), z.unknown()),
+          turns: z.array(z.unknown()),
+        }).partial(),
+        candidate: z.string(),
+        error: z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+        text: z.string(),
+        value: z.string(),
+      }).partial(),
       prompt: z.object({
         agentData: z.object({
           agents: z.record(z.string(), z.unknown()),
           turns: z.array(z.unknown()),
-        }),
+        }).partial(),
         promptTemplateData: z.object({
           values: z.record(z.string(), z.unknown()),
-        }),
+        }).partial(),
         text: z.string(),
         userScenario: z.object({
           conversationPlan: z.string(),
           startingPrompt: z.string(),
-        }),
+        }).partial(),
         value: z.string(),
-      }),
+      }).partial(),
       rubrics: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   gcsUri: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   metadata: z.string().optional(),
@@ -749,7 +761,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationItems. Registered at `@swamp/gcp/aiplatform/evaluationitems`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationitems",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -935,6 +947,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

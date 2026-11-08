@@ -233,24 +233,24 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   backupSelectionConfig: z.object({
     dataSource: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
   executionSummary: z.object({
     lastExecution: z.string(),
     lastExecutionState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   postRestoreConfig: z.object({
     cloudRunJob: z.string(),
     timeout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   preRestoreConfig: z.object({
     cloudRunJob: z.string(),
     timeout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resourceType: z.string().optional(),
   restoreProperties: z.record(z.string(), z.unknown()).optional(),
   state: z.string().optional(),
@@ -258,7 +258,7 @@ const StateSchema = z.object({
   verificationConfig: z.object({
     cloudRunJob: z.string(),
     timeout: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -351,7 +351,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service RestoreTemplates. Registered at `@swamp/gcp/backupdr/restoretemplates`. */
 export const model = {
   type: "@swamp/gcp/backupdr/restoretemplates",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

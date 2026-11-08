@@ -131,27 +131,29 @@ const StateSchema = z.object({
     adGroupEffectiveTargetCpaValue: z.string(),
     type: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   entityStatus: z.string().optional(),
   lineItemId: z.string().optional(),
   name: z.string(),
   productFeedData: z.object({
     isFeedDisabled: z.boolean(),
-    productMatchDimensions: z.array(z.object({
-      customLabel: z.object({
-        key: z.string(),
-        value: z.string(),
-      }),
-      productOfferId: z.string(),
-    })),
+    productMatchDimensions: z.array(
+      z.object({
+        customLabel: z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+        productOfferId: z.string(),
+      }).partial(),
+    ),
     productMatchType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetingExpansion: z.object({
     excludeDemographicExpansion: z.boolean(),
     excludeFirstPartyAudience: z.boolean(),
     targetingExpansionLevel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   youtubeAdIds: z.array(z.string()).optional(),
 }).passthrough();
 
@@ -196,7 +198,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.YoutubeAdGroups. Registered at `@swamp/gcp/displayvideo/advertisers-youtubeadgroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-youtubeadgroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -220,6 +222,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

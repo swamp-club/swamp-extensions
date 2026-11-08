@@ -95,6 +95,29 @@ const TagSchema = z.object({
   ),
 });
 
+const EventBusV2SystemMetadataStateSchema = z.object({
+  EventGroupId: z.string(),
+  DeduplicationId: z.string(),
+}).partial();
+
+const DeduplicationConfigurationStateSchema = z.object({
+  DeduplicationType: z.string(),
+}).partial();
+
+const FilterStateSchema = z.object({
+  Pattern: z.string(),
+  Scope: z.string(),
+}).partial();
+
+const JsonataConfigurationStateSchema = z.object({
+  Expression: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -376,87 +399,87 @@ const StateSchema = z.object({
       DurableExecutionName: z.string(),
       TenantId: z.string(),
       InvocationTimeoutSeconds: z.string(),
-    }),
+    }).partial(),
     SqsParameters: z.object({
       MessageGroupId: z.string(),
       MessageDeduplicationId: z.string(),
       DelaySeconds: z.string(),
       MessageAttributes: z.record(z.string(), z.unknown()),
       MessageSystemAttributes: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     SnsParameters: z.object({
       MessageGroupId: z.string(),
       MessageDeduplicationId: z.string(),
       Subject: z.string(),
       MessageStructure: z.string(),
       MessageAttributes: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     KinesisParameters: z.object({
       PartitionKey: z.string(),
       ExplicitHashKey: z.string(),
-    }),
+    }).partial(),
     StepFunctionsParameters: z.object({
       InvocationType: z.string(),
       Name: z.string(),
       TraceHeader: z.string(),
       InvocationTimeoutSeconds: z.string(),
-    }),
+    }).partial(),
     HttpParameters: z.object({
       PathParameterValues: z.array(z.string()),
       HeaderParameters: z.record(z.string(), z.unknown()),
       QueryStringParameters: z.record(z.string(), z.unknown()),
       InvocationTimeoutSeconds: z.string(),
-    }),
+    }).partial(),
     UniversalTargetParameters: z.object({
       Input: z.string(),
       InvocationTimeoutSeconds: z.string(),
-    }),
+    }).partial(),
     EventBusV2Parameters: z.object({
       Metadata: z.record(z.string(), z.unknown()),
-      SystemMetadata: EventBusV2SystemMetadataSchema,
-      DeduplicationConfiguration: DeduplicationConfigurationSchema,
-    }),
-  }).optional(),
+      SystemMetadata: EventBusV2SystemMetadataStateSchema,
+      DeduplicationConfiguration: DeduplicationConfigurationStateSchema,
+    }).partial(),
+  }).partial().optional(),
   FilterConfiguration: z.object({
-    Filters: z.array(FilterSchema),
+    Filters: z.array(FilterStateSchema),
     Language: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Type: z.string().optional(),
   StartingPosition: z.string().optional(),
   PointInTimeConfiguration: z.object({
     PointType: z.string(),
     StartingPoint: z.number(),
     EndPoint: z.number(),
-  }).optional(),
+  }).partial().optional(),
   BatchConfiguration: z.object({
     MaxBatchSize: z.number(),
     MaxBatchWindowInSeconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Transformer: z.object({
     Type: z.string(),
-    JsonataConfiguration: JsonataConfigurationSchema,
-  }).optional(),
+    JsonataConfiguration: JsonataConfigurationStateSchema,
+  }).partial().optional(),
   RetryPolicy: z.object({
     MaxRetryAttempts: z.number(),
     MaxEventAgeInSeconds: z.number(),
     RetryStrategy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OnFailureConfiguration: z.object({
     Arn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LogConfiguration: z.object({
     Level: z.string(),
     IncludePayload: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Description: z.string().optional(),
   State: z.string().optional(),
   ResumePosition: z.string().optional(),
   CreationTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -734,7 +757,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EventsV2 Subscriber. Registered at `@swamp/aws/eventsv2/subscriber`. */
 export const model = {
   type: "@swamp/aws/eventsv2/subscriber",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -753,6 +776,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

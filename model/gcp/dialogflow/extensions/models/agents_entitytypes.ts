@@ -195,13 +195,17 @@ const StateSchema = z.object({
   autoExpansionMode: z.string().optional(),
   displayName: z.string().optional(),
   enableFuzzyExtraction: z.boolean().optional(),
-  entities: z.array(z.object({
-    synonyms: z.array(z.string()),
-    value: z.string(),
-  })).optional(),
-  excludedPhrases: z.array(z.object({
-    value: z.string(),
-  })).optional(),
+  entities: z.array(
+    z.object({
+      synonyms: z.array(z.string()),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  excludedPhrases: z.array(
+    z.object({
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   kind: z.string().optional(),
   name: z.string(),
   redact: z.boolean().optional(),
@@ -267,7 +271,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.EntityTypes. Registered at `@swamp/gcp/dialogflow/agents-entitytypes`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-entitytypes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -401,6 +405,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

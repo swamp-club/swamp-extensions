@@ -131,10 +131,12 @@ const StateSchema = z.object({
   floodlightActivityId: z.string().optional(),
   floodlightGroupId: z.string().optional(),
   name: z.string(),
-  remarketingConfigs: z.array(z.object({
-    advertiserId: z.string(),
-    remarketingEnabled: z.boolean(),
-  })).optional(),
+  remarketingConfigs: z.array(
+    z.object({
+      advertiserId: z.string(),
+      remarketingEnabled: z.boolean(),
+    }).partial(),
+  ).optional(),
   servingStatus: z.string().optional(),
   sslRequired: z.boolean().optional(),
 }).passthrough();
@@ -180,7 +182,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 FloodlightGroups.FloodlightActivities. Registered at `@swamp/gcp/displayvideo/floodlightgroups-floodlightactivities`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/floodlightgroups-floodlightactivities",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -314,6 +316,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

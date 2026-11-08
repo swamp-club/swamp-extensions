@@ -52,6 +52,16 @@ const MultiplexProgramPipelineDetailSchema = z.object({
   ).optional(),
 });
 
+const MultiplexProgramServiceDescriptorStateSchema = z.object({
+  ProviderName: z.string(),
+  ServiceName: z.string(),
+}).partial();
+
+const MultiplexProgramPipelineDetailStateSchema = z.object({
+  ActiveChannelPipeline: z.string(),
+  PipelineId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -123,9 +133,9 @@ const StateSchema = z.object({
   MultiplexProgramSettings: z.object({
     PreferredChannelPipeline: z.string(),
     ProgramNumber: z.number(),
-    ServiceDescriptor: MultiplexProgramServiceDescriptorSchema,
+    ServiceDescriptor: MultiplexProgramServiceDescriptorStateSchema,
     VideoSettings: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   PreferredChannelPipeline: z.string().optional(),
   PacketIdentifiersMap: z.object({
     AudioPids: z.array(z.number()),
@@ -141,12 +151,13 @@ const StateSchema = z.object({
     Scte35Pid: z.number(),
     TimedMetadataPid: z.number(),
     VideoPid: z.number(),
-  }).optional(),
-  PipelineDetails: z.array(MultiplexProgramPipelineDetailSchema).optional(),
+  }).partial().optional(),
+  PipelineDetails: z.array(MultiplexProgramPipelineDetailStateSchema)
+    .optional(),
   ProgramName: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -222,7 +233,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive Multiplexprogram. Registered at `@swamp/aws/medialive/multiplexprogram`. */
 export const model = {
   type: "@swamp/aws/medialive/multiplexprogram",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -286,6 +297,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

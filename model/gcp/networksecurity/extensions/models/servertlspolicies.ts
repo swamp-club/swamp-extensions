@@ -243,27 +243,29 @@ const StateSchema = z.object({
   description: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   mtlsPolicy: z.object({
-    clientValidationCa: z.array(z.object({
-      certificateProviderInstance: z.object({
-        pluginInstance: z.string(),
-      }),
-      grpcEndpoint: z.object({
-        targetUri: z.string(),
-      }),
-    })),
+    clientValidationCa: z.array(
+      z.object({
+        certificateProviderInstance: z.object({
+          pluginInstance: z.string(),
+        }).partial(),
+        grpcEndpoint: z.object({
+          targetUri: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     clientValidationMode: z.string(),
     clientValidationRelaxations: z.array(z.string()),
     clientValidationTrustConfig: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   serverCertificate: z.object({
     certificateProviderInstance: z.object({
       pluginInstance: z.string(),
-    }),
+    }).partial(),
     grpcEndpoint: z.object({
       targetUri: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -382,7 +384,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security ServerTlsPolicies. Registered at `@swamp/gcp/networksecurity/servertlspolicies`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/servertlspolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -549,6 +551,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

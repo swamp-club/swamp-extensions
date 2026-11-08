@@ -217,20 +217,26 @@ const StateSchema = z.object({
   lastModifiedAt: z.string().optional(),
   lastViewedAt: z.string().optional(),
   limit: z.string().optional(),
-  metrics: z.array(z.object({
-    function: z.string(),
-    name: z.string(),
-  })).optional(),
+  metrics: z.array(
+    z.object({
+      function: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   offset: z.string().optional(),
   organization: z.string().optional(),
-  properties: z.array(z.object({
-    property: z.string(),
-    value: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
-  })).optional(),
+  properties: z.array(
+    z.object({
+      property: z.string(),
+      value: z.array(
+        z.object({
+          name: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   sortByCols: z.array(z.string()).optional(),
   sortOrder: z.string().optional(),
   tags: z.array(z.string()).optional(),
@@ -334,7 +340,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Reports. Registered at `@swamp/gcp/apigee/reports`. */
 export const model = {
   type: "@swamp/gcp/apigee/reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -468,6 +474,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

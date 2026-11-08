@@ -48,6 +48,18 @@ const NetworkInterfaceSchema = z.object({
     .optional(),
 });
 
+const NetworkInterfaceStateSchema = z.object({
+  PrivateIpAddress: z.string(),
+  AvailabilityZone: z.string(),
+  SubnetId: z.string(),
+  NetworkInterfaceId: z.string(),
+}).partial();
+
+const VpcSecurityGroupStateSchema = z.object({
+  Status: z.string(),
+  VpcSecurityGroupId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -90,9 +102,9 @@ const StateSchema = z.object({
   EndpointStatus: z.string().optional(),
   VpcEndpoint: z.object({
     VpcId: z.string(),
-    NetworkInterfaces: z.array(NetworkInterfaceSchema),
+    NetworkInterfaces: z.array(NetworkInterfaceStateSchema),
     VpcEndpointId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Address: z.string().optional(),
   EndpointName: z.string(),
   VpcSecurityGroupIds: z.array(z.string()).optional(),
@@ -101,13 +113,10 @@ const StateSchema = z.object({
   Port: z.number().optional(),
   EndpointCreateTime: z.string().optional(),
   ClusterIdentifier: z.string().optional(),
-  VpcSecurityGroups: z.array(z.object({
-    Status: z.string(),
-    VpcSecurityGroupId: z.string(),
-  })).optional(),
+  VpcSecurityGroups: z.array(VpcSecurityGroupStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -158,7 +167,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift EndpointAccess. Registered at `@swamp/aws/redshift/endpoint-access`. */
 export const model = {
   type: "@swamp/aws/redshift/endpoint-access",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -222,6 +231,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

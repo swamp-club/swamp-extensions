@@ -497,8 +497,8 @@ const StateSchema = z.object({
     sslConfig: z.object({
       caSource: z.string(),
       sslMode: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   connectionPoolConfig: z.object({
     authproxyPoolerCount: z.number(),
     authproxyPoolerScalingType: z.string(),
@@ -506,7 +506,7 @@ const StateSchema = z.object({
     flags: z.record(z.string(), z.unknown()),
     poolerCount: z.number(),
     poolerScalingType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dataApiAccess: z.string().optional(),
   databaseFlags: z.record(z.string(), z.unknown()).optional(),
@@ -520,25 +520,29 @@ const StateSchema = z.object({
   machineConfig: z.object({
     cpuCount: z.number(),
     machineType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   maintenanceVersionName: z.string().optional(),
   name: z.string(),
   networkConfig: z.object({
     allocatedIpRangeOverride: z.string(),
-    authorizedExternalNetworks: z.array(z.object({
-      cidrRange: z.string(),
-    })),
+    authorizedExternalNetworks: z.array(
+      z.object({
+        cidrRange: z.string(),
+      }).partial(),
+    ),
     enableOutboundPublicIp: z.boolean(),
     enablePublicIp: z.boolean(),
     network: z.string(),
-  }).optional(),
-  nodes: z.array(z.object({
-    id: z.string(),
-    ip: z.string(),
-    isHotStandby: z.boolean(),
-    state: z.string(),
-    zoneId: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  nodes: z.array(
+    z.object({
+      id: z.string(),
+      ip: z.string(),
+      isHotStandby: z.boolean(),
+      state: z.string(),
+      zoneId: z.string(),
+    }).partial(),
+  ).optional(),
   observabilityConfig: z.object({
     enabled: z.boolean(),
     maxQueryStringLength: z.number(),
@@ -548,7 +552,7 @@ const StateSchema = z.object({
     trackActiveQueries: z.boolean(),
     trackWaitEventTypes: z.boolean(),
     trackWaitEvents: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   observabilityInstanceInfo: z.object({
     enabled: z.boolean(),
     maxQueryStringLength: z.number(),
@@ -558,76 +562,84 @@ const StateSchema = z.object({
     trackActiveQueries: z.boolean(),
     trackWaitEventTypes: z.boolean(),
     trackWaitEvents: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   outboundPublicIpAddresses: z.array(z.string()).optional(),
   pscInstanceConfig: z.object({
     allowedConsumerProjects: z.array(z.string()),
     pscAutoConnectionPolicyState: z.string(),
-    pscAutoConnections: z.array(z.object({
-      consumerNetwork: z.string(),
-      consumerNetworkStatus: z.string(),
-      consumerProject: z.string(),
-      dnsAutomationInfos: z.array(z.object({
-        fullyQualifiedDomainName: z.unknown(),
-        state: z.unknown(),
-      })),
-      ipAddress: z.string(),
-      serviceConnectionPolicy: z.string(),
-      serviceConnectionPolicyCreationState: z.string(),
-      status: z.string(),
-    })),
+    pscAutoConnections: z.array(
+      z.object({
+        consumerNetwork: z.string(),
+        consumerNetworkStatus: z.string(),
+        consumerProject: z.string(),
+        dnsAutomationInfos: z.array(
+          z.object({
+            fullyQualifiedDomainName: z.unknown(),
+            state: z.unknown(),
+          }).partial(),
+        ),
+        ipAddress: z.string(),
+        serviceConnectionPolicy: z.string(),
+        serviceConnectionPolicyCreationState: z.string(),
+        status: z.string(),
+      }).partial(),
+    ),
     pscAutoDnsState: z.string(),
     pscDnsName: z.string(),
-    pscInterfaceConfigs: z.array(z.object({
-      networkAttachmentResource: z.string(),
-    })),
+    pscInterfaceConfigs: z.array(
+      z.object({
+        networkAttachmentResource: z.string(),
+      }).partial(),
+    ),
     serviceAttachmentLink: z.string(),
-  }).optional(),
+  }).partial().optional(),
   pscInstanceInfo: z.object({
     effectivePscAutoConnectionPolicy: z.boolean(),
     effectivePscAutoDnsEnabled: z.boolean(),
     pscAutoDnsNames: z.array(z.string()),
     serviceConnectionPolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   publicIpAddress: z.string().optional(),
   queryInsightsConfig: z.object({
     queryPlansPerMinute: z.number(),
     queryStringLength: z.number(),
     recordApplicationTags: z.boolean(),
     recordClientAddress: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   queryInsightsInfo: z.object({
     enabled: z.boolean(),
     queryPlansPerMinute: z.number(),
     queryStringLength: z.number(),
     recordApplicationTags: z.boolean(),
     recordClientAddress: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   readPoolConfig: z.object({
     autoScalingConfig: z.object({
       policy: z.object({
         connectionsCount: z.object({
           targetCount: z.string(),
-        }),
+        }).partial(),
         coolDownPeriodSec: z.string(),
         cpuUtilization: z.object({
           utilizationTarget: z.number(),
-        }),
+        }).partial(),
         enabled: z.boolean(),
         maxNodeCount: z.string(),
-      }),
-      schedules: z.array(z.object({
-        cronExpression: z.string(),
-        description: z.string(),
-        disabled: z.boolean(),
-        durationSec: z.string(),
-        minNodeCount: z.string(),
-        name: z.string(),
-        timeZone: z.string(),
-      })),
-    }),
+      }).partial(),
+      schedules: z.array(
+        z.object({
+          cronExpression: z.string(),
+          description: z.string(),
+          disabled: z.boolean(),
+          durationSec: z.string(),
+          minNodeCount: z.string(),
+          name: z.string(),
+          timeZone: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     nodeCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   state: z.string().optional(),
@@ -639,7 +651,7 @@ const StateSchema = z.object({
     isHotStandby: z.boolean(),
     state: z.string(),
     zoneId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -976,7 +988,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AlloyDB Clusters.Instances. Registered at `@swamp/gcp/alloydb/clusters-instances`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters-instances",
-  version: "2026.11.01.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1183,6 +1195,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -83,6 +83,27 @@ const ReplicationDestinationSchema = z.object({
   ).optional(),
 });
 
+const ElasticFileSystemTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const LifecyclePolicyStateSchema = z.object({
+  TransitionToIA: z.string(),
+  TransitionToPrimaryStorageClass: z.string(),
+  TransitionToArchive: z.string(),
+}).partial();
+
+const ReplicationDestinationStateSchema = z.object({
+  Status: z.string(),
+  StatusMessage: z.string(),
+  FileSystemId: z.string(),
+  Region: z.string(),
+  RoleArn: z.string(),
+  AvailabilityZoneName: z.string(),
+  KmsKeyId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -154,12 +175,12 @@ const StateSchema = z.object({
   FileSystemId: z.string(),
   Arn: z.string().optional(),
   Encrypted: z.boolean().optional(),
-  FileSystemTags: z.array(ElasticFileSystemTagSchema).optional(),
+  FileSystemTags: z.array(ElasticFileSystemTagStateSchema).optional(),
   KmsKeyId: z.string().optional(),
-  LifecyclePolicies: z.array(LifecyclePolicySchema).optional(),
+  LifecyclePolicies: z.array(LifecyclePolicyStateSchema).optional(),
   FileSystemProtection: z.object({
     ReplicationOverwriteProtection: z.string(),
-  }).optional(),
+  }).partial().optional(),
   PerformanceMode: z.string().optional(),
   ProvisionedThroughputInMibps: z.number().optional(),
   ThroughputMode: z.string().optional(),
@@ -167,14 +188,14 @@ const StateSchema = z.object({
   BypassPolicyLockoutSafetyCheck: z.boolean().optional(),
   BackupPolicy: z.object({
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AvailabilityZoneName: z.string().optional(),
   ReplicationConfiguration: z.object({
-    Destinations: z.array(ReplicationDestinationSchema),
-  }).optional(),
+    Destinations: z.array(ReplicationDestinationStateSchema),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -252,7 +273,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EFS FileSystem. Registered at `@swamp/aws/efs/file-system`. */
 export const model = {
   type: "@swamp/aws/efs/file-system",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -322,6 +343,11 @@ export const model = {
     {
       toVersion: "2026.10.25.1",
       description: "Added: BackupPolicy",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

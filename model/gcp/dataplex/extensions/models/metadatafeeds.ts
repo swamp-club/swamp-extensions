@@ -217,7 +217,7 @@ const StateSchema = z.object({
     aspectTypes: z.array(z.string()),
     changeTypes: z.array(z.string()),
     entryTypes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   pubsubTopic: z.string().optional(),
@@ -225,7 +225,7 @@ const StateSchema = z.object({
     entryGroups: z.array(z.string()),
     organizationLevel: z.boolean(),
     projects: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -310,7 +310,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex MetadataFeeds. Registered at `@swamp/gcp/dataplex/metadatafeeds`. */
 export const model = {
   type: "@swamp/gcp/dataplex/metadatafeeds",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -449,6 +449,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

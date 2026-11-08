@@ -160,6 +160,53 @@ const TagSchema = z.object({
   ),
 });
 
+const IpPermissionStateSchema = z.object({
+  FromPort: z.number(),
+  IpRange: z.string(),
+  Protocol: z.string(),
+  ToPort: z.number(),
+}).partial();
+
+const ManagedCapacityConfigurationStateSchema = z.object({
+  ZeroCapacityStrategy: z.string(),
+  ScaleInAfterInactivityMinutes: z.number(),
+}).partial();
+
+const LocationCapacityStateSchema = z.object({
+  DesiredEC2Instances: z.number(),
+  MinSize: z.number(),
+  MaxSize: z.number(),
+  ManagedCapacityConfiguration: ManagedCapacityConfigurationStateSchema,
+}).partial();
+
+const LocationConfigurationStateSchema = z.object({
+  Location: z.string(),
+  LocationCapacity: LocationCapacityStateSchema,
+  StoppedActions: z.array(z.string()),
+  PlayerGatewayStatus: z.string(),
+}).partial();
+
+const TargetConfigurationStateSchema = z.object({
+  TargetValue: z.number(),
+}).partial();
+
+const ScalingPolicyStateSchema = z.object({
+  ComparisonOperator: z.string(),
+  EvaluationPeriods: z.number(),
+  MetricName: z.string(),
+  Name: z.string(),
+  PolicyType: z.string(),
+  ScalingAdjustment: z.number(),
+  ScalingAdjustmentType: z.string(),
+  TargetConfiguration: TargetConfigurationStateSchema,
+  Threshold: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -298,41 +345,41 @@ const StateSchema = z.object({
   InstanceConnectionPortRange: z.object({
     FromPort: z.number(),
     ToPort: z.number(),
-  }).optional(),
-  InstanceInboundPermissions: z.array(IpPermissionSchema).optional(),
+  }).partial().optional(),
+  InstanceInboundPermissions: z.array(IpPermissionStateSchema).optional(),
   GameServerContainerGroupsPerInstance: z.number().optional(),
   MaximumGameServerContainerGroupsPerInstance: z.number().optional(),
   CreationTime: z.string().optional(),
   Status: z.string().optional(),
   DeploymentDetails: z.object({
     LatestDeploymentId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DeploymentConfiguration: z.object({
     ProtectionStrategy: z.string(),
     MinimumHealthyPercentage: z.number(),
     ImpairmentStrategy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   InstanceType: z.string().optional(),
   BillingType: z.string().optional(),
-  Locations: z.array(LocationConfigurationSchema).optional(),
-  ScalingPolicies: z.array(ScalingPolicySchema).optional(),
+  Locations: z.array(LocationConfigurationStateSchema).optional(),
+  ScalingPolicies: z.array(ScalingPolicyStateSchema).optional(),
   MetricGroups: z.array(z.string()).optional(),
   NewGameSessionProtectionPolicy: z.string().optional(),
   GameSessionCreationLimitPolicy: z.object({
     NewGameSessionsPerCreator: z.number(),
     PolicyPeriodInMinutes: z.number(),
-  }).optional(),
+  }).partial().optional(),
   LogConfiguration: z.object({
     LogDestination: z.string(),
     LogGroupArn: z.string(),
     S3BucketName: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   PlayerGatewayMode: z.string().optional(),
   FleetArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -470,7 +517,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift ContainerFleet. Registered at `@swamp/aws/gamelift/container-fleet`. */
 export const model = {
   type: "@swamp/aws/gamelift/container-fleet",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -544,6 +591,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

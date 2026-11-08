@@ -260,12 +260,12 @@ const StateSchema = z.object({
       instituteSize: z.string(),
       instituteType: z.string(),
       website: z.string(),
-    }),
+    }).partial(),
     isDomainVerified: z.boolean(),
     languageCode: z.string(),
     phoneNumber: z.string(),
     primaryDomain: z.string(),
-  }).optional(),
+  }).partial().optional(),
   correlationId: z.string().optional(),
   createTime: z.string().optional(),
   customerAttestationState: z.string().optional(),
@@ -285,7 +285,7 @@ const StateSchema = z.object({
     revision: z.number(),
     sortingCode: z.string(),
     sublocality: z.string(),
-  }).optional(),
+  }).partial().optional(),
   primaryContactInfo: z.object({
     displayName: z.string(),
     email: z.string(),
@@ -293,7 +293,7 @@ const StateSchema = z.object({
     lastName: z.string(),
     phone: z.string(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -419,7 +419,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Channel Accounts.Customers. Registered at `@swamp/gcp/cloudchannel/accounts-customers`. */
 export const model = {
   type: "@swamp/gcp/cloudchannel/accounts-customers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -598,6 +598,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -301,53 +301,55 @@ const StateSchema = z.object({
     instance: z.string(),
     service: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   httpTarget: z.object({
-    headerOverrides: z.array(z.object({
-      header: z.object({
-        key: z.string(),
-        value: z.string(),
-      }),
-    })),
+    headerOverrides: z.array(
+      z.object({
+        header: z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     httpMethod: z.string(),
     oauthToken: z.object({
       scope: z.string(),
       serviceAccountEmail: z.string(),
-    }),
+    }).partial(),
     oidcToken: z.object({
       audience: z.string(),
       serviceAccountEmail: z.string(),
-    }),
+    }).partial(),
     uriOverride: z.object({
       host: z.string(),
       pathOverride: z.object({
         path: z.string(),
-      }),
+      }).partial(),
       port: z.string(),
       queryOverride: z.object({
         queryParams: z.string(),
-      }),
+      }).partial(),
       scheme: z.string(),
       uriOverrideEnforceMode: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   purgeTime: z.string().optional(),
   rateLimits: z.object({
     maxBurstSize: z.number(),
     maxConcurrentDispatches: z.number(),
     maxDispatchesPerSecond: z.number(),
-  }).optional(),
+  }).partial().optional(),
   retryConfig: z.object({
     maxAttempts: z.number(),
     maxBackoff: z.string(),
     maxDoublings: z.number(),
     maxRetryDuration: z.string(),
     minBackoff: z.string(),
-  }).optional(),
+  }).partial().optional(),
   stackdriverLoggingConfig: z.object({
     samplingRatio: z.number(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -525,7 +527,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tasks Queues. Registered at `@swamp/gcp/cloudtasks/queues`. */
 export const model = {
   type: "@swamp/gcp/cloudtasks/queues",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -684,6 +686,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -118,16 +118,18 @@ const StateSchema = z.object({
   name: z.string(),
   status: z.object({
     state: z.string(),
-    statusEvents: z.array(z.object({
-      description: z.string(),
-      eventTime: z.string(),
-      taskExecution: z.object({
-        exitCode: z.number(),
-      }),
-      taskState: z.string(),
-      type: z.string(),
-    })),
-  }).optional(),
+    statusEvents: z.array(
+      z.object({
+        description: z.string(),
+        eventTime: z.string(),
+        taskExecution: z.object({
+          exitCode: z.number(),
+        }).partial(),
+        taskState: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -174,7 +176,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Batch Jobs.TaskGroups.Tasks. Registered at `@swamp/gcp/batch/jobs-taskgroups-tasks`. */
 export const model = {
   type: "@swamp/gcp/batch/jobs-taskgroups-tasks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -303,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

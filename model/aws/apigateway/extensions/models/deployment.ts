@@ -71,6 +71,35 @@ const TagSchema = z.object({
   ),
 });
 
+const CanarySettingStateSchema = z.object({
+  StageVariableOverrides: z.record(z.string(), z.unknown()),
+  PercentTraffic: z.number(),
+  UseStageCache: z.boolean(),
+}).partial();
+
+const MethodSettingStateSchema = z.object({
+  CacheTtlInSeconds: z.number(),
+  LoggingLevel: z.string(),
+  ResourcePath: z.string(),
+  CacheDataEncrypted: z.boolean(),
+  DataTraceEnabled: z.boolean(),
+  ThrottlingBurstLimit: z.number(),
+  CachingEnabled: z.boolean(),
+  MetricsEnabled: z.boolean(),
+  HttpMethod: z.string(),
+  ThrottlingRateLimit: z.number(),
+}).partial();
+
+const AccessLogSettingStateSchema = z.object({
+  Format: z.string(),
+  DestinationArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -163,7 +192,7 @@ const StateSchema = z.object({
     CacheTtlInSeconds: z.number(),
     Description: z.string(),
     LoggingLevel: z.string(),
-    CanarySetting: CanarySettingSchema,
+    CanarySetting: CanarySettingStateSchema,
     ThrottlingRateLimit: z.number(),
     ClientCertificateId: z.string(),
     Variables: z.record(z.string(), z.unknown()),
@@ -173,23 +202,23 @@ const StateSchema = z.object({
     ThrottlingBurstLimit: z.number(),
     CachingEnabled: z.boolean(),
     TracingEnabled: z.boolean(),
-    MethodSettings: z.array(MethodSettingSchema),
-    AccessLogSetting: AccessLogSettingSchema,
+    MethodSettings: z.array(MethodSettingStateSchema),
+    AccessLogSetting: AccessLogSettingStateSchema,
     CacheClusterSize: z.string(),
     MetricsEnabled: z.boolean(),
-    Tags: z.array(TagSchema),
+    Tags: z.array(TagStateSchema),
     CacheClusterEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   StageName: z.string().optional(),
   RestApiId: z.string(),
   DeploymentCanarySettings: z.object({
     StageVariableOverrides: z.record(z.string(), z.unknown()),
     PercentTraffic: z.number(),
     UseStageCache: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -285,7 +314,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGateway Deployment. Registered at `@swamp/aws/apigateway/deployment`. */
 export const model = {
   type: "@swamp/aws/apigateway/deployment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +378,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

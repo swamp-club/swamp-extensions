@@ -173,49 +173,59 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   createTime: z.string().optional(),
-  deploymentMappings: z.array(z.object({
-    diffs: z.array(z.object({
-      field: z.string(),
-      sourceValue: z.string(),
-      targetValue: z.string(),
-    })),
-    source: z.object({
-      connection: z.string(),
-      dns: z.string(),
-      instance: z.string(),
-      ipMappings: z.array(z.object({
-        ipAddress: z.unknown(),
-        timeToRetire: z.unknown(),
-        type: z.unknown(),
-      })),
-    }),
-    state: z.string(),
-    target: z.object({
-      connection: z.string(),
-      dns: z.string(),
-      instance: z.string(),
-      ipMappings: z.array(z.object({
-        ipAddress: z.unknown(),
-        timeToRetire: z.unknown(),
-        type: z.unknown(),
-      })),
-    }),
-  })).optional(),
-  deploymentTasks: z.object({
-    task: z.array(z.object({
-      endTime: z.string(),
-      errorMessage: z.string(),
-      startTime: z.string(),
+  deploymentMappings: z.array(
+    z.object({
+      diffs: z.array(
+        z.object({
+          field: z.string(),
+          sourceValue: z.string(),
+          targetValue: z.string(),
+        }).partial(),
+      ),
+      source: z.object({
+        connection: z.string(),
+        dns: z.string(),
+        instance: z.string(),
+        ipMappings: z.array(
+          z.object({
+            ipAddress: z.unknown(),
+            timeToRetire: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       state: z.string(),
-      type: z.string(),
-    })),
-  }).optional(),
+      target: z.object({
+        connection: z.string(),
+        dns: z.string(),
+        instance: z.string(),
+        ipMappings: z.array(
+          z.object({
+            ipAddress: z.unknown(),
+            timeToRetire: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  deploymentTasks: z.object({
+    task: z.array(
+      z.object({
+        endTime: z.string(),
+        errorMessage: z.string(),
+        startTime: z.string(),
+        state: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   description: z.string().optional(),
   errorDetail: z.string().optional(),
   name: z.string(),
   requestedConfig: z.object({
     databaseVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceInstance: z.string().optional(),
   state: z.string().optional(),
   switchoverTargetInstance: z.string().optional(),
@@ -278,7 +288,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin BlueGreenDeployments. Registered at `@swamp/gcp/sqladmin/bluegreendeployments`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/bluegreendeployments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -287,6 +297,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

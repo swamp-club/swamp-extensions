@@ -187,6 +187,61 @@ const TagSchema = z.object({
   ),
 });
 
+const TargetConfigurationStateSchema = z.object({
+  TargetValue: z.number(),
+}).partial();
+
+const ScalingPolicyStateSchema = z.object({
+  ComparisonOperator: z.string(),
+  EvaluationPeriods: z.number(),
+  Location: z.string(),
+  MetricName: z.string(),
+  Name: z.string(),
+  PolicyType: z.string(),
+  ScalingAdjustment: z.number(),
+  ScalingAdjustmentType: z.string(),
+  Status: z.string(),
+  TargetConfiguration: TargetConfigurationStateSchema,
+  Threshold: z.number(),
+  UpdateStatus: z.string(),
+}).partial();
+
+const IpPermissionStateSchema = z.object({
+  FromPort: z.number(),
+  IpRange: z.string(),
+  Protocol: z.string(),
+  ToPort: z.number(),
+}).partial();
+
+const ManagedCapacityConfigurationStateSchema = z.object({
+  ZeroCapacityStrategy: z.string(),
+  ScaleInAfterInactivityMinutes: z.number(),
+}).partial();
+
+const LocationCapacityStateSchema = z.object({
+  DesiredEC2Instances: z.number(),
+  MinSize: z.number(),
+  MaxSize: z.number(),
+  ManagedCapacityConfiguration: ManagedCapacityConfigurationStateSchema,
+}).partial();
+
+const LocationConfigurationStateSchema = z.object({
+  Location: z.string(),
+  LocationCapacity: LocationCapacityStateSchema,
+  PlayerGatewayStatus: z.string(),
+}).partial();
+
+const ServerProcessStateSchema = z.object({
+  ConcurrentExecutions: z.number(),
+  LaunchPath: z.string(),
+  Parameters: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -334,23 +389,23 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ScalingPolicies: z.array(ScalingPolicySchema).optional(),
+  ScalingPolicies: z.array(ScalingPolicyStateSchema).optional(),
   AnywhereConfiguration: z.object({
     Cost: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ApplyCapacity: z.string().optional(),
   CertificateConfiguration: z.object({
     CertificateType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ComputeType: z.string().optional(),
   Description: z.string().optional(),
   DesiredEC2Instances: z.number().optional(),
-  EC2InboundPermissions: z.array(IpPermissionSchema).optional(),
+  EC2InboundPermissions: z.array(IpPermissionStateSchema).optional(),
   EC2InstanceType: z.string().optional(),
   FleetType: z.string().optional(),
   InstanceRoleARN: z.string().optional(),
   InstanceRoleCredentialsProvider: z.string().optional(),
-  Locations: z.array(LocationConfigurationSchema).optional(),
+  Locations: z.array(LocationConfigurationStateSchema).optional(),
   LogPaths: z.array(z.string()).optional(),
   MaxSize: z.number().optional(),
   MetricGroups: z.array(z.string()).optional(),
@@ -361,27 +416,27 @@ const StateSchema = z.object({
   PeerVpcId: z.string().optional(),
   PlayerGatewayConfiguration: z.object({
     GameServerIpProtocolSupported: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ResourceCreationLimitPolicy: z.object({
     NewGameSessionsPerCreator: z.number(),
     PolicyPeriodInMinutes: z.number(),
-  }).optional(),
+  }).partial().optional(),
   FleetId: z.string(),
   BuildId: z.string().optional(),
   ScriptId: z.string().optional(),
   RuntimeConfiguration: z.object({
     GameSessionActivationTimeoutSeconds: z.number(),
     MaxConcurrentGameSessionActivations: z.number(),
-    ServerProcesses: z.array(ServerProcessSchema),
-  }).optional(),
+    ServerProcesses: z.array(ServerProcessStateSchema),
+  }).partial().optional(),
   ServerLaunchParameters: z.string().optional(),
   ServerLaunchPath: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   FleetArn: z.string().optional(),
   PlayerGatewayMode: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -538,7 +593,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift Fleet. Registered at `@swamp/aws/gamelift/fleet`. */
 export const model = {
   type: "@swamp/aws/gamelift/fleet",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -617,6 +672,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

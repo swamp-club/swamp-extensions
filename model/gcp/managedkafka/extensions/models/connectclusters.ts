@@ -228,19 +228,21 @@ const StateSchema = z.object({
   capacityConfig: z.object({
     memoryBytes: z.string(),
     vcpuCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   config: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
   gcpConfig: z.object({
     accessConfig: z.object({
-      networkConfigs: z.array(z.object({
-        additionalSubnets: z.array(z.unknown()),
-        dnsDomainNames: z.array(z.unknown()),
-        primarySubnet: z.string(),
-      })),
-    }),
+      networkConfigs: z.array(
+        z.object({
+          additionalSubnets: z.array(z.unknown()),
+          dnsDomainNames: z.array(z.unknown()),
+          primarySubnet: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     secretPaths: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   kafkaCluster: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -340,7 +342,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka ConnectClusters. Registered at `@swamp/gcp/managedkafka/connectclusters`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/connectclusters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -514,6 +516,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

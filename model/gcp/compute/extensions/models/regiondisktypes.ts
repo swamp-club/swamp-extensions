@@ -134,7 +134,7 @@ const StateSchema = z.object({
     obsolete: z.string(),
     replacement: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -185,7 +185,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionDiskTypes. Registered at `@swamp/gcp/compute/regiondisktypes`. */
 export const model = {
   type: "@swamp/gcp/compute/regiondisktypes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -319,6 +319,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

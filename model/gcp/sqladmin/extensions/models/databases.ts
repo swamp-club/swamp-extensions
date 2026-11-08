@@ -225,7 +225,7 @@ const StateSchema = z.object({
   sqlserverDatabaseDetails: z.object({
     compatibilityLevel: z.number(),
     recoveryModel: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -285,7 +285,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin Databases. Registered at `@swamp/gcp/sqladmin/databases`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/databases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -434,6 +434,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

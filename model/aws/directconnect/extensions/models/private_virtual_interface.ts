@@ -68,6 +68,20 @@ const TagSchema = z.object({
   ),
 });
 
+const BgpPeerStateSchema = z.object({
+  BgpPeerId: z.string(),
+  AuthKey: z.string(),
+  AddressFamily: z.string(),
+  AmazonAddress: z.string(),
+  Asn: z.string(),
+  CustomerAddress: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -129,7 +143,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  BgpPeers: z.array(BgpPeerSchema).optional(),
+  BgpPeers: z.array(BgpPeerStateSchema).optional(),
   DirectConnectGatewayId: z.string().optional(),
   EnableSiteLink: z.boolean().optional(),
   VirtualInterfaceArn: z.string(),
@@ -141,10 +155,10 @@ const StateSchema = z.object({
   VirtualInterfaceId: z.string().optional(),
   VirtualInterfaceName: z.string().optional(),
   VirtualGatewayId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -215,7 +229,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DirectConnect PrivateVirtualInterface. Registered at `@swamp/aws/directconnect/private-virtual-interface`. */
 export const model = {
   type: "@swamp/aws/directconnect/private-virtual-interface",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -284,6 +298,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

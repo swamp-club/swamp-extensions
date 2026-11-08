@@ -97,6 +97,39 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The tag's value."),
 });
 
+const RateIncreaseCriteriaStateSchema = z.object({
+  NumberOfNotifiedThings: z.number(),
+  NumberOfSucceededThings: z.number(),
+}).partial();
+
+const ExponentialRolloutRateStateSchema = z.object({
+  BaseRatePerMinute: z.number(),
+  IncrementFactor: z.number(),
+  RateIncreaseCriteria: RateIncreaseCriteriaStateSchema,
+}).partial();
+
+const AbortCriteriaStateSchema = z.object({
+  FailureType: z.string(),
+  Action: z.string(),
+  ThresholdPercentage: z.number(),
+  MinNumberOfExecutedThings: z.number(),
+}).partial();
+
+const RetryCriteriaStateSchema = z.object({
+  FailureType: z.string(),
+  NumberOfRetries: z.number(),
+}).partial();
+
+const MaintenanceWindowStateSchema = z.object({
+  StartTime: z.string(),
+  DurationInMinutes: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -211,35 +244,35 @@ const StateSchema = z.object({
   PresignedUrlConfig: z.object({
     RoleArn: z.string(),
     ExpiresInSec: z.number(),
-  }).optional(),
+  }).partial().optional(),
   TargetSelection: z.string().optional(),
   JobExecutionsRolloutConfig: z.object({
     MaximumPerMinute: z.number(),
-    ExponentialRate: ExponentialRolloutRateSchema,
-  }).optional(),
+    ExponentialRate: ExponentialRolloutRateStateSchema,
+  }).partial().optional(),
   AbortConfig: z.object({
-    CriteriaList: z.array(AbortCriteriaSchema),
-  }).optional(),
+    CriteriaList: z.array(AbortCriteriaStateSchema),
+  }).partial().optional(),
   TimeoutConfig: z.object({
     InProgressTimeoutInMinutes: z.number(),
-  }).optional(),
+  }).partial().optional(),
   JobTemplateArn: z.string().optional(),
   JobExecutionsRetryConfig: z.object({
-    CriteriaList: z.array(RetryCriteriaSchema),
-  }).optional(),
+    CriteriaList: z.array(RetryCriteriaStateSchema),
+  }).partial().optional(),
   DocumentParameters: z.record(z.string(), z.unknown()).optional(),
   SchedulingConfig: z.object({
     StartTime: z.string(),
     EndTime: z.string(),
     EndBehavior: z.string(),
-    MaintenanceWindows: z.array(MaintenanceWindowSchema),
-  }).optional(),
+    MaintenanceWindows: z.array(MaintenanceWindowStateSchema),
+  }).partial().optional(),
   DestinationPackageVersions: z.array(z.string()).optional(),
   CreatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -354,7 +387,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT Job. Registered at `@swamp/aws/iot/job`. */
 export const model = {
   type: "@swamp/aws/iot/job",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -378,6 +411,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

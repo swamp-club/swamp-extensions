@@ -152,6 +152,66 @@ const TagSchema = z.object({
   ),
 });
 
+const TieringPolicyStateSchema = z.object({
+  CoolingPeriod: z.number(),
+  Name: z.string(),
+}).partial();
+
+const AutocommitPeriodStateSchema = z.object({
+  Value: z.number(),
+  Type: z.string(),
+}).partial();
+
+const RetentionPeriodStateSchema = z.object({
+  Type: z.string(),
+  Value: z.number(),
+}).partial();
+
+const SnaplockRetentionPeriodStateSchema = z.object({
+  MinimumRetention: RetentionPeriodStateSchema,
+  DefaultRetention: RetentionPeriodStateSchema,
+  MaximumRetention: RetentionPeriodStateSchema,
+}).partial();
+
+const SnaplockConfigurationStateSchema = z.object({
+  AuditLogVolume: z.string(),
+  VolumeAppendModeEnabled: z.string(),
+  AutocommitPeriod: AutocommitPeriodStateSchema,
+  RetentionPeriod: SnaplockRetentionPeriodStateSchema,
+  PrivilegedDelete: z.string(),
+  SnaplockType: z.string(),
+}).partial();
+
+const AggregateConfigurationStateSchema = z.object({
+  Aggregates: z.array(z.string()),
+  ConstituentsPerAggregate: z.number(),
+}).partial();
+
+const ClientConfigurationsStateSchema = z.object({
+  Clients: z.string(),
+  Options: z.array(z.string()),
+}).partial();
+
+const NfsExportsStateSchema = z.object({
+  ClientConfigurations: z.array(ClientConfigurationsStateSchema),
+}).partial();
+
+const OriginSnapshotStateSchema = z.object({
+  CopyStrategy: z.string(),
+  SnapshotARN: z.string(),
+}).partial();
+
+const UserAndGroupQuotasStateSchema = z.object({
+  Id: z.number(),
+  StorageCapacityQuotaGiB: z.number(),
+  Type: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -263,36 +323,36 @@ const StateSchema = z.object({
   OntapConfiguration: z.object({
     JunctionPath: z.string(),
     StorageVirtualMachineId: z.string(),
-    TieringPolicy: TieringPolicySchema,
+    TieringPolicy: TieringPolicyStateSchema,
     SizeInMegabytes: z.string(),
     VolumeStyle: z.string(),
     SizeInBytes: z.string(),
     SecurityStyle: z.string(),
-    SnaplockConfiguration: SnaplockConfigurationSchema,
-    AggregateConfiguration: AggregateConfigurationSchema,
+    SnaplockConfiguration: SnaplockConfigurationStateSchema,
+    AggregateConfiguration: AggregateConfigurationStateSchema,
     SnapshotPolicy: z.string(),
     StorageEfficiencyEnabled: z.string(),
     CopyTagsToBackups: z.string(),
     OntapVolumeType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OpenZFSConfiguration: z.object({
     ReadOnly: z.boolean(),
     Options: z.array(z.string()),
     DataCompressionType: z.string(),
-    NfsExports: z.array(NfsExportsSchema),
+    NfsExports: z.array(NfsExportsStateSchema),
     StorageCapacityQuotaGiB: z.number(),
     CopyTagsToSnapshots: z.boolean(),
     ParentVolumeId: z.string(),
     StorageCapacityReservationGiB: z.number(),
     RecordSizeKiB: z.number(),
-    OriginSnapshot: OriginSnapshotSchema,
-    UserAndGroupQuotas: z.array(UserAndGroupQuotasSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    OriginSnapshot: OriginSnapshotStateSchema,
+    UserAndGroupQuotas: z.array(UserAndGroupQuotasStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   VolumeType: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -405,7 +465,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FSx Volume. Registered at `@swamp/aws/fsx/volume`. */
 export const model = {
   type: "@swamp/aws/fsx/volume",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -419,6 +479,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

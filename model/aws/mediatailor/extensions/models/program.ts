@@ -172,6 +172,75 @@ const TransitionSchema = z.object({
   ),
 });
 
+const KeyValuePairStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const SlateSourceStateSchema = z.object({
+  SourceLocationName: z.string(),
+  VodSourceName: z.string(),
+}).partial();
+
+const SpliceInsertMessageStateSchema = z.object({
+  AvailNum: z.number(),
+  AvailsExpected: z.number(),
+  SpliceEventId: z.number(),
+  UniqueProgramId: z.number(),
+}).partial();
+
+const SegmentationDescriptorStateSchema = z.object({
+  SegmentationEventId: z.number(),
+  SegmentationUpidType: z.number(),
+  SegmentationUpid: z.string(),
+  SegmentationTypeId: z.number(),
+  SegmentNum: z.number(),
+  SegmentsExpected: z.number(),
+  SubSegmentNum: z.number(),
+  SubSegmentsExpected: z.number(),
+}).partial();
+
+const TimeSignalMessageStateSchema = z.object({
+  SegmentationDescriptors: z.array(SegmentationDescriptorStateSchema),
+}).partial();
+
+const AdBreakStateSchema = z.object({
+  AdBreakMetadata: z.array(KeyValuePairStateSchema),
+  MessageType: z.string(),
+  OffsetMillis: z.number(),
+  Slate: SlateSourceStateSchema,
+  SpliceInsertMessage: SpliceInsertMessageStateSchema,
+  TimeSignalMessage: TimeSignalMessageStateSchema,
+}).partial();
+
+const ClipRangeStateSchema = z.object({
+  EndOffsetMillis: z.number(),
+  StartOffsetMillis: z.number(),
+}).partial();
+
+const AlternateMediaStateSchema = z.object({
+  SourceLocationName: z.string(),
+  LiveSourceName: z.string(),
+  VodSourceName: z.string(),
+  ClipRange: ClipRangeStateSchema,
+  ScheduledStartTimeMillis: z.number(),
+  AdBreaks: z.array(AdBreakStateSchema),
+  DurationMillis: z.number(),
+}).partial();
+
+const AudienceMediaStateSchema = z.object({
+  Audience: z.string(),
+  AlternateMedia: z.array(AlternateMediaStateSchema),
+}).partial();
+
+const TransitionStateSchema = z.object({
+  DurationMillis: z.number(),
+  RelativePosition: z.string(),
+  RelativeProgram: z.string(),
+  ScheduledStartTimeMillis: z.number(),
+  Type: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -228,19 +297,22 @@ const StateSchema = z.object({
   SourceLocationName: z.string().optional(),
   LiveSourceName: z.string().optional(),
   VodSourceName: z.string().optional(),
-  AdBreaks: z.array(AdBreakSchema).optional(),
-  AudienceMedia: z.array(AudienceMediaSchema).optional(),
+  AdBreaks: z.array(AdBreakStateSchema).optional(),
+  AudienceMedia: z.array(AudienceMediaStateSchema).optional(),
   ScheduleConfiguration: z.object({
-    Transition: TransitionSchema,
-    ClipRange: ClipRangeSchema,
-  }).optional(),
-  ClipRange: ClipRangeSchema.optional(),
+    Transition: TransitionStateSchema,
+    ClipRange: ClipRangeStateSchema,
+  }).partial().optional(),
+  ClipRange: z.object({
+    EndOffsetMillis: z.number(),
+    StartOffsetMillis: z.number(),
+  }).partial().optional(),
   CreationTime: z.string().optional(),
   ScheduledStartTime: z.string().optional(),
   DurationMillis: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -301,7 +373,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor Program. Registered at `@swamp/aws/mediatailor/program`. */
 export const model = {
   type: "@swamp/aws/mediatailor/program",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -320,6 +392,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -71,6 +71,21 @@ const QueryStringsConfigSchema = z.object({
   ).optional(),
 });
 
+const CookiesConfigStateSchema = z.object({
+  CookieBehavior: z.string(),
+  Cookies: z.array(z.string()),
+}).partial();
+
+const HeadersConfigStateSchema = z.object({
+  HeaderBehavior: z.string(),
+  Headers: z.array(z.string()),
+}).partial();
+
+const QueryStringsConfigStateSchema = z.object({
+  QueryStringBehavior: z.string(),
+  QueryStrings: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -111,14 +126,14 @@ const StateSchema = z.object({
   LastModifiedTime: z.string().optional(),
   OriginRequestPolicyConfig: z.object({
     Comment: z.string(),
-    CookiesConfig: CookiesConfigSchema,
-    HeadersConfig: HeadersConfigSchema,
+    CookiesConfig: CookiesConfigStateSchema,
+    HeadersConfig: HeadersConfigStateSchema,
     Name: z.string(),
-    QueryStringsConfig: QueryStringsConfigSchema,
-  }).optional(),
+    QueryStringsConfig: QueryStringsConfigStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -164,7 +179,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront OriginRequestPolicy. Registered at `@swamp/aws/cloudfront/origin-request-policy`. */
 export const model = {
   type: "@swamp/aws/cloudfront/origin-request-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -228,6 +243,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -109,6 +109,51 @@ const BridgeSourceSchema = z.object({
   ).optional(),
 });
 
+const SourcePriorityStateSchema = z.object({
+  PrimarySource: z.string(),
+}).partial();
+
+const BridgeNetworkOutputStateSchema = z.object({
+  Name: z.string(),
+  Protocol: z.string(),
+  IpAddress: z.string(),
+  Port: z.number(),
+  NetworkName: z.string(),
+  Ttl: z.number(),
+}).partial();
+
+const BridgeOutputStateSchema = z.object({
+  NetworkOutput: BridgeNetworkOutputStateSchema,
+}).partial();
+
+const VpcInterfaceAttachmentStateSchema = z.object({
+  VpcInterfaceName: z.string(),
+}).partial();
+
+const BridgeFlowSourceStateSchema = z.object({
+  Name: z.string(),
+  FlowArn: z.string(),
+  FlowVpcInterfaceAttachment: VpcInterfaceAttachmentStateSchema,
+}).partial();
+
+const MulticastSourceSettingsStateSchema = z.object({
+  MulticastSourceIp: z.string(),
+}).partial();
+
+const BridgeNetworkSourceStateSchema = z.object({
+  Name: z.string(),
+  Protocol: z.string(),
+  MulticastIp: z.string(),
+  MulticastSourceSettings: MulticastSourceSettingsStateSchema,
+  Port: z.number(),
+  NetworkName: z.string(),
+}).partial();
+
+const BridgeSourceStateSchema = z.object({
+  FlowSource: BridgeFlowSourceStateSchema,
+  NetworkSource: BridgeNetworkSourceStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -165,20 +210,20 @@ const StateSchema = z.object({
   SourceFailoverConfig: z.object({
     State: z.string(),
     FailoverMode: z.string(),
-    SourcePriority: SourcePrioritySchema,
-  }).optional(),
-  Outputs: z.array(BridgeOutputSchema).optional(),
-  Sources: z.array(BridgeSourceSchema).optional(),
+    SourcePriority: SourcePriorityStateSchema,
+  }).partial().optional(),
+  Outputs: z.array(BridgeOutputStateSchema).optional(),
+  Sources: z.array(BridgeSourceStateSchema).optional(),
   IngressGatewayBridge: z.object({
     MaxBitrate: z.number(),
     MaxOutputs: z.number(),
-  }).optional(),
+  }).partial().optional(),
   EgressGatewayBridge: z.object({
     MaxBitrate: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -237,7 +282,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect Bridge. Registered at `@swamp/aws/mediaconnect/bridge`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/bridge",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -301,6 +346,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

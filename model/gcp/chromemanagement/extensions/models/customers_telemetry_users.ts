@@ -130,34 +130,46 @@ const StateSchema = z.object({
   customer: z.string().optional(),
   name: z.string(),
   orgUnitId: z.string().optional(),
-  userDevice: z.array(z.object({
-    appReport: z.array(z.object({
-      reportTime: z.string(),
-      usageData: z.array(z.unknown()),
-    })),
-    audioStatusReport: z.array(z.object({
-      inputDevice: z.string(),
-      inputGain: z.number(),
-      inputMute: z.boolean(),
-      outputDevice: z.string(),
-      outputMute: z.boolean(),
-      outputVolume: z.number(),
-      reportTime: z.string(),
-    })),
-    deviceActivityReport: z.array(z.object({
-      deviceActivityState: z.string(),
-      reportTime: z.string(),
-    })),
-    deviceId: z.string(),
-    networkBandwidthReport: z.array(z.object({
-      downloadSpeedKbps: z.string(),
-      reportTime: z.string(),
-    })),
-    peripheralsReport: z.array(z.object({
-      reportTime: z.string(),
-      usbPeripheralReport: z.array(z.unknown()),
-    })),
-  })).optional(),
+  userDevice: z.array(
+    z.object({
+      appReport: z.array(
+        z.object({
+          reportTime: z.string(),
+          usageData: z.array(z.unknown()),
+        }).partial(),
+      ),
+      audioStatusReport: z.array(
+        z.object({
+          inputDevice: z.string(),
+          inputGain: z.number(),
+          inputMute: z.boolean(),
+          outputDevice: z.string(),
+          outputMute: z.boolean(),
+          outputVolume: z.number(),
+          reportTime: z.string(),
+        }).partial(),
+      ),
+      deviceActivityReport: z.array(
+        z.object({
+          deviceActivityState: z.string(),
+          reportTime: z.string(),
+        }).partial(),
+      ),
+      deviceId: z.string(),
+      networkBandwidthReport: z.array(
+        z.object({
+          downloadSpeedKbps: z.string(),
+          reportTime: z.string(),
+        }).partial(),
+      ),
+      peripheralsReport: z.array(
+        z.object({
+          reportTime: z.string(),
+          usbPeripheralReport: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   userEmail: z.string().optional(),
   userId: z.string().optional(),
 }).passthrough();
@@ -203,7 +215,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.Telemetry.Users. Registered at `@swamp/gcp/chromemanagement/customers-telemetry-users`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-telemetry-users",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -332,6 +344,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

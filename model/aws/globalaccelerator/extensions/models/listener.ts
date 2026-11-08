@@ -45,6 +45,11 @@ const PortRangeSchema = z.object({
   ToPort: z.number().int().min(0).max(65535).describe("A network port number"),
 });
 
+const PortRangeStateSchema = z.object({
+  FromPort: z.number(),
+  ToPort: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -75,12 +80,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ListenerArn: z.string(),
   AcceleratorArn: z.string().optional(),
-  PortRanges: z.array(PortRangeSchema).optional(),
+  PortRanges: z.array(PortRangeStateSchema).optional(),
   Protocol: z.string().optional(),
   ClientAffinity: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -118,7 +123,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GlobalAccelerator Listener. Registered at `@swamp/aws/globalaccelerator/listener`. */
 export const model = {
   type: "@swamp/aws/globalaccelerator/listener",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -182,6 +187,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

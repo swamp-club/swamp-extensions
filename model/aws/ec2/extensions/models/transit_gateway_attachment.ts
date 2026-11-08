@@ -43,6 +43,11 @@ const TagSchema = z.object({
   Key: z.string(),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -85,15 +90,15 @@ const StateSchema = z.object({
     ApplianceModeSupport: z.string(),
     SecurityGroupReferencingSupport: z.string(),
     DnsSupport: z.string(),
-  }).optional(),
+  }).partial().optional(),
   TransitGatewayId: z.string().optional(),
   VpcId: z.string().optional(),
   Id: z.string(),
   SubnetIds: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -140,7 +145,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TransitGatewayAttachment. Registered at `@swamp/aws/ec2/transit-gateway-attachment`. */
 export const model = {
   type: "@swamp/aws/ec2/transit-gateway-attachment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +209,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

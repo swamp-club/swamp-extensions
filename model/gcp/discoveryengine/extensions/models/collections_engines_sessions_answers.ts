@@ -82,86 +82,106 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   answerSkippedReasons: z.array(z.string()).optional(),
   answerText: z.string().optional(),
-  citations: z.array(z.object({
-    endIndex: z.string(),
-    sources: z.array(z.object({
-      referenceId: z.string(),
-    })),
-    startIndex: z.string(),
-  })).optional(),
+  citations: z.array(
+    z.object({
+      endIndex: z.string(),
+      sources: z.array(
+        z.object({
+          referenceId: z.string(),
+        }).partial(),
+      ),
+      startIndex: z.string(),
+    }).partial(),
+  ).optional(),
   completeTime: z.string().optional(),
   createTime: z.string().optional(),
   groundingScore: z.number().optional(),
-  groundingSupports: z.array(z.object({
-    endIndex: z.string(),
-    groundingCheckRequired: z.boolean(),
-    groundingScore: z.number(),
-    sources: z.array(z.object({
-      referenceId: z.string(),
-    })),
-    startIndex: z.string(),
-  })).optional(),
+  groundingSupports: z.array(
+    z.object({
+      endIndex: z.string(),
+      groundingCheckRequired: z.boolean(),
+      groundingScore: z.number(),
+      sources: z.array(
+        z.object({
+          referenceId: z.string(),
+        }).partial(),
+      ),
+      startIndex: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   queryUnderstandingInfo: z.object({
-    queryClassificationInfo: z.array(z.object({
-      positive: z.boolean(),
-      type: z.string(),
-    })),
-  }).optional(),
-  references: z.array(z.object({
-    chunkInfo: z.object({
-      chunk: z.string(),
-      content: z.string(),
-      documentMetadata: z.object({
+    queryClassificationInfo: z.array(
+      z.object({
+        positive: z.boolean(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  references: z.array(
+    z.object({
+      chunkInfo: z.object({
+        chunk: z.string(),
+        content: z.string(),
+        documentMetadata: z.object({
+          document: z.string(),
+          pageIdentifier: z.string(),
+          structData: z.record(z.string(), z.unknown()),
+          title: z.string(),
+          uri: z.string(),
+        }).partial(),
+        relevanceScore: z.number(),
+      }).partial(),
+      structuredDocumentInfo: z.object({
         document: z.string(),
-        pageIdentifier: z.string(),
         structData: z.record(z.string(), z.unknown()),
         title: z.string(),
         uri: z.string(),
-      }),
-      relevanceScore: z.number(),
-    }),
-    structuredDocumentInfo: z.object({
-      document: z.string(),
-      structData: z.record(z.string(), z.unknown()),
-      title: z.string(),
-      uri: z.string(),
-    }),
-    unstructuredDocumentInfo: z.object({
-      chunkContents: z.array(z.object({
-        content: z.unknown(),
-        pageIdentifier: z.unknown(),
-        relevanceScore: z.unknown(),
-      })),
-      document: z.string(),
-      structData: z.record(z.string(), z.unknown()),
-      title: z.string(),
-      uri: z.string(),
-    }),
-  })).optional(),
+      }).partial(),
+      unstructuredDocumentInfo: z.object({
+        chunkContents: z.array(
+          z.object({
+            content: z.unknown(),
+            pageIdentifier: z.unknown(),
+            relevanceScore: z.unknown(),
+          }).partial(),
+        ),
+        document: z.string(),
+        structData: z.record(z.string(), z.unknown()),
+        title: z.string(),
+        uri: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   relatedQuestions: z.array(z.string()).optional(),
-  safetyRatings: z.array(z.object({
-    blocked: z.boolean(),
-    category: z.string(),
-    probability: z.string(),
-    probabilityScore: z.number(),
-    severity: z.string(),
-    severityScore: z.number(),
-  })).optional(),
+  safetyRatings: z.array(
+    z.object({
+      blocked: z.boolean(),
+      category: z.string(),
+      probability: z.string(),
+      probabilityScore: z.number(),
+      severity: z.string(),
+      severityScore: z.number(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
-  steps: z.array(z.object({
-    actions: z.array(z.object({
-      observation: z.object({
-        searchResults: z.unknown(),
-      }),
-      searchAction: z.object({
-        query: z.unknown(),
-      }),
-    })),
-    description: z.string(),
-    state: z.string(),
-    thought: z.string(),
-  })).optional(),
+  steps: z.array(
+    z.object({
+      actions: z.array(
+        z.object({
+          observation: z.object({
+            searchResults: z.unknown(),
+          }).partial(),
+          searchAction: z.object({
+            query: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      description: z.string(),
+      state: z.string(),
+      thought: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -202,7 +222,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Sessions.Answers. Registered at `@swamp/gcp/discoveryengine/collections-engines-sessions-answers`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-sessions-answers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -326,6 +346,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

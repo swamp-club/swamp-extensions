@@ -82,6 +82,30 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const DashPlaylistSettingsStateSchema = z.object({
+  ManifestWindowSeconds: z.number(),
+  MinBufferTimeSeconds: z.number(),
+  MinUpdatePeriodSeconds: z.number(),
+  SuggestedPresentationDelaySeconds: z.number(),
+}).partial();
+
+const HlsPlaylistSettingsStateSchema = z.object({
+  ManifestWindowSeconds: z.number(),
+  AdMarkupType: z.array(z.string()),
+}).partial();
+
+const RequestOutputItemStateSchema = z.object({
+  DashPlaylistSettings: DashPlaylistSettingsStateSchema,
+  HlsPlaylistSettings: HlsPlaylistSettingsStateSchema,
+  ManifestName: z.string(),
+  SourceGroup: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -131,20 +155,20 @@ const StateSchema = z.object({
   FillerSlate: z.object({
     SourceLocationName: z.string(),
     VodSourceName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LogConfiguration: z.object({
     LogTypes: z.array(z.string()),
-  }).optional(),
-  Outputs: z.array(RequestOutputItemSchema).optional(),
+  }).partial().optional(),
+  Outputs: z.array(RequestOutputItemStateSchema).optional(),
   PlaybackMode: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Tier: z.string().optional(),
   TimeShiftConfiguration: z.object({
     MaxTimeDelaySeconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -199,7 +223,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor Channel. Registered at `@swamp/aws/mediatailor/channel`. */
 export const model = {
   type: "@swamp/aws/mediatailor/channel",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -263,6 +287,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

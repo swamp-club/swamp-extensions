@@ -578,32 +578,34 @@ const StateSchema = z.object({
       airflowMetadataRetentionConfig: z.object({
         retentionDays: z.number(),
         retentionMode: z.string(),
-      }),
+      }).partial(),
       taskLogsRetentionConfig: z.object({
         storageMode: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     databaseConfig: z.object({
       machineType: z.string(),
       zone: z.string(),
-    }),
+    }).partial(),
     encryptionConfig: z.object({
       kmsKeyName: z.string(),
-    }),
+    }).partial(),
     environmentSize: z.string(),
     gkeCluster: z.string(),
     maintenanceWindow: z.object({
       endTime: z.string(),
       recurrence: z.string(),
       startTime: z.string(),
-    }),
+    }).partial(),
     masterAuthorizedNetworksConfig: z.object({
-      cidrBlocks: z.array(z.object({
-        cidrBlock: z.string(),
-        displayName: z.string(),
-      })),
+      cidrBlocks: z.array(
+        z.object({
+          cidrBlock: z.string(),
+          displayName: z.string(),
+        }).partial(),
+      ),
       enabled: z.boolean(),
-    }),
+    }).partial(),
     nodeConfig: z.object({
       composerInternalIpv4CidrBlock: z.string(),
       composerNetworkAttachment: z.string(),
@@ -615,7 +617,7 @@ const StateSchema = z.object({
         servicesIpv4CidrBlock: z.string(),
         servicesSecondaryRangeName: z.string(),
         useIpAliases: z.boolean(),
-      }),
+      }).partial(),
       location: z.string(),
       machineType: z.string(),
       network: z.string(),
@@ -623,7 +625,7 @@ const StateSchema = z.object({
       serviceAccount: z.string(),
       subnetwork: z.string(),
       tags: z.array(z.string()),
-    }),
+    }).partial(),
     nodeCount: z.number(),
     privateEnvironmentConfig: z.object({
       cloudComposerConnectionSubnetwork: z.string(),
@@ -635,83 +637,87 @@ const StateSchema = z.object({
       enablePrivatelyUsedPublicIps: z.boolean(),
       networkingConfig: z.object({
         connectionType: z.string(),
-      }),
+      }).partial(),
       networkingType: z.string(),
       privateClusterConfig: z.object({
         enablePrivateEndpoint: z.boolean(),
         masterIpv4CidrBlock: z.string(),
         masterIpv4ReservedRange: z.string(),
-      }),
+      }).partial(),
       webServerIpv4CidrBlock: z.string(),
       webServerIpv4ReservedRange: z.string(),
-    }),
+    }).partial(),
     recoveryConfig: z.object({
       scheduledSnapshotsConfig: z.object({
         enabled: z.boolean(),
         snapshotCreationSchedule: z.string(),
         snapshotLocation: z.string(),
         timeZone: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     resilienceMode: z.string(),
     softwareConfig: z.object({
       airflowConfigOverrides: z.record(z.string(), z.unknown()),
       auditLogsReplicationMode: z.string(),
       cloudDataLineageIntegration: z.object({
         enabled: z.boolean(),
-      }),
+      }).partial(),
       envVariables: z.record(z.string(), z.unknown()),
       imageVersion: z.string(),
-      imageVersionRollbackTargets: z.array(z.object({
-        imageVersion: z.string(),
-        lastActiveTime: z.string(),
-      })),
+      imageVersionRollbackTargets: z.array(
+        z.object({
+          imageVersion: z.string(),
+          lastActiveTime: z.string(),
+        }).partial(),
+      ),
       pypiPackages: z.record(z.string(), z.unknown()),
       pythonVersion: z.string(),
       schedulerCount: z.number(),
       webServerPluginsMode: z.string(),
-    }),
+    }).partial(),
     webServerConfig: z.object({
       machineType: z.string(),
-    }),
+    }).partial(),
     webServerNetworkAccessControl: z.object({
-      allowedIpRanges: z.array(z.object({
-        description: z.string(),
-        value: z.string(),
-      })),
-    }),
+      allowedIpRanges: z.array(
+        z.object({
+          description: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     workloadsConfig: z.object({
       dagProcessor: z.object({
         count: z.number(),
         cpu: z.number(),
         memoryGb: z.number(),
         storageGb: z.number(),
-      }),
+      }).partial(),
       scheduler: z.object({
         count: z.number(),
         cpu: z.number(),
         memoryGb: z.number(),
         storageGb: z.number(),
-      }),
+      }).partial(),
       triggerer: z.object({
         count: z.number(),
         cpu: z.number(),
         memoryGb: z.number(),
-      }),
+      }).partial(),
       webServer: z.object({
         cpu: z.number(),
         memoryGb: z.number(),
         storageGb: z.number(),
-      }),
+      }).partial(),
       worker: z.object({
         cpu: z.number(),
         maxCount: z.number(),
         memoryGb: z.number(),
         minCount: z.number(),
         storageGb: z.number(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   mode: z.string().optional(),
@@ -721,7 +727,7 @@ const StateSchema = z.object({
   state: z.string().optional(),
   storageConfig: z.object({
     bucket: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   uuid: z.string().optional(),
 }).passthrough();
@@ -1179,7 +1185,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Composer Environments. Registered at `@swamp/gcp/composer/environments`. */
 export const model = {
   type: "@swamp/gcp/composer/environments",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1348,6 +1354,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

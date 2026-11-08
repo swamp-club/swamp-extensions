@@ -303,11 +303,11 @@ const StateSchema = z.object({
     license: z.string(),
     metadata: z.record(z.string(), z.unknown()),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   initialRevision: z.object({
     archiveUploadSource: z.object({
       archiveContent: z.string(),
-    }),
+    }).partial(),
     createTime: z.string(),
     frontmatter: z.object({
       compatibility: z.string(),
@@ -315,28 +315,28 @@ const StateSchema = z.object({
       license: z.string(),
       metadata: z.record(z.string(), z.unknown()),
       name: z.string(),
-    }),
+    }).partial(),
     gcsSource: z.object({
       generation: z.string(),
       uri: z.string(),
-    }),
+    }).partial(),
     name: z.string(),
     scanResult: z.object({
       errorMessage: z.string(),
       findings: z.array(z.string()),
       scanState: z.string(),
       scanTime: z.string(),
-    }),
+    }).partial(),
     sha256Hash: z.string(),
     sizeBytes: z.string(),
     state: z.string(),
     uid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   publisher: z.string().optional(),
   scanningConfig: z.object({
     policy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   skillId: z.string().optional(),
   state: z.string().optional(),
   targetState: z.string().optional(),
@@ -500,10 +500,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Skills. Registered at `@swamp/gcp/agentregistry/skills`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/skills",
-  version: "2026.11.04.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.11.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

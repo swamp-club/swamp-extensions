@@ -176,7 +176,7 @@ const StateSchema = z.object({
   serviceAccount: z.string().optional(),
   streamingConfig: z.object({
     filter: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -228,7 +228,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center NotificationConfigs. Registered at `@swamp/gcp/securitycenter/notificationconfigs`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/notificationconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -367,6 +367,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

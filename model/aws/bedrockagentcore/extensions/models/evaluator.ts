@@ -197,6 +197,89 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const NumericalScaleDefinitionStateSchema = z.object({
+  Value: z.number(),
+  Label: z.string(),
+  Definition: z.string(),
+}).partial();
+
+const CategoricalScaleDefinitionStateSchema = z.object({
+  Label: z.string(),
+  Definition: z.string(),
+}).partial();
+
+const DimensionRatingScaleStateSchema = z.object({
+  Numerical: z.array(NumericalScaleDefinitionStateSchema),
+  Categorical: z.array(CategoricalScaleDefinitionStateSchema),
+}).partial();
+
+const EvaluationDimensionStateSchema = z.object({
+  DimensionName: z.string(),
+  DimensionInstruction: z.string(),
+  DimensionRatingScale: DimensionRatingScaleStateSchema,
+}).partial();
+
+const RatingScaleStateSchema = z.object({
+  Numerical: z.array(NumericalScaleDefinitionStateSchema),
+  Categorical: z.array(CategoricalScaleDefinitionStateSchema),
+  MultiDimensional: z.array(EvaluationDimensionStateSchema),
+}).partial();
+
+const InferenceConfigurationStateSchema = z.object({
+  MaxTokens: z.number(),
+  Temperature: z.number(),
+  TopP: z.number(),
+  StopSequences: z.array(z.string()),
+}).partial();
+
+const BedrockEvaluatorModelConfigStateSchema = z.object({
+  ModelId: z.string(),
+  InferenceConfig: InferenceConfigurationStateSchema,
+  AdditionalModelRequestFields: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ReasoningConfigurationStateSchema = z.object({
+  Effort: z.string(),
+}).partial();
+
+const OpenResponsesEvaluatorModelConfigStateSchema = z.object({
+  ModelId: z.string(),
+  MaxOutputTokens: z.number(),
+  Temperature: z.number(),
+  TopP: z.number(),
+  Reasoning: ReasoningConfigurationStateSchema,
+}).partial();
+
+const EvaluatorModelConfigStateSchema = z.object({
+  BedrockEvaluatorModelConfig: BedrockEvaluatorModelConfigStateSchema,
+  ResponsesEvaluatorModelConfig: OpenResponsesEvaluatorModelConfigStateSchema,
+}).partial();
+
+const LlmAsAJudgeEvaluatorConfigStateSchema = z.object({
+  Instructions: z.string(),
+  RatingScale: RatingScaleStateSchema,
+  ModelConfig: EvaluatorModelConfigStateSchema,
+}).partial();
+
+const LambdaEvaluatorConfigStateSchema = z.object({
+  LambdaArn: z.string(),
+  LambdaTimeoutInSeconds: z.number(),
+}).partial();
+
+const CodeBasedEvaluatorConfigStateSchema = z.object({
+  LambdaConfig: LambdaEvaluatorConfigStateSchema,
+}).partial();
+
+const DerivedEvaluatorConfigStateSchema = z.object({
+  BaseEvaluatorId: z.string(),
+  ModelConfig: EvaluatorModelConfigStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -252,10 +335,10 @@ const StateSchema = z.object({
   EvaluatorName: z.string().optional(),
   Description: z.string().optional(),
   EvaluatorConfig: z.object({
-    LlmAsAJudge: LlmAsAJudgeEvaluatorConfigSchema,
-    CodeBased: CodeBasedEvaluatorConfigSchema,
-    Derived: DerivedEvaluatorConfigSchema,
-  }).optional(),
+    LlmAsAJudge: LlmAsAJudgeEvaluatorConfigStateSchema,
+    CodeBased: CodeBasedEvaluatorConfigStateSchema,
+    Derived: DerivedEvaluatorConfigStateSchema,
+  }).partial().optional(),
   Level: z.string().optional(),
   EvaluatorType: z.string().optional(),
   Provider: z.string().optional(),
@@ -263,10 +346,10 @@ const StateSchema = z.object({
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   KmsKeyArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -326,7 +409,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Evaluator. Registered at `@swamp/aws/bedrockagentcore/evaluator`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/evaluator",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -425,6 +508,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

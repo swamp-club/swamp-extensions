@@ -484,26 +484,28 @@ const StateSchema = z.object({
   addonNode: z.object({
     autoResizeConfig: z.object({
       enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   annotations: z.record(z.string(), z.unknown()).optional(),
   antiAffinityGroups: z.object({
     aagConfigDisabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   authorization: z.object({
-    viewerUsers: z.array(z.object({
-      username: z.string(),
-    })),
-  }).optional(),
+    viewerUsers: z.array(
+      z.object({
+        username: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   autoRepairConfig: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   bootstrapClusterMembership: z.string().optional(),
   controlPlaneNode: z.object({
     cpus: z.string(),
     memory: z.string(),
     replicas: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   enableAdvancedCluster: z.boolean().optional(),
@@ -511,151 +513,169 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   fleet: z.object({
     membership: z.string(),
-  }).optional(),
+  }).partial().optional(),
   imageType: z.string().optional(),
   loadBalancer: z.object({
     f5Config: z.object({
       address: z.string(),
       partition: z.string(),
       snatPool: z.string(),
-    }),
+    }).partial(),
     manualLbConfig: z.object({
       addonsNodePort: z.number(),
       controlPlaneNodePort: z.number(),
       ingressHttpNodePort: z.number(),
       ingressHttpsNodePort: z.number(),
       konnectivityServerNodePort: z.number(),
-    }),
+    }).partial(),
     metalLbConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     seesawConfig: z.object({
       enableHa: z.boolean(),
       group: z.string(),
-      ipBlocks: z.array(z.object({
-        gateway: z.string(),
-        ips: z.array(z.unknown()),
-        netmask: z.string(),
-      })),
+      ipBlocks: z.array(
+        z.object({
+          gateway: z.string(),
+          ips: z.array(z.unknown()),
+          netmask: z.string(),
+        }).partial(),
+      ),
       masterIp: z.string(),
       stackdriverName: z.string(),
       vms: z.array(z.string()),
-    }),
+    }).partial(),
     vipConfig: z.object({
       addonsVip: z.string(),
       controlPlaneVip: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   localName: z.string().optional(),
   name: z.string(),
   networkConfig: z.object({
     dhcpIpConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     haControlPlaneConfig: z.object({
       controlPlaneIpBlock: z.object({
         gateway: z.string(),
-        ips: z.array(z.object({
-          hostname: z.unknown(),
-          ip: z.unknown(),
-        })),
+        ips: z.array(
+          z.object({
+            hostname: z.unknown(),
+            ip: z.unknown(),
+          }).partial(),
+        ),
         netmask: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     hostConfig: z.object({
       dnsSearchDomains: z.array(z.string()),
       dnsServers: z.array(z.string()),
       ntpServers: z.array(z.string()),
-    }),
+    }).partial(),
     podAddressCidrBlocks: z.array(z.string()),
     serviceAddressCidrBlocks: z.array(z.string()),
     staticIpConfig: z.object({
-      ipBlocks: z.array(z.object({
-        gateway: z.string(),
-        ips: z.array(z.unknown()),
-        netmask: z.string(),
-      })),
-    }),
+      ipBlocks: z.array(
+        z.object({
+          gateway: z.string(),
+          ips: z.array(z.unknown()),
+          netmask: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     vcenterNetwork: z.string(),
-  }).optional(),
+  }).partial().optional(),
   onPremVersion: z.string().optional(),
   platformConfig: z.object({
-    bundles: z.array(z.object({
-      status: z.object({
-        conditions: z.array(z.unknown()),
-        errorMessage: z.string(),
+    bundles: z.array(
+      z.object({
+        status: z.object({
+          conditions: z.array(z.unknown()),
+          errorMessage: z.string(),
+          version: z.string(),
+          versions: z.object({
+            versions: z.unknown(),
+          }).partial(),
+        }).partial(),
         version: z.string(),
-        versions: z.object({
-          versions: z.unknown(),
-        }),
-      }),
-      version: z.string(),
-    })),
+      }).partial(),
+    ),
     platformVersion: z.string(),
     requiredPlatformVersion: z.string(),
     status: z.object({
-      conditions: z.array(z.object({
+      conditions: z.array(
+        z.object({
+          lastTransitionTime: z.string(),
+          message: z.string(),
+          reason: z.string(),
+          state: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
+      errorMessage: z.string(),
+      version: z.string(),
+      versions: z.object({
+        versions: z.array(
+          z.object({
+            count: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
+  preparedSecrets: z.object({
+    enabled: z.boolean(),
+  }).partial().optional(),
+  privateRegistryConfig: z.object({
+    address: z.string(),
+    caCert: z.string(),
+  }).partial().optional(),
+  proxy: z.object({
+    noProxy: z.string(),
+    url: z.string(),
+  }).partial().optional(),
+  reconciling: z.boolean().optional(),
+  state: z.string().optional(),
+  status: z.object({
+    conditions: z.array(
+      z.object({
         lastTransitionTime: z.string(),
         message: z.string(),
         reason: z.string(),
         state: z.string(),
         type: z.string(),
-      })),
-      errorMessage: z.string(),
-      version: z.string(),
-      versions: z.object({
-        versions: z.array(z.object({
-          count: z.unknown(),
-          version: z.unknown(),
-        })),
-      }),
-    }),
-  }).optional(),
-  preparedSecrets: z.object({
-    enabled: z.boolean(),
-  }).optional(),
-  privateRegistryConfig: z.object({
-    address: z.string(),
-    caCert: z.string(),
-  }).optional(),
-  proxy: z.object({
-    noProxy: z.string(),
-    url: z.string(),
-  }).optional(),
-  reconciling: z.boolean().optional(),
-  state: z.string().optional(),
-  status: z.object({
-    conditions: z.array(z.object({
-      lastTransitionTime: z.string(),
-      message: z.string(),
-      reason: z.string(),
-      state: z.string(),
-      type: z.string(),
-    })),
+      }).partial(),
+    ),
     errorMessage: z.string(),
     version: z.string(),
     versions: z.object({
-      versions: z.array(z.object({
-        count: z.string(),
-        version: z.string(),
-      })),
-    }),
-  }).optional(),
+      versions: z.array(
+        z.object({
+          count: z.string(),
+          version: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   validationCheck: z.object({
     option: z.string(),
     scenario: z.string(),
     status: z.object({
-      result: z.array(z.object({
-        category: z.string(),
-        description: z.string(),
-        details: z.string(),
-        reason: z.string(),
-        state: z.string(),
-      })),
-    }),
-  }).optional(),
+      result: z.array(
+        z.object({
+          category: z.string(),
+          description: z.string(),
+          details: z.string(),
+          reason: z.string(),
+          state: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   vcenter: z.object({
     address: z.string(),
     caCertData: z.string(),
@@ -666,7 +686,7 @@ const StateSchema = z.object({
     folder: z.string(),
     resourcePool: z.string(),
     storagePolicyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1019,7 +1039,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE On-Prem VmwareAdminClusters. Registered at `@swamp/gcp/gkeonprem/vmwareadminclusters`. */
 export const model = {
   type: "@swamp/gcp/gkeonprem/vmwareadminclusters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1258,6 +1278,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

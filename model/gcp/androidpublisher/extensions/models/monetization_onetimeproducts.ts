@@ -385,76 +385,90 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  listings: z.array(z.object({
-    description: z.string(),
-    languageCode: z.string(),
-    title: z.string(),
-  })).optional(),
-  offerTags: z.array(z.object({
-    tag: z.string(),
-  })).optional(),
+  listings: z.array(
+    z.object({
+      description: z.string(),
+      languageCode: z.string(),
+      title: z.string(),
+    }).partial(),
+  ).optional(),
+  offerTags: z.array(
+    z.object({
+      tag: z.string(),
+    }).partial(),
+  ).optional(),
   packageName: z.string().optional(),
   productId: z.string().optional(),
-  purchaseOptions: z.array(z.object({
-    buyOption: z.object({
-      legacyCompatible: z.boolean(),
-      multiQuantityEnabled: z.boolean(),
-    }),
-    newRegionsConfig: z.object({
-      availability: z.string(),
-      eurPrice: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-      usdPrice: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-    }),
-    offerTags: z.array(z.object({
-      tag: z.string(),
-    })),
-    purchaseOptionId: z.string(),
-    regionalPricingAndAvailabilityConfigs: z.array(z.object({
-      availability: z.string(),
-      price: z.object({
-        currencyCode: z.unknown(),
-        nanos: z.unknown(),
-        units: z.unknown(),
-      }),
-      regionCode: z.string(),
-    })),
-    rentOption: z.object({
-      expirationPeriod: z.string(),
-      rentalPeriod: z.string(),
-    }),
-    state: z.string(),
-    taxAndComplianceSettings: z.object({
-      withdrawalRightType: z.string(),
-    }),
-  })).optional(),
+  purchaseOptions: z.array(
+    z.object({
+      buyOption: z.object({
+        legacyCompatible: z.boolean(),
+        multiQuantityEnabled: z.boolean(),
+      }).partial(),
+      newRegionsConfig: z.object({
+        availability: z.string(),
+        eurPrice: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+        usdPrice: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+      }).partial(),
+      offerTags: z.array(
+        z.object({
+          tag: z.string(),
+        }).partial(),
+      ),
+      purchaseOptionId: z.string(),
+      regionalPricingAndAvailabilityConfigs: z.array(
+        z.object({
+          availability: z.string(),
+          price: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          regionCode: z.string(),
+        }).partial(),
+      ),
+      rentOption: z.object({
+        expirationPeriod: z.string(),
+        rentalPeriod: z.string(),
+      }).partial(),
+      state: z.string(),
+      taxAndComplianceSettings: z.object({
+        withdrawalRightType: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   regionsVersion: z.object({
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   restrictedPaymentCountries: z.object({
     regionCodes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   taxAndComplianceSettings: z.object({
     isTokenizedDigitalAsset: z.boolean(),
     productTaxCategoryCode: z.string(),
-    regionalProductAgeRatingInfos: z.array(z.object({
-      productAgeRatingTier: z.string(),
-      regionCode: z.string(),
-    })),
-    regionalTaxConfigs: z.array(z.object({
-      eligibleForStreamingServiceTaxRate: z.boolean(),
-      regionCode: z.string(),
-      streamingTaxType: z.string(),
-      taxTier: z.string(),
-    })),
-  }).optional(),
+    regionalProductAgeRatingInfos: z.array(
+      z.object({
+        productAgeRatingTier: z.string(),
+        regionCode: z.string(),
+      }).partial(),
+    ),
+    regionalTaxConfigs: z.array(
+      z.object({
+        eligibleForStreamingServiceTaxRate: z.boolean(),
+        regionCode: z.string(),
+        streamingTaxType: z.string(),
+        taxTier: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -709,7 +723,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Monetization.Onetimeproducts. Registered at `@swamp/gcp/androidpublisher/monetization-onetimeproducts`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/monetization-onetimeproducts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -854,6 +868,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

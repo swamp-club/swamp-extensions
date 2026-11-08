@@ -47,6 +47,11 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -126,22 +131,22 @@ const StateSchema = z.object({
   ShardCount: z.number().optional(),
   StreamModeDetails: z.object({
     StreamMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   StreamEncryption: z.object({
     EncryptionType: z.string(),
     KeyId: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   MaxRecordSizeInKiB: z.number().optional(),
   WarmThroughputMiBps: z.number().optional(),
   WarmThroughputObject: z.object({
     TargetMiBps: z.number(),
     CurrentMiBps: z.number(),
-  }).optional(),
+  }).partial().optional(),
   RecordDistributionStrategy: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -225,7 +230,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kinesis Stream. Registered at `@swamp/aws/kinesis/stream`. */
 export const model = {
   type: "@swamp/aws/kinesis/stream",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -289,6 +294,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

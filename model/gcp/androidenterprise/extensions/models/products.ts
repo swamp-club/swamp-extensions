@@ -127,35 +127,41 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   appRestrictionsSchema: z.object({
     kind: z.string(),
-    restrictions: z.array(z.object({
-      defaultValue: z.object({
-        type: z.string(),
-        valueBool: z.boolean(),
-        valueInteger: z.number(),
-        valueMultiselect: z.array(z.unknown()),
-        valueString: z.string(),
-      }),
-      description: z.string(),
-      entry: z.array(z.string()),
-      entryValue: z.array(z.string()),
-      key: z.string(),
-      nestedRestriction: z.array(z.record(z.string(), z.unknown())),
-      restrictionType: z.string(),
-      title: z.string(),
-    })),
-  }).optional(),
-  appTracks: z.array(z.object({
-    trackAlias: z.string(),
-    trackId: z.string(),
-  })).optional(),
-  appVersion: z.array(z.object({
-    isProduction: z.boolean(),
-    targetSdkVersion: z.number(),
-    track: z.string(),
-    trackId: z.array(z.string()),
-    versionCode: z.number(),
-    versionString: z.string(),
-  })).optional(),
+    restrictions: z.array(
+      z.object({
+        defaultValue: z.object({
+          type: z.string(),
+          valueBool: z.boolean(),
+          valueInteger: z.number(),
+          valueMultiselect: z.array(z.unknown()),
+          valueString: z.string(),
+        }).partial(),
+        description: z.string(),
+        entry: z.array(z.string()),
+        entryValue: z.array(z.string()),
+        key: z.string(),
+        nestedRestriction: z.array(z.record(z.string(), z.unknown())),
+        restrictionType: z.string(),
+        title: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  appTracks: z.array(
+    z.object({
+      trackAlias: z.string(),
+      trackId: z.string(),
+    }).partial(),
+  ).optional(),
+  appVersion: z.array(
+    z.object({
+      isProduction: z.boolean(),
+      targetSdkVersion: z.number(),
+      track: z.string(),
+      trackId: z.array(z.string()),
+      versionCode: z.number(),
+      versionString: z.string(),
+    }).partial(),
+  ).optional(),
   authorName: z.string().optional(),
   availableCountries: z.array(z.string()).optional(),
   availableTracks: z.array(z.string()).optional(),
@@ -169,10 +175,12 @@ const StateSchema = z.object({
   iconUrl: z.string().optional(),
   lastUpdatedTimestampMillis: z.string().optional(),
   minAndroidSdkVersion: z.number().optional(),
-  permissions: z.array(z.object({
-    permissionId: z.string(),
-    state: z.string(),
-  })).optional(),
+  permissions: z.array(
+    z.object({
+      permissionId: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   productId: z.string().optional(),
   productPricing: z.string().optional(),
   recentChanges: z.string().optional(),
@@ -181,7 +189,7 @@ const StateSchema = z.object({
   signingCertificate: z.object({
     certificateHashSha1: z.string(),
     certificateHashSha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   smallIconUrl: z.string().optional(),
   title: z.string().optional(),
   workDetailsUrl: z.string().optional(),
@@ -226,7 +234,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play EMM Products. Registered at `@swamp/gcp/androidenterprise/products`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/products",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -365,6 +373,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

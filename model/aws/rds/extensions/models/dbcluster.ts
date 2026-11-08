@@ -60,6 +60,16 @@ const TagSchema = z.object({
   ).optional(),
 });
 
+const DBClusterRoleStateSchema = z.object({
+  FeatureName: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -466,12 +476,12 @@ const StateSchema = z.object({
   Endpoint: z.object({
     Address: z.string(),
     Port: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ReadEndpoint: z.object({
     Address: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AllocatedStorage: z.number().optional(),
-  AssociatedRoles: z.array(DBClusterRoleSchema).optional(),
+  AssociatedRoles: z.array(DBClusterRoleStateSchema).optional(),
   AvailabilityZones: z.array(z.string()).optional(),
   AutoMinorVersionUpgrade: z.boolean().optional(),
   BacktrackWindow: z.number().optional(),
@@ -512,7 +522,7 @@ const StateSchema = z.object({
   MasterUserSecret: z.object({
     SecretArn: z.string(),
     KmsKeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MonitoringInterval: z.number().optional(),
   MonitoringRoleArn: z.string().optional(),
   NetworkType: z.string().optional(),
@@ -530,7 +540,7 @@ const StateSchema = z.object({
     MinCapacity: z.number(),
     MaxCapacity: z.number(),
     SecondsUntilAutoPause: z.number(),
-  }).optional(),
+  }).partial().optional(),
   ScalingConfiguration: z.object({
     AutoPause: z.boolean(),
     MaxCapacity: z.number(),
@@ -538,7 +548,7 @@ const StateSchema = z.object({
     SecondsBeforeTimeout: z.number(),
     SecondsUntilAutoPause: z.number(),
     TimeoutAction: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SnapshotIdentifier: z.string().optional(),
   SourceDBClusterIdentifier: z.string().optional(),
   SourceDbClusterResourceId: z.string().optional(),
@@ -547,13 +557,13 @@ const StateSchema = z.object({
   StorageEncryptionType: z.string().optional(),
   StorageThroughput: z.number().optional(),
   StorageType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   UseLatestRestorableTime: z.boolean().optional(),
   VpcSecurityGroupIds: z.array(z.string()).optional(),
   DBClusterMembers: z.array(DBClusterMemberSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -802,7 +812,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBCluster. Registered at `@swamp/aws/rds/dbcluster`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster",
-  version: "2026.11.02.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -941,6 +951,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -223,14 +223,16 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  additionalDomains: z.array(z.object({
-    ownershipVerified: z.boolean(),
-    url: z.string(),
-  })).optional(),
+  additionalDomains: z.array(
+    z.object({
+      ownershipVerified: z.boolean(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   contentPolicyStatus: z.object({
     policyInfoUrl: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   languageCode: z.string().optional(),
   name: z.string(),
@@ -240,7 +242,7 @@ const StateSchema = z.object({
   primaryDomain: z.object({
     ownershipVerified: z.boolean(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   products: z.array(z.string()).optional(),
   publicationId: z.string().optional(),
   publicationPrivacyPolicyUrl: z.string().optional(),
@@ -253,12 +255,12 @@ const StateSchema = z.object({
     tosAcceptance: z.object({
       emailOptIn: z.boolean(),
       userAccepted: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   slProduct: z.object({
     enabled: z.boolean(),
     gcpProjectNumber: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -372,7 +374,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Web Content Publisher Publications. Registered at `@swamp/gcp/webcontentpublisher/publications`. */
 export const model = {
   type: "@swamp/gcp/webcontentpublisher/publications",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -464,6 +466,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

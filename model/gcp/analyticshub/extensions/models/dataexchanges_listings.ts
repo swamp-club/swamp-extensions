@@ -332,33 +332,37 @@ const StateSchema = z.object({
   allowOnlyMetadataSharing: z.boolean().optional(),
   bigqueryDataset: z.object({
     dataset: z.string(),
-    effectiveReplicas: z.array(z.object({
-      location: z.string(),
-      primaryState: z.string(),
-      replicaState: z.string(),
-    })),
+    effectiveReplicas: z.array(
+      z.object({
+        location: z.string(),
+        primaryState: z.string(),
+        replicaState: z.string(),
+      }).partial(),
+    ),
     replicaLocations: z.array(z.string()),
     restrictedExportPolicy: z.object({
       enabled: z.boolean(),
       restrictDirectTableAccess: z.boolean(),
       restrictQueryResult: z.boolean(),
-    }),
-    selectedResources: z.array(z.object({
-      routine: z.string(),
-      table: z.string(),
-    })),
-  }).optional(),
+    }).partial(),
+    selectedResources: z.array(
+      z.object({
+        routine: z.string(),
+        table: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   categories: z.array(z.string()).optional(),
   commercialInfo: z.object({
     cloudMarketplace: z.object({
       commercialState: z.string(),
       service: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   dataProvider: z.object({
     name: z.string(),
     primaryContact: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   discoveryType: z.string().optional(),
   displayName: z.string().optional(),
@@ -370,23 +374,23 @@ const StateSchema = z.object({
   publisher: z.object({
     name: z.string(),
     primaryContact: z.string(),
-  }).optional(),
+  }).partial().optional(),
   pubsubTopic: z.object({
     dataAffinityRegions: z.array(z.string()),
     topic: z.string(),
-  }).optional(),
+  }).partial().optional(),
   requestAccess: z.string().optional(),
   resourceType: z.string().optional(),
   restrictedExportConfig: z.object({
     enabled: z.boolean(),
     restrictDirectTableAccess: z.boolean(),
     restrictQueryResult: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   storedProcedureConfig: z.object({
     allowedStoredProcedureTypes: z.array(z.string()),
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -593,7 +597,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Analytics Hub DataExchanges.Listings. Registered at `@swamp/gcp/analyticshub/dataexchanges-listings`. */
 export const model = {
   type: "@swamp/gcp/analyticshub/dataexchanges-listings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -740,6 +744,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

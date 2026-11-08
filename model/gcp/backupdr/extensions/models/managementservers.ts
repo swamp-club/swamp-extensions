@@ -190,12 +190,14 @@ const StateSchema = z.object({
   managementUri: z.object({
     api: z.string(),
     webUi: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  networks: z.array(z.object({
-    network: z.string(),
-    peeringMode: z.string(),
-  })).optional(),
+  networks: z.array(
+    z.object({
+      network: z.string(),
+      peeringMode: z.string(),
+    }).partial(),
+  ).optional(),
   oauth2ClientId: z.string().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -205,11 +207,11 @@ const StateSchema = z.object({
   workforceIdentityBasedManagementUri: z.object({
     firstPartyManagementUri: z.string(),
     thirdPartyManagementUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   workforceIdentityBasedOauth2ClientId: z.object({
     firstPartyOauth2ClientId: z.string(),
     thirdPartyOauth2ClientId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -279,7 +281,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service ManagementServers. Registered at `@swamp/gcp/backupdr/managementservers`. */
 export const model = {
   type: "@swamp/gcp/backupdr/managementservers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -437,6 +439,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

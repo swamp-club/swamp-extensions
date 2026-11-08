@@ -214,18 +214,20 @@ const StateSchema = z.object({
   disableMonitoring: z.boolean().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
-  monitoringStatsAnomalies: z.array(z.object({
-    featureStatsAnomaly: z.object({
-      anomalyDetectionThreshold: z.number(),
-      anomalyUri: z.string(),
-      distributionDeviation: z.number(),
-      endTime: z.string(),
-      score: z.number(),
-      startTime: z.string(),
-      statsUri: z.string(),
-    }),
-    objective: z.string(),
-  })).optional(),
+  monitoringStatsAnomalies: z.array(
+    z.object({
+      featureStatsAnomaly: z.object({
+        anomalyDetectionThreshold: z.number(),
+        anomalyUri: z.string(),
+        distributionDeviation: z.number(),
+        endTime: z.string(),
+        score: z.number(),
+        startTime: z.string(),
+        statsUri: z.string(),
+      }).partial(),
+      objective: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   pointOfContact: z.string().optional(),
   updateTime: z.string().optional(),
@@ -310,7 +312,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform FeatureGroups.Features. Registered at `@swamp/gcp/aiplatform/featuregroups-features`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/featuregroups-features",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -474,6 +476,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

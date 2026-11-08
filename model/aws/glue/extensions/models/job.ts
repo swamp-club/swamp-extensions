@@ -151,7 +151,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Connections: z.object({
     Connections: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   MaxRetries: z.number().optional(),
   Description: z.string().optional(),
   Timeout: z.number().optional(),
@@ -161,7 +161,7 @@ const StateSchema = z.object({
   DefaultArguments: z.record(z.string(), z.unknown()).optional(),
   NotificationProperty: z.object({
     NotifyDelayAfter: z.number(),
-  }).optional(),
+  }).partial().optional(),
   WorkerType: z.string().optional(),
   ExecutionClass: z.string().optional(),
   LogUri: z.string().optional(),
@@ -170,11 +170,11 @@ const StateSchema = z.object({
     PythonVersion: z.string(),
     Runtime: z.string(),
     ScriptLocation: z.string(),
-  }).optional(),
+  }).partial().optional(),
   GlueVersion: z.string().optional(),
   ExecutionProperty: z.object({
     MaxConcurrentRuns: z.number(),
-  }).optional(),
+  }).partial().optional(),
   SecurityConfiguration: z.string().optional(),
   NumberOfWorkers: z.number().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
@@ -185,7 +185,7 @@ const StateSchema = z.object({
   JobRunQueuingEnabled: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -308,7 +308,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Job. Registered at `@swamp/aws/glue/job`. */
 export const model = {
   type: "@swamp/aws/glue/job",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -377,6 +377,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

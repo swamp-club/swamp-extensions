@@ -85,6 +85,29 @@ const ParametersInCacheKeyAndForwardedToOriginSchema = z.object({
   ),
 });
 
+const CookiesConfigStateSchema = z.object({
+  CookieBehavior: z.string(),
+  Cookies: z.array(z.string()),
+}).partial();
+
+const HeadersConfigStateSchema = z.object({
+  HeaderBehavior: z.string(),
+  Headers: z.array(z.string()),
+}).partial();
+
+const QueryStringsConfigStateSchema = z.object({
+  QueryStringBehavior: z.string(),
+  QueryStrings: z.array(z.string()),
+}).partial();
+
+const ParametersInCacheKeyAndForwardedToOriginStateSchema = z.object({
+  CookiesConfig: CookiesConfigStateSchema,
+  EnableAcceptEncodingBrotli: z.boolean(),
+  EnableAcceptEncodingGzip: z.boolean(),
+  HeadersConfig: HeadersConfigStateSchema,
+  QueryStringsConfig: QueryStringsConfigStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -130,13 +153,13 @@ const StateSchema = z.object({
     MinTTL: z.number(),
     Name: z.string(),
     ParametersInCacheKeyAndForwardedToOrigin:
-      ParametersInCacheKeyAndForwardedToOriginSchema,
-  }).optional(),
+      ParametersInCacheKeyAndForwardedToOriginStateSchema,
+  }).partial().optional(),
   Id: z.string(),
   LastModifiedTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -185,7 +208,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront CachePolicy. Registered at `@swamp/aws/cloudfront/cache-policy`. */
 export const model = {
   type: "@swamp/aws/cloudfront/cache-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -249,6 +272,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

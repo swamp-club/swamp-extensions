@@ -441,6 +441,214 @@ const CloudWatchLogConfigurationSchema = z.object({
   ).optional(),
 });
 
+const ApplicationStateSchema = z.object({
+  AdditionalInfo: z.record(z.string(), z.unknown()),
+  Args: z.array(z.string()),
+  Name: z.string(),
+  Version: z.string(),
+}).partial();
+
+const ScriptBootstrapActionConfigStateSchema = z.object({
+  Args: z.array(z.string()),
+  Path: z.string(),
+}).partial();
+
+const BootstrapActionConfigStateSchema = z.object({
+  Name: z.string(),
+  ScriptBootstrapAction: ScriptBootstrapActionConfigStateSchema,
+}).partial();
+
+const EMRConfigurationStateSchema = z.object({
+  Classification: z.string(),
+  ConfigurationProperties: z.record(z.string(), z.unknown()),
+  Configurations: z.array(z.record(z.string(), z.unknown())),
+}).partial();
+
+const VolumeSpecificationStateSchema = z.object({
+  Iops: z.number(),
+  SizeInGB: z.number(),
+  Throughput: z.number(),
+  VolumeType: z.string(),
+}).partial();
+
+const EbsBlockDeviceConfigStateSchema = z.object({
+  VolumeSpecification: VolumeSpecificationStateSchema,
+  VolumesPerInstance: z.number(),
+}).partial();
+
+const EbsConfigurationStateSchema = z.object({
+  EbsBlockDeviceConfigs: z.array(EbsBlockDeviceConfigStateSchema),
+  EbsOptimized: z.boolean(),
+}).partial();
+
+const InstanceTypeConfigStateSchema = z.object({
+  BidPrice: z.string(),
+  BidPriceAsPercentageOfOnDemandPrice: z.number(),
+  Configurations: z.array(EMRConfigurationStateSchema),
+  CustomAmiId: z.string(),
+  EbsConfiguration: EbsConfigurationStateSchema,
+  InstanceType: z.string(),
+  Priority: z.number(),
+  WeightedCapacity: z.number(),
+}).partial();
+
+const OnDemandCapacityReservationOptionsStateSchema = z.object({
+  CapacityReservationPreference: z.string(),
+  CapacityReservationResourceGroupArn: z.string(),
+  UsageStrategy: z.string(),
+}).partial();
+
+const OnDemandProvisioningSpecificationStateSchema = z.object({
+  AllocationStrategy: z.string(),
+  CapacityReservationOptions: OnDemandCapacityReservationOptionsStateSchema,
+}).partial();
+
+const SpotProvisioningSpecificationStateSchema = z.object({
+  AllocationStrategy: z.string(),
+  BlockDurationMinutes: z.number(),
+  TimeoutAction: z.string(),
+  TimeoutDurationMinutes: z.number(),
+}).partial();
+
+const InstanceFleetProvisioningSpecificationsStateSchema = z.object({
+  OnDemandSpecification: OnDemandProvisioningSpecificationStateSchema,
+  SpotSpecification: SpotProvisioningSpecificationStateSchema,
+}).partial();
+
+const SpotResizingSpecificationStateSchema = z.object({
+  TimeoutDurationMinutes: z.number(),
+  AllocationStrategy: z.string(),
+}).partial();
+
+const OnDemandResizingSpecificationStateSchema = z.object({
+  TimeoutDurationMinutes: z.number(),
+  AllocationStrategy: z.string(),
+  CapacityReservationOptions: OnDemandCapacityReservationOptionsStateSchema,
+}).partial();
+
+const InstanceFleetResizingSpecificationsStateSchema = z.object({
+  SpotResizeSpecification: SpotResizingSpecificationStateSchema,
+  OnDemandResizeSpecification: OnDemandResizingSpecificationStateSchema,
+}).partial();
+
+const InstanceFleetConfigStateSchema = z.object({
+  InstanceTypeConfigs: z.array(InstanceTypeConfigStateSchema),
+  LaunchSpecifications: InstanceFleetProvisioningSpecificationsStateSchema,
+  ResizeSpecifications: InstanceFleetResizingSpecificationsStateSchema,
+  Name: z.string(),
+  TargetOnDemandCapacity: z.number(),
+  TargetSpotCapacity: z.number(),
+}).partial();
+
+const ScalingConstraintsStateSchema = z.object({
+  MaxCapacity: z.number(),
+  MinCapacity: z.number(),
+}).partial();
+
+const SimpleScalingPolicyConfigurationStateSchema = z.object({
+  AdjustmentType: z.string(),
+  CoolDown: z.number(),
+  ScalingAdjustment: z.number(),
+}).partial();
+
+const ScalingActionStateSchema = z.object({
+  Market: z.string(),
+  SimpleScalingPolicyConfiguration: SimpleScalingPolicyConfigurationStateSchema,
+}).partial();
+
+const MetricDimensionStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CloudWatchAlarmDefinitionStateSchema = z.object({
+  ComparisonOperator: z.string(),
+  Dimensions: z.array(MetricDimensionStateSchema),
+  EvaluationPeriods: z.number(),
+  MetricName: z.string(),
+  Namespace: z.string(),
+  Period: z.number(),
+  Statistic: z.string(),
+  Threshold: z.number(),
+  Unit: z.string(),
+}).partial();
+
+const ScalingTriggerStateSchema = z.object({
+  CloudWatchAlarmDefinition: CloudWatchAlarmDefinitionStateSchema,
+}).partial();
+
+const ScalingRuleStateSchema = z.object({
+  Action: ScalingActionStateSchema,
+  Description: z.string(),
+  Name: z.string(),
+  Trigger: ScalingTriggerStateSchema,
+}).partial();
+
+const AutoScalingPolicyStateSchema = z.object({
+  Constraints: ScalingConstraintsStateSchema,
+  Rules: z.array(ScalingRuleStateSchema),
+}).partial();
+
+const InstanceGroupConfigStateSchema = z.object({
+  AutoScalingPolicy: AutoScalingPolicyStateSchema,
+  BidPrice: z.string(),
+  Configurations: z.array(EMRConfigurationStateSchema),
+  CustomAmiId: z.string(),
+  EbsConfiguration: EbsConfigurationStateSchema,
+  InstanceCount: z.number(),
+  InstanceType: z.string(),
+  Market: z.string(),
+  Name: z.string(),
+}).partial();
+
+const PlacementTypeStateSchema = z.object({
+  AvailabilityZone: z.string(),
+}).partial();
+
+const ComputeLimitsStateSchema = z.object({
+  MaximumCapacityUnits: z.number(),
+  MaximumCoreCapacityUnits: z.number(),
+  MaximumOnDemandCapacityUnits: z.number(),
+  MinimumCapacityUnits: z.number(),
+  UnitType: z.string(),
+}).partial();
+
+const KeyValueStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const HadoopJarStepConfigStateSchema = z.object({
+  Args: z.array(z.string()),
+  Jar: z.string(),
+  MainClass: z.string(),
+  StepProperties: z.array(KeyValueStateSchema),
+}).partial();
+
+const StepConfigStateSchema = z.object({
+  ActionOnFailure: z.string(),
+  HadoopJarStep: HadoopJarStepConfigStateSchema,
+  Name: z.string(),
+}).partial();
+
+const PlacementGroupConfigStateSchema = z.object({
+  InstanceRole: z.string(),
+  PlacementStrategy: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CloudWatchLogConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  LogGroupName: z.string(),
+  LogStreamNamePrefix: z.string(),
+  EncryptionKeyArn: z.string(),
+  LogTypes: z.record(z.string(), z.unknown()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -623,13 +831,13 @@ const StateSchema = z.object({
   MasterPublicDNS: z.string().optional(),
   AdditionalInfo: z.union([z.string(), z.record(z.string(), z.unknown())])
     .optional(),
-  Applications: z.array(ApplicationSchema).optional(),
+  Applications: z.array(ApplicationStateSchema).optional(),
   AutoScalingRole: z.string().optional(),
   AutoTerminationPolicy: z.object({
     IdleTimeout: z.number(),
-  }).optional(),
-  BootstrapActions: z.array(BootstrapActionConfigSchema).optional(),
-  Configurations: z.array(EMRConfigurationSchema).optional(),
+  }).partial().optional(),
+  BootstrapActions: z.array(BootstrapActionConfigStateSchema).optional(),
+  Configurations: z.array(EMRConfigurationStateSchema).optional(),
   CustomAmiId: z.string().optional(),
   EbsRootVolumeSize: z.number().optional(),
   Id: z.string(),
@@ -643,17 +851,17 @@ const StateSchema = z.object({
     EmrManagedSlaveSecurityGroup: z.string(),
     HadoopVersion: z.string(),
     KeepJobFlowAliveWhenNoSteps: z.boolean(),
-    CoreInstanceFleet: InstanceFleetConfigSchema,
-    MasterInstanceFleet: InstanceFleetConfigSchema,
-    TaskInstanceFleets: z.array(InstanceFleetConfigSchema),
-    CoreInstanceGroup: InstanceGroupConfigSchema,
-    MasterInstanceGroup: InstanceGroupConfigSchema,
-    TaskInstanceGroups: z.array(InstanceGroupConfigSchema),
-    Placement: PlacementTypeSchema,
+    CoreInstanceFleet: InstanceFleetConfigStateSchema,
+    MasterInstanceFleet: InstanceFleetConfigStateSchema,
+    TaskInstanceFleets: z.array(InstanceFleetConfigStateSchema),
+    CoreInstanceGroup: InstanceGroupConfigStateSchema,
+    MasterInstanceGroup: InstanceGroupConfigStateSchema,
+    TaskInstanceGroups: z.array(InstanceGroupConfigStateSchema),
+    Placement: PlacementTypeStateSchema,
     ServiceAccessSecurityGroup: z.string(),
     TerminationProtected: z.boolean(),
     UnhealthyNodeReplacement: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   JobFlowRole: z.string().optional(),
   KerberosAttributes: z.object({
     ADDomainJoinPassword: z.string(),
@@ -661,14 +869,14 @@ const StateSchema = z.object({
     CrossRealmTrustPrincipalPassword: z.string(),
     KdcAdminPassword: z.string(),
     Realm: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LogEncryptionKmsKeyId: z.string().optional(),
   LogUri: z.string().optional(),
   ManagedScalingPolicy: z.object({
     UtilizationPerformanceIndex: z.number(),
     ScalingStrategy: z.string(),
-    ComputeLimits: ComputeLimitsSchema,
-  }).optional(),
+    ComputeLimits: ComputeLimitsStateSchema,
+  }).partial().optional(),
   Name: z.string().optional(),
   ReleaseLabel: z.string().optional(),
   OSReleaseLabel: z.string().optional(),
@@ -676,19 +884,19 @@ const StateSchema = z.object({
   SecurityConfiguration: z.string().optional(),
   ServiceRole: z.string().optional(),
   StepConcurrencyLevel: z.number().optional(),
-  Steps: z.array(StepConfigSchema).optional(),
+  Steps: z.array(StepConfigStateSchema).optional(),
   VisibleToAllUsers: z.boolean().optional(),
   EbsRootVolumeIops: z.number().optional(),
   EbsRootVolumeThroughput: z.number().optional(),
-  PlacementGroupConfigs: z.array(PlacementGroupConfigSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  PlacementGroupConfigs: z.array(PlacementGroupConfigStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   MonitoringConfiguration: z.object({
-    CloudWatchLogConfiguration: CloudWatchLogConfigurationSchema,
-  }).optional(),
+    CloudWatchLogConfiguration: CloudWatchLogConfigurationStateSchema,
+  }).partial().optional(),
   SessionEnabled: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -877,10 +1085,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR Cluster. Registered at `@swamp/aws/emr/cluster`. */
 export const model = {
   type: "@swamp/aws/emr/cluster",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

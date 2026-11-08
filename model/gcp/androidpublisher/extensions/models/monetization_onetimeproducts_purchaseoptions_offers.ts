@@ -116,37 +116,41 @@ const StateSchema = z.object({
     endTime: z.string(),
     redemptionLimit: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gameRewardOffer: z.object({
     redemptionLimit: z.string(),
-  }).optional(),
+  }).partial().optional(),
   offerId: z.string().optional(),
-  offerTags: z.array(z.object({
-    tag: z.string(),
-  })).optional(),
+  offerTags: z.array(
+    z.object({
+      tag: z.string(),
+    }).partial(),
+  ).optional(),
   packageName: z.string().optional(),
   preOrderOffer: z.object({
     endTime: z.string(),
     priceChangeBehavior: z.string(),
     releaseTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   productId: z.string().optional(),
   purchaseOptionId: z.string().optional(),
-  regionalPricingAndAvailabilityConfigs: z.array(z.object({
-    absoluteDiscount: z.object({
-      currencyCode: z.string(),
-      nanos: z.number(),
-      units: z.string(),
-    }),
-    availability: z.string(),
-    noOverride: z.object({}),
-    regionCode: z.string(),
-    relativeDiscount: z.number(),
-  })).optional(),
+  regionalPricingAndAvailabilityConfigs: z.array(
+    z.object({
+      absoluteDiscount: z.object({
+        currencyCode: z.string(),
+        nanos: z.number(),
+        units: z.string(),
+      }).partial(),
+      availability: z.string(),
+      noOverride: z.object({}).partial(),
+      regionCode: z.string(),
+      relativeDiscount: z.number(),
+    }).partial(),
+  ).optional(),
   regionsVersion: z.object({
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -198,7 +202,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/androidpublisher/monetization-onetimeproducts-purchaseoptions-offers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -327,6 +331,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

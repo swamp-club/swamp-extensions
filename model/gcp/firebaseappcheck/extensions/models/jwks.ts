@@ -79,14 +79,16 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  keys: z.array(z.object({
-    alg: z.string(),
-    e: z.string(),
-    kid: z.string(),
-    kty: z.string(),
-    n: z.string(),
-    use: z.string(),
-  })).optional(),
+  keys: z.array(
+    z.object({
+      alg: z.string(),
+      e: z.string(),
+      kid: z.string(),
+      kty: z.string(),
+      n: z.string(),
+      use: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -127,7 +129,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase App Check Jwks. Registered at `@swamp/gcp/firebaseappcheck/jwks`. */
 export const model = {
   type: "@swamp/gcp/firebaseappcheck/jwks",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -261,6 +263,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

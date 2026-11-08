@@ -222,22 +222,26 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   description: z.string().optional(),
-  endpoints: z.array(z.object({
-    asn: z.string(),
-    csp: z.string(),
-    state: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  endpoints: z.array(
+    z.object({
+      asn: z.string(),
+      csp: z.string(),
+      state: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   etag: z.string().optional(),
   ipPrefix: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   stateTimeline: z.object({
-    states: z.array(z.object({
-      effectiveTime: z.string(),
-      state: z.string(),
-    })),
-  }).optional(),
+    states: z.array(
+      z.object({
+        effectiveTime: z.string(),
+        state: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -317,7 +321,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/networkconnectivity/multiclouddatatransferconfigs-destinations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -459,6 +463,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

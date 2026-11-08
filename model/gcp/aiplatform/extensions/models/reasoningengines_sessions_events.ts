@@ -105,67 +105,69 @@ const StateSchema = z.object({
     skipSummarization: z.boolean(),
     stateDelta: z.record(z.string(), z.unknown()),
     transferAgent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   author: z.string().optional(),
   content: z.object({
-    parts: z.array(z.object({
-      audioTranscription: z.object({
-        speakerLabel: z.string(),
+    parts: z.array(
+      z.object({
+        audioTranscription: z.object({
+          speakerLabel: z.string(),
+          text: z.string(),
+          words: z.array(z.unknown()),
+        }).partial(),
+        codeExecutionResult: z.object({
+          id: z.string(),
+          outcome: z.string(),
+          output: z.string(),
+        }).partial(),
+        executableCode: z.object({
+          code: z.string(),
+          id: z.string(),
+          language: z.string(),
+        }).partial(),
+        fileData: z.object({
+          displayName: z.string(),
+          fileUri: z.string(),
+          mimeType: z.string(),
+        }).partial(),
+        functionCall: z.object({
+          args: z.record(z.string(), z.unknown()),
+          id: z.string(),
+          name: z.string(),
+          partialArgs: z.array(z.unknown()),
+          willContinue: z.boolean(),
+        }).partial(),
+        functionResponse: z.object({
+          id: z.string(),
+          name: z.string(),
+          parts: z.array(z.unknown()),
+          response: z.record(z.string(), z.unknown()),
+          scheduling: z.string(),
+        }).partial(),
+        inlineData: z.object({
+          data: z.string(),
+          displayName: z.string(),
+          mimeType: z.string(),
+        }).partial(),
+        mediaResolution: z.object({
+          level: z.string(),
+        }).partial(),
+        speechMetadata: z.object({
+          speaker: z.string(),
+          style: z.string(),
+        }).partial(),
         text: z.string(),
-        words: z.array(z.unknown()),
-      }),
-      codeExecutionResult: z.object({
-        id: z.string(),
-        outcome: z.string(),
-        output: z.string(),
-      }),
-      executableCode: z.object({
-        code: z.string(),
-        id: z.string(),
-        language: z.string(),
-      }),
-      fileData: z.object({
-        displayName: z.string(),
-        fileUri: z.string(),
-        mimeType: z.string(),
-      }),
-      functionCall: z.object({
-        args: z.record(z.string(), z.unknown()),
-        id: z.string(),
-        name: z.string(),
-        partialArgs: z.array(z.unknown()),
-        willContinue: z.boolean(),
-      }),
-      functionResponse: z.object({
-        id: z.string(),
-        name: z.string(),
-        parts: z.array(z.unknown()),
-        response: z.record(z.string(), z.unknown()),
-        scheduling: z.string(),
-      }),
-      inlineData: z.object({
-        data: z.string(),
-        displayName: z.string(),
-        mimeType: z.string(),
-      }),
-      mediaResolution: z.object({
-        level: z.string(),
-      }),
-      speechMetadata: z.object({
-        speaker: z.string(),
-        style: z.string(),
-      }),
-      text: z.string(),
-      thought: z.boolean(),
-      thoughtSignature: z.string(),
-      videoMetadata: z.object({
-        endOffset: z.string(),
-        fps: z.number(),
-        startOffset: z.string(),
-      }),
-    })),
+        thought: z.boolean(),
+        thoughtSignature: z.string(),
+        videoMetadata: z.object({
+          endOffset: z.string(),
+          fps: z.number(),
+          startOffset: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     role: z.string(),
-  }).optional(),
+  }).partial().optional(),
   errorCode: z.string().optional(),
   errorMessage: z.string().optional(),
   eventMetadata: z.object({
@@ -173,73 +175,79 @@ const StateSchema = z.object({
     customMetadata: z.record(z.string(), z.unknown()),
     groundingMetadata: z.object({
       googleMapsWidgetContextToken: z.string(),
-      groundingChunks: z.array(z.object({
-        image: z.object({
-          domain: z.unknown(),
-          imageUri: z.unknown(),
-          sourceUri: z.unknown(),
-          title: z.unknown(),
-        }),
-        maps: z.object({
-          placeAnswerSources: z.unknown(),
-          placeId: z.unknown(),
-          route: z.unknown(),
-          text: z.unknown(),
-          title: z.unknown(),
-          uri: z.unknown(),
-        }),
-        retrievedContext: z.object({
-          documentName: z.unknown(),
-          ragChunk: z.unknown(),
-          text: z.unknown(),
-          title: z.unknown(),
-          uri: z.unknown(),
-        }),
-        web: z.object({
-          domain: z.unknown(),
-          title: z.unknown(),
-          uri: z.unknown(),
-        }),
-      })),
-      groundingSupports: z.array(z.object({
-        confidenceScores: z.array(z.unknown()),
-        groundingChunkIndices: z.array(z.unknown()),
-        renderedParts: z.array(z.unknown()),
-        segment: z.object({
-          endIndex: z.unknown(),
-          partIndex: z.unknown(),
-          startIndex: z.unknown(),
-          text: z.unknown(),
-        }),
-      })),
+      groundingChunks: z.array(
+        z.object({
+          image: z.object({
+            domain: z.unknown(),
+            imageUri: z.unknown(),
+            sourceUri: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+          maps: z.object({
+            placeAnswerSources: z.unknown(),
+            placeId: z.unknown(),
+            route: z.unknown(),
+            text: z.unknown(),
+            title: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+          retrievedContext: z.object({
+            documentName: z.unknown(),
+            ragChunk: z.unknown(),
+            text: z.unknown(),
+            title: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+          web: z.object({
+            domain: z.unknown(),
+            title: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      groundingSupports: z.array(
+        z.object({
+          confidenceScores: z.array(z.unknown()),
+          groundingChunkIndices: z.array(z.unknown()),
+          renderedParts: z.array(z.unknown()),
+          segment: z.object({
+            endIndex: z.unknown(),
+            partIndex: z.unknown(),
+            startIndex: z.unknown(),
+            text: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       imageSearchQueries: z.array(z.string()),
       retrievalMetadata: z.object({
         googleSearchDynamicRetrievalScore: z.number(),
-      }),
+      }).partial(),
       retrievalQueries: z.array(z.string()),
       searchEntryPoint: z.object({
         renderedContent: z.string(),
         sdkBlob: z.string(),
-      }),
-      sourceFlaggingUris: z.array(z.object({
-        flagContentUri: z.string(),
-        sourceId: z.string(),
-      })),
+      }).partial(),
+      sourceFlaggingUris: z.array(
+        z.object({
+          flagContentUri: z.string(),
+          sourceId: z.string(),
+        }).partial(),
+      ),
       webSearchQueries: z.array(z.string()),
-    }),
+    }).partial(),
     inputTranscription: z.object({
       finished: z.boolean(),
       text: z.string(),
-    }),
+    }).partial(),
     interrupted: z.boolean(),
     longRunningToolIds: z.array(z.string()),
     outputTranscription: z.object({
       finished: z.boolean(),
       text: z.string(),
-    }),
+    }).partial(),
     partial: z.boolean(),
     turnComplete: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   invocationId: z.string().optional(),
   name: z.string(),
   rawEvent: z.record(z.string(), z.unknown()).optional(),
@@ -290,7 +298,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Sessions.Events. Registered at `@swamp/gcp/aiplatform/reasoningengines-sessions-events`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sessions-events",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -469,6 +477,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

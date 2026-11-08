@@ -61,6 +61,86 @@ const TagSchema = z.object({
   Key: z.string(),
 });
 
+const ExpressGatewayRepositoryCredentialsStateSchema = z.object({
+  CredentialsParameter: z.string(),
+}).partial();
+
+const SecretStateSchema = z.object({
+  ValueFrom: z.string(),
+  Name: z.string(),
+}).partial();
+
+const ExpressGatewayServiceAwsLogsConfigurationStateSchema = z.object({
+  LogStreamPrefix: z.string(),
+  LogGroup: z.string(),
+}).partial();
+
+const KeyValuePairStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const IngressPathArnsStateSchema = z.object({
+  ListenerArn: z.string(),
+  LoadBalancerArn: z.string(),
+  TargetGroupArns: z.array(z.string()),
+  ListenerRuleArn: z.string(),
+  LoadBalancerSecurityGroups: z.array(z.string()),
+  CertificateArn: z.string(),
+}).partial();
+
+const AutoScalingArnsStateSchema = z.object({
+  ScalableTarget: z.string(),
+  ApplicationAutoScalingPolicies: z.array(z.string()),
+}).partial();
+
+const ExpressGatewayContainerStateSchema = z.object({
+  RepositoryCredentials: ExpressGatewayRepositoryCredentialsStateSchema,
+  Secrets: z.array(SecretStateSchema),
+  Command: z.array(z.string()),
+  AwsLogsConfiguration: ExpressGatewayServiceAwsLogsConfigurationStateSchema,
+  ContainerPort: z.number(),
+  Environment: z.array(KeyValuePairStateSchema),
+  Image: z.string(),
+}).partial();
+
+const ExpressGatewayScalingTargetStateSchema = z.object({
+  MinTaskCount: z.number(),
+  MaxTaskCount: z.number(),
+  AutoScalingMetric: z.string(),
+  AutoScalingTargetValue: z.number(),
+}).partial();
+
+const IngressPathSummaryStateSchema = z.object({
+  Endpoint: z.string(),
+  AccessType: z.string(),
+}).partial();
+
+const ExpressGatewayServiceNetworkConfigurationStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const ExpressGatewayServiceConfigurationStateSchema = z.object({
+  ServiceRevisionArn: z.string(),
+  TaskRoleArn: z.string(),
+  PrimaryContainer: ExpressGatewayContainerStateSchema,
+  Memory: z.string(),
+  HealthCheckPath: z.string(),
+  CreatedAt: z.string(),
+  Cpu: z.string(),
+  ExecutionRoleArn: z.string(),
+  ScalingTarget: ExpressGatewayScalingTargetStateSchema,
+  IngressPaths: z.array(IngressPathSummaryStateSchema),
+  NetworkConfiguration: ExpressGatewayServiceNetworkConfigurationStateSchema,
+  TaskDefinitionArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -119,17 +199,17 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Status: z.object({
     StatusCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   TaskRoleArn: z.string().optional(),
   PrimaryContainer: z.object({
-    RepositoryCredentials: ExpressGatewayRepositoryCredentialsSchema,
-    Secrets: z.array(SecretSchema),
+    RepositoryCredentials: ExpressGatewayRepositoryCredentialsStateSchema,
+    Secrets: z.array(SecretStateSchema),
     Command: z.array(z.string()),
-    AwsLogsConfiguration: ExpressGatewayServiceAwsLogsConfigurationSchema,
+    AwsLogsConfiguration: ExpressGatewayServiceAwsLogsConfigurationStateSchema,
     ContainerPort: z.number(),
-    Environment: z.array(KeyValuePairSchema),
+    Environment: z.array(KeyValuePairStateSchema),
     Image: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Memory: z.string().optional(),
   HealthCheckPath: z.string().optional(),
   CreatedAt: z.string().optional(),
@@ -140,19 +220,9 @@ const StateSchema = z.object({
     LogGroups: z.array(z.string()),
     ServiceSecurityGroups: z.array(z.string()),
     MetricAlarms: z.array(z.string()),
-    IngressPath: z.object({
-      ListenerArn: z.string(),
-      LoadBalancerArn: z.string(),
-      TargetGroupArns: z.array(z.string()),
-      ListenerRuleArn: z.string(),
-      LoadBalancerSecurityGroups: z.array(z.string()),
-      CertificateArn: z.string(),
-    }),
-    AutoScaling: z.object({
-      ScalableTarget: z.string(),
-      ApplicationAutoScalingPolicies: z.array(z.string()),
-    }),
-  }).optional(),
+    IngressPath: IngressPathArnsStateSchema,
+    AutoScaling: AutoScalingArnsStateSchema,
+  }).partial().optional(),
   UpdatedAt: z.string().optional(),
   ExecutionRoleArn: z.string().optional(),
   InfrastructureRoleArn: z.string().optional(),
@@ -161,51 +231,20 @@ const StateSchema = z.object({
     MaxTaskCount: z.number(),
     AutoScalingMetric: z.string(),
     AutoScalingTargetValue: z.number(),
-  }).optional(),
-  ActiveConfigurations: z.array(z.object({
-    ServiceRevisionArn: z.string(),
-    TaskRoleArn: z.string(),
-    PrimaryContainer: z.object({
-      RepositoryCredentials: ExpressGatewayRepositoryCredentialsSchema,
-      Secrets: z.array(SecretSchema),
-      Command: z.array(z.string()),
-      AwsLogsConfiguration: ExpressGatewayServiceAwsLogsConfigurationSchema,
-      ContainerPort: z.number(),
-      Environment: z.array(KeyValuePairSchema),
-      Image: z.string(),
-    }),
-    Memory: z.string(),
-    HealthCheckPath: z.string(),
-    CreatedAt: z.string(),
-    Cpu: z.string(),
-    ExecutionRoleArn: z.string(),
-    ScalingTarget: z.object({
-      MinTaskCount: z.number(),
-      MaxTaskCount: z.number(),
-      AutoScalingMetric: z.string(),
-      AutoScalingTargetValue: z.number(),
-    }),
-    IngressPaths: z.array(z.object({
-      Endpoint: z.string(),
-      AccessType: z.string(),
-    })),
-    NetworkConfiguration: z.object({
-      SecurityGroups: z.array(z.string()),
-      Subnets: z.array(z.string()),
-    }),
-    TaskDefinitionArn: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  ActiveConfigurations: z.array(ExpressGatewayServiceConfigurationStateSchema)
+    .optional(),
   Endpoint: z.string().optional(),
   ServiceName: z.string().optional(),
   NetworkConfiguration: z.object({
     SecurityGroups: z.array(z.string()),
     Subnets: z.array(z.string()),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TaskDefinitionArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -271,7 +310,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS ExpressGatewayService. Registered at `@swamp/aws/ecs/express-gateway-service`. */
 export const model = {
   type: "@swamp/aws/ecs/express-gateway-service",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -340,6 +379,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

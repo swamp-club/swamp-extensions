@@ -203,7 +203,7 @@ const StateSchema = z.object({
     cluster: z.string(),
     gkeVersion: z.string(),
     k8sVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   completeTime: z.string().optional(),
   configBackupSizeBytes: z.string().optional(),
   containsSecrets: z.boolean().optional(),
@@ -214,7 +214,7 @@ const StateSchema = z.object({
   description: z.string().optional(),
   encryptionKey: z.object({
     gcpKmsEncryptionKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   manual: z.boolean().optional(),
@@ -228,27 +228,31 @@ const StateSchema = z.object({
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   selectedApplications: z.object({
-    namespacedNames: z.array(z.object({
-      name: z.string(),
-      namespace: z.string(),
-    })),
-  }).optional(),
+    namespacedNames: z.array(
+      z.object({
+        name: z.string(),
+        namespace: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   selectedNamespaceLabels: z.object({
-    resourceLabels: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
+    resourceLabels: z.array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   selectedNamespaces: z.object({
     namespaces: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   sizeBytes: z.string().optional(),
   state: z.string().optional(),
   stateReason: z.string().optional(),
   troubleshootingInfo: z.object({
     stateReasonCode: z.string(),
     stateReasonUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   volumeCount: z.number().optional(),
@@ -313,7 +317,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup for GKE BackupPlans.Backups. Registered at `@swamp/gcp/gkebackup/backupplans-backups`. */
 export const model = {
   type: "@swamp/gcp/gkebackup/backupplans-backups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -474,6 +478,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

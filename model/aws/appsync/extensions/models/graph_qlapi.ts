@@ -88,6 +88,37 @@ const TagSchema = z.object({
   Key: z.string(),
 });
 
+const LambdaAuthorizerConfigStateSchema = z.object({
+  IdentityValidationExpression: z.string(),
+  AuthorizerUri: z.string(),
+  AuthorizerResultTtlInSeconds: z.number(),
+}).partial();
+
+const OpenIDConnectConfigStateSchema = z.object({
+  ClientId: z.string(),
+  AuthTTL: z.number(),
+  Issuer: z.string(),
+  IatTTL: z.number(),
+}).partial();
+
+const CognitoUserPoolConfigStateSchema = z.object({
+  AppIdClientRegex: z.string(),
+  UserPoolId: z.string(),
+  AwsRegion: z.string(),
+}).partial();
+
+const AdditionalAuthenticationProviderStateSchema = z.object({
+  LambdaAuthorizerConfig: LambdaAuthorizerConfigStateSchema,
+  OpenIDConnectConfig: OpenIDConnectConfigStateSchema,
+  UserPoolConfig: CognitoUserPoolConfigStateSchema,
+  AuthenticationType: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -211,7 +242,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   AdditionalAuthenticationProviders: z.array(
-    AdditionalAuthenticationProviderSchema,
+    AdditionalAuthenticationProviderStateSchema,
   ).optional(),
   ApiId: z.string().optional(),
   ApiType: z.string().optional(),
@@ -221,38 +252,47 @@ const StateSchema = z.object({
     OperationLevelMetricsConfig: z.string(),
     ResolverLevelMetricsBehavior: z.string(),
     DataSourceLevelMetricsBehavior: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EnvironmentVariables: z.record(z.string(), z.unknown()).optional(),
   GraphQLDns: z.string().optional(),
   GraphQLEndpointArn: z.string().optional(),
   GraphQLUrl: z.string().optional(),
   IntrospectionConfig: z.string().optional(),
-  LambdaAuthorizerConfig: LambdaAuthorizerConfigSchema.optional(),
+  LambdaAuthorizerConfig: z.object({
+    IdentityValidationExpression: z.string(),
+    AuthorizerUri: z.string(),
+    AuthorizerResultTtlInSeconds: z.number(),
+  }).partial().optional(),
   LogConfig: z.object({
     ExcludeVerboseContent: z.boolean(),
     FieldLogLevel: z.string(),
     CloudWatchLogsRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MergedApiExecutionRoleArn: z.string().optional(),
   Name: z.string().optional(),
-  OpenIDConnectConfig: OpenIDConnectConfigSchema.optional(),
+  OpenIDConnectConfig: z.object({
+    ClientId: z.string(),
+    AuthTTL: z.number(),
+    Issuer: z.string(),
+    IatTTL: z.number(),
+  }).partial().optional(),
   OwnerContact: z.string().optional(),
   QueryDepthLimit: z.number().optional(),
   RealtimeDns: z.string().optional(),
   RealtimeUrl: z.string().optional(),
   ResolverCountLimit: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   UserPoolConfig: z.object({
     AppIdClientRegex: z.string(),
     UserPoolId: z.string(),
     AwsRegion: z.string(),
     DefaultAction: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Visibility: z.string().optional(),
   XrayEnabled: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -384,7 +424,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync GraphQLApi. Registered at `@swamp/aws/appsync/graph-qlapi`. */
 export const model = {
   type: "@swamp/aws/appsync/graph-qlapi",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -463,6 +503,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

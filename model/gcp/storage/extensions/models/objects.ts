@@ -481,24 +481,26 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  acl: z.array(z.object({
-    bucket: z.string(),
-    domain: z.string(),
-    email: z.string(),
-    entity: z.string(),
-    entityId: z.string(),
-    etag: z.string(),
-    generation: z.string(),
-    id: z.string(),
-    kind: z.string(),
-    object: z.string(),
-    projectTeam: z.object({
-      projectNumber: z.string(),
-      team: z.string(),
-    }),
-    role: z.string(),
-    selfLink: z.string(),
-  })).optional(),
+  acl: z.array(
+    z.object({
+      bucket: z.string(),
+      domain: z.string(),
+      email: z.string(),
+      entity: z.string(),
+      entityId: z.string(),
+      etag: z.string(),
+      generation: z.string(),
+      id: z.string(),
+      kind: z.string(),
+      object: z.string(),
+      projectTeam: z.object({
+        projectNumber: z.string(),
+        team: z.string(),
+      }).partial(),
+      role: z.string(),
+      selfLink: z.string(),
+    }).partial(),
+  ).optional(),
   bucket: z.string().optional(),
   cacheControl: z.string().optional(),
   componentCount: z.number().optional(),
@@ -508,13 +510,13 @@ const StateSchema = z.object({
   contentType: z.string().optional(),
   contexts: z.object({
     custom: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   crc32c: z.string().optional(),
   customTime: z.string().optional(),
   customerEncryption: z.object({
     encryptionAlgorithm: z.string(),
     keySha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   eventBasedHold: z.boolean().optional(),
   generation: z.string().optional(),
@@ -530,12 +532,12 @@ const StateSchema = z.object({
   owner: z.object({
     entity: z.string(),
     entityId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   restoreToken: z.string().optional(),
   retention: z.object({
     mode: z.string(),
     retainUntilTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   retentionExpirationTime: z.string().optional(),
   selfLink: z.string().optional(),
   size: z.string().optional(),
@@ -768,7 +770,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON Objects. Registered at `@swamp/gcp/storage/objects`. */
 export const model = {
   type: "@swamp/gcp/storage/objects",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -942,6 +944,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

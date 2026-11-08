@@ -361,9 +361,11 @@ const StateSchema = z.object({
   allPorts: z.boolean().optional(),
   allowGlobalAccess: z.boolean().optional(),
   allowPscGlobalAccess: z.boolean().optional(),
-  attachedExtensions: z.array(z.object({
-    reference: z.string(),
-  })).optional(),
+  attachedExtensions: z.array(
+    z.object({
+      reference: z.string(),
+    }).partial(),
+  ).optional(),
   backendService: z.string().optional(),
   baseForwardingRule: z.string().optional(),
   creationTimestamp: z.string().optional(),
@@ -379,13 +381,17 @@ const StateSchema = z.object({
   labelFingerprint: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   loadBalancingScheme: z.string().optional(),
-  metadataFilters: z.array(z.object({
-    filterLabels: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
-    filterMatchCriteria: z.string(),
-  })).optional(),
+  metadataFilters: z.array(
+    z.object({
+      filterLabels: z.array(
+        z.object({
+          name: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      filterMatchCriteria: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   network: z.string().optional(),
   networkTier: z.string().optional(),
@@ -397,11 +403,13 @@ const StateSchema = z.object({
   region: z.string().optional(),
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
-  serviceDirectoryRegistrations: z.array(z.object({
-    namespace: z.string(),
-    service: z.string(),
-    serviceDirectoryRegion: z.string(),
-  })).optional(),
+  serviceDirectoryRegistrations: z.array(
+    z.object({
+      namespace: z.string(),
+      service: z.string(),
+      serviceDirectoryRegion: z.string(),
+    }).partial(),
+  ).optional(),
   serviceLabel: z.string().optional(),
   serviceName: z.string().optional(),
   sourceIpRanges: z.array(z.string()).optional(),
@@ -596,7 +604,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ForwardingRules. Registered at `@swamp/gcp/compute/forwardingrules`. */
 export const model = {
   type: "@swamp/gcp/compute/forwardingrules",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -771,6 +779,11 @@ export const model = {
     {
       toVersion: "2026.10.30.1",
       description: "Added: IPAddresses",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

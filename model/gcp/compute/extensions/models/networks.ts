@@ -256,36 +256,38 @@ const StateSchema = z.object({
   networkProfile: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
-  peerings: z.array(z.object({
-    autoCreateRoutes: z.boolean(),
-    connectionStatus: z.object({
-      consensusState: z.object({
-        deleteStatus: z.string(),
-        updateStatus: z.string(),
-      }),
-      trafficConfiguration: z.object({
-        exportCustomRoutesToPeer: z.boolean(),
-        exportSubnetRoutesWithPublicIpToPeer: z.boolean(),
-        importCustomRoutesFromPeer: z.boolean(),
-        importSubnetRoutesWithPublicIpFromPeer: z.boolean(),
-        stackType: z.string(),
-      }),
+  }).partial().optional(),
+  peerings: z.array(
+    z.object({
+      autoCreateRoutes: z.boolean(),
+      connectionStatus: z.object({
+        consensusState: z.object({
+          deleteStatus: z.string(),
+          updateStatus: z.string(),
+        }).partial(),
+        trafficConfiguration: z.object({
+          exportCustomRoutesToPeer: z.boolean(),
+          exportSubnetRoutesWithPublicIpToPeer: z.boolean(),
+          importCustomRoutesFromPeer: z.boolean(),
+          importSubnetRoutesWithPublicIpFromPeer: z.boolean(),
+          stackType: z.string(),
+        }).partial(),
+        updateStrategy: z.string(),
+      }).partial(),
+      exchangeSubnetRoutes: z.boolean(),
+      exportCustomRoutes: z.boolean(),
+      exportSubnetRoutesWithPublicIp: z.boolean(),
+      importCustomRoutes: z.boolean(),
+      importSubnetRoutesWithPublicIp: z.boolean(),
+      name: z.string(),
+      network: z.string(),
+      peerMtu: z.number(),
+      stackType: z.string(),
+      state: z.string(),
+      stateDetails: z.string(),
       updateStrategy: z.string(),
-    }),
-    exchangeSubnetRoutes: z.boolean(),
-    exportCustomRoutes: z.boolean(),
-    exportSubnetRoutesWithPublicIp: z.boolean(),
-    importCustomRoutes: z.boolean(),
-    importSubnetRoutesWithPublicIp: z.boolean(),
-    name: z.string(),
-    network: z.string(),
-    peerMtu: z.number(),
-    stackType: z.string(),
-    state: z.string(),
-    stateDetails: z.string(),
-    updateStrategy: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   routingConfig: z.object({
     bgpAlwaysCompareMed: z.boolean(),
     bgpBestPathSelectionMode: z.string(),
@@ -293,7 +295,7 @@ const StateSchema = z.object({
     effectiveBgpAlwaysCompareMed: z.boolean(),
     effectiveBgpInterRegionCost: z.string(),
     routingMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
   subnetworks: z.array(z.string()).optional(),
@@ -398,7 +400,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Networks. Registered at `@swamp/gcp/compute/networks`. */
 export const model = {
   type: "@swamp/gcp/compute/networks",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -612,6 +614,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

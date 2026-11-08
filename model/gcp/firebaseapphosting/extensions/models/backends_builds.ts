@@ -342,43 +342,49 @@ const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   buildLogsUri: z.string().optional(),
   config: z.object({
-    effectiveEnv: z.array(z.object({
-      availability: z.array(z.string()),
-      origin: z.string(),
-      originFileName: z.string(),
-      secret: z.string(),
-      value: z.string(),
-      variable: z.string(),
-    })),
-    env: z.array(z.object({
-      availability: z.array(z.string()),
-      origin: z.string(),
-      originFileName: z.string(),
-      secret: z.string(),
-      value: z.string(),
-      variable: z.string(),
-    })),
+    effectiveEnv: z.array(
+      z.object({
+        availability: z.array(z.string()),
+        origin: z.string(),
+        originFileName: z.string(),
+        secret: z.string(),
+        value: z.string(),
+        variable: z.string(),
+      }).partial(),
+    ),
+    env: z.array(
+      z.object({
+        availability: z.array(z.string()),
+        origin: z.string(),
+        originFileName: z.string(),
+        secret: z.string(),
+        value: z.string(),
+        variable: z.string(),
+      }).partial(),
+    ),
     runConfig: z.object({
       concurrency: z.number(),
       cpu: z.number(),
       maxInstances: z.number(),
       memoryMib: z.number(),
       minInstances: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   displayName: z.string().optional(),
   environment: z.string().optional(),
-  errors: z.array(z.object({
-    cloudResource: z.string(),
-    error: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    errorSource: z.string(),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      cloudResource: z.string(),
+      error: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      errorSource: z.string(),
+    }).partial(),
+  ).optional(),
   etag: z.string().optional(),
   image: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -390,18 +396,18 @@ const StateSchema = z.object({
         displayName: z.string(),
         email: z.string(),
         imageUri: z.string(),
-      }),
+      }).partial(),
       description: z.string(),
       externalSignedUri: z.string(),
       rootDirectory: z.string(),
       userStorageUri: z.string(),
-    }),
+    }).partial(),
     codebase: z.object({
       author: z.object({
         displayName: z.string(),
         email: z.string(),
         imageUri: z.string(),
-      }),
+      }).partial(),
       branch: z.string(),
       commit: z.string(),
       commitMessage: z.string(),
@@ -410,11 +416,11 @@ const StateSchema = z.object({
       hash: z.string(),
       repository: z.string(),
       uri: z.string(),
-    }),
+    }).partial(),
     container: z.object({
       image: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -634,7 +640,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase App Hosting Backends.Builds. Registered at `@swamp/gcp/firebaseapphosting/backends-builds`. */
 export const model = {
   type: "@swamp/gcp/firebaseapphosting/backends-builds",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -773,6 +779,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

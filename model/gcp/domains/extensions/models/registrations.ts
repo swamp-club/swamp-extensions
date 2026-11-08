@@ -685,8 +685,8 @@ const StateSchema = z.object({
         revision: z.number(),
         sortingCode: z.string(),
         sublocality: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     privacy: z.string(),
     registrantContact: z.object({
       email: z.string(),
@@ -704,8 +704,8 @@ const StateSchema = z.object({
         revision: z.number(),
         sortingCode: z.string(),
         sublocality: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     technicalContact: z.object({
       email: z.string(),
       faxNumber: z.string(),
@@ -722,37 +722,43 @@ const StateSchema = z.object({
         revision: z.number(),
         sortingCode: z.string(),
         sublocality: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dnsSettings: z.object({
     customDns: z.object({
-      dsRecords: z.array(z.object({
-        algorithm: z.string(),
-        digest: z.string(),
-        digestType: z.string(),
-        keyTag: z.number(),
-      })),
+      dsRecords: z.array(
+        z.object({
+          algorithm: z.string(),
+          digest: z.string(),
+          digestType: z.string(),
+          keyTag: z.number(),
+        }).partial(),
+      ),
       nameServers: z.array(z.string()),
-    }),
-    glueRecords: z.array(z.object({
-      hostName: z.string(),
-      ipv4Addresses: z.array(z.string()),
-      ipv6Addresses: z.array(z.string()),
-    })),
+    }).partial(),
+    glueRecords: z.array(
+      z.object({
+        hostName: z.string(),
+        ipv4Addresses: z.array(z.string()),
+        ipv6Addresses: z.array(z.string()),
+      }).partial(),
+    ),
     googleDomainsDns: z.object({
-      dsRecords: z.array(z.object({
-        algorithm: z.string(),
-        digest: z.string(),
-        digestType: z.string(),
-        keyTag: z.number(),
-      })),
+      dsRecords: z.array(
+        z.object({
+          algorithm: z.string(),
+          digest: z.string(),
+          digestType: z.string(),
+          keyTag: z.number(),
+        }).partial(),
+      ),
       dsState: z.string(),
       nameServers: z.array(z.string()),
-    }),
+    }).partial(),
     googleDomainsRedirectsDataAvailable: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   domainName: z.string().optional(),
   domainProperties: z.array(z.string()).optional(),
   expireTime: z.string().optional(),
@@ -763,7 +769,7 @@ const StateSchema = z.object({
     preferredRenewalMethod: z.string(),
     renewalMethod: z.string(),
     transferLockState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   pendingContactSettings: z.object({
     adminContact: z.object({
@@ -782,8 +788,8 @@ const StateSchema = z.object({
         revision: z.number(),
         sortingCode: z.string(),
         sublocality: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     privacy: z.string(),
     registrantContact: z.object({
       email: z.string(),
@@ -801,8 +807,8 @@ const StateSchema = z.object({
         revision: z.number(),
         sortingCode: z.string(),
         sublocality: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     technicalContact: z.object({
       email: z.string(),
       faxNumber: z.string(),
@@ -819,9 +825,9 @@ const StateSchema = z.object({
         revision: z.number(),
         sortingCode: z.string(),
         sublocality: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   registerFailureReason: z.string().optional(),
   state: z.string().optional(),
   supportedPrivacy: z.array(z.string()).optional(),
@@ -1388,7 +1394,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Domains Registrations. Registered at `@swamp/gcp/domains/registrations`. */
 export const model = {
   type: "@swamp/gcp/domains/registrations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1616,6 +1622,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

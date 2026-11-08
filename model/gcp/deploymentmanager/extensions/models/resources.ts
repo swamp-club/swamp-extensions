@@ -132,7 +132,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   accessControl: z.object({
     gcpIamPolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   finalProperties: z.string().optional(),
   id: z.string().optional(),
   insertTime: z.string().optional(),
@@ -143,44 +143,54 @@ const StateSchema = z.object({
   update: z.object({
     accessControl: z.object({
       gcpIamPolicy: z.string(),
-    }),
+    }).partial(),
     error: z.object({
-      errors: z.array(z.object({
-        arguments: z.array(z.unknown()),
-        code: z.string(),
-        debugInfo: z.object({
-          detail: z.unknown(),
-          stackEntries: z.unknown(),
-        }),
-        errorDetails: z.array(z.unknown()),
-        location: z.string(),
-        message: z.string(),
-      })),
-    }),
+      errors: z.array(
+        z.object({
+          arguments: z.array(z.unknown()),
+          code: z.string(),
+          debugInfo: z.object({
+            detail: z.unknown(),
+            stackEntries: z.unknown(),
+          }).partial(),
+          errorDetails: z.array(z.unknown()),
+          location: z.string(),
+          message: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     finalProperties: z.string(),
     intent: z.string(),
     manifest: z.string(),
     properties: z.string(),
     state: z.string(),
-    warnings: z.array(z.object({
-      code: z.string(),
-      data: z.array(z.object({
-        key: z.unknown(),
-        value: z.unknown(),
-      })),
-      message: z.string(),
-    })),
-  }).optional(),
+    warnings: z.array(
+      z.object({
+        code: z.string(),
+        data: z.array(
+          z.object({
+            key: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        message: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   url: z.string().optional(),
-  warnings: z.array(z.object({
-    code: z.string(),
-    data: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
-    message: z.string(),
-  })).optional(),
+  warnings: z.array(
+    z.object({
+      code: z.string(),
+      data: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -224,7 +234,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deployment Manager Resources. Registered at `@swamp/gcp/deploymentmanager/resources`. */
 export const model = {
   type: "@swamp/gcp/deploymentmanager/resources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -353,6 +363,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

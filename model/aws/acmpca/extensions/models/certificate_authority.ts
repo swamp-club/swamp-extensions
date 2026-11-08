@@ -162,6 +162,98 @@ const AccessDescriptionSchema = z.object({
   ),
 });
 
+const CustomAttributeStateSchema = z.object({
+  ObjectIdentifier: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CrlDistributionPointExtensionConfigurationStateSchema = z.object({
+  OmitExtension: z.boolean(),
+}).partial();
+
+const CrlConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  ExpirationInDays: z.number(),
+  CustomCname: z.string(),
+  S3BucketName: z.string(),
+  S3ObjectAcl: z.string(),
+  CrlDistributionPointExtensionConfiguration:
+    CrlDistributionPointExtensionConfigurationStateSchema,
+  CrlType: z.string(),
+  CustomPath: z.string(),
+}).partial();
+
+const OcspConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  OcspCustomCname: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const KeyUsageStateSchema = z.object({
+  DigitalSignature: z.boolean(),
+  NonRepudiation: z.boolean(),
+  KeyEncipherment: z.boolean(),
+  DataEncipherment: z.boolean(),
+  KeyAgreement: z.boolean(),
+  KeyCertSign: z.boolean(),
+  CRLSign: z.boolean(),
+  EncipherOnly: z.boolean(),
+  DecipherOnly: z.boolean(),
+}).partial();
+
+const AccessMethodStateSchema = z.object({
+  CustomObjectIdentifier: z.string(),
+  AccessMethodType: z.string(),
+}).partial();
+
+const OtherNameStateSchema = z.object({
+  TypeId: z.string(),
+  Value: z.string(),
+}).partial();
+
+const SubjectStateSchema = z.object({
+  Country: z.string(),
+  Organization: z.string(),
+  OrganizationalUnit: z.string(),
+  DistinguishedNameQualifier: z.string(),
+  State: z.string(),
+  CommonName: z.string(),
+  SerialNumber: z.string(),
+  Locality: z.string(),
+  Title: z.string(),
+  Surname: z.string(),
+  GivenName: z.string(),
+  Initials: z.string(),
+  Pseudonym: z.string(),
+  GenerationQualifier: z.string(),
+  CustomAttributes: z.array(CustomAttributeStateSchema),
+}).partial();
+
+const EdiPartyNameStateSchema = z.object({
+  PartyName: z.string(),
+  NameAssigner: z.string(),
+}).partial();
+
+const GeneralNameStateSchema = z.object({
+  OtherName: OtherNameStateSchema,
+  Rfc822Name: z.string(),
+  DnsName: z.string(),
+  DirectoryName: SubjectStateSchema,
+  EdiPartyName: EdiPartyNameStateSchema,
+  UniformResourceIdentifier: z.string(),
+  IpAddress: z.string(),
+  RegisteredId: z.string(),
+}).partial();
+
+const AccessDescriptionStateSchema = z.object({
+  AccessMethod: AccessMethodStateSchema,
+  AccessLocation: GeneralNameStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -240,22 +332,38 @@ const StateSchema = z.object({
   Type: z.string().optional(),
   KeyAlgorithm: z.string().optional(),
   SigningAlgorithm: z.string().optional(),
-  Subject: SubjectSchema.optional(),
+  Subject: z.object({
+    Country: z.string(),
+    Organization: z.string(),
+    OrganizationalUnit: z.string(),
+    DistinguishedNameQualifier: z.string(),
+    State: z.string(),
+    CommonName: z.string(),
+    SerialNumber: z.string(),
+    Locality: z.string(),
+    Title: z.string(),
+    Surname: z.string(),
+    GivenName: z.string(),
+    Initials: z.string(),
+    Pseudonym: z.string(),
+    GenerationQualifier: z.string(),
+    CustomAttributes: z.array(CustomAttributeStateSchema),
+  }).partial().optional(),
   RevocationConfiguration: z.object({
-    CrlConfiguration: CrlConfigurationSchema,
-    OcspConfiguration: OcspConfigurationSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    CrlConfiguration: CrlConfigurationStateSchema,
+    OcspConfiguration: OcspConfigurationStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CertificateSigningRequest: z.string().optional(),
   CsrExtensions: z.object({
-    KeyUsage: KeyUsageSchema,
-    SubjectInformationAccess: z.array(AccessDescriptionSchema),
-  }).optional(),
+    KeyUsage: KeyUsageStateSchema,
+    SubjectInformationAccess: z.array(AccessDescriptionStateSchema),
+  }).partial().optional(),
   KeyStorageSecurityStandard: z.string().optional(),
   UsageMode: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -339,7 +447,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ACMPCA CertificateAuthority. Registered at `@swamp/aws/acmpca/certificate-authority`. */
 export const model = {
   type: "@swamp/aws/acmpca/certificate-authority",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -403,6 +511,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

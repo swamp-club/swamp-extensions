@@ -276,7 +276,7 @@ const StateSchema = z.object({
     executionConfig: z.object({
       authenticationConfig: z.object({
         userWorkloadAuthenticationType: z.string(),
-      }),
+      }).partial(),
       idleTtl: z.string(),
       kmsKey: z.string(),
       networkTags: z.array(z.string()),
@@ -286,34 +286,34 @@ const StateSchema = z.object({
       stagingBucket: z.string(),
       subnetworkUri: z.string(),
       ttl: z.string(),
-    }),
+    }).partial(),
     peripheralsConfig: z.object({
       metastoreService: z.string(),
       sparkHistoryServerConfig: z.object({
         dataprocCluster: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   jupyterSession: z.object({
     displayName: z.string(),
     kernel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   runtimeConfig: z.object({
     autotuningConfig: z.object({
       scenarios: z.array(z.string()),
-    }),
+    }).partial(),
     cohort: z.string(),
     containerImage: z.string(),
     properties: z.record(z.string(), z.unknown()),
     repositoryConfig: z.object({
       pypiRepositoryConfig: z.object({
         pypiRepository: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   runtimeInfo: z.object({
     approximateUsage: z.object({
       acceleratorType: z.string(),
@@ -324,11 +324,11 @@ const StateSchema = z.object({
       milliDcuSeconds: z.string(),
       shuffleStorageGbSeconds: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     cohortInfo: z.object({
       cohort: z.string(),
       cohortSource: z.string(),
-    }),
+    }).partial(),
     currentUsage: z.object({
       acceleratorType: z.string(),
       milliAccelerator: z.string(),
@@ -340,22 +340,24 @@ const StateSchema = z.object({
       shuffleStorageGb: z.string(),
       shuffleStorageGbPremium: z.string(),
       snapshotTime: z.string(),
-    }),
+    }).partial(),
     diagnosticOutputUri: z.string(),
     endpoints: z.record(z.string(), z.unknown()),
     outputUri: z.string(),
     propertiesInfo: z.object({
       autotuningProperties: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   sessionTemplate: z.string().optional(),
-  sparkConnectSession: z.object({}).optional(),
+  sparkConnectSession: z.object({}).partial().optional(),
   state: z.string().optional(),
-  stateHistory: z.array(z.object({
-    state: z.string(),
-    stateMessage: z.string(),
-    stateStartTime: z.string(),
-  })).optional(),
+  stateHistory: z.array(
+    z.object({
+      state: z.string(),
+      stateMessage: z.string(),
+      stateStartTime: z.string(),
+    }).partial(),
+  ).optional(),
   stateMessage: z.string().optional(),
   stateTime: z.string().optional(),
   user: z.string().optional(),
@@ -522,7 +524,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Sessions. Registered at `@swamp/gcp/dataproc/sessions`. */
 export const model = {
   type: "@swamp/gcp/dataproc/sessions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -724,6 +726,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

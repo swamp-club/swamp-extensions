@@ -261,6 +261,98 @@ const ObjectTypeMappingSchema = z.object({
   ),
 });
 
+const ConnectorOperatorStateSchema = z.object({
+  Marketo: z.string(),
+  S3: z.string(),
+  Salesforce: z.string(),
+  ServiceNow: z.string(),
+  Zendesk: z.string(),
+}).partial();
+
+const TaskPropertiesMapStateSchema = z.object({
+  OperatorPropertyKey: z.string(),
+  Property: z.string(),
+}).partial();
+
+const TaskStateSchema = z.object({
+  ConnectorOperator: ConnectorOperatorStateSchema,
+  SourceFields: z.array(z.string()),
+  DestinationField: z.string(),
+  TaskType: z.string(),
+  TaskProperties: z.array(TaskPropertiesMapStateSchema),
+}).partial();
+
+const ScheduledTriggerPropertiesStateSchema = z.object({
+  ScheduleExpression: z.string(),
+  DataPullMode: z.string(),
+  ScheduleStartTime: z.number(),
+  ScheduleEndTime: z.number(),
+  Timezone: z.string(),
+  ScheduleOffset: z.number(),
+  FirstExecutionFrom: z.number(),
+}).partial();
+
+const TriggerPropertiesStateSchema = z.object({
+  Scheduled: ScheduledTriggerPropertiesStateSchema,
+}).partial();
+
+const TriggerConfigStateSchema = z.object({
+  TriggerType: z.string(),
+  TriggerProperties: TriggerPropertiesStateSchema,
+}).partial();
+
+const IncrementalPullConfigStateSchema = z.object({
+  DatetimeTypeFieldName: z.string(),
+}).partial();
+
+const MarketoSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const S3SourcePropertiesStateSchema = z.object({
+  BucketName: z.string(),
+  BucketPrefix: z.string(),
+}).partial();
+
+const SalesforceSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+  EnableDynamicFieldUpdate: z.boolean(),
+  IncludeDeletedRecords: z.boolean(),
+}).partial();
+
+const ServiceNowSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const ZendeskSourcePropertiesStateSchema = z.object({
+  Object: z.string(),
+}).partial();
+
+const SourceConnectorPropertiesStateSchema = z.object({
+  Marketo: MarketoSourcePropertiesStateSchema,
+  S3: S3SourcePropertiesStateSchema,
+  Salesforce: SalesforceSourcePropertiesStateSchema,
+  ServiceNow: ServiceNowSourcePropertiesStateSchema,
+  Zendesk: ZendeskSourcePropertiesStateSchema,
+}).partial();
+
+const SourceFlowConfigStateSchema = z.object({
+  ConnectorType: z.string(),
+  ConnectorProfileName: z.string(),
+  IncrementalPullConfig: IncrementalPullConfigStateSchema,
+  SourceConnectorProperties: SourceConnectorPropertiesStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ObjectTypeMappingStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -321,20 +413,20 @@ const StateSchema = z.object({
     FlowName: z.string(),
     Description: z.string(),
     KmsArn: z.string(),
-    Tasks: z.array(TaskSchema),
-    TriggerConfig: TriggerConfigSchema,
-    SourceFlowConfig: SourceFlowConfigSchema,
-  }).optional(),
+    Tasks: z.array(TaskStateSchema),
+    TriggerConfig: TriggerConfigStateSchema,
+    SourceFlowConfig: SourceFlowConfigStateSchema,
+  }).partial().optional(),
   ObjectTypeName: z.string().optional(),
   CreatedAt: z.string().optional(),
   LastUpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  ObjectTypeNames: z.array(ObjectTypeMappingSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  ObjectTypeNames: z.array(ObjectTypeMappingStateSchema).optional(),
   EventTriggerNames: z.array(z.string()).optional(),
   Scope: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -399,7 +491,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles Integration. Registered at `@swamp/aws/customerprofiles/integration`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/integration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -463,6 +555,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

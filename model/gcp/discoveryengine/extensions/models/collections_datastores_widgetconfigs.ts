@@ -715,7 +715,7 @@ const StateSchema = z.object({
     enableWebApp: z.boolean(),
     languageCode: z.string(),
     workforceIdentityPoolProvider: z.string(),
-  }).optional(),
+  }).partial().optional(),
   allowPublicAccess: z.boolean().optional(),
   allowlistedDomains: z.array(z.string()).optional(),
   assistantSettings: z.object({
@@ -723,66 +723,72 @@ const StateSchema = z.object({
     disableLocationContext: z.boolean(),
     googleSearchGroundingEnabled: z.boolean(),
     webGroundingType: z.string(),
-  }).optional(),
-  batchAuthStatuses: z.array(z.object({
-    batchAuthorizationGroup: z.string(),
-    connectorAuthState: z.object({
-      authState: z.string(),
-      authorizationUri: z.string(),
-      updateTime: z.string(),
-    }),
-    placeholder: z.string(),
-  })).optional(),
-  collectionComponents: z.array(z.object({
-    connectorAuthState: z.object({
-      authState: z.string(),
-      authorizationUri: z.string(),
-      updateTime: z.string(),
-    }),
-    connectorIconLink: z.string(),
-    dataSource: z.string(),
-    dataSourceDisplayName: z.string(),
-    dataSourceEndUserDisplayName: z.string(),
-    dataSourceVersion: z.number(),
-    dataStoreComponents: z.array(z.object({
-      dataStoreConfigType: z.string(),
+  }).partial().optional(),
+  batchAuthStatuses: z.array(
+    z.object({
+      batchAuthorizationGroup: z.string(),
+      connectorAuthState: z.object({
+        authState: z.string(),
+        authorizationUri: z.string(),
+        updateTime: z.string(),
+      }).partial(),
+      placeholder: z.string(),
+    }).partial(),
+  ).optional(),
+  collectionComponents: z.array(
+    z.object({
+      connectorAuthState: z.object({
+        authState: z.string(),
+        authorizationUri: z.string(),
+        updateTime: z.string(),
+      }).partial(),
+      connectorIconLink: z.string(),
+      dataSource: z.string(),
+      dataSourceDisplayName: z.string(),
+      dataSourceEndUserDisplayName: z.string(),
+      dataSourceVersion: z.number(),
+      dataStoreComponents: z.array(
+        z.object({
+          dataStoreConfigType: z.string(),
+          displayName: z.string(),
+          entityName: z.string(),
+          id: z.string(),
+          name: z.string(),
+        }).partial(),
+      ),
       displayName: z.string(),
-      entityName: z.string(),
       id: z.string(),
+      isFirstParty: z.boolean(),
+      metadata: z.object({
+        author: z.string(),
+        description: z.string(),
+        note: z.string(),
+        shortDescription: z.string(),
+        title: z.string(),
+      }).partial(),
       name: z.string(),
-    })),
-    displayName: z.string(),
-    id: z.string(),
-    isFirstParty: z.boolean(),
-    metadata: z.object({
-      author: z.string(),
-      description: z.string(),
-      note: z.string(),
-      shortDescription: z.string(),
-      title: z.string(),
-    }),
-    name: z.string(),
-    tag: z.string(),
-  })).optional(),
+      tag: z.string(),
+    }).partial(),
+  ).optional(),
   configId: z.string().optional(),
   contentSearchSpec: z.object({
     chunkSpec: z.object({
       numNextChunks: z.number(),
       numPreviousChunks: z.number(),
-    }),
+    }).partial(),
     extractiveContentSpec: z.object({
       maxExtractiveAnswerCount: z.number(),
       maxExtractiveSegmentCount: z.number(),
       numNextSegments: z.number(),
       numPreviousSegments: z.number(),
       returnExtractiveSegmentScore: z.boolean(),
-    }),
+    }).partial(),
     searchResultMode: z.string(),
     snippetSpec: z.object({
       maxSnippetCount: z.number(),
       referenceOnly: z.boolean(),
       returnSnippet: z.boolean(),
-    }),
+    }).partial(),
     summarySpec: z.object({
       ignoreAdversarialQuery: z.boolean(),
       ignoreJailBreakingQuery: z.boolean(),
@@ -792,29 +798,33 @@ const StateSchema = z.object({
       languageCode: z.string(),
       modelPromptSpec: z.object({
         preamble: z.string(),
-      }),
+      }).partial(),
       modelSpec: z.object({
         version: z.string(),
-      }),
+      }).partial(),
       summaryResultCount: z.number(),
       useSemanticChunks: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   customerProvidedConfig: z.object({
     complianceLevel: z.string(),
     customerType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataStoreType: z.string().optional(),
-  dataStoreUiConfigs: z.array(z.object({
-    facetField: z.array(z.object({
-      displayName: z.string(),
-      field: z.string(),
-    })),
-    fieldsUiComponentsMap: z.record(z.string(), z.unknown()),
-    id: z.string(),
-    name: z.string(),
-  })).optional(),
+  dataStoreUiConfigs: z.array(
+    z.object({
+      facetField: z.array(
+        z.object({
+          displayName: z.string(),
+          field: z.string(),
+        }).partial(),
+      ),
+      fieldsUiComponentsMap: z.record(z.string(), z.unknown()),
+      id: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   defaultSearchRequestOrderBy: z.string().optional(),
   displayName: z.string().optional(),
   enableAutocomplete: z.boolean().optional(),
@@ -827,50 +837,60 @@ const StateSchema = z.object({
   enableSnippetResultSummary: z.boolean().optional(),
   enableSummarization: z.boolean().optional(),
   enableWebApp: z.boolean().optional(),
-  facetField: z.array(z.object({
-    displayName: z.string(),
-    field: z.string(),
-  })).optional(),
+  facetField: z.array(
+    z.object({
+      displayName: z.string(),
+      field: z.string(),
+    }).partial(),
+  ).optional(),
   fieldsUiComponentsMap: z.record(z.string(), z.unknown()).optional(),
   geminiBundle: z.boolean().optional(),
   homepageSetting: z.object({
-    shortcuts: z.array(z.object({
-      destinationUri: z.string(),
-      icon: z.object({
-        url: z.string(),
-      }),
-      title: z.string(),
-    })),
-  }).optional(),
+    shortcuts: z.array(
+      z.object({
+        destinationUri: z.string(),
+        icon: z.object({
+          url: z.string(),
+        }).partial(),
+        title: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   industryVertical: z.string().optional(),
   llmEnabled: z.boolean().optional(),
   minimumDataTermAccepted: z.boolean().optional(),
   name: z.string(),
-  nodes: z.array(z.object({
-    description: z.string(),
-    displayName: z.string(),
-    iconUrl: z.string(),
-    outputSchema: z.record(z.string(), z.unknown()),
-    parameterSchema: z.record(z.string(), z.unknown()),
-    type: z.string(),
-  })).optional(),
+  nodes: z.array(
+    z.object({
+      description: z.string(),
+      displayName: z.string(),
+      iconUrl: z.string(),
+      outputSchema: z.record(z.string(), z.unknown()),
+      parameterSchema: z.record(z.string(), z.unknown()),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   resultDisplayType: z.string().optional(),
   solutionType: z.string().optional(),
   uiBranding: z.object({
     logo: z.object({
       url: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   uiSettings: z.object({
-    dataStoreUiConfigs: z.array(z.object({
-      facetField: z.array(z.object({
-        displayName: z.unknown(),
-        field: z.unknown(),
-      })),
-      fieldsUiComponentsMap: z.record(z.string(), z.unknown()),
-      id: z.string(),
-      name: z.string(),
-    })),
+    dataStoreUiConfigs: z.array(
+      z.object({
+        facetField: z.array(
+          z.object({
+            displayName: z.unknown(),
+            field: z.unknown(),
+          }).partial(),
+        ),
+        fieldsUiComponentsMap: z.record(z.string(), z.unknown()),
+        id: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
     defaultSearchRequestOrderBy: z.string(),
     disableUserEventsCollection: z.boolean(),
     enableAutocomplete: z.boolean(),
@@ -881,17 +901,19 @@ const StateSchema = z.object({
     enableSearchAsYouType: z.boolean(),
     enableVisualContentSummary: z.boolean(),
     featureToggleInfo: z.object({
-      featureToggles: z.array(z.object({
-        id: z.string(),
-        launchStage: z.string(),
-        retirementDate: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        supportsAccessPolicy: z.boolean(),
-      })),
-    }),
+      featureToggles: z.array(
+        z.object({
+          id: z.string(),
+          launchStage: z.string(),
+          retirementDate: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          supportsAccessPolicy: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     features: z.record(z.string(), z.unknown()),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean(),
@@ -904,29 +926,31 @@ const StateSchema = z.object({
       modelPromptPreamble: z.string(),
       modelVersion: z.string(),
       resultCount: z.number(),
-    }),
+    }).partial(),
     googleDrivePickerEnabled: z.boolean(),
     interactionType: z.string(),
     modelConfigInfo: z.object({
       autoModelId: z.string(),
       defaultModelId: z.string(),
-      resolvedModels: z.array(z.object({
-        adminView: z.object({
-          adminOverridable: z.unknown(),
-          enabledByDefault: z.unknown(),
-          regions: z.unknown(),
-        }),
-        description: z.string(),
-        displayName: z.string(),
-        family: z.string(),
-        icon: z.string(),
-        iconUrl: z.string(),
-        isPreview: z.boolean(),
-        label: z.string(),
-        modelId: z.string(),
-        promoted: z.boolean(),
-      })),
-    }),
+      resolvedModels: z.array(
+        z.object({
+          adminView: z.object({
+            adminOverridable: z.unknown(),
+            enabledByDefault: z.unknown(),
+            regions: z.unknown(),
+          }).partial(),
+          description: z.string(),
+          displayName: z.string(),
+          family: z.string(),
+          icon: z.string(),
+          iconUrl: z.string(),
+          isPreview: z.boolean(),
+          label: z.string(),
+          modelId: z.string(),
+          promoted: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     modelConfigs: z.record(z.string(), z.unknown()),
     onedrivePickerEnabled: z.boolean(),
     resultDescriptionType: z.string(),
@@ -934,9 +958,9 @@ const StateSchema = z.object({
       generativeAnswerAddOnDisabled: z.boolean(),
       kpiPersonalizationAddOnDisabled: z.boolean(),
       semanticAddOnDisabled: z.boolean(),
-    }),
+    }).partial(),
     sourceAdminDisplayNameEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -1577,7 +1601,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.DataStores.WidgetConfigs. Registered at `@swamp/gcp/discoveryengine/collections-datastores-widgetconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-datastores-widgetconfigs",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1871,6 +1895,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

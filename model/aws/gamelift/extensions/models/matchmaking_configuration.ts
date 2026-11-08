@@ -52,6 +52,16 @@ const TagSchema = z.object({
   ),
 });
 
+const GamePropertyStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -135,7 +145,7 @@ const StateSchema = z.object({
   CustomEventData: z.string().optional(),
   Description: z.string().optional(),
   FlexMatchMode: z.string().optional(),
-  GameProperties: z.array(GamePropertySchema).optional(),
+  GameProperties: z.array(GamePropertyStateSchema).optional(),
   GameSessionData: z.string().optional(),
   GameSessionQueueArns: z.array(z.string()).optional(),
   Name: z.string(),
@@ -143,10 +153,10 @@ const StateSchema = z.object({
   RequestTimeoutSeconds: z.number().optional(),
   RuleSetArn: z.string().optional(),
   RuleSetName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -232,7 +242,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift MatchmakingConfiguration. Registered at `@swamp/aws/gamelift/matchmaking-configuration`. */
 export const model = {
   type: "@swamp/aws/gamelift/matchmaking-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -296,6 +306,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

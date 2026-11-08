@@ -283,46 +283,48 @@ const StateSchema = z.object({
         day: z.number(),
         month: z.number(),
         year: z.number(),
-      }),
+      }).partial(),
       customStartDate: z.object({
         day: z.number(),
         month: z.number(),
         year: z.number(),
-      }),
+      }).partial(),
       range: z.string(),
-    }),
+    }).partial(),
     format: z.string(),
     sendNotification: z.boolean(),
     shareEmailAddress: z.array(z.string()),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   params: z.object({
-    filters: z.array(z.object({
-      type: z.string(),
-      value: z.string(),
-    })),
+    filters: z.array(
+      z.object({
+        type: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     groupBys: z.array(z.string()),
     metrics: z.array(z.string()),
     options: z.object({
       includeOnlyTargetedUserLists: z.boolean(),
-    }),
+    }).partial(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   queryId: z.string().optional(),
   schedule: z.object({
     endDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     frequency: z.string(),
     nextRunTimezoneCode: z.string(),
     startDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -513,7 +515,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DoubleClick Bid Manager Queries. Registered at `@swamp/gcp/doubleclickbidmanager/queries`. */
 export const model = {
   type: "@swamp/gcp/doubleclickbidmanager/queries",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -647,6 +649,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

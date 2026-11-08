@@ -100,7 +100,7 @@ const StateSchema = z.object({
   LockVersion: z.object({
     DataTable: z.string(),
     Attribute: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Validation: z.object({
     MinLength: z.number(),
     MaxLength: z.number(),
@@ -114,13 +114,13 @@ const StateSchema = z.object({
     Enum: z.object({
       Strict: z.boolean(),
       Values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   LastModifiedTime: z.number().optional(),
   LastModifiedRegion: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -182,7 +182,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect DataTableAttribute. Registered at `@swamp/aws/connect/data-table-attribute`. */
 export const model = {
   type: "@swamp/aws/connect/data-table-attribute",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -251,6 +251,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

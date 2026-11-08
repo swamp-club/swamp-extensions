@@ -122,44 +122,46 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   authorName: z.string().optional(),
-  comments: z.array(z.object({
-    developerComment: z.object({
-      lastModified: z.object({
-        nanos: z.number(),
-        seconds: z.string(),
-      }),
-      text: z.string(),
-    }),
-    userComment: z.object({
-      androidOsVersion: z.number(),
-      appVersionCode: z.number(),
-      appVersionName: z.string(),
-      device: z.string(),
-      deviceMetadata: z.object({
-        cpuMake: z.string(),
-        cpuModel: z.string(),
-        deviceClass: z.string(),
-        glEsVersion: z.number(),
-        manufacturer: z.string(),
-        nativePlatform: z.string(),
-        productName: z.string(),
-        ramMb: z.number(),
-        screenDensityDpi: z.number(),
-        screenHeightPx: z.number(),
-        screenWidthPx: z.number(),
-      }),
-      lastModified: z.object({
-        nanos: z.number(),
-        seconds: z.string(),
-      }),
-      originalText: z.string(),
-      reviewerLanguage: z.string(),
-      starRating: z.number(),
-      text: z.string(),
-      thumbsDownCount: z.number(),
-      thumbsUpCount: z.number(),
-    }),
-  })).optional(),
+  comments: z.array(
+    z.object({
+      developerComment: z.object({
+        lastModified: z.object({
+          nanos: z.number(),
+          seconds: z.string(),
+        }).partial(),
+        text: z.string(),
+      }).partial(),
+      userComment: z.object({
+        androidOsVersion: z.number(),
+        appVersionCode: z.number(),
+        appVersionName: z.string(),
+        device: z.string(),
+        deviceMetadata: z.object({
+          cpuMake: z.string(),
+          cpuModel: z.string(),
+          deviceClass: z.string(),
+          glEsVersion: z.number(),
+          manufacturer: z.string(),
+          nativePlatform: z.string(),
+          productName: z.string(),
+          ramMb: z.number(),
+          screenDensityDpi: z.number(),
+          screenHeightPx: z.number(),
+          screenWidthPx: z.number(),
+        }).partial(),
+        lastModified: z.object({
+          nanos: z.number(),
+          seconds: z.string(),
+        }).partial(),
+        originalText: z.string(),
+        reviewerLanguage: z.string(),
+        starRating: z.number(),
+        text: z.string(),
+        thumbsDownCount: z.number(),
+        thumbsUpCount: z.number(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   reviewId: z.string().optional(),
 }).passthrough();
 
@@ -202,7 +204,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Reviews. Registered at `@swamp/gcp/androidpublisher/reviews`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/reviews",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -326,6 +328,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

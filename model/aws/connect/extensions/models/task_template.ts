@@ -110,6 +110,39 @@ const TagSchema = z.object({
   ),
 });
 
+const FieldIdentifierStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const InvisibleFieldInfoStateSchema = z.object({
+  Id: FieldIdentifierStateSchema,
+}).partial();
+
+const RequiredFieldInfoStateSchema = z.object({
+  Id: FieldIdentifierStateSchema,
+}).partial();
+
+const ReadOnlyFieldInfoStateSchema = z.object({
+  Id: FieldIdentifierStateSchema,
+}).partial();
+
+const DefaultFieldValueStateSchema = z.object({
+  Id: FieldIdentifierStateSchema,
+  DefaultValue: z.string(),
+}).partial();
+
+const FieldStateSchema = z.object({
+  Id: FieldIdentifierStateSchema,
+  Description: z.string(),
+  Type: z.string(),
+  SingleSelectOptions: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -179,18 +212,18 @@ const StateSchema = z.object({
   ContactFlowArn: z.string().optional(),
   SelfAssignContactFlowArn: z.string().optional(),
   Constraints: z.object({
-    InvisibleFields: z.array(InvisibleFieldInfoSchema),
-    RequiredFields: z.array(RequiredFieldInfoSchema),
-    ReadOnlyFields: z.array(ReadOnlyFieldInfoSchema),
-  }).optional(),
-  Defaults: z.array(DefaultFieldValueSchema).optional(),
-  Fields: z.array(FieldSchema).optional(),
+    InvisibleFields: z.array(InvisibleFieldInfoStateSchema),
+    RequiredFields: z.array(RequiredFieldInfoStateSchema),
+    ReadOnlyFields: z.array(ReadOnlyFieldInfoStateSchema),
+  }).partial().optional(),
+  Defaults: z.array(DefaultFieldValueStateSchema).optional(),
+  Fields: z.array(FieldStateSchema).optional(),
   Status: z.string().optional(),
   ClientToken: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -262,7 +295,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect TaskTemplate. Registered at `@swamp/aws/connect/task-template`. */
 export const model = {
   type: "@swamp/aws/connect/task-template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -331,6 +364,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

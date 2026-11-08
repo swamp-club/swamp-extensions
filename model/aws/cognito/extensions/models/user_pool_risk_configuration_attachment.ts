@@ -67,6 +67,36 @@ const NotifyConfigurationTypeSchema = z.object({
   SourceArn: z.string(),
 });
 
+const CompromisedCredentialsActionsTypeStateSchema = z.object({
+  EventAction: z.string(),
+}).partial();
+
+const AccountTakeoverActionTypeStateSchema = z.object({
+  EventAction: z.string(),
+  Notify: z.boolean(),
+}).partial();
+
+const AccountTakeoverActionsTypeStateSchema = z.object({
+  HighAction: AccountTakeoverActionTypeStateSchema,
+  LowAction: AccountTakeoverActionTypeStateSchema,
+  MediumAction: AccountTakeoverActionTypeStateSchema,
+}).partial();
+
+const NotifyEmailTypeStateSchema = z.object({
+  HtmlBody: z.string(),
+  Subject: z.string(),
+  TextBody: z.string(),
+}).partial();
+
+const NotifyConfigurationTypeStateSchema = z.object({
+  BlockEmail: NotifyEmailTypeStateSchema,
+  MfaEmail: NotifyEmailTypeStateSchema,
+  NoActionEmail: NotifyEmailTypeStateSchema,
+  From: z.string(),
+  ReplyTo: z.string(),
+  SourceArn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -105,18 +135,18 @@ const StateSchema = z.object({
   RiskExceptionConfiguration: z.object({
     BlockedIPRangeList: z.array(z.string()),
     SkippedIPRangeList: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   CompromisedCredentialsRiskConfiguration: z.object({
-    Actions: CompromisedCredentialsActionsTypeSchema,
+    Actions: CompromisedCredentialsActionsTypeStateSchema,
     EventFilter: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   AccountTakeoverRiskConfiguration: z.object({
-    Actions: AccountTakeoverActionsTypeSchema,
-    NotifyConfiguration: NotifyConfigurationTypeSchema,
-  }).optional(),
+    Actions: AccountTakeoverActionsTypeStateSchema,
+    NotifyConfiguration: NotifyConfigurationTypeStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -159,7 +189,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito UserPoolRiskConfigurationAttachment. Registered at `@swamp/aws/cognito/user-pool-risk-configuration-attachment`. */
 export const model = {
   type: "@swamp/aws/cognito/user-pool-risk-configuration-attachment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -218,6 +248,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

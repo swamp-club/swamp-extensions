@@ -210,10 +210,10 @@ const StateSchema = z.object({
       outputFormat: z.string(),
       serdeInfo: z.object({
         serializationLib: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     tableType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   type: z.string().optional(),
   updateTime: z.string().optional(),
@@ -292,7 +292,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Lakehouse Catalogs.Databases.Tables. Registered at `@swamp/gcp/biglake/catalogs-databases-tables`. */
 export const model = {
   type: "@swamp/gcp/biglake/catalogs-databases-tables",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -446,6 +446,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -73,6 +73,34 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256).describe("Tag value."),
 });
 
+const KbTemplateConfigurationStateSchema = z.object({
+  Template: z.unknown(),
+}).partial();
+
+const ImageExtractionConfigurationStateSchema = z.object({
+  ImageExtractionStatus: z.string(),
+}).partial();
+
+const AudioExtractionConfigurationStateSchema = z.object({
+  AudioExtractionStatus: z.string(),
+}).partial();
+
+const VideoExtractionConfigurationStateSchema = z.object({
+  VideoExtractionStatus: z.string(),
+  VideoExtractionType: z.string(),
+}).partial();
+
+const ResourcePermissionStateSchema = z.object({
+  Principal: z.string(),
+  Resource: z.string(),
+  Actions: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -123,7 +151,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   AccessControlConfiguration: z.object({
     IsACLEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   AwsAccountId: z.string(),
   CreatedAt: z.string().optional(),
   DataSourceArn: z.string().optional(),
@@ -132,26 +160,26 @@ const StateSchema = z.object({
   IsEmailNotificationOptedForIngestionFailures: z.boolean().optional(),
   KnowledgeBaseArn: z.string().optional(),
   KnowledgeBaseConfiguration: z.object({
-    TemplateConfiguration: KbTemplateConfigurationSchema,
-  }).optional(),
+    TemplateConfiguration: KbTemplateConfigurationStateSchema,
+  }).partial().optional(),
   KnowledgeBaseId: z.string(),
   KnowledgeBaseSizeBytes: z.number().optional(),
   MediaExtractionConfiguration: z.object({
-    ImageExtractionConfiguration: ImageExtractionConfigurationSchema,
-    AudioExtractionConfiguration: AudioExtractionConfigurationSchema,
-    VideoExtractionConfiguration: VideoExtractionConfigurationSchema,
-  }).optional(),
+    ImageExtractionConfiguration: ImageExtractionConfigurationStateSchema,
+    AudioExtractionConfiguration: AudioExtractionConfigurationStateSchema,
+    VideoExtractionConfiguration: VideoExtractionConfigurationStateSchema,
+  }).partial().optional(),
   Name: z.string().optional(),
-  Permissions: z.array(ResourcePermissionSchema).optional(),
+  Permissions: z.array(ResourcePermissionStateSchema).optional(),
   PrimaryOwnerArn: z.string().optional(),
   PrimaryOwnerUsername: z.string().optional(),
   Status: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Type: z.string().optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -209,7 +237,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight KnowledgeBase. Registered at `@swamp/aws/quicksight/knowledge-base`. */
 export const model = {
   type: "@swamp/aws/quicksight/knowledge-base",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -233,6 +261,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

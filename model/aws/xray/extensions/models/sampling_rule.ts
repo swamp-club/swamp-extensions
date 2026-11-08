@@ -91,6 +91,33 @@ const TagSchema = z.object({
   Value: z.string().describe("The value for the tag."),
 });
 
+const SamplingRateBoostStateSchema = z.object({
+  MaxRate: z.number(),
+  CooldownWindowMinutes: z.number(),
+}).partial();
+
+const SamplingRuleStateSchema = z.object({
+  Attributes: z.record(z.string(), z.unknown()),
+  FixedRate: z.number(),
+  Host: z.string(),
+  HTTPMethod: z.string(),
+  Priority: z.number(),
+  ReservoirSize: z.number(),
+  ResourceARN: z.string(),
+  RuleARN: z.string(),
+  RuleName: z.string(),
+  ServiceName: z.string(),
+  ServiceType: z.string(),
+  URLPath: z.string(),
+  Version: z.number(),
+  SamplingRateBoost: SamplingRateBoostStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -206,12 +233,27 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  SamplingRule: SamplingRuleSchema.optional(),
+  SamplingRule: z.object({
+    Attributes: z.record(z.string(), z.unknown()),
+    FixedRate: z.number(),
+    Host: z.string(),
+    HTTPMethod: z.string(),
+    Priority: z.number(),
+    ReservoirSize: z.number(),
+    ResourceARN: z.string(),
+    RuleARN: z.string(),
+    RuleName: z.string(),
+    ServiceName: z.string(),
+    ServiceType: z.string(),
+    URLPath: z.string(),
+    Version: z.number(),
+    SamplingRateBoost: SamplingRateBoostStateSchema,
+  }).partial().optional(),
   SamplingRuleRecord: z.object({
     CreatedAt: z.string(),
     ModifiedAt: z.string(),
-    SamplingRule: SamplingRuleSchema,
-  }).optional(),
+    SamplingRule: SamplingRuleStateSchema,
+  }).partial().optional(),
   SamplingRuleUpdate: z.object({
     Attributes: z.record(z.string(), z.unknown()),
     FixedRate: z.number(),
@@ -225,14 +267,14 @@ const StateSchema = z.object({
     ServiceName: z.string(),
     ServiceType: z.string(),
     URLPath: z.string(),
-    SamplingRateBoost: SamplingRateBoostSchema,
-  }).optional(),
+    SamplingRateBoost: SamplingRateBoostStateSchema,
+  }).partial().optional(),
   RuleARN: z.string(),
   RuleName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -357,7 +399,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for XRay SamplingRule. Registered at `@swamp/aws/xray/sampling-rule`. */
 export const model = {
   type: "@swamp/aws/xray/sampling-rule",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -421,6 +463,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

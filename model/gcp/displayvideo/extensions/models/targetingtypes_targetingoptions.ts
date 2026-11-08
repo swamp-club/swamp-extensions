@@ -132,118 +132,118 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ageRangeDetails: z.object({
     ageRange: z.string(),
-  }).optional(),
+  }).partial().optional(),
   appCategoryDetails: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   auctionPackageDetails: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   audioContentTypeDetails: z.object({
     audioContentType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   authorizedSellerStatusDetails: z.object({
     authorizedSellerStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   browserDetails: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   businessChainDetails: z.object({
     businessChain: z.string(),
     geoRegion: z.string(),
     geoRegionType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   carrierAndIspDetails: z.object({
     displayName: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   categoryDetails: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentDurationDetails: z.object({
     contentDuration: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentGenreDetails: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentInstreamPositionDetails: z.object({
     contentInstreamPosition: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentOutstreamPositionDetails: z.object({
     contentOutstreamPosition: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentStreamTypeDetails: z.object({
     contentStreamType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentThemeDetails: z.object({
     contentTheme: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deviceMakeModelDetails: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deviceTypeDetails: z.object({
     deviceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   digitalContentLabelDetails: z.object({
     contentRatingTier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   environmentDetails: z.object({
     environment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   exchangeDetails: z.object({
     exchange: z.string(),
-  }).optional(),
+  }).partial().optional(),
   genderDetails: z.object({
     gender: z.string(),
-  }).optional(),
+  }).partial().optional(),
   geoRegionDetails: z.object({
     displayName: z.string(),
     geoRegionType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   householdIncomeDetails: z.object({
     householdIncome: z.string(),
-  }).optional(),
+  }).partial().optional(),
   languageDetails: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   nativeContentPositionDetails: z.object({
     contentPosition: z.string(),
-  }).optional(),
+  }).partial().optional(),
   omidDetails: z.object({
     omid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   onScreenPositionDetails: z.object({
     onScreenPosition: z.string(),
-  }).optional(),
+  }).partial().optional(),
   operatingSystemDetails: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   parentalStatusDetails: z.object({
     parentalStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   poiDetails: z.object({
     displayName: z.string(),
     latitude: z.number(),
     longitude: z.number(),
-  }).optional(),
+  }).partial().optional(),
   sensitiveCategoryDetails: z.object({
     sensitiveCategory: z.string(),
-  }).optional(),
+  }).partial().optional(),
   subExchangeDetails: z.object({
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetingOptionId: z.string().optional(),
   targetingType: z.string().optional(),
   userRewardedContentDetails: z.object({
     userRewardedContent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   videoPlayerSizeDetails: z.object({
     videoPlayerSize: z.string(),
-  }).optional(),
+  }).partial().optional(),
   viewabilityDetails: z.object({
     viewability: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -287,7 +287,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 TargetingTypes.TargetingOptions. Registered at `@swamp/gcp/displayvideo/targetingtypes-targetingoptions`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/targetingtypes-targetingoptions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -421,6 +421,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

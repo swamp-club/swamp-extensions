@@ -131,21 +131,23 @@ const StateSchema = z.object({
     databaseManagementConfig: z.object({
       managementState: z.string(),
       managementType: z.string(),
-    }),
+    }).partial(),
     dbBackupConfig: z.object({
       autoBackupEnabled: z.boolean(),
       autoFullBackupDay: z.string(),
       autoFullBackupWindow: z.string(),
       autoIncrementalBackupWindow: z.string(),
       backupDeletionPolicy: z.string(),
-      backupDestinationDetails: z.array(z.object({
-        type: z.string(),
-      })),
+      backupDestinationDetails: z.array(
+        z.object({
+          type: z.string(),
+        }).partial(),
+      ),
       retentionPeriodDays: z.number(),
-    }),
+    }).partial(),
     dbVersion: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tdeWalletPassword: z.string().optional(),
   tdeWalletPasswordSecretVersion: z.string().optional(),
 }).passthrough();
@@ -191,7 +193,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud Databases. Registered at `@swamp/gcp/oracledatabase/databases`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/databases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -345,6 +347,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

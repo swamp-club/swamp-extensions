@@ -216,17 +216,21 @@ const StateSchema = z.object({
   active: z.boolean().optional(),
   displayName: z.string().optional(),
   name: z.string(),
-  phraseMatchRuleGroups: z.array(z.object({
-    phraseMatchRules: z.array(z.object({
-      config: z.object({
-        exactMatchConfig: z.unknown(),
-        regexMatchConfig: z.unknown(),
-      }),
-      negated: z.boolean(),
-      query: z.string(),
-    })),
-    type: z.string(),
-  })).optional(),
+  phraseMatchRuleGroups: z.array(
+    z.object({
+      phraseMatchRules: z.array(
+        z.object({
+          config: z.object({
+            exactMatchConfig: z.unknown(),
+            regexMatchConfig: z.unknown(),
+          }).partial(),
+          negated: z.boolean(),
+          query: z.string(),
+        }).partial(),
+      ),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   revisionCreateTime: z.string().optional(),
   revisionId: z.string().optional(),
   roleMatch: z.string().optional(),
@@ -327,7 +331,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights PhraseMatchers. Registered at `@swamp/gcp/contactcenterinsights/phrasematchers`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/phrasematchers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -471,6 +475,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

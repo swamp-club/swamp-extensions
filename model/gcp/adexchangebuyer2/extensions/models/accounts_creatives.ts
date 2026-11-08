@@ -292,34 +292,38 @@ const StateSchema = z.object({
   adTechnologyProviders: z.object({
     detectedProviderIds: z.array(z.string()),
     hasUnidentifiedProvider: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   advertiserName: z.string().optional(),
   agencyId: z.string().optional(),
   apiUpdateTime: z.string().optional(),
   attributes: z.array(z.string()).optional(),
   clickThroughUrls: z.array(z.string()).optional(),
-  corrections: z.array(z.object({
-    contexts: z.array(z.object({
-      all: z.string(),
-      appType: z.object({
-        appTypes: z.unknown(),
-      }),
-      auctionType: z.object({
-        auctionTypes: z.unknown(),
-      }),
-      location: z.object({
-        geoCriteriaIds: z.unknown(),
-      }),
-      platform: z.object({
-        platforms: z.unknown(),
-      }),
-      securityType: z.object({
-        securities: z.unknown(),
-      }),
-    })),
-    details: z.array(z.string()),
-    type: z.string(),
-  })).optional(),
+  corrections: z.array(
+    z.object({
+      contexts: z.array(
+        z.object({
+          all: z.string(),
+          appType: z.object({
+            appTypes: z.unknown(),
+          }).partial(),
+          auctionType: z.object({
+            auctionTypes: z.unknown(),
+          }).partial(),
+          location: z.object({
+            geoCriteriaIds: z.unknown(),
+          }).partial(),
+          platform: z.object({
+            platforms: z.unknown(),
+          }).partial(),
+          securityType: z.object({
+            securities: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      details: z.array(z.string()),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   creativeId: z.string().optional(),
   dealsStatus: z.string().optional(),
   declaredClickThroughUrls: z.array(z.string()).optional(),
@@ -332,7 +336,7 @@ const StateSchema = z.object({
     height: z.number(),
     snippet: z.string(),
     width: z.number(),
-  }).optional(),
+  }).partial().optional(),
   impressionTrackingUrls: z.array(z.string()).optional(),
   native: z.object({
     advertiserName: z.string(),
@@ -340,7 +344,7 @@ const StateSchema = z.object({
       height: z.number(),
       url: z.string(),
       width: z.number(),
-    }),
+    }).partial(),
     body: z.string(),
     callToAction: z.string(),
     clickLinkUrl: z.string(),
@@ -350,54 +354,60 @@ const StateSchema = z.object({
       height: z.number(),
       url: z.string(),
       width: z.number(),
-    }),
+    }).partial(),
     logo: z.object({
       height: z.number(),
       url: z.string(),
       width: z.number(),
-    }),
+    }).partial(),
     priceDisplayText: z.string(),
     starRating: z.number(),
     storeUrl: z.string(),
     videoUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   openAuctionStatus: z.string().optional(),
   restrictedCategories: z.array(z.string()).optional(),
-  servingRestrictions: z.array(z.object({
-    contexts: z.array(z.object({
-      all: z.string(),
-      appType: z.object({
-        appTypes: z.unknown(),
-      }),
-      auctionType: z.object({
-        auctionTypes: z.unknown(),
-      }),
-      location: z.object({
-        geoCriteriaIds: z.unknown(),
-      }),
-      platform: z.object({
-        platforms: z.unknown(),
-      }),
-      securityType: z.object({
-        securities: z.unknown(),
-      }),
-    })),
-    disapproval: z.object({
-      details: z.array(z.string()),
-      reason: z.string(),
-    }),
-    disapprovalReasons: z.array(z.object({
-      details: z.array(z.unknown()),
-      reason: z.string(),
-    })),
-    status: z.string(),
-  })).optional(),
+  servingRestrictions: z.array(
+    z.object({
+      contexts: z.array(
+        z.object({
+          all: z.string(),
+          appType: z.object({
+            appTypes: z.unknown(),
+          }).partial(),
+          auctionType: z.object({
+            auctionTypes: z.unknown(),
+          }).partial(),
+          location: z.object({
+            geoCriteriaIds: z.unknown(),
+          }).partial(),
+          platform: z.object({
+            platforms: z.unknown(),
+          }).partial(),
+          securityType: z.object({
+            securities: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      disapproval: z.object({
+        details: z.array(z.string()),
+        reason: z.string(),
+      }).partial(),
+      disapprovalReasons: z.array(
+        z.object({
+          details: z.array(z.unknown()),
+          reason: z.string(),
+        }).partial(),
+      ),
+      status: z.string(),
+    }).partial(),
+  ).optional(),
   vendorIds: z.array(z.number()).optional(),
   version: z.number().optional(),
   video: z.object({
     videoUrl: z.string(),
     videoVastXml: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -572,7 +582,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Accounts.Creatives. Registered at `@swamp/gcp/adexchangebuyer2/accounts-creatives`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/accounts-creatives",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -719,6 +729,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

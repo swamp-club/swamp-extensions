@@ -246,71 +246,81 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   displayName: z.string().optional(),
   name: z.string(),
-  transitionRoutes: z.array(z.object({
-    condition: z.string(),
-    description: z.string(),
-    intent: z.string(),
-    name: z.string(),
-    targetFlow: z.string(),
-    targetPage: z.string(),
-    triggerFulfillment: z.object({
-      advancedSettings: z.object({
-        audioExportGcsDestination: z.object({
-          uri: z.unknown(),
-        }),
-        dtmfSettings: z.object({
-          enabled: z.unknown(),
-          endpointingTimeoutDuration: z.unknown(),
-          finishDigit: z.unknown(),
-          interdigitTimeoutDuration: z.unknown(),
-          maxDigits: z.unknown(),
-        }),
-        loggingSettings: z.object({
-          enableConsentBasedRedaction: z.unknown(),
-          enableInteractionLogging: z.unknown(),
-          enableStackdriverLogging: z.unknown(),
-        }),
-        speechSettings: z.object({
-          endpointerSensitivity: z.unknown(),
-          models: z.unknown(),
-          noSpeechTimeout: z.unknown(),
-          useTimeoutBasedEndpointing: z.unknown(),
-        }),
-      }),
-      codeBlockFunction: z.string(),
-      conditionalCases: z.array(z.object({
-        cases: z.unknown(),
-      })),
-      enableGenerativeFallback: z.boolean(),
-      generators: z.array(z.object({
-        generator: z.unknown(),
-        inputParameters: z.unknown(),
-        outputParameter: z.unknown(),
-      })),
-      messages: z.array(z.object({
-        channel: z.unknown(),
-        conversationSuccess: z.unknown(),
-        endInteraction: z.unknown(),
-        knowledgeInfoCard: z.unknown(),
-        liveAgentHandoff: z.unknown(),
-        mixedAudio: z.unknown(),
-        outputAudioText: z.unknown(),
-        payload: z.unknown(),
-        playAudio: z.unknown(),
-        responseType: z.unknown(),
-        telephonyTransferCall: z.unknown(),
-        text: z.unknown(),
-        toolCall: z.unknown(),
-      })),
-      returnPartialResponses: z.boolean(),
-      setParameterActions: z.array(z.object({
-        parameter: z.unknown(),
-        value: z.unknown(),
-      })),
-      tag: z.string(),
-      webhook: z.string(),
-    }),
-  })).optional(),
+  transitionRoutes: z.array(
+    z.object({
+      condition: z.string(),
+      description: z.string(),
+      intent: z.string(),
+      name: z.string(),
+      targetFlow: z.string(),
+      targetPage: z.string(),
+      triggerFulfillment: z.object({
+        advancedSettings: z.object({
+          audioExportGcsDestination: z.object({
+            uri: z.unknown(),
+          }).partial(),
+          dtmfSettings: z.object({
+            enabled: z.unknown(),
+            endpointingTimeoutDuration: z.unknown(),
+            finishDigit: z.unknown(),
+            interdigitTimeoutDuration: z.unknown(),
+            maxDigits: z.unknown(),
+          }).partial(),
+          loggingSettings: z.object({
+            enableConsentBasedRedaction: z.unknown(),
+            enableInteractionLogging: z.unknown(),
+            enableStackdriverLogging: z.unknown(),
+          }).partial(),
+          speechSettings: z.object({
+            endpointerSensitivity: z.unknown(),
+            models: z.unknown(),
+            noSpeechTimeout: z.unknown(),
+            useTimeoutBasedEndpointing: z.unknown(),
+          }).partial(),
+        }).partial(),
+        codeBlockFunction: z.string(),
+        conditionalCases: z.array(
+          z.object({
+            cases: z.unknown(),
+          }).partial(),
+        ),
+        enableGenerativeFallback: z.boolean(),
+        generators: z.array(
+          z.object({
+            generator: z.unknown(),
+            inputParameters: z.unknown(),
+            outputParameter: z.unknown(),
+          }).partial(),
+        ),
+        messages: z.array(
+          z.object({
+            channel: z.unknown(),
+            conversationSuccess: z.unknown(),
+            endInteraction: z.unknown(),
+            knowledgeInfoCard: z.unknown(),
+            liveAgentHandoff: z.unknown(),
+            mixedAudio: z.unknown(),
+            outputAudioText: z.unknown(),
+            payload: z.unknown(),
+            playAudio: z.unknown(),
+            responseType: z.unknown(),
+            telephonyTransferCall: z.unknown(),
+            text: z.unknown(),
+            toolCall: z.unknown(),
+          }).partial(),
+        ),
+        returnPartialResponses: z.boolean(),
+        setParameterActions: z.array(
+          z.object({
+            parameter: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        tag: z.string(),
+        webhook: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -425,7 +435,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.TransitionRouteGroups. Registered at `@swamp/gcp/dialogflow/agents-transitionroutegroups`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-transitionroutegroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -579,6 +589,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -125,6 +125,75 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const IngressAnalysisStateSchema = z.object({
+  Analyzer: z.string(),
+  ResultField: z.string(),
+}).partial();
+
+const IngressStringExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Attribute: z.string(),
+    Analysis: IngressAnalysisStateSchema,
+  }).partial(),
+  Operator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const IngressIpv4ExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Attribute: z.string(),
+  }).partial(),
+  Operator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const IngressIpv6ExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Attribute: z.string(),
+  }).partial(),
+  Operator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const IngressTlsProtocolExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Attribute: z.string(),
+  }).partial(),
+  Operator: z.string(),
+  Value: z.string(),
+}).partial();
+
+const IngressIsInAddressListStateSchema = z.object({
+  Attribute: z.string(),
+  AddressLists: z.array(z.string()),
+}).partial();
+
+const IngressBooleanExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Analysis: IngressAnalysisStateSchema,
+    IsInAddressList: IngressIsInAddressListStateSchema,
+  }).partial(),
+  Operator: z.string(),
+}).partial();
+
+const PolicyStatementStateSchema = z.object({
+  Conditions: z.array(
+    z.object({
+      StringExpression: IngressStringExpressionStateSchema,
+      IpExpression: IngressIpv4ExpressionStateSchema,
+      Ipv6Expression: IngressIpv6ExpressionStateSchema,
+      TlsExpression: IngressTlsProtocolExpressionStateSchema,
+      BooleanExpression: IngressBooleanExpressionStateSchema,
+    }).partial(),
+  ),
+  Action: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -153,14 +222,14 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   DefaultAction: z.string().optional(),
   MaxMessageSizeBytes: z.number().optional(),
-  PolicyStatements: z.array(PolicyStatementSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  PolicyStatements: z.array(PolicyStatementStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TrafficPolicyArn: z.string().optional(),
   TrafficPolicyId: z.string(),
   TrafficPolicyName: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -196,7 +265,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES MailManagerTrafficPolicy. Registered at `@swamp/aws/ses/mail-manager-traffic-policy`. */
 export const model = {
   type: "@swamp/aws/ses/mail-manager-traffic-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -265,6 +334,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

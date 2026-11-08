@@ -220,10 +220,10 @@ const StateSchema = z.object({
     ipProtocol: z.string(),
     protocolVersion: z.string(),
     srcRange: z.string(),
-  }).optional(),
+  }).partial().optional(),
   interconnectAttachment: z.object({
     region: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -235,12 +235,14 @@ const StateSchema = z.object({
   updateTime: z.string().optional(),
   virtualMachine: z.object({
     tags: z.array(z.string()),
-  }).optional(),
-  warnings: z.array(z.object({
-    code: z.string(),
-    data: z.record(z.string(), z.unknown()),
-    warningMessage: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  warnings: z.array(
+    z.object({
+      code: z.string(),
+      data: z.record(z.string(), z.unknown()),
+      warningMessage: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -341,7 +343,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity Global.PolicyBasedRoutes. Registered at `@swamp/gcp/networkconnectivity/global-policybasedroutes`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/global-policybasedroutes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -502,6 +504,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

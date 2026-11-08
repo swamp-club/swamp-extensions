@@ -307,24 +307,26 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  copyHistory: z.array(z.object({
-    attachmentId: z.string(),
-    courseId: z.string(),
-    itemId: z.string(),
-    postId: z.string(),
-  })).optional(),
+  copyHistory: z.array(
+    z.object({
+      attachmentId: z.string(),
+      courseId: z.string(),
+      itemId: z.string(),
+      postId: z.string(),
+    }).partial(),
+  ).optional(),
   courseId: z.string().optional(),
   dueDate: z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   dueTime: z.object({
     hours: z.number(),
     minutes: z.number(),
     nanos: z.number(),
     seconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
   gradeSyncEnabled: z.boolean().optional(),
   id: z.string().optional(),
   itemId: z.string().optional(),
@@ -332,13 +334,13 @@ const StateSchema = z.object({
   postId: z.string().optional(),
   studentViewUri: z.object({
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   studentWorkReviewUri: z.object({
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   teacherViewUri: z.object({
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   title: z.string().optional(),
 }).passthrough();
 
@@ -447,7 +449,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Classroom Courses.CourseWorkMaterials.AddOnAttachments. Registered at `@swamp/gcp/classroom/courses-courseworkmaterials-addonattachments`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses-courseworkmaterials-addonattachments",
-  version: "2026.11.03.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -591,6 +593,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

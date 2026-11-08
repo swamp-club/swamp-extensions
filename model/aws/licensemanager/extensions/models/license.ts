@@ -66,6 +66,34 @@ const TagSchema = z.object({
   Value: z.string().describe("The value for the tag."),
 });
 
+const EntitlementStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+  MaxCount: z.number(),
+  Overage: z.boolean(),
+  Unit: z.string(),
+  AllowCheckIn: z.boolean(),
+}).partial();
+
+const ProvisionalConfigurationStateSchema = z.object({
+  MaxTimeToLiveInMinutes: z.number(),
+}).partial();
+
+const BorrowConfigurationStateSchema = z.object({
+  MaxTimeToLiveInMinutes: z.number(),
+  AllowEarlyCheckIn: z.boolean(),
+}).partial();
+
+const MetadataStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -114,29 +142,29 @@ const StateSchema = z.object({
   Issuer: z.object({
     Name: z.string(),
     SignKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LicenseName: z.string().optional(),
   ProductName: z.string().optional(),
   HomeRegion: z.string().optional(),
   Validity: z.object({
     Begin: z.string(),
     End: z.string(),
-  }).optional(),
-  Entitlements: z.array(EntitlementSchema).optional(),
+  }).partial().optional(),
+  Entitlements: z.array(EntitlementStateSchema).optional(),
   Beneficiary: z.string().optional(),
   ConsumptionConfiguration: z.object({
     RenewType: z.string(),
-    ProvisionalConfiguration: ProvisionalConfigurationSchema,
-    BorrowConfiguration: BorrowConfigurationSchema,
-  }).optional(),
-  LicenseMetadata: z.array(MetadataSchema).optional(),
+    ProvisionalConfiguration: ProvisionalConfigurationStateSchema,
+    BorrowConfiguration: BorrowConfigurationStateSchema,
+  }).partial().optional(),
+  LicenseMetadata: z.array(MetadataStateSchema).optional(),
   LicenseArn: z.string(),
   Status: z.string().optional(),
   Version: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -191,7 +219,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LicenseManager License. Registered at `@swamp/aws/licensemanager/license`. */
 export const model = {
   type: "@swamp/aws/licensemanager/license",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -255,6 +283,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

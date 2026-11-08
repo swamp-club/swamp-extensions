@@ -87,6 +87,36 @@ const TagSchema = z.object({
   Key: z.string().optional(),
 });
 
+const LoadBalancerStateSchema = z.object({
+  TargetGroupArn: z.string(),
+  ContainerName: z.string(),
+  ContainerPort: z.number(),
+}).partial();
+
+const ServiceRegistryStateSchema = z.object({
+  ContainerName: z.string(),
+  Port: z.number(),
+  ContainerPort: z.number(),
+  RegistryArn: z.string(),
+}).partial();
+
+const CapacityProviderStrategyItemStateSchema = z.object({
+  CapacityProvider: z.string(),
+  Base: z.number(),
+  Weight: z.number(),
+}).partial();
+
+const AwsVpcConfigurationStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+  AssignPublicIp: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -151,25 +181,25 @@ const StateSchema = z.object({
   PlatformVersion: z.string().optional(),
   ExternalId: z.string().optional(),
   Cluster: z.string(),
-  LoadBalancers: z.array(LoadBalancerSchema).optional(),
+  LoadBalancers: z.array(LoadBalancerStateSchema).optional(),
   Service: z.string(),
   Scale: z.object({
     Value: z.number(),
     Unit: z.string(),
-  }).optional(),
-  ServiceRegistries: z.array(ServiceRegistrySchema).optional(),
-  CapacityProviderStrategy: z.array(CapacityProviderStrategyItemSchema)
+  }).partial().optional(),
+  ServiceRegistries: z.array(ServiceRegistryStateSchema).optional(),
+  CapacityProviderStrategy: z.array(CapacityProviderStrategyItemStateSchema)
     .optional(),
   LaunchType: z.string().optional(),
   TaskDefinition: z.string().optional(),
   NetworkConfiguration: z.object({
-    AwsVpcConfiguration: AwsVpcConfigurationSchema,
-  }).optional(),
+    AwsVpcConfiguration: AwsVpcConfigurationStateSchema,
+  }).partial().optional(),
   Id: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -240,7 +270,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS TaskSet. Registered at `@swamp/aws/ecs/task-set`. */
 export const model = {
   type: "@swamp/aws/ecs/task-set",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -299,6 +329,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

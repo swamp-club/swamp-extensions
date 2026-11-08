@@ -101,51 +101,55 @@ const StateSchema = z.object({
     eventAttributes: z.object({
       categoricalFeatures: z.record(z.string(), z.unknown()),
       numericalFeatures: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     experimentIds: z.array(z.string()),
     pageViewId: z.string(),
     recommendationToken: z.string(),
     referrerUri: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   eventSource: z.string().optional(),
   eventTime: z.string().optional(),
   eventType: z.string().optional(),
   productEventDetail: z.object({
     cartId: z.string(),
     listId: z.string(),
-    pageCategories: z.array(z.object({
-      categories: z.array(z.string()),
-    })),
-    productDetails: z.array(z.object({
-      availableQuantity: z.number(),
-      currencyCode: z.string(),
-      displayPrice: z.number(),
-      id: z.string(),
-      itemAttributes: z.object({
-        categoricalFeatures: z.record(z.string(), z.unknown()),
-        numericalFeatures: z.record(z.string(), z.unknown()),
-      }),
-      originalPrice: z.number(),
-      quantity: z.number(),
-      stockState: z.string(),
-    })),
+    pageCategories: z.array(
+      z.object({
+        categories: z.array(z.string()),
+      }).partial(),
+    ),
+    productDetails: z.array(
+      z.object({
+        availableQuantity: z.number(),
+        currencyCode: z.string(),
+        displayPrice: z.number(),
+        id: z.string(),
+        itemAttributes: z.object({
+          categoricalFeatures: z.record(z.string(), z.unknown()),
+          numericalFeatures: z.record(z.string(), z.unknown()),
+        }).partial(),
+        originalPrice: z.number(),
+        quantity: z.number(),
+        stockState: z.string(),
+      }).partial(),
+    ),
     purchaseTransaction: z.object({
       costs: z.record(z.string(), z.unknown()),
       currencyCode: z.string(),
       id: z.string(),
       revenue: z.number(),
       taxes: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     searchQuery: z.string(),
-  }).optional(),
+  }).partial().optional(),
   userInfo: z.object({
     directUserRequest: z.boolean(),
     ipAddress: z.string(),
     userAgent: z.string(),
     userId: z.string(),
     visitorId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -192,7 +196,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Recommendations AI (Beta) Catalogs.EventStores.UserEvents. Registered at `@swamp/gcp/recommendationengine/catalogs-eventstores-userevents`. */
 export const model = {
   type: "@swamp/gcp/recommendationengine/catalogs-eventstores-userevents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -326,6 +330,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

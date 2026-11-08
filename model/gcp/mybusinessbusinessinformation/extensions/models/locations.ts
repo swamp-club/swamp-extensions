@@ -654,41 +654,51 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   adWordsLocationExtensions: z.object({
     adPhone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   categories: z.object({
-    additionalCategories: z.array(z.object({
-      displayName: z.string(),
-      moreHoursTypes: z.array(z.object({
-        displayName: z.unknown(),
-        hoursTypeId: z.unknown(),
-        localizedDisplayName: z.unknown(),
-      })),
-      name: z.string(),
-      serviceTypes: z.array(z.object({
-        displayName: z.unknown(),
-        serviceTypeId: z.unknown(),
-      })),
-    })),
+    additionalCategories: z.array(
+      z.object({
+        displayName: z.string(),
+        moreHoursTypes: z.array(
+          z.object({
+            displayName: z.unknown(),
+            hoursTypeId: z.unknown(),
+            localizedDisplayName: z.unknown(),
+          }).partial(),
+        ),
+        name: z.string(),
+        serviceTypes: z.array(
+          z.object({
+            displayName: z.unknown(),
+            serviceTypeId: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
     primaryCategory: z.object({
       displayName: z.string(),
-      moreHoursTypes: z.array(z.object({
-        displayName: z.string(),
-        hoursTypeId: z.string(),
-        localizedDisplayName: z.string(),
-      })),
+      moreHoursTypes: z.array(
+        z.object({
+          displayName: z.string(),
+          hoursTypeId: z.string(),
+          localizedDisplayName: z.string(),
+        }).partial(),
+      ),
       name: z.string(),
-      serviceTypes: z.array(z.object({
-        displayName: z.string(),
-        serviceTypeId: z.string(),
-      })),
-    }),
-  }).optional(),
+      serviceTypes: z.array(
+        z.object({
+          displayName: z.string(),
+          serviceTypeId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   labels: z.array(z.string()).optional(),
   languageCode: z.string().optional(),
   latlng: z.object({
     latitude: z.number(),
     longitude: z.number(),
-  }).optional(),
+  }).partial().optional(),
   metadata: z.object({
     canDelete: z.boolean(),
     canHaveBusinessCalls: z.boolean(),
@@ -705,26 +715,30 @@ const StateSchema = z.object({
     mapsUri: z.string(),
     newReviewUri: z.string(),
     placeId: z.string(),
-  }).optional(),
-  moreHours: z.array(z.object({
-    hoursTypeId: z.string(),
-    periods: z.array(z.object({
-      closeDay: z.string(),
-      closeTime: z.object({
-        hours: z.unknown(),
-        minutes: z.unknown(),
-        nanos: z.unknown(),
-        seconds: z.unknown(),
-      }),
-      openDay: z.string(),
-      openTime: z.object({
-        hours: z.unknown(),
-        minutes: z.unknown(),
-        nanos: z.unknown(),
-        seconds: z.unknown(),
-      }),
-    })),
-  })).optional(),
+  }).partial().optional(),
+  moreHours: z.array(
+    z.object({
+      hoursTypeId: z.string(),
+      periods: z.array(
+        z.object({
+          closeDay: z.string(),
+          closeTime: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          openDay: z.string(),
+          openTime: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   openInfo: z.object({
     canReopen: z.boolean(),
@@ -732,101 +746,111 @@ const StateSchema = z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   phoneNumbers: z.object({
     additionalPhones: z.array(z.string()),
     primaryPhone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   profile: z.object({
     description: z.string(),
-  }).optional(),
+  }).partial().optional(),
   regularHours: z.object({
-    periods: z.array(z.object({
-      closeDay: z.string(),
-      closeTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-      openDay: z.string(),
-      openTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
-  }).optional(),
+    periods: z.array(
+      z.object({
+        closeDay: z.string(),
+        closeTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+        openDay: z.string(),
+        openTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   relationshipData: z.object({
-    childrenLocations: z.array(z.object({
-      placeId: z.string(),
-      relationType: z.string(),
-    })),
+    childrenLocations: z.array(
+      z.object({
+        placeId: z.string(),
+        relationType: z.string(),
+      }).partial(),
+    ),
     parentChain: z.string(),
     parentLocation: z.object({
       placeId: z.string(),
       relationType: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   serviceArea: z.object({
     businessType: z.string(),
     places: z.object({
-      placeInfos: z.array(z.object({
-        placeId: z.string(),
-        placeName: z.string(),
-      })),
-    }),
+      placeInfos: z.array(
+        z.object({
+          placeId: z.string(),
+          placeName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     regionCode: z.string(),
-  }).optional(),
-  serviceItems: z.array(z.object({
-    freeFormServiceItem: z.object({
-      category: z.string(),
-      label: z.object({
+  }).partial().optional(),
+  serviceItems: z.array(
+    z.object({
+      freeFormServiceItem: z.object({
+        category: z.string(),
+        label: z.object({
+          description: z.string(),
+          displayName: z.string(),
+          languageCode: z.string(),
+        }).partial(),
+      }).partial(),
+      price: z.object({
+        currencyCode: z.string(),
+        nanos: z.number(),
+        units: z.string(),
+      }).partial(),
+      structuredServiceItem: z.object({
         description: z.string(),
-        displayName: z.string(),
-        languageCode: z.string(),
-      }),
-    }),
-    price: z.object({
-      currencyCode: z.string(),
-      nanos: z.number(),
-      units: z.string(),
-    }),
-    structuredServiceItem: z.object({
-      description: z.string(),
-      serviceTypeId: z.string(),
-    }),
-  })).optional(),
+        serviceTypeId: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   specialHours: z.object({
-    specialHourPeriods: z.array(z.object({
-      closeTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-      closed: z.boolean(),
-      endDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-      openTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-      startDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-    })),
-  }).optional(),
+    specialHourPeriods: z.array(
+      z.object({
+        closeTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+        closed: z.boolean(),
+        endDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+        openTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+        startDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   storeCode: z.string().optional(),
   storefrontAddress: z.object({
     addressLines: z.array(z.string()),
@@ -840,7 +864,7 @@ const StateSchema = z.object({
     revision: z.number(),
     sortingCode: z.string(),
     sublocality: z.string(),
-  }).optional(),
+  }).partial().optional(),
   title: z.string().optional(),
   websiteUri: z.string().optional(),
 }).passthrough();
@@ -1416,7 +1440,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud My Business Business Information Locations. Registered at `@swamp/gcp/mybusinessbusinessinformation/locations`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/locations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1605,6 +1629,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

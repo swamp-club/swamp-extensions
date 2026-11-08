@@ -93,50 +93,54 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   achievement_count: z.number().optional(),
-  assets: z.array(z.object({
-    height: z.number(),
-    kind: z.string(),
-    name: z.string(),
-    url: z.string(),
-    width: z.number(),
-  })).optional(),
+  assets: z.array(
+    z.object({
+      height: z.number(),
+      kind: z.string(),
+      name: z.string(),
+      url: z.string(),
+      width: z.number(),
+    }).partial(),
+  ).optional(),
   author: z.string().optional(),
   category: z.object({
     kind: z.string(),
     primary: z.string(),
     secondary: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   enabledFeatures: z.array(z.string()).optional(),
   id: z.string().optional(),
-  instances: z.array(z.object({
-    acquisitionUri: z.string(),
-    androidInstance: z.object({
-      enablePiracyCheck: z.boolean(),
+  instances: z.array(
+    z.object({
+      acquisitionUri: z.string(),
+      androidInstance: z.object({
+        enablePiracyCheck: z.boolean(),
+        kind: z.string(),
+        packageName: z.string(),
+        preferred: z.boolean(),
+      }).partial(),
+      iosInstance: z.object({
+        bundleIdentifier: z.string(),
+        itunesAppId: z.string(),
+        kind: z.string(),
+        preferredForIpad: z.boolean(),
+        preferredForIphone: z.boolean(),
+        supportIpad: z.boolean(),
+        supportIphone: z.boolean(),
+      }).partial(),
       kind: z.string(),
-      packageName: z.string(),
-      preferred: z.boolean(),
-    }),
-    iosInstance: z.object({
-      bundleIdentifier: z.string(),
-      itunesAppId: z.string(),
-      kind: z.string(),
-      preferredForIpad: z.boolean(),
-      preferredForIphone: z.boolean(),
-      supportIpad: z.boolean(),
-      supportIphone: z.boolean(),
-    }),
-    kind: z.string(),
-    name: z.string(),
-    platformType: z.string(),
-    realtimePlay: z.boolean(),
-    turnBasedPlay: z.boolean(),
-    webInstance: z.object({
-      kind: z.string(),
-      launchUrl: z.string(),
-      preferred: z.boolean(),
-    }),
-  })).optional(),
+      name: z.string(),
+      platformType: z.string(),
+      realtimePlay: z.boolean(),
+      turnBasedPlay: z.boolean(),
+      webInstance: z.object({
+        kind: z.string(),
+        launchUrl: z.string(),
+        preferred: z.boolean(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   kind: z.string().optional(),
   lastUpdatedTimestamp: z.string().optional(),
   leaderboard_count: z.number().optional(),
@@ -182,7 +186,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Games Services Applications. Registered at `@swamp/gcp/games/applications`. */
 export const model = {
   type: "@swamp/gcp/games/applications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -306,6 +310,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

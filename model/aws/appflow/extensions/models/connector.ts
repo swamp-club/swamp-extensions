@@ -43,6 +43,10 @@ const LambdaConnectorProvisioningConfigSchema = z.object({
     .describe("Lambda ARN of the connector being registered."),
 });
 
+const LambdaConnectorProvisioningConfigStateSchema = z.object({
+  LambdaArn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -83,12 +87,12 @@ const StateSchema = z.object({
   ConnectorArn: z.string().optional(),
   ConnectorProvisioningType: z.string().optional(),
   ConnectorProvisioningConfig: z.object({
-    Lambda: LambdaConnectorProvisioningConfigSchema,
-  }).optional(),
+    Lambda: LambdaConnectorProvisioningConfigStateSchema,
+  }).partial().optional(),
   Description: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -136,7 +140,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppFlow Connector. Registered at `@swamp/aws/appflow/connector`. */
 export const model = {
   type: "@swamp/aws/appflow/connector",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

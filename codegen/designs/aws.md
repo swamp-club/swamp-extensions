@@ -1060,8 +1060,48 @@ Used to parse CloudControl API responses. **No constraints, `.passthrough()`**:
 
 - All types are bare: `z.string()`, `z.number()`, `z.boolean()`
 - No enums, no min/max, no patterns
-- Primary identifier fields are non-optional; everything else is `.optional()`
+- Top-level primary identifier fields are non-optional; every other top-level
+  field is `.optional()`
+- **Every nested object is `.partial()`**, so no nested child is required, even
+  when the CF schema lists it in a nested `required`
+- Titled nested objects get their own simplified copy, `<Title>StateSchema`,
+  instead of reusing the input-side `<Title>Schema` (which carries the CF
+  `required` list and creation constraints)
 - `.passthrough()` on the object to allow unknown fields
+
+#### Why nested children are optional
+
+A CF nested `required` list describes what `create` must send, not what a read
+returns. Reads omit two kinds of property (swamp-club #2487):
+
+- **Create-only parameters** — e.g. EKS
+  `AccessConfig.BootstrapClusterCreatorAdminPermissions` is accepted by create
+  and never returned by `GetResource`.
+- **Conditional feature blocks** — `OutpostConfig`, `ZonalShiftConfig`,
+  `KubernetesNetworkConfig.ServiceIpv6Cidr` and similar appear only when that
+  feature is in use.
+
+Zod checks a nested object's children only when the parent is present, so a
+required child of an absent block stays silent until someone enables that
+feature, and then every `get`/`sync` warns. Making all nested children optional
+removes the whole class rather than the instances currently visible.
+
+StateSchema copies are named `<Title>StateSchema`; if that name is already taken
+by an extracted input schema or a generator-declared schema (`StateSchema`,
+`GlobalArgsSchema`, `InputsSchema`), it is prefixed with `_` until unique. A
+recursive title inside its own copy becomes `z.unknown()`. The model generator
+fails generation if the assembled file declares any top-level name twice (e.g.
+an enrichment body defining a schema with the same name).
+
+Nested objects use `.partial()` rather than `.optional()` on each child for
+compactness; the two validate identically. Either way, every nested level adds
+an optional wrapper to the inferred type, and on the deepest schemas (QuickSight
+dashboard, analysis and template definitions) `z.infer<typeof StateSchema>`
+exceeds TypeScript's instantiation-depth limit (TS2589). The generated
+`StateData` type is therefore `Record<string, unknown>`. It is only a cast
+target for `readResource`/`createResource` results, which are
+`Record<string, unknown>` at runtime, so the inferred type never added any
+checking.
 
 ### Why the distinction
 
@@ -1081,7 +1121,8 @@ globalArgs.
 
 The Zod generator extracts nested object types into top-level named schemas when
 they have a `title` from the CF schema. This avoids deep inline nesting and
-allows reuse:
+allows reuse. GlobalArgsSchema uses `<Title>Schema`; StateSchema uses the
+simplified `<Title>StateSchema` copy described above:
 
 ```typescript
 export const TagSchema = z.object({

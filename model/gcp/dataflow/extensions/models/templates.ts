@@ -192,60 +192,68 @@ const StateSchema = z.object({
     defaultStreamingMode: z.string(),
     description: z.string(),
     name: z.string(),
-    parameters: z.array(z.object({
-      customMetadata: z.record(z.string(), z.unknown()),
-      defaultValue: z.string(),
-      enumOptions: z.array(z.object({
-        description: z.unknown(),
-        label: z.unknown(),
-        value: z.unknown(),
-      })),
-      groupName: z.string(),
-      helpText: z.string(),
-      hiddenUi: z.boolean(),
-      isOptional: z.boolean(),
-      label: z.string(),
-      name: z.string(),
-      paramType: z.string(),
-      parentName: z.string(),
-      parentTriggerValues: z.array(z.string()),
-      regexes: z.array(z.string()),
-    })),
+    parameters: z.array(
+      z.object({
+        customMetadata: z.record(z.string(), z.unknown()),
+        defaultValue: z.string(),
+        enumOptions: z.array(
+          z.object({
+            description: z.unknown(),
+            label: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        groupName: z.string(),
+        helpText: z.string(),
+        hiddenUi: z.boolean(),
+        isOptional: z.boolean(),
+        label: z.string(),
+        name: z.string(),
+        paramType: z.string(),
+        parentName: z.string(),
+        parentTriggerValues: z.array(z.string()),
+        regexes: z.array(z.string()),
+      }).partial(),
+    ),
     streaming: z.boolean(),
     supportsAtLeastOnce: z.boolean(),
     supportsExactlyOnce: z.boolean(),
     yamlDefinition: z.string(),
-  }).optional(),
+  }).partial().optional(),
   runtimeMetadata: z.object({
-    parameters: z.array(z.object({
-      customMetadata: z.record(z.string(), z.unknown()),
-      defaultValue: z.string(),
-      enumOptions: z.array(z.object({
-        description: z.unknown(),
-        label: z.unknown(),
-        value: z.unknown(),
-      })),
-      groupName: z.string(),
-      helpText: z.string(),
-      hiddenUi: z.boolean(),
-      isOptional: z.boolean(),
-      label: z.string(),
-      name: z.string(),
-      paramType: z.string(),
-      parentName: z.string(),
-      parentTriggerValues: z.array(z.string()),
-      regexes: z.array(z.string()),
-    })),
+    parameters: z.array(
+      z.object({
+        customMetadata: z.record(z.string(), z.unknown()),
+        defaultValue: z.string(),
+        enumOptions: z.array(
+          z.object({
+            description: z.unknown(),
+            label: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        groupName: z.string(),
+        helpText: z.string(),
+        hiddenUi: z.boolean(),
+        isOptional: z.boolean(),
+        label: z.string(),
+        name: z.string(),
+        paramType: z.string(),
+        parentName: z.string(),
+        parentTriggerValues: z.array(z.string()),
+        regexes: z.array(z.string()),
+      }).partial(),
+    ),
     sdkInfo: z.object({
       language: z.string(),
       version: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   status: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   templateType: z.string().optional(),
 }).passthrough();
 
@@ -364,7 +372,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataflow Templates. Registered at `@swamp/gcp/dataflow/templates`. */
 export const model = {
   type: "@swamp/gcp/dataflow/templates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -533,6 +541,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

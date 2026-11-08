@@ -104,17 +104,19 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   budgetInvoiceGroupingId: z.string().optional(),
-  budgetSummaries: z.array(z.object({
-    externalBudgetId: z.string(),
-    preTaxAmountMicros: z.string(),
-    prismaCpeCode: z.object({
-      prismaClientCode: z.string(),
-      prismaEstimateCode: z.string(),
-      prismaProductCode: z.string(),
-    }),
-    taxAmountMicros: z.string(),
-    totalAmountMicros: z.string(),
-  })).optional(),
+  budgetSummaries: z.array(
+    z.object({
+      externalBudgetId: z.string(),
+      preTaxAmountMicros: z.string(),
+      prismaCpeCode: z.object({
+        prismaClientCode: z.string(),
+        prismaEstimateCode: z.string(),
+        prismaProductCode: z.string(),
+      }).partial(),
+      taxAmountMicros: z.string(),
+      totalAmountMicros: z.string(),
+    }).partial(),
+  ).optional(),
   correctedInvoiceId: z.string().optional(),
   currencyCode: z.string().optional(),
   displayName: z.string().optional(),
@@ -122,14 +124,14 @@ const StateSchema = z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   invoiceId: z.string().optional(),
   invoiceType: z.string().optional(),
   issueDate: z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   nonBudgetMicros: z.string().optional(),
   paymentsAccountId: z.string().optional(),
@@ -142,13 +144,13 @@ const StateSchema = z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     startDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   subtotalAmountMicros: z.string().optional(),
   totalAmountMicros: z.string().optional(),
   totalTaxAmountMicros: z.string().optional(),
@@ -195,7 +197,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.Invoices. Registered at `@swamp/gcp/displayvideo/advertisers-invoices`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-invoices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -329,6 +331,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -117,26 +117,32 @@ const StateSchema = z.object({
   name: z.string(),
   revisionNumber: z.string().optional(),
   snapshot: z.object({
-    clusterAclPolicyAttachments: z.array(z.object({
-      aclPolicyRevisionStatuses: z.array(z.object({
-        aclPolicyRevision: z.unknown(),
-        aclPolicyRevisionNumber: z.unknown(),
-        errorMessage: z.unknown(),
-        state: z.unknown(),
-      })),
-      cluster: z.string(),
-    })),
+    clusterAclPolicyAttachments: z.array(
+      z.object({
+        aclPolicyRevisionStatuses: z.array(
+          z.object({
+            aclPolicyRevision: z.unknown(),
+            aclPolicyRevisionNumber: z.unknown(),
+            errorMessage: z.unknown(),
+            state: z.unknown(),
+          }).partial(),
+        ),
+        cluster: z.string(),
+      }).partial(),
+    ),
     createTime: z.string(),
     etag: z.string(),
     name: z.string(),
-    rules: z.array(z.object({
-      rule: z.string(),
-      username: z.string(),
-    })),
+    rules: z.array(
+      z.object({
+        rule: z.string(),
+        username: z.string(),
+      }).partial(),
+    ),
     state: z.string(),
     updateTime: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -183,7 +189,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Cloud Memorystore for Redis AclPolicies.Revisions. Registered at `@swamp/gcp/redis/aclpolicies-revisions`. */
 export const model = {
   type: "@swamp/gcp/redis/aclpolicies-revisions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -192,6 +198,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

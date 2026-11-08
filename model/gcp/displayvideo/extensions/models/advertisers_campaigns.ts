@@ -387,51 +387,53 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   advertiserId: z.string().optional(),
-  campaignBudgets: z.array(z.object({
-    budgetAmountMicros: z.string(),
-    budgetId: z.string(),
-    budgetUnit: z.string(),
-    dateRange: z.object({
-      endDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-      startDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-    }),
-    displayName: z.string(),
-    externalBudgetId: z.string(),
-    externalBudgetSource: z.string(),
-    invoiceGroupingId: z.string(),
-    prismaConfig: z.object({
-      prismaCpeCode: z.object({
-        prismaClientCode: z.string(),
-        prismaEstimateCode: z.string(),
-        prismaProductCode: z.string(),
-      }),
-      prismaType: z.string(),
-      supplier: z.string(),
-    }),
-  })).optional(),
+  campaignBudgets: z.array(
+    z.object({
+      budgetAmountMicros: z.string(),
+      budgetId: z.string(),
+      budgetUnit: z.string(),
+      dateRange: z.object({
+        endDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+        startDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+      }).partial(),
+      displayName: z.string(),
+      externalBudgetId: z.string(),
+      externalBudgetSource: z.string(),
+      invoiceGroupingId: z.string(),
+      prismaConfig: z.object({
+        prismaCpeCode: z.object({
+          prismaClientCode: z.string(),
+          prismaEstimateCode: z.string(),
+          prismaProductCode: z.string(),
+        }).partial(),
+        prismaType: z.string(),
+        supplier: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   campaignFlight: z.object({
     plannedDates: z.object({
       endDate: z.object({
         day: z.number(),
         month: z.number(),
         year: z.number(),
-      }),
+      }).partial(),
       startDate: z.object({
         day: z.number(),
         month: z.number(),
         year: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     plannedSpendAmountMicros: z.string(),
-  }).optional(),
+  }).partial().optional(),
   campaignGoal: z.object({
     campaignGoalType: z.string(),
     performanceGoal: z.object({
@@ -439,8 +441,8 @@ const StateSchema = z.object({
       performanceGoalPercentageMicros: z.string(),
       performanceGoalString: z.string(),
       performanceGoalType: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   campaignId: z.string().optional(),
   displayName: z.string().optional(),
   entityStatus: z.string().optional(),
@@ -450,7 +452,7 @@ const StateSchema = z.object({
     timeUnit: z.string(),
     timeUnitCount: z.number(),
     unlimited: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -699,7 +701,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.Campaigns. Registered at `@swamp/gcp/displayvideo/advertisers-campaigns`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-campaigns",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -838,6 +840,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

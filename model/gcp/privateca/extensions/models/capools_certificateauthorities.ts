@@ -464,102 +464,108 @@ const StateSchema = z.object({
   accessUrls: z.object({
     caCertificateAccessUrl: z.string(),
     crlAccessUrls: z.array(z.string()),
-  }).optional(),
-  caCertificateDescriptions: z.array(z.object({
-    aiaIssuingCertificateUrls: z.array(z.string()),
-    authorityKeyId: z.object({
-      keyId: z.string(),
-    }),
-    certFingerprint: z.object({
-      sha256Hash: z.string(),
-    }),
-    crlDistributionPoints: z.array(z.string()),
-    publicKey: z.object({
-      format: z.string(),
-      key: z.string(),
-    }),
-    subjectDescription: z.object({
-      hexSerialNumber: z.string(),
-      lifetime: z.string(),
-      notAfterTime: z.string(),
-      notBeforeTime: z.string(),
-      subject: z.object({
-        commonName: z.string(),
-        countryCode: z.string(),
-        locality: z.string(),
-        organization: z.string(),
-        organizationalUnit: z.string(),
-        postalCode: z.string(),
-        province: z.string(),
-        rdnSequence: z.array(z.unknown()),
-        streetAddress: z.string(),
-      }),
-      subjectAltName: z.object({
-        customSans: z.array(z.unknown()),
-        dnsNames: z.array(z.unknown()),
-        emailAddresses: z.array(z.unknown()),
-        ipAddresses: z.array(z.unknown()),
-        uris: z.array(z.unknown()),
-      }),
-    }),
-    subjectKeyId: z.object({
-      keyId: z.string(),
-    }),
-    tbsCertificateDigest: z.string(),
-    x509Description: z.object({
-      additionalExtensions: z.array(z.object({
-        critical: z.unknown(),
-        objectId: z.unknown(),
-        value: z.unknown(),
-      })),
-      aiaOcspServers: z.array(z.string()),
-      caOptions: z.object({
-        isCa: z.boolean(),
-        maxIssuerPathLength: z.number(),
-      }),
-      keyUsage: z.object({
-        baseKeyUsage: z.object({
-          certSign: z.unknown(),
-          contentCommitment: z.unknown(),
-          crlSign: z.unknown(),
-          dataEncipherment: z.unknown(),
-          decipherOnly: z.unknown(),
-          digitalSignature: z.unknown(),
-          encipherOnly: z.unknown(),
-          keyAgreement: z.unknown(),
-          keyEncipherment: z.unknown(),
-        }),
-        extendedKeyUsage: z.object({
-          clientAuth: z.unknown(),
-          codeSigning: z.unknown(),
-          emailProtection: z.unknown(),
-          ocspSigning: z.unknown(),
-          serverAuth: z.unknown(),
-          timeStamping: z.unknown(),
-        }),
-        unknownExtendedKeyUsages: z.array(z.unknown()),
-      }),
-      nameConstraints: z.object({
-        critical: z.boolean(),
-        excludedDnsNames: z.array(z.unknown()),
-        excludedEmailAddresses: z.array(z.unknown()),
-        excludedIpRanges: z.array(z.unknown()),
-        excludedUris: z.array(z.unknown()),
-        permittedDnsNames: z.array(z.unknown()),
-        permittedEmailAddresses: z.array(z.unknown()),
-        permittedIpRanges: z.array(z.unknown()),
-        permittedUris: z.array(z.unknown()),
-      }),
-      policyIds: z.array(z.object({
-        objectIdPath: z.unknown(),
-      })),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  caCertificateDescriptions: z.array(
+    z.object({
+      aiaIssuingCertificateUrls: z.array(z.string()),
+      authorityKeyId: z.object({
+        keyId: z.string(),
+      }).partial(),
+      certFingerprint: z.object({
+        sha256Hash: z.string(),
+      }).partial(),
+      crlDistributionPoints: z.array(z.string()),
+      publicKey: z.object({
+        format: z.string(),
+        key: z.string(),
+      }).partial(),
+      subjectDescription: z.object({
+        hexSerialNumber: z.string(),
+        lifetime: z.string(),
+        notAfterTime: z.string(),
+        notBeforeTime: z.string(),
+        subject: z.object({
+          commonName: z.string(),
+          countryCode: z.string(),
+          locality: z.string(),
+          organization: z.string(),
+          organizationalUnit: z.string(),
+          postalCode: z.string(),
+          province: z.string(),
+          rdnSequence: z.array(z.unknown()),
+          streetAddress: z.string(),
+        }).partial(),
+        subjectAltName: z.object({
+          customSans: z.array(z.unknown()),
+          dnsNames: z.array(z.unknown()),
+          emailAddresses: z.array(z.unknown()),
+          ipAddresses: z.array(z.unknown()),
+          uris: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+      subjectKeyId: z.object({
+        keyId: z.string(),
+      }).partial(),
+      tbsCertificateDigest: z.string(),
+      x509Description: z.object({
+        additionalExtensions: z.array(
+          z.object({
+            critical: z.unknown(),
+            objectId: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        aiaOcspServers: z.array(z.string()),
+        caOptions: z.object({
+          isCa: z.boolean(),
+          maxIssuerPathLength: z.number(),
+        }).partial(),
+        keyUsage: z.object({
+          baseKeyUsage: z.object({
+            certSign: z.unknown(),
+            contentCommitment: z.unknown(),
+            crlSign: z.unknown(),
+            dataEncipherment: z.unknown(),
+            decipherOnly: z.unknown(),
+            digitalSignature: z.unknown(),
+            encipherOnly: z.unknown(),
+            keyAgreement: z.unknown(),
+            keyEncipherment: z.unknown(),
+          }).partial(),
+          extendedKeyUsage: z.object({
+            clientAuth: z.unknown(),
+            codeSigning: z.unknown(),
+            emailProtection: z.unknown(),
+            ocspSigning: z.unknown(),
+            serverAuth: z.unknown(),
+            timeStamping: z.unknown(),
+          }).partial(),
+          unknownExtendedKeyUsages: z.array(z.unknown()),
+        }).partial(),
+        nameConstraints: z.object({
+          critical: z.boolean(),
+          excludedDnsNames: z.array(z.unknown()),
+          excludedEmailAddresses: z.array(z.unknown()),
+          excludedIpRanges: z.array(z.unknown()),
+          excludedUris: z.array(z.unknown()),
+          permittedDnsNames: z.array(z.unknown()),
+          permittedEmailAddresses: z.array(z.unknown()),
+          permittedIpRanges: z.array(z.unknown()),
+          permittedUris: z.array(z.unknown()),
+        }).partial(),
+        policyIds: z.array(
+          z.object({
+            objectIdPath: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   config: z.object({
     publicKey: z.object({
       format: z.string(),
       key: z.string(),
-    }),
+    }).partial(),
     subjectConfig: z.object({
       subject: z.object({
         commonName: z.string(),
@@ -569,39 +575,45 @@ const StateSchema = z.object({
         organizationalUnit: z.string(),
         postalCode: z.string(),
         province: z.string(),
-        rdnSequence: z.array(z.object({
-          attributes: z.unknown(),
-        })),
+        rdnSequence: z.array(
+          z.object({
+            attributes: z.unknown(),
+          }).partial(),
+        ),
         streetAddress: z.string(),
-      }),
+      }).partial(),
       subjectAltName: z.object({
-        customSans: z.array(z.object({
-          critical: z.unknown(),
-          objectId: z.unknown(),
-          value: z.unknown(),
-        })),
+        customSans: z.array(
+          z.object({
+            critical: z.unknown(),
+            objectId: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
         dnsNames: z.array(z.string()),
         emailAddresses: z.array(z.string()),
         ipAddresses: z.array(z.string()),
         uris: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     subjectKeyId: z.object({
       keyId: z.string(),
-    }),
+    }).partial(),
     x509Config: z.object({
-      additionalExtensions: z.array(z.object({
-        critical: z.boolean(),
-        objectId: z.object({
-          objectIdPath: z.unknown(),
-        }),
-        value: z.string(),
-      })),
+      additionalExtensions: z.array(
+        z.object({
+          critical: z.boolean(),
+          objectId: z.object({
+            objectIdPath: z.unknown(),
+          }).partial(),
+          value: z.string(),
+        }).partial(),
+      ),
       aiaOcspServers: z.array(z.string()),
       caOptions: z.object({
         isCa: z.boolean(),
         maxIssuerPathLength: z.number(),
-      }),
+      }).partial(),
       keyUsage: z.object({
         baseKeyUsage: z.object({
           certSign: z.boolean(),
@@ -613,7 +625,7 @@ const StateSchema = z.object({
           encipherOnly: z.boolean(),
           keyAgreement: z.boolean(),
           keyEncipherment: z.boolean(),
-        }),
+        }).partial(),
         extendedKeyUsage: z.object({
           clientAuth: z.boolean(),
           codeSigning: z.boolean(),
@@ -621,11 +633,13 @@ const StateSchema = z.object({
           ocspSigning: z.boolean(),
           serverAuth: z.boolean(),
           timeStamping: z.boolean(),
-        }),
-        unknownExtendedKeyUsages: z.array(z.object({
-          objectIdPath: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        unknownExtendedKeyUsages: z.array(
+          z.object({
+            objectIdPath: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       nameConstraints: z.object({
         critical: z.boolean(),
         excludedDnsNames: z.array(z.string()),
@@ -636,12 +650,14 @@ const StateSchema = z.object({
         permittedEmailAddresses: z.array(z.string()),
         permittedIpRanges: z.array(z.string()),
         permittedUris: z.array(z.string()),
-      }),
-      policyIds: z.array(z.object({
-        objectIdPath: z.array(z.unknown()),
-      })),
-    }),
-  }).optional(),
+      }).partial(),
+      policyIds: z.array(
+        z.object({
+          objectIdPath: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   expireTime: z.string().optional(),
@@ -649,7 +665,7 @@ const StateSchema = z.object({
   keySpec: z.object({
     algorithm: z.string(),
     cloudKmsKeyVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   lifetime: z.string().optional(),
   name: z.string(),
@@ -661,15 +677,15 @@ const StateSchema = z.object({
     certificateAuthority: z.string(),
     pemIssuerChain: z.object({
       pemCertificates: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   tier: z.string().optional(),
   type: z.string().optional(),
   updateTime: z.string().optional(),
   userDefinedAccessUrls: z.object({
     aiaIssuingCertificateUrls: z.array(z.string()),
     crlAccessUrls: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -989,7 +1005,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Certificate Authority CaPools.CertificateAuthorities. Registered at `@swamp/gcp/privateca/capools-certificateauthorities`. */
 export const model = {
   type: "@swamp/gcp/privateca/capools-certificateauthorities",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1136,6 +1152,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

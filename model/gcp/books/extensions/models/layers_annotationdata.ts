@@ -183,24 +183,26 @@ const StateSchema = z.object({
   data: z.object({
     common: z.object({
       title: z.string(),
-    }),
+    }).partial(),
     dict: z.object({
       source: z.object({
         attribution: z.string(),
         url: z.string(),
-      }),
-      words: z.array(z.object({
-        derivatives: z.array(z.unknown()),
-        examples: z.array(z.unknown()),
-        senses: z.array(z.unknown()),
-        source: z.object({
-          attribution: z.unknown(),
-          url: z.unknown(),
-        }),
-      })),
-    }),
+      }).partial(),
+      words: z.array(
+        z.object({
+          derivatives: z.array(z.unknown()),
+          examples: z.array(z.unknown()),
+          senses: z.array(z.unknown()),
+          source: z.object({
+            attribution: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     kind: z.string(),
-  }).optional(),
+  }).partial().optional(),
   encodedData: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -258,7 +260,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Books Layers.AnnotationData. Registered at `@swamp/gcp/books/layers-annotationdata`. */
 export const model = {
   type: "@swamp/gcp/books/layers-annotationdata",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -387,6 +389,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

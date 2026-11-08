@@ -44,6 +44,12 @@ const CodeS3LocationSchema = z.object({
   VersionId: z.string().min(1).max(1024).optional(),
 });
 
+const CodeS3LocationStateSchema = z.object({
+  Bucket: z.string(),
+  ObjectKey: z.string(),
+  VersionId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -107,35 +113,35 @@ const StateSchema = z.object({
     Bucket: z.string(),
     ObjectKey: z.string(),
     VersionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Code: z.object({
-    S3Location: CodeS3LocationSchema,
-  }).optional(),
+    S3Location: CodeS3LocationStateSchema,
+  }).partial().optional(),
   CodeSnapshottedAt: z.string().optional(),
   RoleArn: z.string().optional(),
   EncryptionConfiguration: z.object({
     Type: z.string(),
     KmsKeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LoggingConfiguration: z.object({
     LogGroupName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   NetworkConfiguration: z.object({
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   WorkflowVersion: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   TriggerMode: z.string().optional(),
   ScheduleConfiguration: z.object({
     CronExpression: z.string(),
-  }).optional(),
+  }).partial().optional(),
   WorkflowStatus: z.string().optional(),
   CreatedAt: z.string().optional(),
   ModifiedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -201,7 +207,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MWAAServerless Workflow. Registered at `@swamp/aws/mwaaserverless/workflow`. */
 export const model = {
   type: "@swamp/aws/mwaaserverless/workflow",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -270,6 +276,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

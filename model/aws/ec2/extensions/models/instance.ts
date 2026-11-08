@@ -187,6 +187,91 @@ const NetworkInterfaceSchema = z.object({
   ).optional(),
 });
 
+const VolumeStateSchema = z.object({
+  VolumeId: z.string(),
+  Device: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const LicenseSpecificationStateSchema = z.object({
+  LicenseConfigurationArn: z.string(),
+}).partial();
+
+const AssociationParameterStateSchema = z.object({
+  Value: z.array(z.string()),
+  Key: z.string(),
+}).partial();
+
+const SsmAssociationStateSchema = z.object({
+  AssociationParameters: z.array(AssociationParameterStateSchema),
+  DocumentName: z.string(),
+}).partial();
+
+const EbsStateSchema = z.object({
+  SnapshotId: z.string(),
+  VolumeType: z.string(),
+  KmsKeyId: z.string(),
+  Encrypted: z.boolean(),
+  Iops: z.number(),
+  VolumeSize: z.number(),
+  DeleteOnTermination: z.boolean(),
+}).partial();
+
+const BlockDeviceMappingStateSchema = z.object({
+  Ebs: EbsStateSchema,
+  NoDevice: z.record(z.string(), z.unknown()),
+  VirtualName: z.string(),
+  DeviceName: z.string(),
+}).partial();
+
+const InstanceIpv6AddressStateSchema = z.object({
+  Ipv6Address: z.string(),
+}).partial();
+
+const ElasticGpuSpecificationStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const ElasticInferenceAcceleratorStateSchema = z.object({
+  Type: z.string(),
+  Count: z.number(),
+}).partial();
+
+const PrivateIpAddressSpecificationStateSchema = z.object({
+  PrivateIpAddress: z.string(),
+  Primary: z.boolean(),
+}).partial();
+
+const EnaSrdUdpSpecificationStateSchema = z.object({
+  EnaSrdUdpEnabled: z.boolean(),
+}).partial();
+
+const EnaSrdSpecificationStateSchema = z.object({
+  EnaSrdEnabled: z.boolean(),
+  EnaSrdUdpSpecification: EnaSrdUdpSpecificationStateSchema,
+}).partial();
+
+const NetworkInterfaceStateSchema = z.object({
+  Description: z.string(),
+  PrivateIpAddress: z.string(),
+  PrivateIpAddresses: z.array(PrivateIpAddressSpecificationStateSchema),
+  SecondaryPrivateIpAddressCount: z.number(),
+  DeviceIndex: z.string(),
+  GroupSet: z.array(z.string()),
+  Ipv6Addresses: z.array(InstanceIpv6AddressStateSchema),
+  SubnetId: z.string(),
+  AssociatePublicIpAddress: z.boolean(),
+  NetworkInterfaceId: z.string(),
+  AssociateCarrierIpAddress: z.boolean(),
+  EnaSrdSpecification: EnaSrdSpecificationStateSchema,
+  Ipv6AddressCount: z.number(),
+  DeleteOnTermination: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -367,68 +452,69 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   PrivateDnsName: z.string().optional(),
-  Volumes: z.array(VolumeSchema).optional(),
+  Volumes: z.array(VolumeStateSchema).optional(),
   PrivateIp: z.string().optional(),
   EnclaveOptions: z.object({
     Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ImageId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   AdditionalInfo: z.string().optional(),
   HibernationOptions: z.object({
     Configured: z.boolean(),
-  }).optional(),
-  LicenseSpecifications: z.array(LicenseSpecificationSchema).optional(),
+  }).partial().optional(),
+  LicenseSpecifications: z.array(LicenseSpecificationStateSchema).optional(),
   MetadataOptions: z.object({
     HttpPutResponseHopLimit: z.number(),
     HttpProtocolIpv6: z.string(),
     HttpTokens: z.string(),
     InstanceMetadataTags: z.string(),
     HttpEndpoint: z.string(),
-  }).optional(),
+  }).partial().optional(),
   InstanceId: z.string(),
   CpuOptions: z.object({
     ThreadsPerCore: z.number(),
     CoreCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   AvailabilityZone: z.string().optional(),
   PrivateDnsNameOptions: z.object({
     EnableResourceNameDnsARecord: z.boolean(),
     HostnameType: z.string(),
     EnableResourceNameDnsAAAARecord: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   HostId: z.string().optional(),
   PublicDnsName: z.string().optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
   PlacementGroupName: z.string().optional(),
-  SsmAssociations: z.array(SsmAssociationSchema).optional(),
+  SsmAssociations: z.array(SsmAssociationStateSchema).optional(),
   VpcId: z.string().optional(),
   State: z.object({
     Code: z.string(),
     Name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Affinity: z.string().optional(),
   Tenancy: z.string().optional(),
   SecurityGroups: z.array(z.string()).optional(),
   PrivateIpAddress: z.string().optional(),
   UserData: z.string().optional(),
-  BlockDeviceMappings: z.array(BlockDeviceMappingSchema).optional(),
+  BlockDeviceMappings: z.array(BlockDeviceMappingStateSchema).optional(),
   IamInstanceProfile: z.string().optional(),
-  Ipv6Addresses: z.array(InstanceIpv6AddressSchema).optional(),
+  Ipv6Addresses: z.array(InstanceIpv6AddressStateSchema).optional(),
   KernelId: z.string().optional(),
   SubnetId: z.string().optional(),
   EbsOptimized: z.boolean().optional(),
   PropagateTagsToVolumeOnCreation: z.boolean().optional(),
-  ElasticGpuSpecifications: z.array(ElasticGpuSpecificationSchema).optional(),
-  ElasticInferenceAccelerators: z.array(ElasticInferenceAcceleratorSchema)
+  ElasticGpuSpecifications: z.array(ElasticGpuSpecificationStateSchema)
+    .optional(),
+  ElasticInferenceAccelerators: z.array(ElasticInferenceAcceleratorStateSchema)
     .optional(),
   Ipv6AddressCount: z.number().optional(),
   LaunchTemplate: z.object({
     LaunchTemplateName: z.string(),
     Version: z.string(),
     LaunchTemplateId: z.string(),
-  }).optional(),
-  NetworkInterfaces: z.array(NetworkInterfaceSchema).optional(),
+  }).partial().optional(),
+  NetworkInterfaces: z.array(NetworkInterfaceStateSchema).optional(),
   InstanceType: z.string().optional(),
   Monitoring: z.boolean().optional(),
   PublicIp: z.string().optional(),
@@ -440,10 +526,10 @@ const StateSchema = z.object({
   SourceDestCheck: z.boolean().optional(),
   CreditSpecification: z.object({
     CPUCredits: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -632,7 +718,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 Instance. Registered at `@swamp/aws/ec2/instance`. */
 export const model = {
   type: "@swamp/aws/ec2/instance",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -696,6 +782,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -337,12 +337,12 @@ const StateSchema = z.object({
       instance: z.string(),
       service: z.string(),
       version: z.string(),
-    }),
+    }).partial(),
     body: z.string(),
     headers: z.record(z.string(), z.unknown()),
     httpMethod: z.string(),
     relativeUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dispatchCount: z.number().optional(),
   dispatchDeadline: z.string().optional(),
@@ -352,10 +352,10 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     responseTime: z.string(),
     scheduleTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   httpRequest: z.object({
     body: z.string(),
     headers: z.record(z.string(), z.unknown()),
@@ -363,23 +363,23 @@ const StateSchema = z.object({
     oauthToken: z.object({
       scope: z.string(),
       serviceAccountEmail: z.string(),
-    }),
+    }).partial(),
     oidcToken: z.object({
       audience: z.string(),
       serviceAccountEmail: z.string(),
-    }),
+    }).partial(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lastAttempt: z.object({
     dispatchTime: z.string(),
     responseStatus: z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     responseTime: z.string(),
     scheduleTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   responseCount: z.number().optional(),
   retryConfig: z.object({
@@ -388,7 +388,7 @@ const StateSchema = z.object({
     maxDoublings: z.number(),
     maxRetryDuration: z.string(),
     minBackoff: z.string(),
-  }).optional(),
+  }).partial().optional(),
   scheduleTime: z.string().optional(),
   view: z.string().optional(),
 }).passthrough();
@@ -618,7 +618,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tasks Queues.Tasks. Registered at `@swamp/gcp/cloudtasks/queues-tasks`. */
 export const model = {
   type: "@swamp/gcp/cloudtasks/queues-tasks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -765,6 +765,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -75,6 +75,27 @@ const TrafficConfigSchema = z.object({
   ),
 });
 
+const SessionStickinessConfigStateSchema = z.object({
+  IdleTTL: z.number(),
+  MaximumTTL: z.number(),
+}).partial();
+
+const SingleHeaderConfigStateSchema = z.object({
+  Header: z.string(),
+  Value: z.string(),
+}).partial();
+
+const SingleWeightConfigStateSchema = z.object({
+  SessionStickinessConfig: SessionStickinessConfigStateSchema,
+  Weight: z.number(),
+}).partial();
+
+const TrafficConfigStateSchema = z.object({
+  SingleHeaderConfig: SingleHeaderConfigStateSchema,
+  SingleWeightConfig: SingleWeightConfigStateSchema,
+  Type: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -128,20 +149,20 @@ const StateSchema = z.object({
     SingleHeaderPolicyConfig: z.object({
       Header: z.string(),
       Value: z.string(),
-    }),
+    }).partial(),
     SingleWeightPolicyConfig: z.object({
-      SessionStickinessConfig: SessionStickinessConfigSchema,
+      SessionStickinessConfig: SessionStickinessConfigStateSchema,
       Weight: z.number(),
-    }),
+    }).partial(),
     StagingDistributionDnsNames: z.array(z.string()),
-    TrafficConfig: TrafficConfigSchema,
+    TrafficConfig: TrafficConfigStateSchema,
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Id: z.string(),
   LastModifiedTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -199,7 +220,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront ContinuousDeploymentPolicy. Registered at `@swamp/aws/cloudfront/continuous-deployment-policy`. */
 export const model = {
   type: "@swamp/aws/cloudfront/continuous-deployment-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -263,6 +284,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -286,20 +286,22 @@ const StateSchema = z.object({
   acceleratorConfig: z.object({
     topology: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   acceleratorType: z.string().optional(),
   apiVersion: z.string().optional(),
   bootDiskConfig: z.object({
     customerEncryptionKey: z.object({
       kmsKeyName: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   cidrBlock: z.string().optional(),
   createTime: z.string().optional(),
-  dataDisks: z.array(z.object({
-    mode: z.string(),
-    sourceDisk: z.string(),
-  })).optional(),
+  dataDisks: z.array(
+    z.object({
+      mode: z.string(),
+      sourceDisk: z.string(),
+    }).partial(),
+  ).optional(),
   description: z.string().optional(),
   health: z.string().optional(),
   healthDescription: z.string().optional(),
@@ -314,21 +316,25 @@ const StateSchema = z.object({
     network: z.string(),
     queueCount: z.number(),
     subnetwork: z.string(),
-  }).optional(),
-  networkConfigs: z.array(z.object({
-    canIpForward: z.boolean(),
-    enableExternalIps: z.boolean(),
-    network: z.string(),
-    queueCount: z.number(),
-    subnetwork: z.string(),
-  })).optional(),
-  networkEndpoints: z.array(z.object({
-    accessConfig: z.object({
-      externalIp: z.string(),
-    }),
-    ipAddress: z.string(),
-    port: z.number(),
-  })).optional(),
+  }).partial().optional(),
+  networkConfigs: z.array(
+    z.object({
+      canIpForward: z.boolean(),
+      enableExternalIps: z.boolean(),
+      network: z.string(),
+      queueCount: z.number(),
+      subnetwork: z.string(),
+    }).partial(),
+  ).optional(),
+  networkEndpoints: z.array(
+    z.object({
+      accessConfig: z.object({
+        externalIp: z.string(),
+      }).partial(),
+      ipAddress: z.string(),
+      port: z.number(),
+    }).partial(),
+  ).optional(),
   protectionTier: z.string().optional(),
   queuedResource: z.string().optional(),
   runtimeVersion: z.string().optional(),
@@ -336,21 +342,23 @@ const StateSchema = z.object({
     preemptible: z.boolean(),
     reserved: z.boolean(),
     spot: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   serviceAccount: z.object({
     email: z.string(),
     scope: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   shieldedInstanceConfig: z.object({
     enableSecureBoot: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
-  symptoms: z.array(z.object({
-    createTime: z.string(),
-    details: z.string(),
-    symptomType: z.string(),
-    workerId: z.string(),
-  })).optional(),
+  symptoms: z.array(
+    z.object({
+      createTime: z.string(),
+      details: z.string(),
+      symptomType: z.string(),
+      workerId: z.string(),
+    }).partial(),
+  ).optional(),
   tags: z.array(z.string()).optional(),
   upcomingMaintenance: z.object({
     canReschedule: z.boolean(),
@@ -359,7 +367,7 @@ const StateSchema = z.object({
     type: z.string(),
     windowEndTime: z.string(),
     windowStartTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -523,7 +531,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud TPU Nodes. Registered at `@swamp/gcp/tpu/nodes`. */
 export const model = {
   type: "@swamp/gcp/tpu/nodes",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -680,6 +688,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

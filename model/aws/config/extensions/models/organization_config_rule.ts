@@ -161,7 +161,7 @@ const StateSchema = z.object({
     ResourceTypesScope: z.array(z.string()),
     MaximumExecutionFrequency: z.string(),
     InputParameters: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OrganizationManagedRuleMetadata: z.object({
     TagKeyScope: z.string(),
     TagValueScope: z.string(),
@@ -171,7 +171,7 @@ const StateSchema = z.object({
     ResourceTypesScope: z.array(z.string()),
     MaximumExecutionFrequency: z.string(),
     InputParameters: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ExcludedAccounts: z.array(z.string()).optional(),
   OrganizationConfigRuleName: z.string(),
   OrganizationCustomPolicyRuleMetadata: z.object({
@@ -185,11 +185,11 @@ const StateSchema = z.object({
     DebugLogDeliveryAccounts: z.array(z.string()),
     ResourceTypesScope: z.array(z.string()),
     InputParameters: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OrganizationConfigRuleArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -315,7 +315,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Config OrganizationConfigRule. Registered at `@swamp/aws/config/organization-config-rule`. */
 export const model = {
   type: "@swamp/aws/config/organization-config-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -329,6 +329,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

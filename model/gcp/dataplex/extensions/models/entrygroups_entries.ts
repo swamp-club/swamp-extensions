@@ -286,10 +286,12 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   entryGroupType: z.string().optional(),
   entrySource: z.object({
-    ancestors: z.array(z.object({
-      name: z.string(),
-      type: z.string(),
-    })),
+    ancestors: z.array(
+      z.object({
+        name: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     createTime: z.string(),
     description: z.string(),
     displayName: z.string(),
@@ -299,7 +301,7 @@ const StateSchema = z.object({
     resource: z.string(),
     system: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   entryType: z.string().optional(),
   fullyQualifiedName: z.string().optional(),
   name: z.string(),
@@ -448,7 +450,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex EntryGroups.Entries. Registered at `@swamp/gcp/dataplex/entrygroups-entries`. */
 export const model = {
   type: "@swamp/gcp/dataplex/entrygroups-entries",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -597,6 +599,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -98,7 +98,7 @@ const StateSchema = z.object({
     instanceType: z.string(),
     location: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   location: z.string().optional(),
   name: z.string(),
   networkBandwidth: z.string().optional(),
@@ -147,7 +147,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bare Metal Solution ProvisioningQuotas. Registered at `@swamp/gcp/baremetalsolution/provisioningquotas`. */
 export const model = {
   type: "@swamp/gcp/baremetalsolution/provisioningquotas",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -266,6 +266,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

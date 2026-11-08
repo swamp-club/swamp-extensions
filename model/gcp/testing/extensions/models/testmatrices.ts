@@ -593,40 +593,48 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   clientInfo: z.object({
-    clientInfoDetails: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
+    clientInfoDetails: z.array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   environmentMatrix: z.object({
     androidDeviceList: z.object({
-      androidDevices: z.array(z.object({
-        androidModelId: z.string(),
-        androidVersionId: z.string(),
-        locale: z.string(),
-        orientation: z.string(),
-      })),
-    }),
+      androidDevices: z.array(
+        z.object({
+          androidModelId: z.string(),
+          androidVersionId: z.string(),
+          locale: z.string(),
+          orientation: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     androidMatrix: z.object({
       androidModelIds: z.array(z.string()),
       androidVersionIds: z.array(z.string()),
       locales: z.array(z.string()),
       orientations: z.array(z.string()),
-    }),
+    }).partial(),
     iosDeviceList: z.object({
-      iosDevices: z.array(z.object({
-        iosModelId: z.string(),
-        iosVersionId: z.string(),
-        locale: z.string(),
-        orientation: z.string(),
-      })),
-    }),
-  }).optional(),
-  extendedInvalidMatrixDetails: z.array(z.object({
-    message: z.string(),
-    reason: z.string(),
-  })).optional(),
+      iosDevices: z.array(
+        z.object({
+          iosModelId: z.string(),
+          iosVersionId: z.string(),
+          locale: z.string(),
+          orientation: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
+  extendedInvalidMatrixDetails: z.array(
+    z.object({
+      message: z.string(),
+      reason: z.string(),
+    }).partial(),
+  ).optional(),
   failFast: z.boolean().optional(),
   flakyTestAttempts: z.number().optional(),
   invalidMatrixDetails: z.string().optional(),
@@ -635,338 +643,358 @@ const StateSchema = z.object({
   resultStorage: z.object({
     googleCloudStorage: z.object({
       gcsPath: z.string(),
-    }),
+    }).partial(),
     resultsUrl: z.string(),
     toolResultsExecution: z.object({
       executionId: z.string(),
       historyId: z.string(),
       projectId: z.string(),
-    }),
+    }).partial(),
     toolResultsHistory: z.object({
       historyId: z.string(),
       projectId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
-  testExecutions: z.array(z.object({
-    environment: z.object({
-      androidDevice: z.object({
-        androidModelId: z.string(),
-        androidVersionId: z.string(),
-        locale: z.string(),
-        orientation: z.string(),
-      }),
-      iosDevice: z.object({
-        iosModelId: z.string(),
-        iosVersionId: z.string(),
-        locale: z.string(),
-        orientation: z.string(),
-      }),
-    }),
-    id: z.string(),
-    matrixId: z.string(),
-    projectId: z.string(),
-    shard: z.object({
-      estimatedShardDuration: z.string(),
-      numShards: z.number(),
-      shardIndex: z.number(),
-      testTargetsForShard: z.object({
-        testTargets: z.array(z.unknown()),
-      }),
-    }),
-    state: z.string(),
-    testDetails: z.object({
-      errorMessage: z.string(),
-      progressMessages: z.array(z.string()),
-    }),
-    testSpecification: z.object({
-      androidInstrumentationTest: z.object({
-        appApk: z.object({
-          gcsPath: z.unknown(),
-        }),
-        appBundle: z.object({
-          apks: z.unknown(),
-          bundleLocation: z.unknown(),
-        }),
-        appPackageId: z.string(),
-        orchestratorOption: z.string(),
-        shardingOption: z.object({
-          manualSharding: z.unknown(),
-          smartSharding: z.unknown(),
-          uniformSharding: z.unknown(),
-        }),
-        testApk: z.object({
-          gcsPath: z.unknown(),
-        }),
-        testPackageId: z.string(),
-        testRunnerClass: z.string(),
-        testTargets: z.array(z.unknown()),
-      }),
-      androidRoboTest: z.object({
-        appApk: z.object({
-          gcsPath: z.unknown(),
-        }),
-        appBundle: z.object({
-          apks: z.unknown(),
-          bundleLocation: z.unknown(),
-        }),
-        appInitialActivity: z.string(),
-        appPackageId: z.string(),
-        maxDepth: z.number(),
-        maxSteps: z.number(),
-        roboDirectives: z.array(z.unknown()),
-        roboMode: z.string(),
-        roboScript: z.object({
-          gcsPath: z.unknown(),
-        }),
-        startingIntents: z.array(z.unknown()),
-      }),
-      androidTestLoop: z.object({
-        appApk: z.object({
-          gcsPath: z.unknown(),
-        }),
-        appBundle: z.object({
-          apks: z.unknown(),
-          bundleLocation: z.unknown(),
-        }),
-        appPackageId: z.string(),
-        scenarioLabels: z.array(z.unknown()),
-        scenarios: z.array(z.unknown()),
-      }),
-      disablePerformanceMetrics: z.boolean(),
-      disableVideoRecording: z.boolean(),
-      iosRoboTest: z.object({
-        appBundleId: z.string(),
-        appIpa: z.object({
-          gcsPath: z.unknown(),
-        }),
-        roboScript: z.object({
-          gcsPath: z.unknown(),
-        }),
-      }),
-      iosTestLoop: z.object({
-        appBundleId: z.string(),
-        appIpa: z.object({
-          gcsPath: z.unknown(),
-        }),
-        scenarios: z.array(z.unknown()),
-      }),
-      iosTestSetup: z.object({
-        additionalIpas: z.array(z.unknown()),
-        networkProfile: z.string(),
-        pullDirectories: z.array(z.unknown()),
-        pushFiles: z.array(z.unknown()),
-      }),
-      iosXcTest: z.object({
-        appBundleId: z.string(),
-        testSpecialEntitlements: z.boolean(),
-        testsZip: z.object({
-          gcsPath: z.unknown(),
-        }),
-        xcodeVersion: z.string(),
-        xctestrun: z.object({
-          gcsPath: z.unknown(),
-        }),
-      }),
-      testSetup: z.object({
-        account: z.object({
-          googleAuto: z.unknown(),
-        }),
-        additionalApks: z.array(z.unknown()),
-        directoriesToPull: z.array(z.unknown()),
-        dontAutograntPermissions: z.boolean(),
-        environmentVariables: z.array(z.unknown()),
-        filesToPush: z.array(z.unknown()),
-        initialSetupApks: z.array(z.unknown()),
-        networkProfile: z.string(),
-        systrace: z.object({
-          durationSeconds: z.unknown(),
-        }),
-      }),
-      testTimeout: z.string(),
-    }),
-    timestamp: z.string(),
-    toolResultsStep: z.object({
-      executionId: z.string(),
-      historyId: z.string(),
+  testExecutions: z.array(
+    z.object({
+      environment: z.object({
+        androidDevice: z.object({
+          androidModelId: z.string(),
+          androidVersionId: z.string(),
+          locale: z.string(),
+          orientation: z.string(),
+        }).partial(),
+        iosDevice: z.object({
+          iosModelId: z.string(),
+          iosVersionId: z.string(),
+          locale: z.string(),
+          orientation: z.string(),
+        }).partial(),
+      }).partial(),
+      id: z.string(),
+      matrixId: z.string(),
       projectId: z.string(),
-      stepId: z.string(),
-    }),
-  })).optional(),
+      shard: z.object({
+        estimatedShardDuration: z.string(),
+        numShards: z.number(),
+        shardIndex: z.number(),
+        testTargetsForShard: z.object({
+          testTargets: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+      state: z.string(),
+      testDetails: z.object({
+        errorMessage: z.string(),
+        progressMessages: z.array(z.string()),
+      }).partial(),
+      testSpecification: z.object({
+        androidInstrumentationTest: z.object({
+          appApk: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          appBundle: z.object({
+            apks: z.unknown(),
+            bundleLocation: z.unknown(),
+          }).partial(),
+          appPackageId: z.string(),
+          orchestratorOption: z.string(),
+          shardingOption: z.object({
+            manualSharding: z.unknown(),
+            smartSharding: z.unknown(),
+            uniformSharding: z.unknown(),
+          }).partial(),
+          testApk: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          testPackageId: z.string(),
+          testRunnerClass: z.string(),
+          testTargets: z.array(z.unknown()),
+        }).partial(),
+        androidRoboTest: z.object({
+          appApk: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          appBundle: z.object({
+            apks: z.unknown(),
+            bundleLocation: z.unknown(),
+          }).partial(),
+          appInitialActivity: z.string(),
+          appPackageId: z.string(),
+          maxDepth: z.number(),
+          maxSteps: z.number(),
+          roboDirectives: z.array(z.unknown()),
+          roboMode: z.string(),
+          roboScript: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          startingIntents: z.array(z.unknown()),
+        }).partial(),
+        androidTestLoop: z.object({
+          appApk: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          appBundle: z.object({
+            apks: z.unknown(),
+            bundleLocation: z.unknown(),
+          }).partial(),
+          appPackageId: z.string(),
+          scenarioLabels: z.array(z.unknown()),
+          scenarios: z.array(z.unknown()),
+        }).partial(),
+        disablePerformanceMetrics: z.boolean(),
+        disableVideoRecording: z.boolean(),
+        iosRoboTest: z.object({
+          appBundleId: z.string(),
+          appIpa: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          roboScript: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+        }).partial(),
+        iosTestLoop: z.object({
+          appBundleId: z.string(),
+          appIpa: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          scenarios: z.array(z.unknown()),
+        }).partial(),
+        iosTestSetup: z.object({
+          additionalIpas: z.array(z.unknown()),
+          networkProfile: z.string(),
+          pullDirectories: z.array(z.unknown()),
+          pushFiles: z.array(z.unknown()),
+        }).partial(),
+        iosXcTest: z.object({
+          appBundleId: z.string(),
+          testSpecialEntitlements: z.boolean(),
+          testsZip: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          xcodeVersion: z.string(),
+          xctestrun: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+        }).partial(),
+        testSetup: z.object({
+          account: z.object({
+            googleAuto: z.unknown(),
+          }).partial(),
+          additionalApks: z.array(z.unknown()),
+          directoriesToPull: z.array(z.unknown()),
+          dontAutograntPermissions: z.boolean(),
+          environmentVariables: z.array(z.unknown()),
+          filesToPush: z.array(z.unknown()),
+          initialSetupApks: z.array(z.unknown()),
+          networkProfile: z.string(),
+          systrace: z.object({
+            durationSeconds: z.unknown(),
+          }).partial(),
+        }).partial(),
+        testTimeout: z.string(),
+      }).partial(),
+      timestamp: z.string(),
+      toolResultsStep: z.object({
+        executionId: z.string(),
+        historyId: z.string(),
+        projectId: z.string(),
+        stepId: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   testMatrixId: z.string().optional(),
   testSpecification: z.object({
     androidInstrumentationTest: z.object({
       appApk: z.object({
         gcsPath: z.string(),
-      }),
+      }).partial(),
       appBundle: z.object({
         apks: z.object({
           bundleSplits: z.array(z.unknown()),
-        }),
+        }).partial(),
         bundleLocation: z.object({
           gcsPath: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       appPackageId: z.string(),
       orchestratorOption: z.string(),
       shardingOption: z.object({
         manualSharding: z.object({
           testTargetsForShard: z.array(z.unknown()),
-        }),
+        }).partial(),
         smartSharding: z.object({
           targetedShardDuration: z.string(),
-        }),
+        }).partial(),
         uniformSharding: z.object({
           numShards: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       testApk: z.object({
         gcsPath: z.string(),
-      }),
+      }).partial(),
       testPackageId: z.string(),
       testRunnerClass: z.string(),
       testTargets: z.array(z.string()),
-    }),
+    }).partial(),
     androidRoboTest: z.object({
       appApk: z.object({
         gcsPath: z.string(),
-      }),
+      }).partial(),
       appBundle: z.object({
         apks: z.object({
           bundleSplits: z.array(z.unknown()),
-        }),
+        }).partial(),
         bundleLocation: z.object({
           gcsPath: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       appInitialActivity: z.string(),
       appPackageId: z.string(),
       maxDepth: z.number(),
       maxSteps: z.number(),
-      roboDirectives: z.array(z.object({
-        actionType: z.string(),
-        inputText: z.string(),
-        resourceName: z.string(),
-      })),
+      roboDirectives: z.array(
+        z.object({
+          actionType: z.string(),
+          inputText: z.string(),
+          resourceName: z.string(),
+        }).partial(),
+      ),
       roboMode: z.string(),
       roboScript: z.object({
         gcsPath: z.string(),
-      }),
-      startingIntents: z.array(z.object({
-        launcherActivity: z.object({}),
-        noActivity: z.object({}),
-        startActivity: z.object({
-          action: z.unknown(),
-          categories: z.unknown(),
-          uri: z.unknown(),
-        }),
-        timeout: z.string(),
-      })),
-    }),
+      }).partial(),
+      startingIntents: z.array(
+        z.object({
+          launcherActivity: z.object({}).partial(),
+          noActivity: z.object({}).partial(),
+          startActivity: z.object({
+            action: z.unknown(),
+            categories: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+          timeout: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     androidTestLoop: z.object({
       appApk: z.object({
         gcsPath: z.string(),
-      }),
+      }).partial(),
       appBundle: z.object({
         apks: z.object({
           bundleSplits: z.array(z.unknown()),
-        }),
+        }).partial(),
         bundleLocation: z.object({
           gcsPath: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       appPackageId: z.string(),
       scenarioLabels: z.array(z.string()),
       scenarios: z.array(z.number()),
-    }),
+    }).partial(),
     disablePerformanceMetrics: z.boolean(),
     disableVideoRecording: z.boolean(),
     iosRoboTest: z.object({
       appBundleId: z.string(),
       appIpa: z.object({
         gcsPath: z.string(),
-      }),
+      }).partial(),
       roboScript: z.object({
         gcsPath: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     iosTestLoop: z.object({
       appBundleId: z.string(),
       appIpa: z.object({
         gcsPath: z.string(),
-      }),
+      }).partial(),
       scenarios: z.array(z.number()),
-    }),
+    }).partial(),
     iosTestSetup: z.object({
-      additionalIpas: z.array(z.object({
-        gcsPath: z.string(),
-      })),
+      additionalIpas: z.array(
+        z.object({
+          gcsPath: z.string(),
+        }).partial(),
+      ),
       networkProfile: z.string(),
-      pullDirectories: z.array(z.object({
-        bundleId: z.string(),
-        content: z.object({
-          gcsPath: z.unknown(),
-        }),
-        devicePath: z.string(),
-      })),
-      pushFiles: z.array(z.object({
-        bundleId: z.string(),
-        content: z.object({
-          gcsPath: z.unknown(),
-        }),
-        devicePath: z.string(),
-      })),
-    }),
+      pullDirectories: z.array(
+        z.object({
+          bundleId: z.string(),
+          content: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          devicePath: z.string(),
+        }).partial(),
+      ),
+      pushFiles: z.array(
+        z.object({
+          bundleId: z.string(),
+          content: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          devicePath: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     iosXcTest: z.object({
       appBundleId: z.string(),
       testSpecialEntitlements: z.boolean(),
       testsZip: z.object({
         gcsPath: z.string(),
-      }),
+      }).partial(),
       xcodeVersion: z.string(),
       xctestrun: z.object({
         gcsPath: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     testSetup: z.object({
       account: z.object({
-        googleAuto: z.object({}),
-      }),
-      additionalApks: z.array(z.object({
-        location: z.object({
-          gcsPath: z.unknown(),
-        }),
-        packageName: z.string(),
-      })),
+        googleAuto: z.object({}).partial(),
+      }).partial(),
+      additionalApks: z.array(
+        z.object({
+          location: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          packageName: z.string(),
+        }).partial(),
+      ),
       directoriesToPull: z.array(z.string()),
       dontAutograntPermissions: z.boolean(),
-      environmentVariables: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
-      filesToPush: z.array(z.object({
-        obbFile: z.object({
-          obb: z.unknown(),
-          obbFileName: z.unknown(),
-        }),
-        regularFile: z.object({
-          content: z.unknown(),
-          devicePath: z.unknown(),
-        }),
-      })),
-      initialSetupApks: z.array(z.object({
-        location: z.object({
-          gcsPath: z.unknown(),
-        }),
-        packageName: z.string(),
-      })),
+      environmentVariables: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      filesToPush: z.array(
+        z.object({
+          obbFile: z.object({
+            obb: z.unknown(),
+            obbFileName: z.unknown(),
+          }).partial(),
+          regularFile: z.object({
+            content: z.unknown(),
+            devicePath: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      initialSetupApks: z.array(
+        z.object({
+          location: z.object({
+            gcsPath: z.unknown(),
+          }).partial(),
+          packageName: z.string(),
+        }).partial(),
+      ),
       networkProfile: z.string(),
       systrace: z.object({
         durationSeconds: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     testTimeout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   timestamp: z.string().optional(),
 }).passthrough();
 
@@ -1497,7 +1525,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Testing TestMatrices. Registered at `@swamp/gcp/testing/testmatrices`. */
 export const model = {
   type: "@swamp/gcp/testing/testmatrices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1641,6 +1669,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

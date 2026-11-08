@@ -137,6 +137,55 @@ const AlarmTagsPropagationSchema = z.object({
   ),
 });
 
+const DimensionStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const MetricStateSchema = z.object({
+  MetricName: z.string(),
+  Dimensions: z.array(DimensionStateSchema),
+  Namespace: z.string(),
+}).partial();
+
+const MetricStatStateSchema = z.object({
+  Stat: z.string(),
+  Period: z.number(),
+  Metric: MetricStateSchema,
+  Unit: z.string(),
+}).partial();
+
+const MetricDataQueryStateSchema = z.object({
+  AccountId: z.string(),
+  ReturnData: z.boolean(),
+  Expression: z.string(),
+  Label: z.string(),
+  MetricStat: MetricStatStateSchema,
+  Period: z.number(),
+  Id: z.string(),
+}).partial();
+
+const WallClockWindowStateSchema = z.object({
+  Timezone: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const AlarmPromQLCriteriaStateSchema = z.object({
+  PendingPeriod: z.number(),
+  Query: z.string(),
+  RecoveryPeriod: z.number(),
+}).partial();
+
+const AlarmTagsPropagationStateSchema = z.object({
+  IncludedTagKeys: z.array(z.string()),
+  ExcludedTagKeys: z.array(z.string()),
+  Enabled: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -258,40 +307,40 @@ const StateSchema = z.object({
   OKActions: z.array(z.string()).optional(),
   MetricName: z.string().optional(),
   ActionsEnabled: z.boolean().optional(),
-  Metrics: z.array(MetricDataQuerySchema).optional(),
+  Metrics: z.array(MetricDataQueryStateSchema).optional(),
   AlarmName: z.string(),
   Statistic: z.string().optional(),
   WarmUpConfiguration: z.object({
     WarmUpPeriodDurationInMinutes: z.number(),
     OnlyStartEvaluatingAfterWarmUpPeriodEnds: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   EvaluationWindow: z.object({
-    WallClockWindow: WallClockWindowSchema,
+    WallClockWindow: WallClockWindowStateSchema,
     SlidingWindow: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   InsufficientDataActions: z.array(z.string()).optional(),
   EvaluationInterval: z.number().optional(),
   DatapointsToAlarm: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Threshold: z.number().optional(),
   EvaluateLowSampleCountPercentile: z.string().optional(),
   ExtendedStatistic: z.string().optional(),
   TreatMissingData: z.string().optional(),
-  Dimensions: z.array(DimensionSchema).optional(),
+  Dimensions: z.array(DimensionStateSchema).optional(),
   Period: z.number().optional(),
   EvaluationCriteria: z.object({
-    PromQLCriteria: AlarmPromQLCriteriaSchema,
-  }).optional(),
+    PromQLCriteria: AlarmPromQLCriteriaStateSchema,
+  }).partial().optional(),
   Namespace: z.string().optional(),
   AlarmActions: z.array(z.string()).optional(),
   AlarmDescription: z.string().optional(),
   Arn: z.string().optional(),
   ActionConfiguration: z.object({
-    AlarmTagsPropagation: AlarmTagsPropagationSchema,
-  }).optional(),
+    AlarmTagsPropagation: AlarmTagsPropagationStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -417,7 +466,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch Alarm. Registered at `@swamp/aws/cloudwatch/alarm`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/alarm",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -506,6 +555,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

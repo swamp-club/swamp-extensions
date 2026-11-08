@@ -244,16 +244,16 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   encryptionConfig: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   encryptionInfo: z.object({
     encryptionType: z.string(),
     kmsKeyVersions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   expiryQuantity: z.object({
     retentionCount: z.number(),
     totalRetentionCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   expiryTime: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -342,7 +342,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AlloyDB Backups. Registered at `@swamp/gcp/alloydb/backups`. */
 export const model = {
   type: "@swamp/gcp/alloydb/backups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -493,6 +493,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

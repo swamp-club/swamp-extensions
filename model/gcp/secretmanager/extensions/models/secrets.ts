@@ -282,7 +282,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   customerManagedEncryption: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   expireTime: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -290,39 +290,43 @@ const StateSchema = z.object({
   policyMember: z.object({
     iamPolicyNamePrincipal: z.string(),
     iamPolicyUidPrincipal: z.string(),
-  }).optional(),
+  }).partial().optional(),
   replication: z.object({
     automatic: z.object({
       customerManagedEncryption: z.object({
         kmsKeyName: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     userManaged: z.object({
-      replicas: z.array(z.object({
-        customerManagedEncryption: z.object({
-          kmsKeyName: z.unknown(),
-        }),
-        location: z.string(),
-      })),
-    }),
-  }).optional(),
+      replicas: z.array(
+        z.object({
+          customerManagedEncryption: z.object({
+            kmsKeyName: z.unknown(),
+          }).partial(),
+          location: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   rotation: z.object({
     managedRotationStatus: z.object({
       error: z.object({
         code: z.number(),
         details: z.array(z.record(z.string(), z.unknown())),
         message: z.string(),
-      }),
+      }).partial(),
       state: z.string(),
-    }),
+    }).partial(),
     nextRotationTime: z.string(),
     rotationPeriod: z.string(),
-  }).optional(),
+  }).partial().optional(),
   secretType: z.string().optional(),
   tags: z.record(z.string(), z.unknown()).optional(),
-  topics: z.array(z.object({
-    name: z.string(),
-  })).optional(),
+  topics: z.array(
+    z.object({
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   ttl: z.string().optional(),
   versionAliases: z.record(z.string(), z.unknown()).optional(),
   versionDestroyTtl: z.string().optional(),
@@ -478,7 +482,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Secret Manager Secrets. Registered at `@swamp/gcp/secretmanager/secrets`. */
 export const model = {
   type: "@swamp/gcp/secretmanager/secrets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -671,6 +675,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

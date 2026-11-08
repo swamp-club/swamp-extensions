@@ -57,6 +57,21 @@ const ExpirationDataRuleSchema = z.object({
   DaysAfterLastAccess: z.number().int().min(1).max(365),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ImportDataRuleStateSchema = z.object({
+  Prefix: z.string(),
+  Trigger: z.string(),
+  SizeLessThan: z.number(),
+}).partial();
+
+const ExpirationDataRuleStateSchema = z.object({
+  DaysAfterLastAccess: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -99,7 +114,7 @@ const StateSchema = z.object({
   CreationTime: z.string().optional(),
   FileSystemId: z.string().optional(),
   FileSystemArn: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   KmsKeyId: z.string().optional(),
   Bucket: z.string().optional(),
   Prefix: z.string().optional(),
@@ -110,13 +125,13 @@ const StateSchema = z.object({
   OwnerId: z.string().optional(),
   SynchronizationConfiguration: z.object({
     LatestVersionNumber: z.number(),
-    ImportDataRules: z.array(ImportDataRuleSchema),
-    ExpirationDataRules: z.array(ExpirationDataRuleSchema),
-  }).optional(),
+    ImportDataRules: z.array(ImportDataRuleStateSchema),
+    ExpirationDataRules: z.array(ExpirationDataRuleStateSchema),
+  }).partial().optional(),
   AcceptBucketWarning: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -165,7 +180,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3Files FileSystem. Registered at `@swamp/aws/s3files/file-system`. */
 export const model = {
   type: "@swamp/aws/s3files/file-system",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -214,6 +229,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

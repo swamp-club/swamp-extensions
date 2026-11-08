@@ -75,7 +75,7 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   SourceApiAssociationConfig: z.object({
     MergeType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AssociationId: z.string().optional(),
   AssociationArn: z.string(),
   SourceApiId: z.string().optional(),
@@ -87,7 +87,7 @@ const StateSchema = z.object({
   LastSuccessfulMergeDate: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -129,7 +129,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync SourceApiAssociation. Registered at `@swamp/aws/appsync/source-api-association`. */
 export const model = {
   type: "@swamp/aws/appsync/source-api-association",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -194,6 +194,11 @@ export const model = {
     {
       toVersion: "2026.10.25.1",
       description: "Added: SourceApiAssociationConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

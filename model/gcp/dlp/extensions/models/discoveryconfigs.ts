@@ -563,55 +563,61 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  actions: z.array(z.object({
-    exportData: z.object({
-      profileTable: z.object({
-        datasetId: z.string(),
-        projectId: z.string(),
-        tableId: z.string(),
-      }),
-      sampleFindingsTable: z.object({
-        datasetId: z.string(),
-        projectId: z.string(),
-        tableId: z.string(),
-      }),
-    }),
-    pubSubNotification: z.object({
-      detailOfMessage: z.string(),
-      event: z.string(),
-      pubsubCondition: z.object({
-        expressions: z.object({
-          conditions: z.unknown(),
-          logicalOperator: z.unknown(),
-        }),
-      }),
-      topic: z.string(),
-    }),
-    publishToChronicle: z.object({}),
-    publishToDataplexCatalog: z.object({
-      lowerDataRiskToLow: z.boolean(),
-    }),
-    publishToScc: z.object({}),
-    tagResources: z.object({
-      lowerDataRiskToLow: z.boolean(),
-      profileGenerationsToTag: z.array(z.string()),
-      tagConditions: z.array(z.object({
-        sensitivityScore: z.unknown(),
-        tag: z.unknown(),
-      })),
-    }),
-  })).optional(),
+  actions: z.array(
+    z.object({
+      exportData: z.object({
+        profileTable: z.object({
+          datasetId: z.string(),
+          projectId: z.string(),
+          tableId: z.string(),
+        }).partial(),
+        sampleFindingsTable: z.object({
+          datasetId: z.string(),
+          projectId: z.string(),
+          tableId: z.string(),
+        }).partial(),
+      }).partial(),
+      pubSubNotification: z.object({
+        detailOfMessage: z.string(),
+        event: z.string(),
+        pubsubCondition: z.object({
+          expressions: z.object({
+            conditions: z.unknown(),
+            logicalOperator: z.unknown(),
+          }).partial(),
+        }).partial(),
+        topic: z.string(),
+      }).partial(),
+      publishToChronicle: z.object({}).partial(),
+      publishToDataplexCatalog: z.object({
+        lowerDataRiskToLow: z.boolean(),
+      }).partial(),
+      publishToScc: z.object({}).partial(),
+      tagResources: z.object({
+        lowerDataRiskToLow: z.boolean(),
+        profileGenerationsToTag: z.array(z.string()),
+        tagConditions: z.array(
+          z.object({
+            sensitivityScore: z.unknown(),
+            tag: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
-  errors: z.array(z.object({
-    details: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    extraInfo: z.string(),
-    timestamps: z.array(z.string()),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      details: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      extraInfo: z.string(),
+      timestamps: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   inspectTemplates: z.array(z.string()).optional(),
   lastRunTime: z.string().optional(),
   name: z.string(),
@@ -619,175 +625,177 @@ const StateSchema = z.object({
     location: z.object({
       folderId: z.string(),
       organizationId: z.string(),
-    }),
+    }).partial(),
     projectId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   otherCloudStartingLocation: z.object({
     awsLocation: z.object({
       accountId: z.string(),
       allAssetInventoryAssets: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   processingLocation: z.object({
     documentFallbackLocation: z.object({
-      globalProcessing: z.object({}),
-      multiRegionProcessing: z.object({}),
-    }),
+      globalProcessing: z.object({}).partial(),
+      multiRegionProcessing: z.object({}).partial(),
+    }).partial(),
     imageFallbackLocation: z.object({
-      globalProcessing: z.object({}),
-      multiRegionProcessing: z.object({}),
-    }),
-  }).optional(),
+      globalProcessing: z.object({}).partial(),
+      multiRegionProcessing: z.object({}).partial(),
+    }).partial(),
+  }).partial().optional(),
   status: z.string().optional(),
-  targets: z.array(z.object({
-    bigQueryTarget: z.object({
-      cadence: z.object({
-        inspectTemplateModifiedCadence: z.object({
-          frequency: z.unknown(),
-        }),
-        refreshFrequency: z.string(),
-        schemaModifiedCadence: z.object({
-          frequency: z.unknown(),
-          types: z.unknown(),
-        }),
-        tableModifiedCadence: z.object({
-          frequency: z.unknown(),
-          types: z.unknown(),
-        }),
-      }),
-      conditions: z.object({
-        createdAfter: z.string(),
-        orConditions: z.object({
-          minAge: z.unknown(),
-          minRowCount: z.unknown(),
-        }),
-        typeCollection: z.string(),
-        types: z.object({
-          types: z.unknown(),
-        }),
-      }),
-      disabled: z.object({}),
-      filter: z.object({
-        otherTables: z.object({}),
-        tableReference: z.object({
-          datasetId: z.unknown(),
-          projectId: z.unknown(),
-          tableId: z.unknown(),
-        }),
-        tables: z.object({
-          includeRegexes: z.unknown(),
-        }),
-      }),
-    }),
-    cloudSqlTarget: z.object({
-      conditions: z.object({
-        databaseEngines: z.array(z.unknown()),
-        types: z.array(z.unknown()),
-      }),
-      disabled: z.object({}),
-      filter: z.object({
-        collection: z.object({
-          includeRegexes: z.unknown(),
-        }),
-        databaseResourceReference: z.object({
-          database: z.unknown(),
-          databaseResource: z.unknown(),
-          instance: z.unknown(),
-          projectId: z.unknown(),
-        }),
-        others: z.object({}),
-      }),
-      generationCadence: z.object({
-        inspectTemplateModifiedCadence: z.object({
-          frequency: z.unknown(),
-        }),
-        refreshFrequency: z.string(),
-        schemaModifiedCadence: z.object({
-          frequency: z.unknown(),
-          types: z.unknown(),
-        }),
-      }),
-    }),
-    cloudStorageTarget: z.object({
-      conditions: z.object({
-        cloudStorageConditions: z.object({
-          includedBucketAttributes: z.unknown(),
-          includedObjectAttributes: z.unknown(),
-        }),
-        createdAfter: z.string(),
-        minAge: z.string(),
-      }),
-      disabled: z.object({}),
-      filter: z.object({
-        cloudStorageResourceReference: z.object({
-          bucketName: z.unknown(),
-          projectId: z.unknown(),
-        }),
-        collection: z.object({
-          includeRegexes: z.unknown(),
-          includeTags: z.unknown(),
-        }),
-        others: z.object({}),
-      }),
-      generationCadence: z.object({
-        inspectTemplateModifiedCadence: z.object({
-          frequency: z.unknown(),
-        }),
-        refreshFrequency: z.string(),
-      }),
-    }),
-    otherCloudTarget: z.object({
-      conditions: z.object({
-        amazonS3BucketConditions: z.object({
-          bucketTypes: z.unknown(),
-          objectStorageClasses: z.unknown(),
-        }),
-        minAge: z.string(),
-      }),
-      dataSourceType: z.object({
-        dataSource: z.string(),
-      }),
-      disabled: z.object({}),
-      filter: z.object({
-        collection: z.object({
-          includeRegexes: z.unknown(),
-        }),
-        others: z.object({}),
-        singleResource: z.object({
-          amazonS3Bucket: z.unknown(),
-        }),
-      }),
-      generationCadence: z.object({
-        inspectTemplateModifiedCadence: z.object({
-          frequency: z.unknown(),
-        }),
-        refreshFrequency: z.string(),
-      }),
-    }),
-    secretsTarget: z.object({}),
-    vertexDatasetTarget: z.object({
-      conditions: z.object({
-        createdAfter: z.string(),
-        minAge: z.string(),
-      }),
-      disabled: z.object({}),
-      filter: z.object({
-        collection: z.object({
-          vertexDatasetRegexes: z.unknown(),
-        }),
-        others: z.object({}),
-        vertexDatasetResourceReference: z.object({
-          datasetResourceName: z.unknown(),
-        }),
-      }),
-      generationCadence: z.object({
-        inspectTemplateModifiedCadence: z.object({
-          frequency: z.unknown(),
-        }),
-        refreshFrequency: z.string(),
-      }),
-    }),
-  })).optional(),
+  targets: z.array(
+    z.object({
+      bigQueryTarget: z.object({
+        cadence: z.object({
+          inspectTemplateModifiedCadence: z.object({
+            frequency: z.unknown(),
+          }).partial(),
+          refreshFrequency: z.string(),
+          schemaModifiedCadence: z.object({
+            frequency: z.unknown(),
+            types: z.unknown(),
+          }).partial(),
+          tableModifiedCadence: z.object({
+            frequency: z.unknown(),
+            types: z.unknown(),
+          }).partial(),
+        }).partial(),
+        conditions: z.object({
+          createdAfter: z.string(),
+          orConditions: z.object({
+            minAge: z.unknown(),
+            minRowCount: z.unknown(),
+          }).partial(),
+          typeCollection: z.string(),
+          types: z.object({
+            types: z.unknown(),
+          }).partial(),
+        }).partial(),
+        disabled: z.object({}).partial(),
+        filter: z.object({
+          otherTables: z.object({}).partial(),
+          tableReference: z.object({
+            datasetId: z.unknown(),
+            projectId: z.unknown(),
+            tableId: z.unknown(),
+          }).partial(),
+          tables: z.object({
+            includeRegexes: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      cloudSqlTarget: z.object({
+        conditions: z.object({
+          databaseEngines: z.array(z.unknown()),
+          types: z.array(z.unknown()),
+        }).partial(),
+        disabled: z.object({}).partial(),
+        filter: z.object({
+          collection: z.object({
+            includeRegexes: z.unknown(),
+          }).partial(),
+          databaseResourceReference: z.object({
+            database: z.unknown(),
+            databaseResource: z.unknown(),
+            instance: z.unknown(),
+            projectId: z.unknown(),
+          }).partial(),
+          others: z.object({}).partial(),
+        }).partial(),
+        generationCadence: z.object({
+          inspectTemplateModifiedCadence: z.object({
+            frequency: z.unknown(),
+          }).partial(),
+          refreshFrequency: z.string(),
+          schemaModifiedCadence: z.object({
+            frequency: z.unknown(),
+            types: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      cloudStorageTarget: z.object({
+        conditions: z.object({
+          cloudStorageConditions: z.object({
+            includedBucketAttributes: z.unknown(),
+            includedObjectAttributes: z.unknown(),
+          }).partial(),
+          createdAfter: z.string(),
+          minAge: z.string(),
+        }).partial(),
+        disabled: z.object({}).partial(),
+        filter: z.object({
+          cloudStorageResourceReference: z.object({
+            bucketName: z.unknown(),
+            projectId: z.unknown(),
+          }).partial(),
+          collection: z.object({
+            includeRegexes: z.unknown(),
+            includeTags: z.unknown(),
+          }).partial(),
+          others: z.object({}).partial(),
+        }).partial(),
+        generationCadence: z.object({
+          inspectTemplateModifiedCadence: z.object({
+            frequency: z.unknown(),
+          }).partial(),
+          refreshFrequency: z.string(),
+        }).partial(),
+      }).partial(),
+      otherCloudTarget: z.object({
+        conditions: z.object({
+          amazonS3BucketConditions: z.object({
+            bucketTypes: z.unknown(),
+            objectStorageClasses: z.unknown(),
+          }).partial(),
+          minAge: z.string(),
+        }).partial(),
+        dataSourceType: z.object({
+          dataSource: z.string(),
+        }).partial(),
+        disabled: z.object({}).partial(),
+        filter: z.object({
+          collection: z.object({
+            includeRegexes: z.unknown(),
+          }).partial(),
+          others: z.object({}).partial(),
+          singleResource: z.object({
+            amazonS3Bucket: z.unknown(),
+          }).partial(),
+        }).partial(),
+        generationCadence: z.object({
+          inspectTemplateModifiedCadence: z.object({
+            frequency: z.unknown(),
+          }).partial(),
+          refreshFrequency: z.string(),
+        }).partial(),
+      }).partial(),
+      secretsTarget: z.object({}).partial(),
+      vertexDatasetTarget: z.object({
+        conditions: z.object({
+          createdAfter: z.string(),
+          minAge: z.string(),
+        }).partial(),
+        disabled: z.object({}).partial(),
+        filter: z.object({
+          collection: z.object({
+            vertexDatasetRegexes: z.unknown(),
+          }).partial(),
+          others: z.object({}).partial(),
+          vertexDatasetResourceReference: z.object({
+            datasetResourceName: z.unknown(),
+          }).partial(),
+        }).partial(),
+        generationCadence: z.object({
+          inspectTemplateModifiedCadence: z.object({
+            frequency: z.unknown(),
+          }).partial(),
+          refreshFrequency: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -1235,7 +1243,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) DiscoveryConfigs. Registered at `@swamp/gcp/dlp/discoveryconfigs`. */
 export const model = {
   type: "@swamp/gcp/dlp/discoveryconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1379,6 +1387,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -94,6 +94,57 @@ const SlurmdbdCustomSettingSchema = z.object({
   ),
 });
 
+const EndpointStateSchema = z.object({
+  Port: z.string(),
+  PrivateIpAddress: z.string(),
+  Ipv6Address: z.string(),
+  Type: z.string(),
+  PublicIpAddress: z.string(),
+}).partial();
+
+const ErrorInfoStateSchema = z.object({
+  Code: z.string(),
+  Message: z.string(),
+}).partial();
+
+const AccountingStateSchema = z.object({
+  DefaultPurgeTimeInDays: z.number(),
+  Mode: z.string(),
+}).partial();
+
+const SlurmRestStateSchema = z.object({
+  Mode: z.string(),
+}).partial();
+
+const AuthKeyStateSchema = z.object({
+  SecretArn: z.string(),
+  SecretVersion: z.string(),
+}).partial();
+
+const JwtKeyStateSchema = z.object({
+  SecretArn: z.string(),
+  SecretVersion: z.string(),
+}).partial();
+
+const JwtAuthStateSchema = z.object({
+  JwtKey: JwtKeyStateSchema,
+}).partial();
+
+const SlurmCustomSettingStateSchema = z.object({
+  ParameterName: z.string(),
+  ParameterValue: z.string(),
+}).partial();
+
+const CgroupCustomSettingStateSchema = z.object({
+  ParameterName: z.string(),
+  ParameterValue: z.string(),
+}).partial();
+
+const SlurmdbdCustomSettingStateSchema = z.object({
+  ParameterName: z.string(),
+  ParameterValue: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -169,44 +220,35 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Arn: z.string(),
-  Endpoints: z.array(z.object({
-    Port: z.string(),
-    PrivateIpAddress: z.string(),
-    Ipv6Address: z.string(),
-    Type: z.string(),
-    PublicIpAddress: z.string(),
-  })).optional(),
-  ErrorInfo: z.array(z.object({
-    Code: z.string(),
-    Message: z.string(),
-  })).optional(),
+  Endpoints: z.array(EndpointStateSchema).optional(),
+  ErrorInfo: z.array(ErrorInfoStateSchema).optional(),
   Id: z.string().optional(),
   Name: z.string().optional(),
   Networking: z.object({
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
     NetworkType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Scheduler: z.object({
     Type: z.string(),
     Version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Size: z.string().optional(),
   SlurmConfiguration: z.object({
-    Accounting: AccountingSchema,
-    SlurmRest: SlurmRestSchema,
-    AuthKey: AuthKeySchema,
-    JwtAuth: JwtAuthSchema,
+    Accounting: AccountingStateSchema,
+    SlurmRest: SlurmRestStateSchema,
+    AuthKey: AuthKeyStateSchema,
+    JwtAuth: JwtAuthStateSchema,
     ScaleDownIdleTimeInSeconds: z.number(),
-    SlurmCustomSettings: z.array(SlurmCustomSettingSchema),
-    CgroupCustomSettings: z.array(CgroupCustomSettingSchema),
-    SlurmdbdCustomSettings: z.array(SlurmdbdCustomSettingSchema),
-  }).optional(),
+    SlurmCustomSettings: z.array(SlurmCustomSettingStateSchema),
+    CgroupCustomSettings: z.array(CgroupCustomSettingStateSchema),
+    SlurmdbdCustomSettings: z.array(SlurmdbdCustomSettingStateSchema),
+  }).partial().optional(),
   Status: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -290,7 +332,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS Cluster. Registered at `@swamp/aws/pcs/cluster`. */
 export const model = {
   type: "@swamp/aws/pcs/cluster",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -364,6 +406,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

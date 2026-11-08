@@ -67,6 +67,25 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const KendraSourceDetailStateSchema = z.object({
+  KnowledgeBaseArn: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const SourceDetailStateSchema = z.object({
+  Kendra: KendraSourceDetailStateSchema,
+}).partial();
+
+const SessionConfigStateSchema = z.object({
+  SessionStartTime: z.string(),
+  SessionEndTime: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -122,17 +141,17 @@ const StateSchema = z.object({
   DatasetSource: z.object({
     SourceFormat: z.string(),
     SourceType: z.string(),
-    SourceDetail: SourceDetailSchema,
-  }).optional(),
+    SourceDetail: SourceDetailStateSchema,
+  }).partial().optional(),
   DatasetType: z.string().optional(),
   WorkspaceName: z.string().optional(),
   DatasetConfig: z.object({
-    Session: SessionConfigSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    Session: SessionConfigStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -190,7 +209,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Dataset. Registered at `@swamp/aws/iotsitewise/dataset`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/dataset",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +278,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

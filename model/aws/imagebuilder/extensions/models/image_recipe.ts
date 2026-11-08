@@ -105,6 +105,38 @@ const SystemsManagerAgentSchema = z.object({
   ).optional(),
 });
 
+const ComponentParameterStateSchema = z.object({
+  Name: z.string(),
+  Value: z.array(z.string()),
+}).partial();
+
+const ComponentConfigurationStateSchema = z.object({
+  ComponentArn: z.string(),
+  Parameters: z.array(ComponentParameterStateSchema),
+}).partial();
+
+const EbsInstanceBlockDeviceSpecificationStateSchema = z.object({
+  Encrypted: z.boolean(),
+  DeleteOnTermination: z.boolean(),
+  Iops: z.number(),
+  KmsKeyId: z.string(),
+  SnapshotId: z.string(),
+  Throughput: z.number(),
+  VolumeSize: z.number(),
+  VolumeType: z.string(),
+}).partial();
+
+const InstanceBlockDeviceMappingStateSchema = z.object({
+  DeviceName: z.string(),
+  VirtualName: z.string(),
+  NoDevice: z.string(),
+  Ebs: EbsInstanceBlockDeviceSpecificationStateSchema,
+}).partial();
+
+const SystemsManagerAgentStateSchema = z.object({
+  UninstallAfterBuild: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -168,14 +200,15 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   Version: z.string().optional(),
-  Components: z.array(ComponentConfigurationSchema).optional(),
-  BlockDeviceMappings: z.array(InstanceBlockDeviceMappingSchema).optional(),
+  Components: z.array(ComponentConfigurationStateSchema).optional(),
+  BlockDeviceMappings: z.array(InstanceBlockDeviceMappingStateSchema)
+    .optional(),
   ParentImage: z.string().optional(),
   WorkingDirectory: z.string().optional(),
   AdditionalInstanceConfiguration: z.object({
-    SystemsManagerAgent: SystemsManagerAgentSchema,
+    SystemsManagerAgent: SystemsManagerAgentStateSchema,
     UserDataOverride: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AmiTags: z.record(z.string(), z.unknown()).optional(),
   AmiWatermarks: z.array(z.string()).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
@@ -184,10 +217,10 @@ const StateSchema = z.object({
     Major: z.string(),
     Minor: z.string(),
     Patch: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -256,7 +289,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder ImageRecipe. Registered at `@swamp/aws/imagebuilder/image-recipe`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/image-recipe",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -335,6 +368,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

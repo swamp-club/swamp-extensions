@@ -43,6 +43,11 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -92,7 +97,7 @@ const StateSchema = z.object({
   PoolArn: z.string().optional(),
   Capacity: z.object({
     DesiredUserSessions: z.number(),
-  }).optional(),
+  }).partial().optional(),
   PoolName: z.string().optional(),
   Description: z.string().optional(),
   CreatedAt: z.string().optional(),
@@ -101,17 +106,17 @@ const StateSchema = z.object({
   ApplicationSettings: z.object({
     Status: z.string(),
     SettingsGroup: z.string(),
-  }).optional(),
+  }).partial().optional(),
   TimeoutSettings: z.object({
     DisconnectTimeoutInSeconds: z.number(),
     IdleDisconnectTimeoutInSeconds: z.number(),
     MaxUserDurationInSeconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
   RunningMode: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -166,7 +171,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WorkSpaces WorkspacesPool. Registered at `@swamp/aws/workspaces/workspaces-pool`. */
 export const model = {
   type: "@swamp/aws/workspaces/workspaces-pool",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -230,6 +235,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

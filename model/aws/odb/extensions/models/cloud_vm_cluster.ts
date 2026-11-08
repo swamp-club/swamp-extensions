@@ -95,6 +95,36 @@ const IamRoleSchema = z.object({
   ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const DbNodeStateSchema = z.object({
+  DbNodeId: z.string(),
+  DbNodeArn: z.string(),
+  Status: z.string(),
+  CpuCoreCount: z.number(),
+  MemorySizeInGBs: z.number(),
+  DbNodeStorageSizeInGBs: z.number(),
+  Hostname: z.string(),
+  DbServerId: z.string(),
+  Ocid: z.string(),
+  DbSystemId: z.string(),
+  BackupIpId: z.string(),
+  BackupVnic2Id: z.string(),
+  VnicId: z.string(),
+  Vnic2Id: z.string(),
+  HostIpId: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const IamRoleStateSchema = z.object({
+  AwsIntegration: z.string(),
+  IamRoleArn: z.string(),
+  Status: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -199,7 +229,7 @@ const StateSchema = z.object({
     IsDiagnosticsEventsEnabled: z.boolean(),
     IsHealthMonitoringEnabled: z.boolean(),
     IsIncidentLogsEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   DataStorageSizeInTBs: z.number().optional(),
   DbNodeStorageSizeInGBs: z.number().optional(),
   DisplayName: z.string().optional(),
@@ -224,15 +254,15 @@ const StateSchema = z.object({
   SshPublicKeys: z.array(z.string()).optional(),
   StorageSizeInGBs: z.number().optional(),
   SystemVersion: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TimeZone: z.string().optional(),
   VipIds: z.array(z.string()).optional(),
   DbServers: z.array(z.string()).optional(),
-  DbNodes: z.array(DbNodeSchema).optional(),
-  IamRoles: z.array(IamRoleSchema).optional(),
+  DbNodes: z.array(DbNodeStateSchema).optional(),
+  IamRoles: z.array(IamRoleStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -336,7 +366,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ODB CloudVmCluster. Registered at `@swamp/aws/odb/cloud-vm-cluster`. */
 export const model = {
   type: "@swamp/aws/odb/cloud-vm-cluster",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -402,6 +432,11 @@ export const model = {
       toVersion: "2026.10.25.1",
       description:
         "Added: CpuCoreCount, DbNodeStorageSizeInGBs, Hostname, MemorySizeInGBs",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

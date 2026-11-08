@@ -54,6 +54,20 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const ChatbotNotificationChannelStateSchema = z.object({
+  SNSTopicArn: z.string(),
+  ChatConfigurationArns: z.array(z.string()),
+}).partial();
+
+const CrossAccountConfigurationStateSchema = z.object({
+  SourceRoleArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -112,18 +126,18 @@ const StateSchema = z.object({
   EncryptionConfig: z.object({
     EncryptionConfigurationType: z.string(),
     KmsKeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   InvestigationGroupPolicy: z.string().optional(),
   IsCloudTrailEventHistoryEnabled: z.boolean().optional(),
   TagKeyBoundaries: z.array(z.string()).optional(),
-  ChatbotNotificationChannels: z.array(ChatbotNotificationChannelSchema)
+  ChatbotNotificationChannels: z.array(ChatbotNotificationChannelStateSchema)
     .optional(),
-  CrossAccountConfigurations: z.array(CrossAccountConfigurationSchema)
+  CrossAccountConfigurations: z.array(CrossAccountConfigurationStateSchema)
     .optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -180,7 +194,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AIOps InvestigationGroup. Registered at `@swamp/aws/aiops/investigation-group`. */
 export const model = {
   type: "@swamp/aws/aiops/investigation-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -244,6 +258,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

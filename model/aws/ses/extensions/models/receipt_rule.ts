@@ -158,6 +158,64 @@ const ActionSchema = z.object({
   ).optional(),
 });
 
+const AddHeaderActionStateSchema = z.object({
+  HeaderName: z.string(),
+  HeaderValue: z.string(),
+}).partial();
+
+const BounceActionStateSchema = z.object({
+  Sender: z.string(),
+  SmtpReplyCode: z.string(),
+  Message: z.string(),
+  TopicArn: z.string(),
+  StatusCode: z.string(),
+}).partial();
+
+const ConnectActionStateSchema = z.object({
+  InstanceARN: z.string(),
+  IAMRoleARN: z.string(),
+}).partial();
+
+const LambdaActionStateSchema = z.object({
+  FunctionArn: z.string(),
+  InvocationType: z.string(),
+  TopicArn: z.string(),
+}).partial();
+
+const S3ActionStateSchema = z.object({
+  BucketName: z.string(),
+  ObjectKeyPrefix: z.string(),
+  IamRoleArn: z.string(),
+  KmsKeyArn: z.string(),
+  TopicArn: z.string(),
+}).partial();
+
+const SNSActionStateSchema = z.object({
+  TopicArn: z.string(),
+  Encoding: z.string(),
+}).partial();
+
+const StopActionStateSchema = z.object({
+  Scope: z.string(),
+  TopicArn: z.string(),
+}).partial();
+
+const WorkmailActionStateSchema = z.object({
+  OrganizationArn: z.string(),
+  TopicArn: z.string(),
+}).partial();
+
+const ActionStateSchema = z.object({
+  AddHeaderAction: AddHeaderActionStateSchema,
+  BounceAction: BounceActionStateSchema,
+  ConnectAction: ConnectActionStateSchema,
+  LambdaAction: LambdaActionStateSchema,
+  S3Action: S3ActionStateSchema,
+  SNSAction: SNSActionStateSchema,
+  StopAction: StopActionStateSchema,
+  WorkmailAction: WorkmailActionStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -212,13 +270,13 @@ const StateSchema = z.object({
     Enabled: z.boolean(),
     TlsPolicy: z.string(),
     Recipients: z.array(z.string()),
-    Actions: z.array(ActionSchema),
+    Actions: z.array(ActionStateSchema),
     ScanEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   RuleSetName: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -275,7 +333,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES ReceiptRule. Registered at `@swamp/aws/ses/receipt-rule`. */
 export const model = {
   type: "@swamp/aws/ses/receipt-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -304,6 +362,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

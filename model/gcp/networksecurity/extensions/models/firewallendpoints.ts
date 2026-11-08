@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Network Security FirewallEndpoints.
  *
- * Message describing Endpoint object.
+ * Message describing a firewall endpoint.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -176,7 +176,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Project to charge for the deployed firewall endpoint. This field must be specified when creating the endpoint in the organization scope, and should be omitted otherwise.",
   ).optional(),
   description: z.string().describe(
-    "Optional. Description of the firewall endpoint. Max length 2048 characters.",
+    "Optional. Description of the firewall endpoint. The maximum length is 2048 characters.",
   ).optional(),
   endpointSettings: z.object({
     contentCloudRegion: z.enum([
@@ -201,46 +201,47 @@ const GlobalArgsSchema = z.object({
     ]).describe("Optional. The content cloud region of the endpoint.")
       .optional(),
     httpPartialResponseBlocked: z.boolean().describe(
-      "Optional. Whether to block HTTP partial responses for the endpoint. When this is true, resumption of blocked malicious HTTP file downloads will be blocked by the firewall. False provides maximum availability, true provides maximum security.",
+      "Optional. Whether to block HTTP partial responses for the endpoint. When set to `true`, the firewall blocks the resumption of HTTP file downloads. Setting this to `false` provides maximum availability, while `true` provides maximum security.",
     ).optional(),
     jumboFramesEnabled: z.boolean().describe(
-      "Optional. Immutable. Indicates whether Jumbo Frames are enabled. Default value is false.",
+      "Optional. Immutable. Indicates whether jumbo frames are enabled. The default value is `false`.",
     ).optional(),
   }).describe("Optional. Settings for the endpoint.").optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
-  name: z.string().describe("Immutable. Identifier. Name of resource.")
+  name: z.string().describe("Immutable. Identifier. The name of the resource.")
     .optional(),
   wildfireSettings: z.object({
     enabled: z.boolean().describe(
-      "Optional. Indicates whether WildFire analysis is enabled. Default value is false.",
+      "Optional. Indicates whether Advanced malware sandbox analysis is enabled. The default value is `false`.",
     ).optional(),
     wildfireInlineCloudAnalysisSettings: z.object({
       maxAnalysisDuration: z.string().describe(
-        "Optional. Timeout in milliseconds on a file being held while WildFire inline cloud analysis is performed. Value between 1 to 240000 is valid. Default value is 30000.",
+        'Optional. The timeout that a file is held while Advanced malware sandbox inline cloud analysis is performed. Valid values are from 1 to 240000 milliseconds. In canonical JSON encoding, this is represented as a string ending in `s` (for example, `"0.001s"` to `"240s"`). The default value is `30000` milliseconds (`"30s"` in JSON).',
       ).optional(),
       submissionTimeoutLoggingDisabled: z.boolean().describe(
-        "Optional. Whether to disable WildFire submission log generation for files that timeout during WildFire inline cloud analysis.",
+        "Optional. Whether to disable Advanced malware sandbox submission log generation for files that time out during Advanced malware sandbox inline cloud analysis.",
       ).optional(),
       timeoutAction: z.enum([
         "WILDFIRE_INLINE_CLOUD_ANALYSIS_TIMEOUT_ACTION_UNSPECIFIED",
         "ALLOW",
         "DENY",
       ]).describe(
-        "Optional. Action to take when WildFire inline cloud analysis times out. Default value is ALLOW.",
+        "Optional. The action to take when Advanced malware sandbox inline cloud analysis times out. The default value is `ALLOW`.",
       ).optional(),
-    }).describe("Optional. Settings for WildFire inline cloud analysis.")
-      .optional(),
+    }).describe(
+      "Optional. Settings for Advanced malware sandbox inline cloud analysis.",
+    ).optional(),
     wildfireRealtimeLookupDuration: z.string().describe(
-      "Optional. Duration in milliseconds on a file being held while the WildFire real time signature cloud performs a signature lookup. Value between 1 to 5000 is valid. Default value is 1000.",
+      'Optional. The duration that a file is held while the Advanced malware sandbox real-time signature cloud performs a signature lookup. Valid values are from 1 to 5000 milliseconds. In canonical JSON encoding, this is represented as a string ending in `s` (for example, `"0.001s"` to `"5s"`). The default value is `1000` milliseconds (`"1s"` in JSON).',
     ).optional(),
     wildfireRealtimeLookupTimeoutAction: z.enum([
       "WILDFIRE_REALTIME_SIGNATURE_LOOKUP_TIMEOUT_ACTION_UNSPECIFIED",
       "ALLOW",
       "DENY",
     ]).describe(
-      "Optional. Action to take on WildFire real time signature lookup timeout. Default value is ALLOW.",
+      "Optional. The action to take on an Advanced malware sandbox real-time signature lookup timeout. The default value is `ALLOW`.",
     ).optional(),
     wildfireRegion: z.enum([
       "WILDFIRE_REGION_UNSPECIFIED",
@@ -263,14 +264,16 @@ const GlobalArgsSchema = z.object({
       "SAUDI_ARABIA",
       "SPAIN",
     ]).describe(
-      "Optional. The region where WildFire analysis will be performed. Palo Alto Networks supports regions: https://docs.paloaltonetworks.com/advanced-wildfire/administration/advanced-wildfire-overview/advanced-wildfire-deployments/advanced-wildfire-global-cloud",
+      "Optional. The region where Advanced malware sandbox analysis is performed. For a list of Palo Alto Networks supported regions, see [Advanced WildFire global cloud](https://docs.paloaltonetworks.com/advanced-wildfire/administration/advanced-wildfire-overview/advanced-wildfire-deployments/advanced-wildfire-global-cloud).",
     ).optional(),
-  }).describe("Optional. Settings for WildFire analysis.").optional(),
+  }).describe(
+    "Optional. Settings for Advanced malware sandbox (WildFire) analysis.",
+  ).optional(),
   firewallEndpointId: z.string().describe(
-    "Required. Id of the requesting object. If auto-generating Id server-side, remove this field and firewall_endpoint_id from the method_signature of Create RPC.",
+    "Required. The ID to use for the firewall endpoint, which becomes the final component of the endpoint's resource name. This value must be 1-63 characters long, start with a lowercase letter, contain only lowercase letters, numbers, and hyphens, and cannot end with a hyphen.",
   ).optional(),
   requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server knows to ignore the request if it has already been completed. The server guarantees that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if the original operation with the same request ID was received, and if so, ignores the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (`00000000-0000-0000-0000-000000000000`).",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -279,10 +282,12 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   associatedNetworks: z.array(z.string()).optional(),
-  associations: z.array(z.object({
-    name: z.string(),
-    network: z.string(),
-  })).optional(),
+  associations: z.array(
+    z.object({
+      name: z.string(),
+      network: z.string(),
+    }).partial(),
+  ).optional(),
   billingProjectId: z.string().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
@@ -290,7 +295,7 @@ const StateSchema = z.object({
     contentCloudRegion: z.string(),
     httpPartialResponseBlocked: z.boolean(),
     jumboFramesEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   reconciling: z.boolean().optional(),
@@ -304,11 +309,11 @@ const StateSchema = z.object({
       maxAnalysisDuration: z.string(),
       submissionTimeoutLoggingDisabled: z.boolean(),
       timeoutAction: z.string(),
-    }),
+    }).partial(),
     wildfireRealtimeLookupDuration: z.string(),
     wildfireRealtimeLookupTimeoutAction: z.string(),
     wildfireRegion: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -324,7 +329,7 @@ const InputsSchema = z.object({
     "Optional. Project to charge for the deployed firewall endpoint. This field must be specified when creating the endpoint in the organization scope, and should be omitted otherwise.",
   ).optional(),
   description: z.string().describe(
-    "Optional. Description of the firewall endpoint. Max length 2048 characters.",
+    "Optional. Description of the firewall endpoint. The maximum length is 2048 characters.",
   ).optional(),
   endpointSettings: z.object({
     contentCloudRegion: z.enum([
@@ -349,46 +354,47 @@ const InputsSchema = z.object({
     ]).describe("Optional. The content cloud region of the endpoint.")
       .optional(),
     httpPartialResponseBlocked: z.boolean().describe(
-      "Optional. Whether to block HTTP partial responses for the endpoint. When this is true, resumption of blocked malicious HTTP file downloads will be blocked by the firewall. False provides maximum availability, true provides maximum security.",
+      "Optional. Whether to block HTTP partial responses for the endpoint. When set to `true`, the firewall blocks the resumption of HTTP file downloads. Setting this to `false` provides maximum availability, while `true` provides maximum security.",
     ).optional(),
     jumboFramesEnabled: z.boolean().describe(
-      "Optional. Immutable. Indicates whether Jumbo Frames are enabled. Default value is false.",
+      "Optional. Immutable. Indicates whether jumbo frames are enabled. The default value is `false`.",
     ).optional(),
   }).describe("Optional. Settings for the endpoint.").optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
-  name: z.string().describe("Immutable. Identifier. Name of resource.")
+  name: z.string().describe("Immutable. Identifier. The name of the resource.")
     .optional(),
   wildfireSettings: z.object({
     enabled: z.boolean().describe(
-      "Optional. Indicates whether WildFire analysis is enabled. Default value is false.",
+      "Optional. Indicates whether Advanced malware sandbox analysis is enabled. The default value is `false`.",
     ).optional(),
     wildfireInlineCloudAnalysisSettings: z.object({
       maxAnalysisDuration: z.string().describe(
-        "Optional. Timeout in milliseconds on a file being held while WildFire inline cloud analysis is performed. Value between 1 to 240000 is valid. Default value is 30000.",
+        'Optional. The timeout that a file is held while Advanced malware sandbox inline cloud analysis is performed. Valid values are from 1 to 240000 milliseconds. In canonical JSON encoding, this is represented as a string ending in `s` (for example, `"0.001s"` to `"240s"`). The default value is `30000` milliseconds (`"30s"` in JSON).',
       ).optional(),
       submissionTimeoutLoggingDisabled: z.boolean().describe(
-        "Optional. Whether to disable WildFire submission log generation for files that timeout during WildFire inline cloud analysis.",
+        "Optional. Whether to disable Advanced malware sandbox submission log generation for files that time out during Advanced malware sandbox inline cloud analysis.",
       ).optional(),
       timeoutAction: z.enum([
         "WILDFIRE_INLINE_CLOUD_ANALYSIS_TIMEOUT_ACTION_UNSPECIFIED",
         "ALLOW",
         "DENY",
       ]).describe(
-        "Optional. Action to take when WildFire inline cloud analysis times out. Default value is ALLOW.",
+        "Optional. The action to take when Advanced malware sandbox inline cloud analysis times out. The default value is `ALLOW`.",
       ).optional(),
-    }).describe("Optional. Settings for WildFire inline cloud analysis.")
-      .optional(),
+    }).describe(
+      "Optional. Settings for Advanced malware sandbox inline cloud analysis.",
+    ).optional(),
     wildfireRealtimeLookupDuration: z.string().describe(
-      "Optional. Duration in milliseconds on a file being held while the WildFire real time signature cloud performs a signature lookup. Value between 1 to 5000 is valid. Default value is 1000.",
+      'Optional. The duration that a file is held while the Advanced malware sandbox real-time signature cloud performs a signature lookup. Valid values are from 1 to 5000 milliseconds. In canonical JSON encoding, this is represented as a string ending in `s` (for example, `"0.001s"` to `"5s"`). The default value is `1000` milliseconds (`"1s"` in JSON).',
     ).optional(),
     wildfireRealtimeLookupTimeoutAction: z.enum([
       "WILDFIRE_REALTIME_SIGNATURE_LOOKUP_TIMEOUT_ACTION_UNSPECIFIED",
       "ALLOW",
       "DENY",
     ]).describe(
-      "Optional. Action to take on WildFire real time signature lookup timeout. Default value is ALLOW.",
+      "Optional. The action to take on an Advanced malware sandbox real-time signature lookup timeout. The default value is `ALLOW`.",
     ).optional(),
     wildfireRegion: z.enum([
       "WILDFIRE_REGION_UNSPECIFIED",
@@ -411,14 +417,16 @@ const InputsSchema = z.object({
       "SAUDI_ARABIA",
       "SPAIN",
     ]).describe(
-      "Optional. The region where WildFire analysis will be performed. Palo Alto Networks supports regions: https://docs.paloaltonetworks.com/advanced-wildfire/administration/advanced-wildfire-overview/advanced-wildfire-deployments/advanced-wildfire-global-cloud",
+      "Optional. The region where Advanced malware sandbox analysis is performed. For a list of Palo Alto Networks supported regions, see [Advanced WildFire global cloud](https://docs.paloaltonetworks.com/advanced-wildfire/administration/advanced-wildfire-overview/advanced-wildfire-deployments/advanced-wildfire-global-cloud).",
     ).optional(),
-  }).describe("Optional. Settings for WildFire analysis.").optional(),
+  }).describe(
+    "Optional. Settings for Advanced malware sandbox (WildFire) analysis.",
+  ).optional(),
   firewallEndpointId: z.string().describe(
-    "Required. Id of the requesting object. If auto-generating Id server-side, remove this field and firewall_endpoint_id from the method_signature of Create RPC.",
+    "Required. The ID to use for the firewall endpoint, which becomes the final component of the endpoint's resource name. This value must be 1-63 characters long, start with a lowercase letter, contain only lowercase letters, numbers, and hyphens, and cannot end with a hyphen.",
   ).optional(),
   requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server knows to ignore the request if it has already been completed. The server guarantees that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if the original operation with the same request ID was received, and if so, ignores the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (`00000000-0000-0000-0000-000000000000`).",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -451,7 +459,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security FirewallEndpoints. Registered at `@swamp/gcp/networksecurity/firewallendpoints`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/firewallendpoints",
-  version: "2026.10.23.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -608,12 +616,22 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Message describing Endpoint object.",
+      description: "Message describing a firewall endpoint.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -928,11 +946,12 @@ export const model = {
     list: {
       description: "List firewallEndpoints resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results").optional(),
-        orderBy: z.string().describe("Hint for how to order the results")
-          .optional(),
+        filter: z.string().describe("Optional. Filtering results.").optional(),
+        orderBy: z.string().describe(
+          "Optional. Hint for how to order the results.",
+        ).optional(),
         pageSize: z.number().describe(
-          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+          "Optional. Requested page size. The server might return fewer items than requested. The maximum value is 1000; values above 1000 are coerced to 1000. If unspecified, the server picks an appropriate default.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

@@ -108,738 +108,808 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  addresses: z.array(z.object({
-    city: z.string(),
-    country: z.string(),
-    countryCode: z.string(),
-    extendedAddress: z.string(),
-    formattedType: z.string(),
-    formattedValue: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    poBox: z.string(),
-    postalCode: z.string(),
-    region: z.string(),
-    streetAddress: z.string(),
-    type: z.string(),
-  })).optional(),
+  addresses: z.array(
+    z.object({
+      city: z.string(),
+      country: z.string(),
+      countryCode: z.string(),
+      extendedAddress: z.string(),
+      formattedType: z.string(),
+      formattedValue: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      poBox: z.string(),
+      postalCode: z.string(),
+      region: z.string(),
+      streetAddress: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   ageRange: z.string().optional(),
-  ageRanges: z.array(z.object({
-    ageRange: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-  })).optional(),
-  biographies: z.array(z.object({
-    contentType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  birthdays: z.array(z.object({
-    date: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    text: z.string(),
-  })).optional(),
-  braggingRights: z.array(z.object({
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  calendarUrls: z.array(z.object({
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-    url: z.string(),
-  })).optional(),
-  clientData: z.array(z.object({
-    key: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  coverPhotos: z.array(z.object({
-    default: z.boolean(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    url: z.string(),
-  })).optional(),
-  emailAddresses: z.array(z.object({
-    displayName: z.string(),
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
+  ageRanges: z.array(
+    z.object({
+      ageRange: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  biographies: z.array(
+    z.object({
+      contentType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  birthdays: z.array(
+    z.object({
+      date: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      text: z.string(),
+    }).partial(),
+  ).optional(),
+  braggingRights: z.array(
+    z.object({
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  calendarUrls: z.array(
+    z.object({
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      type: z.string(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
+  clientData: z.array(
+    z.object({
+      key: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  coverPhotos: z.array(
+    z.object({
+      default: z.boolean(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
+  emailAddresses: z.array(
+    z.object({
+      displayName: z.string(),
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   etag: z.string().optional(),
-  events: z.array(z.object({
-    date: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-  })).optional(),
-  externalIds: z.array(z.object({
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
-  fileAses: z.array(z.object({
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  genders: z.array(z.object({
-    addressMeAs: z.string(),
-    formattedValue: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  imClients: z.array(z.object({
-    formattedProtocol: z.string(),
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    protocol: z.string(),
-    type: z.string(),
-    username: z.string(),
-  })).optional(),
-  interests: z.array(z.object({
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  locales: z.array(z.object({
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  locations: z.array(z.object({
-    buildingId: z.string(),
-    current: z.boolean(),
-    deskCode: z.string(),
-    floor: z.string(),
-    floorSection: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
-  memberships: z.array(z.object({
-    contactGroupMembership: z.object({
-      contactGroupId: z.string(),
-      contactGroupResourceName: z.string(),
-    }),
-    domainMembership: z.object({
-      inViewerDomain: z.boolean(),
-    }),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-  })).optional(),
+  events: z.array(
+    z.object({
+      date: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
+  externalIds: z.array(
+    z.object({
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  fileAses: z.array(
+    z.object({
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  genders: z.array(
+    z.object({
+      addressMeAs: z.string(),
+      formattedValue: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  imClients: z.array(
+    z.object({
+      formattedProtocol: z.string(),
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      protocol: z.string(),
+      type: z.string(),
+      username: z.string(),
+    }).partial(),
+  ).optional(),
+  interests: z.array(
+    z.object({
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  locales: z.array(
+    z.object({
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  locations: z.array(
+    z.object({
+      buildingId: z.string(),
+      current: z.boolean(),
+      deskCode: z.string(),
+      floor: z.string(),
+      floorSection: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  memberships: z.array(
+    z.object({
+      contactGroupMembership: z.object({
+        contactGroupId: z.string(),
+        contactGroupResourceName: z.string(),
+      }).partial(),
+      domainMembership: z.object({
+        inViewerDomain: z.boolean(),
+      }).partial(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   metadata: z.object({
     deleted: z.boolean(),
     linkedPeopleResourceNames: z.array(z.string()),
     objectType: z.string(),
     previousResourceNames: z.array(z.string()),
-    sources: z.array(z.object({
-      etag: z.string(),
-      id: z.string(),
-      profileMetadata: z.object({
-        objectType: z.string(),
-        userTypes: z.array(z.unknown()),
-      }),
+    sources: z.array(
+      z.object({
+        etag: z.string(),
+        id: z.string(),
+        profileMetadata: z.object({
+          objectType: z.string(),
+          userTypes: z.array(z.unknown()),
+        }).partial(),
+        type: z.string(),
+        updateTime: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  miscKeywords: z.array(
+    z.object({
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
       type: z.string(),
-      updateTime: z.string(),
-    })),
-  }).optional(),
-  miscKeywords: z.array(z.object({
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
-  names: z.array(z.object({
-    displayName: z.string(),
-    displayNameLastFirst: z.string(),
-    familyName: z.string(),
-    givenName: z.string(),
-    honorificPrefix: z.string(),
-    honorificSuffix: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    middleName: z.string(),
-    phoneticFamilyName: z.string(),
-    phoneticFullName: z.string(),
-    phoneticGivenName: z.string(),
-    phoneticHonorificPrefix: z.string(),
-    phoneticHonorificSuffix: z.string(),
-    phoneticMiddleName: z.string(),
-    unstructuredName: z.string(),
-  })).optional(),
-  nicknames: z.array(z.object({
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
-  occupations: z.array(z.object({
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  organizations: z.array(z.object({
-    costCenter: z.string(),
-    current: z.boolean(),
-    department: z.string(),
-    domain: z.string(),
-    endDate: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-    formattedType: z.string(),
-    fullTimeEquivalentMillipercent: z.number(),
-    jobDescription: z.string(),
-    location: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    name: z.string(),
-    phoneticName: z.string(),
-    startDate: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-    symbol: z.string(),
-    title: z.string(),
-    type: z.string(),
-  })).optional(),
-  phoneNumbers: z.array(z.object({
-    canonicalForm: z.string(),
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
-  photos: z.array(z.object({
-    default: z.boolean(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    url: z.string(),
-  })).optional(),
-  relations: z.array(z.object({
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    person: z.string(),
-    type: z.string(),
-  })).optional(),
-  relationshipInterests: z.array(z.object({
-    formattedValue: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  relationshipStatuses: z.array(z.object({
-    formattedValue: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  residences: z.array(z.object({
-    current: z.boolean(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  names: z.array(
+    z.object({
+      displayName: z.string(),
+      displayNameLastFirst: z.string(),
+      familyName: z.string(),
+      givenName: z.string(),
+      honorificPrefix: z.string(),
+      honorificSuffix: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      middleName: z.string(),
+      phoneticFamilyName: z.string(),
+      phoneticFullName: z.string(),
+      phoneticGivenName: z.string(),
+      phoneticHonorificPrefix: z.string(),
+      phoneticHonorificSuffix: z.string(),
+      phoneticMiddleName: z.string(),
+      unstructuredName: z.string(),
+    }).partial(),
+  ).optional(),
+  nicknames: z.array(
+    z.object({
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  occupations: z.array(
+    z.object({
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  organizations: z.array(
+    z.object({
+      costCenter: z.string(),
+      current: z.boolean(),
+      department: z.string(),
+      domain: z.string(),
+      endDate: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+      formattedType: z.string(),
+      fullTimeEquivalentMillipercent: z.number(),
+      jobDescription: z.string(),
+      location: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      name: z.string(),
+      phoneticName: z.string(),
+      startDate: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+      symbol: z.string(),
+      title: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
+  phoneNumbers: z.array(
+    z.object({
+      canonicalForm: z.string(),
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  photos: z.array(
+    z.object({
+      default: z.boolean(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
+  relations: z.array(
+    z.object({
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      person: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
+  relationshipInterests: z.array(
+    z.object({
+      formattedValue: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  relationshipStatuses: z.array(
+    z.object({
+      formattedValue: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  residences: z.array(
+    z.object({
+      current: z.boolean(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   resourceName: z.string().optional(),
-  sipAddresses: z.array(z.object({
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
-  skills: z.array(z.object({
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  taglines: z.array(z.object({
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
-  urls: z.array(z.object({
-    formattedType: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
-  userDefined: z.array(z.object({
-    key: z.string(),
-    metadata: z.object({
-      primary: z.boolean(),
-      source: z.object({
-        etag: z.string(),
-        id: z.string(),
-        profileMetadata: z.object({
-          objectType: z.unknown(),
-          userTypes: z.unknown(),
-        }),
-        type: z.string(),
-        updateTime: z.string(),
-      }),
-      sourcePrimary: z.boolean(),
-      verified: z.boolean(),
-    }),
-    value: z.string(),
-  })).optional(),
+  sipAddresses: z.array(
+    z.object({
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  skills: z.array(
+    z.object({
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  taglines: z.array(
+    z.object({
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  urls: z.array(
+    z.object({
+      formattedType: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  userDefined: z.array(
+    z.object({
+      key: z.string(),
+      metadata: z.object({
+        primary: z.boolean(),
+        source: z.object({
+          etag: z.string(),
+          id: z.string(),
+          profileMetadata: z.object({
+            objectType: z.unknown(),
+            userTypes: z.unknown(),
+          }).partial(),
+          type: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        sourcePrimary: z.boolean(),
+        verified: z.boolean(),
+      }).partial(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -880,7 +950,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud People OtherContacts. Registered at `@swamp/gcp/people/othercontacts`. */
 export const model = {
   type: "@swamp/gcp/people/othercontacts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1014,6 +1084,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

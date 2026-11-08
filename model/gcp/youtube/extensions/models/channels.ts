@@ -557,7 +557,7 @@ const StateSchema = z.object({
     communityGuidelinesGoodStanding: z.boolean(),
     contentIdClaimsGoodStanding: z.boolean(),
     copyrightStrikesGoodStanding: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   brandingSettings: z.object({
     channel: z.object({
       country: z.string(),
@@ -574,22 +574,26 @@ const StateSchema = z.object({
       title: z.string(),
       trackingAnalyticsAccountId: z.string(),
       unsubscribedTrailer: z.string(),
-    }),
-    hints: z.array(z.object({
-      property: z.string(),
-      value: z.string(),
-    })),
+    }).partial(),
+    hints: z.array(
+      z.object({
+        property: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     image: z.object({
       backgroundImageUrl: z.object({
         default: z.string(),
         defaultLanguage: z.object({
           value: z.string(),
-        }),
-        localized: z.array(z.object({
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        localized: z.array(
+          z.object({
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       bannerExternalUrl: z.string(),
       bannerImageUrl: z.string(),
       bannerMobileExtraHdImageUrl: z.string(),
@@ -609,51 +613,59 @@ const StateSchema = z.object({
         default: z.string(),
         defaultLanguage: z.object({
           value: z.string(),
-        }),
-        localized: z.array(z.object({
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        localized: z.array(
+          z.object({
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       largeBrandedBannerImageUrl: z.object({
         default: z.string(),
         defaultLanguage: z.object({
           value: z.string(),
-        }),
-        localized: z.array(z.object({
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        localized: z.array(
+          z.object({
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       smallBrandedBannerImageImapScript: z.object({
         default: z.string(),
         defaultLanguage: z.object({
           value: z.string(),
-        }),
-        localized: z.array(z.object({
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        localized: z.array(
+          z.object({
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       smallBrandedBannerImageUrl: z.object({
         default: z.string(),
         defaultLanguage: z.object({
           value: z.string(),
-        }),
-        localized: z.array(z.object({
-          language: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        localized: z.array(
+          z.object({
+            language: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       trackingImageUrl: z.string(),
       watchIconImageUrl: z.string(),
-    }),
+    }).partial(),
     watch: z.object({
       backgroundColor: z.string(),
       featuredPlaylistId: z.string(),
       textColor: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   contentDetails: z.object({
     relatedPlaylists: z.object({
       favorites: z.string(),
@@ -661,18 +673,20 @@ const StateSchema = z.object({
       uploads: z.string(),
       watchHistory: z.string(),
       watchLater: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   contentOwnerDetails: z.object({
     contentOwner: z.string(),
     timeLinked: z.string(),
-  }).optional(),
+  }).partial().optional(),
   conversionPings: z.object({
-    pings: z.array(z.object({
-      context: z.string(),
-      conversionUrl: z.string(),
-    })),
-  }).optional(),
+    pings: z.array(
+      z.object({
+        context: z.string(),
+        conversionUrl: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -685,64 +699,64 @@ const StateSchema = z.object({
     localized: z.object({
       description: z.string(),
       title: z.string(),
-    }),
+    }).partial(),
     publishedAt: z.string(),
     thumbnails: z.object({
       default: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       fhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       high: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       maxres: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       medium: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       qhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       shortsAspectRatio: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       standard: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       uhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   statistics: z.object({
     commentCount: z.string(),
     hiddenSubscriberCount: z.boolean(),
     subscriberCount: z.string(),
     videoCount: z.string(),
     viewCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     isChannelMonetizationEnabled: z.boolean(),
     isLinked: z.boolean(),
@@ -750,11 +764,11 @@ const StateSchema = z.object({
     madeForKids: z.boolean(),
     privacyStatus: z.string(),
     selfDeclaredMadeForKids: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   topicDetails: z.object({
     topicCategories: z.array(z.string()),
     topicIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1206,7 +1220,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Channels. Registered at `@swamp/gcp/youtube/channels`. */
 export const model = {
   type: "@swamp/gcp/youtube/channels",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1370,6 +1384,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

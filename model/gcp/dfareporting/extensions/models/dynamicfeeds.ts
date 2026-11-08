@@ -602,81 +602,87 @@ const StateSchema = z.object({
     contentSourceName: z.string(),
     createInfo: z.object({
       time: z.string(),
-    }),
+    }).partial(),
     lastModifiedInfo: z.object({
       time: z.string(),
-    }),
+    }).partial(),
     metaData: z.object({
       charset: z.string(),
       fieldNames: z.array(z.string()),
       rowNumber: z.number(),
       separator: z.string(),
-    }),
+    }).partial(),
     resourceLink: z.string(),
     resourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dynamicFeedId: z.string().optional(),
   dynamicFeedName: z.string().optional(),
   element: z.object({
     activeFieldId: z.number(),
     createInfo: z.object({
       time: z.string(),
-    }),
+    }).partial(),
     defaultFieldId: z.number(),
     elementName: z.string(),
     endTimestampFieldId: z.number(),
     externalIdFieldId: z.number(),
-    feedFields: z.array(z.object({
-      defaultValue: z.string(),
-      filterable: z.boolean(),
-      id: z.number(),
-      name: z.string(),
-      renderable: z.boolean(),
-      required: z.boolean(),
-      type: z.string(),
-    })),
+    feedFields: z.array(
+      z.object({
+        defaultValue: z.string(),
+        filterable: z.boolean(),
+        id: z.number(),
+        name: z.string(),
+        renderable: z.boolean(),
+        required: z.boolean(),
+        type: z.string(),
+      }).partial(),
+    ),
     isLocalTimestamp: z.boolean(),
     lastModifiedInfo: z.object({
       time: z.string(),
-    }),
+    }).partial(),
     proximityTargetingFieldId: z.number(),
     reportingLabelFieldId: z.number(),
     startTimestampFieldId: z.number(),
-  }).optional(),
+  }).partial().optional(),
   feedIngestionStatus: z.object({
-    ingestionErrorRecords: z.array(z.object({
-      errors: z.array(z.object({
-        fieldId: z.unknown(),
-        fieldName: z.unknown(),
-        fieldValues: z.unknown(),
-        ingestionError: z.unknown(),
-        isError: z.unknown(),
-      })),
-      recordId: z.string(),
-    })),
+    ingestionErrorRecords: z.array(
+      z.object({
+        errors: z.array(
+          z.object({
+            fieldId: z.unknown(),
+            fieldName: z.unknown(),
+            fieldValues: z.unknown(),
+            ingestionError: z.unknown(),
+            isError: z.unknown(),
+          }).partial(),
+        ),
+        recordId: z.string(),
+      }).partial(),
+    ),
     ingestionStatus: z.object({
       numActiveRows: z.string(),
       numRowsProcessed: z.string(),
       numRowsTotal: z.string(),
       numRowsWithErrors: z.string(),
       numWarningsTotal: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   feedSchedule: z.object({
     repeatValue: z.string(),
     scheduleEnabled: z.boolean(),
     startHour: z.string(),
     startMinute: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   hasPublished: z.boolean().optional(),
   lastModifiedInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.string().optional(),
   studioAdvertiserId: z.string().optional(),
 }).passthrough();
@@ -1214,7 +1220,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 DynamicFeeds. Registered at `@swamp/gcp/dfareporting/dynamicfeeds`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/dynamicfeeds",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1343,6 +1349,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

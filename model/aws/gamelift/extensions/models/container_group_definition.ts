@@ -198,6 +198,64 @@ const TagSchema = z.object({
   ),
 });
 
+const ContainerDependencyStateSchema = z.object({
+  ContainerName: z.string(),
+  Condition: z.string(),
+}).partial();
+
+const ContainerEnvironmentStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ContainerPortRangeStateSchema = z.object({
+  FromPort: z.number(),
+  Protocol: z.string(),
+  ToPort: z.number(),
+}).partial();
+
+const PortConfigurationStateSchema = z.object({
+  ContainerPortRanges: z.array(ContainerPortRangeStateSchema),
+}).partial();
+
+const ContainerMountPointStateSchema = z.object({
+  InstancePath: z.string(),
+  ContainerPath: z.string(),
+  AccessLevel: z.string(),
+}).partial();
+
+const LinuxCapabilitiesStateSchema = z.object({
+  Include: z.array(z.string()),
+}).partial();
+
+const ContainerHealthCheckStateSchema = z.object({
+  Command: z.array(z.string()),
+  Interval: z.number(),
+  Timeout: z.number(),
+  Retries: z.number(),
+  StartPeriod: z.number(),
+}).partial();
+
+const SupportContainerDefinitionStateSchema = z.object({
+  ContainerName: z.string(),
+  Vcpu: z.number(),
+  DependsOn: z.array(ContainerDependencyStateSchema),
+  Essential: z.boolean(),
+  ImageUri: z.string(),
+  ResolvedImageDigest: z.string(),
+  MemoryHardLimitMebibytes: z.number(),
+  EnvironmentOverride: z.array(ContainerEnvironmentStateSchema),
+  PortConfiguration: PortConfigurationStateSchema,
+  HealthCheck: ContainerHealthCheckStateSchema,
+  MountPoints: z.array(ContainerMountPointStateSchema),
+  LinuxCapabilities: LinuxCapabilitiesStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -286,27 +344,27 @@ const StateSchema = z.object({
   TotalVcpuLimit: z.number().optional(),
   GameServerContainerDefinition: z.object({
     ContainerName: z.string(),
-    DependsOn: z.array(ContainerDependencySchema),
+    DependsOn: z.array(ContainerDependencyStateSchema),
     ServerSdkVersion: z.string(),
     ImageUri: z.string(),
     ResolvedImageDigest: z.string(),
-    EnvironmentOverride: z.array(ContainerEnvironmentSchema),
-    PortConfiguration: PortConfigurationSchema,
-    MountPoints: z.array(ContainerMountPointSchema),
-    LinuxCapabilities: LinuxCapabilitiesSchema,
+    EnvironmentOverride: z.array(ContainerEnvironmentStateSchema),
+    PortConfiguration: PortConfigurationStateSchema,
+    MountPoints: z.array(ContainerMountPointStateSchema),
+    LinuxCapabilities: LinuxCapabilitiesStateSchema,
     Vcpu: z.number(),
-  }).optional(),
-  SupportContainerDefinitions: z.array(SupportContainerDefinitionSchema)
+  }).partial().optional(),
+  SupportContainerDefinitions: z.array(SupportContainerDefinitionStateSchema)
     .optional(),
   VersionNumber: z.number().optional(),
   SourceVersionNumber: z.number().optional(),
   VersionDescription: z.string().optional(),
   Status: z.string().optional(),
   StatusReason: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -399,7 +457,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift ContainerGroupDefinition. Registered at `@swamp/aws/gamelift/container-group-definition`. */
 export const model = {
   type: "@swamp/aws/gamelift/container-group-definition",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -478,6 +536,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -835,91 +835,97 @@ const iamBindingMethods = {
 };
 
 const StateSchema = z.object({
-  acl: z.array(z.object({
-    bucket: z.string(),
-    domain: z.string(),
-    email: z.string(),
-    entity: z.string(),
-    entityId: z.string(),
-    etag: z.string(),
-    id: z.string(),
-    kind: z.string(),
-    projectTeam: z.object({
-      projectNumber: z.string(),
-      team: z.string(),
-    }),
-    role: z.string(),
-    selfLink: z.string(),
-  })).optional(),
+  acl: z.array(
+    z.object({
+      bucket: z.string(),
+      domain: z.string(),
+      email: z.string(),
+      entity: z.string(),
+      entityId: z.string(),
+      etag: z.string(),
+      id: z.string(),
+      kind: z.string(),
+      projectTeam: z.object({
+        projectNumber: z.string(),
+        team: z.string(),
+      }).partial(),
+      role: z.string(),
+      selfLink: z.string(),
+    }).partial(),
+  ).optional(),
   autoclass: z.object({
     enabled: z.boolean(),
     terminalStorageClass: z.string(),
     terminalStorageClassUpdateTime: z.string(),
     toggleTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   billing: z.object({
     requesterPays: z.boolean(),
-  }).optional(),
-  cors: z.array(z.object({
-    maxAgeSeconds: z.number(),
-    method: z.array(z.string()),
-    origin: z.array(z.string()),
-    responseHeader: z.array(z.string()),
-  })).optional(),
+  }).partial().optional(),
+  cors: z.array(
+    z.object({
+      maxAgeSeconds: z.number(),
+      method: z.array(z.string()),
+      origin: z.array(z.string()),
+      responseHeader: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   customPlacementConfig: z.object({
     dataLocations: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   defaultEventBasedHold: z.boolean().optional(),
-  defaultObjectAcl: z.array(z.object({
-    bucket: z.string(),
-    domain: z.string(),
-    email: z.string(),
-    entity: z.string(),
-    entityId: z.string(),
-    etag: z.string(),
-    generation: z.string(),
-    id: z.string(),
-    kind: z.string(),
-    object: z.string(),
-    projectTeam: z.object({
-      projectNumber: z.string(),
-      team: z.string(),
-    }),
-    role: z.string(),
-    selfLink: z.string(),
-  })).optional(),
+  defaultObjectAcl: z.array(
+    z.object({
+      bucket: z.string(),
+      domain: z.string(),
+      email: z.string(),
+      entity: z.string(),
+      entityId: z.string(),
+      etag: z.string(),
+      generation: z.string(),
+      id: z.string(),
+      kind: z.string(),
+      object: z.string(),
+      projectTeam: z.object({
+        projectNumber: z.string(),
+        team: z.string(),
+      }).partial(),
+      role: z.string(),
+      selfLink: z.string(),
+    }).partial(),
+  ).optional(),
   encryption: z.object({
     customerManagedEncryptionEnforcementConfig: z.object({
       effectiveTime: z.string(),
       restrictionMode: z.string(),
-    }),
+    }).partial(),
     customerSuppliedEncryptionEnforcementConfig: z.object({
       effectiveTime: z.string(),
       restrictionMode: z.string(),
-    }),
+    }).partial(),
     defaultKmsKeyName: z.string(),
     googleManagedEncryptionEnforcementConfig: z.object({
       effectiveTime: z.string(),
       restrictionMode: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   etag: z.string().optional(),
   generation: z.string().optional(),
   hardDeleteTime: z.string().optional(),
   hierarchicalNamespace: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   iamConfiguration: z.object({
     bucketPolicyOnly: z.object({
       enabled: z.boolean(),
       lockedTime: z.string(),
-    }),
+    }).partial(),
     publicAccessPrevention: z.string(),
     uniformBucketLevelAccess: z.object({
       enabled: z.boolean(),
       lockedTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   id: z.string().optional(),
   ipFilter: z.object({
     allowAllServiceAgentAccess: z.boolean(),
@@ -927,59 +933,63 @@ const StateSchema = z.object({
     mode: z.string(),
     publicNetworkSource: z.object({
       allowedIpCidrRanges: z.array(z.string()),
-    }),
-    vpcNetworkSources: z.array(z.object({
-      allowedIpCidrRanges: z.array(z.string()),
-      network: z.string(),
-    })),
-  }).optional(),
+    }).partial(),
+    vpcNetworkSources: z.array(
+      z.object({
+        allowedIpCidrRanges: z.array(z.string()),
+        network: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   kind: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   lifecycle: z.object({
-    rule: z.array(z.object({
-      action: z.object({
-        storageClass: z.string(),
-        type: z.string(),
-      }),
-      condition: z.object({
-        age: z.number(),
-        createdBefore: z.string(),
-        customTimeBefore: z.string(),
-        daysSinceCustomTime: z.number(),
-        daysSinceNoncurrentTime: z.number(),
-        isLive: z.boolean(),
-        matchesPattern: z.string(),
-        matchesPrefix: z.array(z.unknown()),
-        matchesStorageClass: z.array(z.unknown()),
-        matchesSuffix: z.array(z.unknown()),
-        noncurrentTimeBefore: z.string(),
-        numNewerVersions: z.number(),
-        sizeAboveBytes: z.string(),
-        sizeBelowBytes: z.string(),
-      }),
-    })),
-  }).optional(),
+    rule: z.array(
+      z.object({
+        action: z.object({
+          storageClass: z.string(),
+          type: z.string(),
+        }).partial(),
+        condition: z.object({
+          age: z.number(),
+          createdBefore: z.string(),
+          customTimeBefore: z.string(),
+          daysSinceCustomTime: z.number(),
+          daysSinceNoncurrentTime: z.number(),
+          isLive: z.boolean(),
+          matchesPattern: z.string(),
+          matchesPrefix: z.array(z.unknown()),
+          matchesStorageClass: z.array(z.unknown()),
+          matchesSuffix: z.array(z.unknown()),
+          noncurrentTimeBefore: z.string(),
+          numNewerVersions: z.number(),
+          sizeAboveBytes: z.string(),
+          sizeBelowBytes: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   location: z.string().optional(),
   locationType: z.string().optional(),
   logging: z.object({
     logBucket: z.string(),
     logObjectPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   metageneration: z.string().optional(),
   name: z.string(),
   objectRetention: z.object({
     mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   owner: z.object({
     entity: z.string(),
     entityId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   projectNumber: z.string().optional(),
   retentionPolicy: z.object({
     effectiveTime: z.string(),
     isLocked: z.boolean(),
     retentionPeriod: z.string(),
-  }).optional(),
+  }).partial().optional(),
   rpo: z.string().optional(),
   satisfiesPZI: z.boolean().optional(),
   satisfiesPZS: z.boolean().optional(),
@@ -989,20 +999,20 @@ const StateSchema = z.object({
     hardDeletePause: z.object({
       effectiveTime: z.string(),
       enabled: z.boolean(),
-    }),
+    }).partial(),
     retentionDurationSeconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   softDeleteTime: z.string().optional(),
   storageClass: z.string().optional(),
   timeCreated: z.string().optional(),
   updated: z.string().optional(),
   versioning: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   website: z.object({
     mainPageSuffix: z.string(),
     notFoundPage: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1433,7 +1443,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON Buckets. Registered at `@swamp/gcp/storage/buckets`. */
 export const model = {
   type: "@swamp/gcp/storage/buckets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1642,6 +1652,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

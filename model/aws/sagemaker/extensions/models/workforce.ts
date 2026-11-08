@@ -47,6 +47,11 @@ const TagSchema = z.object({
   ).describe("The tag value."),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -144,7 +149,7 @@ const StateSchema = z.object({
   CognitoConfig: z.object({
     ClientId: z.string(),
     UserPool: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OidcConfig: z.object({
     AuthenticationRequestExtraParams: z.record(z.string(), z.unknown()),
     AuthorizationEndpoint: z.string(),
@@ -156,21 +161,21 @@ const StateSchema = z.object({
     Scope: z.string(),
     TokenEndpoint: z.string(),
     UserInfoEndpoint: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SourceIpConfig: z.object({
     Cidrs: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   WorkforceVpcConfig: z.object({
     SecurityGroupIds: z.array(z.string()),
     Subnets: z.array(z.string()),
     VpcId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   IpAddressType: z.string().optional(),
   SubDomain: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -273,7 +278,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Workforce. Registered at `@swamp/aws/sagemaker/workforce`. */
 export const model = {
   type: "@swamp/aws/sagemaker/workforce",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -297,6 +302,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

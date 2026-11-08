@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/checks"
-version: "2026.10.23.1"
+version: "2026.11.08.1"
 license: "AGPL-3.0-or-later"
 description: "Google Cloud checks infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -12,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: accounts_apps, accounts_apps_reports, accounts_repos_scans
+  - Updated: accounts_apps_reports, accounts_repos_scans
 models:
   - accounts_apps.ts
   - accounts_apps_reports.ts

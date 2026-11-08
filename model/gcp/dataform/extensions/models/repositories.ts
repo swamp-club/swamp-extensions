@@ -257,13 +257,13 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   dataEncryptionState: z.object({
     kmsKeyVersionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   endUserAuthConfig: z.object({
     oauthConfig: z.object({
       additionalOauthScopes: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   gitRemoteSettings: z.object({
     authenticationTokenSecretVersion: z.string(),
     defaultBranch: z.string(),
@@ -272,10 +272,10 @@ const StateSchema = z.object({
     sshAuthenticationConfig: z.object({
       hostPublicKey: z.string(),
       userPrivateKeySecretVersion: z.string(),
-    }),
+    }).partial(),
     tokenStatus: z.string(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   internalMetadata: z.string().optional(),
   kmsKeyName: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -288,7 +288,7 @@ const StateSchema = z.object({
     defaultDatabase: z.string(),
     schemaSuffix: z.string(),
     tablePrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -415,7 +415,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories. Registered at `@swamp/gcp/dataform/repositories`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -640,6 +640,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

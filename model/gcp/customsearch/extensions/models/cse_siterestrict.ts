@@ -188,13 +188,15 @@ const StateSchema = z.object({
     thumbnailLink: z.string(),
     thumbnailWidth: z.number(),
     width: z.number(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
-  labels: z.array(z.object({
-    displayName: z.string(),
-    label_with_op: z.string(),
-    name: z.string(),
-  })).optional(),
+  labels: z.array(
+    z.object({
+      displayName: z.string(),
+      label_with_op: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   link: z.string().optional(),
   mime: z.string().optional(),
   pagemap: z.record(z.string(), z.unknown()).optional(),
@@ -240,7 +242,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Custom Search Cse.Siterestrict. Registered at `@swamp/gcp/customsearch/cse-siterestrict`. */
 export const model = {
   type: "@swamp/gcp/customsearch/cse-siterestrict",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -364,6 +366,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -223,35 +223,39 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  connections: z.array(z.object({
-    connectionId: z.string(),
-    errorDetails: z.object({
-      certificateState: z.string(),
-      errorMessage: z.string(),
-    }),
-    state: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  connections: z.array(
+    z.object({
+      connectionId: z.string(),
+      errorDetails: z.object({
+        certificateState: z.string(),
+        errorMessage: z.string(),
+      }).partial(),
+      state: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   displayName: z.string().optional(),
   expectedHostname: z.array(z.string()).optional(),
   googleRootCertFile: z.string().optional(),
   name: z.string(),
-  peerHostnames: z.array(z.object({
-    connectionState: z.string(),
-    enabledSipPing: z.boolean(),
-    errorDetails: z.object({
-      certificateState: z.string(),
-      errorMessage: z.string(),
-    }),
-    peerHostname: z.string(),
-    peerSocketAddress: z.string(),
-    pingInterval: z.string(),
-    probeDetails: z.object({
-      initTime: z.string(),
-      optionsLatency: z.string(),
-      probeStatus: z.string(),
-    }),
-  })).optional(),
+  peerHostnames: z.array(
+    z.object({
+      connectionState: z.string(),
+      enabledSipPing: z.boolean(),
+      errorDetails: z.object({
+        certificateState: z.string(),
+        errorMessage: z.string(),
+      }).partial(),
+      peerHostname: z.string(),
+      peerSocketAddress: z.string(),
+      pingInterval: z.string(),
+      probeDetails: z.object({
+        initTime: z.string(),
+        optionsLatency: z.string(),
+        probeStatus: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -360,7 +364,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow SipTrunks. Registered at `@swamp/gcp/dialogflow/siptrunks`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/siptrunks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -379,6 +383,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

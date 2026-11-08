@@ -262,26 +262,28 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   failOpen: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
-  matchConditions: z.array(z.object({
-    to: z.object({
-      destination: z.object({
-        headerSet: z.object({
-          headers: z.unknown(),
-        }),
-        hosts: z.array(z.unknown()),
-        paths: z.array(z.unknown()),
-        resources: z.array(z.unknown()),
-      }),
-      notDestination: z.object({
-        headerSet: z.object({
-          headers: z.unknown(),
-        }),
-        hosts: z.array(z.unknown()),
-        paths: z.array(z.unknown()),
-        resources: z.array(z.unknown()),
-      }),
-    }),
-  })).optional(),
+  matchConditions: z.array(
+    z.object({
+      to: z.object({
+        destination: z.object({
+          headerSet: z.object({
+            headers: z.unknown(),
+          }).partial(),
+          hosts: z.array(z.unknown()),
+          paths: z.array(z.unknown()),
+          resources: z.array(z.unknown()),
+        }).partial(),
+        notDestination: z.object({
+          headerSet: z.object({
+            headers: z.unknown(),
+          }).partial(),
+          hosts: z.array(z.unknown()),
+          paths: z.array(z.unknown()),
+          resources: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   priority: z.number().optional(),
   producerExtension: z.string().optional(),
@@ -291,8 +293,8 @@ const StateSchema = z.object({
     scope: z.object({
       parent: z.string(),
       resourceTypes: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -430,7 +432,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services ExtensionBindings. Registered at `@swamp/gcp/networkservices/extensionbindings`. */
 export const model = {
   type: "@swamp/gcp/networkservices/extensionbindings",
-  version: "2026.10.26.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.22.1",
@@ -454,6 +456,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

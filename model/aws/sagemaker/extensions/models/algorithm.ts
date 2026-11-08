@@ -117,6 +117,79 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const IntegerParameterRangeSpecificationStateSchema = z.object({
+  MinValue: z.string(),
+  MaxValue: z.string(),
+}).partial();
+
+const ContinuousParameterRangeSpecificationStateSchema = z.object({
+  MinValue: z.string(),
+  MaxValue: z.string(),
+}).partial();
+
+const CategoricalParameterRangeSpecificationStateSchema = z.object({
+  Values: z.array(z.string()),
+}).partial();
+
+const ParameterRangeStateSchema = z.object({
+  IntegerParameterRangeSpecification:
+    IntegerParameterRangeSpecificationStateSchema,
+  ContinuousParameterRangeSpecification:
+    ContinuousParameterRangeSpecificationStateSchema,
+  CategoricalParameterRangeSpecification:
+    CategoricalParameterRangeSpecificationStateSchema,
+}).partial();
+
+const HyperParameterSpecificationStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Type: z.string(),
+  Range: ParameterRangeStateSchema,
+  IsTunable: z.boolean(),
+  IsRequired: z.boolean(),
+  DefaultValue: z.string(),
+}).partial();
+
+const MetricDefinitionStateSchema = z.object({
+  Name: z.string(),
+  Regex: z.string(),
+}).partial();
+
+const ChannelSpecificationStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  IsRequired: z.boolean(),
+  SupportedContentTypes: z.array(z.string()),
+  SupportedCompressionTypes: z.array(z.string()),
+  SupportedInputModes: z.array(z.string()),
+}).partial();
+
+const HyperParameterTuningJobObjectiveStateSchema = z.object({
+  Type: z.string(),
+  MetricName: z.string(),
+}).partial();
+
+const ModelInputStateSchema = z.object({
+  DataInputConfig: z.string(),
+}).partial();
+
+const ModelPackageContainerDefinitionStateSchema = z.object({
+  ContainerHostname: z.string(),
+  Image: z.string(),
+  ImageDigest: z.string(),
+  Environment: z.record(z.string(), z.unknown()),
+  ModelInput: ModelInputStateSchema,
+  Framework: z.string(),
+  FrameworkVersion: z.string(),
+  NearestModelName: z.string(),
+  IsCheckpoint: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -178,28 +251,28 @@ const StateSchema = z.object({
   TrainingSpecification: z.object({
     TrainingImage: z.string(),
     TrainingImageDigest: z.string(),
-    SupportedHyperParameters: z.array(HyperParameterSpecificationSchema),
+    SupportedHyperParameters: z.array(HyperParameterSpecificationStateSchema),
     SupportedTrainingInstanceTypes: z.array(z.string()),
     SupportsDistributedTraining: z.boolean(),
-    MetricDefinitions: z.array(MetricDefinitionSchema),
-    TrainingChannels: z.array(ChannelSpecificationSchema),
+    MetricDefinitions: z.array(MetricDefinitionStateSchema),
+    TrainingChannels: z.array(ChannelSpecificationStateSchema),
     SupportedTuningJobObjectiveMetrics: z.array(
-      HyperParameterTuningJobObjectiveSchema,
+      HyperParameterTuningJobObjectiveStateSchema,
     ),
-  }).optional(),
+  }).partial().optional(),
   InferenceSpecification: z.object({
-    Containers: z.array(ModelPackageContainerDefinitionSchema),
+    Containers: z.array(ModelPackageContainerDefinitionStateSchema),
     SupportedTransformInstanceTypes: z.array(z.string()),
     SupportedRealtimeInferenceInstanceTypes: z.array(z.string()),
     SupportedContentTypes: z.array(z.string()),
     SupportedResponseMIMETypes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   CertifyForMarketplace: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CreationTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -264,7 +337,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Algorithm. Registered at `@swamp/aws/sagemaker/algorithm`. */
 export const model = {
   type: "@swamp/aws/sagemaker/algorithm",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -288,6 +361,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

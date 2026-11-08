@@ -684,22 +684,22 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcsUri: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   metric: z.object({
     aggregationMetrics: z.array(z.string()),
     bleuSpec: z.object({
       useEffectiveOrder: z.boolean(),
-    }),
+    }).partial(),
     computationBasedMetricSpec: z.object({
       parameters: z.record(z.string(), z.unknown()),
       type: z.string(),
-    }),
+    }).partial(),
     customCodeExecutionSpec: z.object({
       evaluationFunction: z.string(),
-    }),
-    exactMatchSpec: z.object({}),
+    }).partial(),
+    exactMatchSpec: z.object({}).partial(),
     llmBasedMetricSpec: z.object({
       additionalConfig: z.record(z.string(), z.unknown()),
       judgeAutoraterConfig: z.object({
@@ -717,7 +717,7 @@ const StateSchema = z.object({
             mode: z.unknown(),
             sourceText: z.unknown(),
             wordTimestamp: z.unknown(),
-          }),
+          }).partial(),
           candidateCount: z.number(),
           enableAffectiveDialog: z.boolean(),
           frequencyPenalty: z.number(),
@@ -727,7 +727,7 @@ const StateSchema = z.object({
             imageSize: z.unknown(),
             personGeneration: z.unknown(),
             prominentPeople: z.unknown(),
-          }),
+          }).partial(),
           logprobs: z.number(),
           maxOutputTokens: z.number(),
           mediaResolution: z.string(),
@@ -763,43 +763,43 @@ const StateSchema = z.object({
             required: z.unknown(),
             title: z.unknown(),
             type: z.unknown(),
-          }),
+          }).partial(),
           routingConfig: z.object({
             autoMode: z.unknown(),
             manualMode: z.unknown(),
-          }),
+          }).partial(),
           seed: z.number(),
           speechConfig: z.object({
             languageCode: z.unknown(),
             multiSpeakerVoiceConfig: z.unknown(),
             voiceConfig: z.unknown(),
-          }),
+          }).partial(),
           stopSequences: z.array(z.unknown()),
           temperature: z.number(),
           thinkingConfig: z.object({
             includeThoughts: z.unknown(),
             thinkingBudget: z.unknown(),
             thinkingLevel: z.unknown(),
-          }),
+          }).partial(),
           topK: z.number(),
           topP: z.number(),
           translationConfig: z.object({
             echoTargetLanguage: z.unknown(),
             targetLanguageCode: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         samplingCount: z.number(),
-      }),
+      }).partial(),
       metricPromptTemplate: z.string(),
       predefinedRubricGenerationSpec: z.object({
         metricSpecName: z.string(),
         metricSpecParameters: z.record(z.string(), z.unknown()),
-      }),
+      }).partial(),
       resultParserConfig: z.object({
         customCodeParserConfig: z.object({
           parsingFunction: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       rubricGenerationSpec: z.object({
         modelConfig: z.object({
           autoraterModel: z.string(),
@@ -830,16 +830,16 @@ const StateSchema = z.object({
             topK: z.unknown(),
             topP: z.unknown(),
             translationConfig: z.unknown(),
-          }),
+          }).partial(),
           samplingCount: z.number(),
-        }),
+        }).partial(),
         promptTemplate: z.string(),
         rubricContentType: z.string(),
         rubricTypeOntology: z.array(z.string()),
-      }),
+      }).partial(),
       rubricGroupKey: z.string(),
       systemInstruction: z.string(),
-    }),
+    }).partial(),
     metadata: z.object({
       otherMetadata: z.record(z.string(), z.unknown()),
       scoreRange: z.object({
@@ -847,35 +847,35 @@ const StateSchema = z.object({
         max: z.number(),
         min: z.number(),
         step: z.number(),
-      }),
+      }).partial(),
       title: z.string(),
-    }),
+    }).partial(),
     pairwiseMetricSpec: z.object({
       baselineResponseFieldName: z.string(),
       candidateResponseFieldName: z.string(),
       customOutputFormatConfig: z.object({
         returnRawOutput: z.boolean(),
-      }),
+      }).partial(),
       metricPromptTemplate: z.string(),
       systemInstruction: z.string(),
-    }),
+    }).partial(),
     pointwiseMetricSpec: z.object({
       customOutputFormatConfig: z.object({
         returnRawOutput: z.boolean(),
-      }),
+      }).partial(),
       metricPromptTemplate: z.string(),
       systemInstruction: z.string(),
-    }),
+    }).partial(),
     predefinedMetricSpec: z.object({
       metricSpecName: z.string(),
       metricSpecParameters: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     rougeSpec: z.object({
       rougeType: z.string(),
       splitSummaries: z.boolean(),
       useStemmer: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -1452,7 +1452,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationMetrics. Registered at `@swamp/gcp/aiplatform/evaluationmetrics`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationmetrics",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -1511,6 +1511,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

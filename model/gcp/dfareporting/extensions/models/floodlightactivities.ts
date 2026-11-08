@@ -525,16 +525,18 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   attributionEnabled: z.boolean().optional(),
   cacheBustingType: z.string().optional(),
   conversionCategory: z.string().optional(),
   countingMethod: z.string().optional(),
-  defaultTags: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    tag: z.string(),
-  })).optional(),
+  defaultTags: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      tag: z.string(),
+    }).partial(),
+  ).optional(),
   expectedUrl: z.string().optional(),
   floodlightActivityGroupId: z.string().optional(),
   floodlightActivityGroupName: z.string().optional(),
@@ -548,7 +550,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   floodlightTagType: z.string().optional(),
   id: z.string(),
   idDimensionValue: z.object({
@@ -558,29 +560,31 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   name: z.string().optional(),
   notes: z.string().optional(),
-  publisherTags: z.array(z.object({
-    clickThrough: z.boolean(),
-    directorySiteId: z.string(),
-    dynamicTag: z.object({
-      id: z.string(),
-      name: z.string(),
-      tag: z.string(),
-    }),
-    siteId: z.string(),
-    siteIdDimensionValue: z.object({
-      dimensionName: z.string(),
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      matchType: z.string(),
-      value: z.string(),
-    }),
-    viewThrough: z.boolean(),
-  })).optional(),
+  publisherTags: z.array(
+    z.object({
+      clickThrough: z.boolean(),
+      directorySiteId: z.string(),
+      dynamicTag: z.object({
+        id: z.string(),
+        name: z.string(),
+        tag: z.string(),
+      }).partial(),
+      siteId: z.string(),
+      siteIdDimensionValue: z.object({
+        dimensionName: z.string(),
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        matchType: z.string(),
+        value: z.string(),
+      }).partial(),
+      viewThrough: z.boolean(),
+    }).partial(),
+  ).optional(),
   secure: z.boolean().optional(),
   sslCompliant: z.boolean().optional(),
   sslRequired: z.boolean().optional(),
@@ -949,7 +953,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 FloodlightActivities. Registered at `@swamp/gcp/dfareporting/floodlightactivities`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/floodlightactivities",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1103,6 +1107,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

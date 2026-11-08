@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/classroom"
-version: "2026.11.03.1"
+version: "2026.11.08.1"
 license: "AGPL-3.0-or-later"
 description: "Google Cloud classroom infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -12,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: courses_announcements_addonattachments, courses_coursework_addonattachments, courses_courseworkmaterials_addonattachments, courses_posts_addonattachments
+  - Updated: courses, courses_announcements, courses_announcements_addonattachments, courses_coursework, courses_coursework_addonattachments, courses_coursework_rubrics, courses_coursework_studentsubmissions, courses_courseworkmaterials, courses_courseworkmaterials_addonattachments, courses_posts_addonattachments, courses_students, courses_teachers, userprofiles, userprofiles_guardians
 models:
   - courses.ts
   - courses_aliases.ts

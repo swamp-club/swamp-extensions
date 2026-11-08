@@ -241,6 +241,134 @@ const ThemeErrorSchema = z.object({
     .optional(),
 });
 
+const DataColorPaletteStateSchema = z.object({
+  Colors: z.array(z.string()),
+  MinMaxGradient: z.array(z.string()),
+  EmptyFillColor: z.string(),
+}).partial();
+
+const UIColorPaletteStateSchema = z.object({
+  PrimaryForeground: z.string(),
+  PrimaryBackground: z.string(),
+  SecondaryForeground: z.string(),
+  SecondaryBackground: z.string(),
+  Accent: z.string(),
+  AccentForeground: z.string(),
+  Danger: z.string(),
+  DangerForeground: z.string(),
+  Warning: z.string(),
+  WarningForeground: z.string(),
+  Success: z.string(),
+  SuccessForeground: z.string(),
+  Dimension: z.string(),
+  DimensionForeground: z.string(),
+  Measure: z.string(),
+  MeasureForeground: z.string(),
+}).partial();
+
+const BorderStyleStateSchema = z.object({
+  Color: z.string(),
+  Show: z.boolean(),
+  Width: z.string(),
+}).partial();
+
+const TileStyleStateSchema = z.object({
+  BackgroundColor: z.string(),
+  Border: BorderStyleStateSchema,
+  BorderRadius: z.string(),
+  Padding: z.string(),
+}).partial();
+
+const GutterStyleStateSchema = z.object({
+  Show: z.boolean(),
+}).partial();
+
+const MarginStyleStateSchema = z.object({
+  Show: z.boolean(),
+}).partial();
+
+const TileLayoutStyleStateSchema = z.object({
+  Gutter: GutterStyleStateSchema,
+  Margin: MarginStyleStateSchema,
+}).partial();
+
+const SheetBackgroundStyleStateSchema = z.object({
+  Color: z.string(),
+  Gradient: z.string(),
+}).partial();
+
+const SheetStyleStateSchema = z.object({
+  Tile: TileStyleStateSchema,
+  TileLayout: TileLayoutStyleStateSchema,
+  Background: SheetBackgroundStyleStateSchema,
+}).partial();
+
+const FontStateSchema = z.object({
+  FontFamily: z.string(),
+}).partial();
+
+const FontSizeStateSchema = z.object({
+  Absolute: z.string(),
+}).partial();
+
+const FontWeightStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const FontConfigurationStateSchema = z.object({
+  FontSize: FontSizeStateSchema,
+  FontDecoration: z.string(),
+  FontColor: z.string(),
+  FontWeight: FontWeightStateSchema,
+  FontStyle: z.string(),
+  FontFamily: z.string(),
+}).partial();
+
+const VisualTitleFontConfigurationStateSchema = z.object({
+  FontConfiguration: FontConfigurationStateSchema,
+  TextAlignment: z.string(),
+  TextTransform: z.string(),
+}).partial();
+
+const VisualSubtitleFontConfigurationStateSchema = z.object({
+  FontConfiguration: FontConfigurationStateSchema,
+  TextAlignment: z.string(),
+  TextTransform: z.string(),
+}).partial();
+
+const TypographyStateSchema = z.object({
+  FontFamilies: z.array(FontStateSchema),
+  AxisTitleFontConfiguration: FontConfigurationStateSchema,
+  AxisLabelFontConfiguration: FontConfigurationStateSchema,
+  LegendTitleFontConfiguration: FontConfigurationStateSchema,
+  LegendValueFontConfiguration: FontConfigurationStateSchema,
+  DataLabelFontConfiguration: FontConfigurationStateSchema,
+  VisualTitleFontConfiguration: VisualTitleFontConfigurationStateSchema,
+  VisualSubtitleFontConfiguration: VisualSubtitleFontConfigurationStateSchema,
+}).partial();
+
+const ResourcePermissionStateSchema = z.object({
+  Principal: z.string(),
+  Actions: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ThemeConfigurationStateSchema = z.object({
+  DataColorPalette: DataColorPaletteStateSchema,
+  UIColorPalette: UIColorPaletteStateSchema,
+  Sheet: SheetStyleStateSchema,
+  Typography: TypographyStateSchema,
+}).partial();
+
+const ThemeErrorStateSchema = z.object({
+  Type: z.string(),
+  Message: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -319,12 +447,17 @@ const StateSchema = z.object({
   Arn: z.string().optional(),
   AwsAccountId: z.string(),
   BaseThemeId: z.string().optional(),
-  Configuration: ThemeConfigurationSchema.optional(),
+  Configuration: z.object({
+    DataColorPalette: DataColorPaletteStateSchema,
+    UIColorPalette: UIColorPaletteStateSchema,
+    Sheet: SheetStyleStateSchema,
+    Typography: TypographyStateSchema,
+  }).partial().optional(),
   CreatedTime: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
   Name: z.string().optional(),
-  Permissions: z.array(ResourcePermissionSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Permissions: z.array(ResourcePermissionStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ThemeId: z.string(),
   Type: z.string().optional(),
   Version: z.object({
@@ -333,14 +466,14 @@ const StateSchema = z.object({
     Description: z.string(),
     BaseThemeId: z.string(),
     CreatedTime: z.string(),
-    Configuration: ThemeConfigurationSchema,
-    Errors: z.array(ThemeErrorSchema),
+    Configuration: ThemeConfigurationStateSchema,
+    Errors: z.array(ThemeErrorStateSchema),
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   VersionDescription: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -425,7 +558,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Theme. Registered at `@swamp/aws/quicksight/theme`. */
 export const model = {
   type: "@swamp/aws/quicksight/theme",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -499,6 +632,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

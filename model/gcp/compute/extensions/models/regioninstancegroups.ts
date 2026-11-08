@@ -133,10 +133,12 @@ const StateSchema = z.object({
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
-  namedPorts: z.array(z.object({
-    name: z.string(),
-    port: z.number(),
-  })).optional(),
+  namedPorts: z.array(
+    z.object({
+      name: z.string(),
+      port: z.number(),
+    }).partial(),
+  ).optional(),
   network: z.string().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
@@ -185,7 +187,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionInstanceGroups. Registered at `@swamp/gcp/compute/regioninstancegroups`. */
 export const model = {
   type: "@swamp/gcp/compute/regioninstancegroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -324,6 +326,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -699,6 +699,327 @@ const CorsRuleSchema = z.object({
   ).optional(),
 });
 
+const DestinationStateSchema = z.object({
+  BucketArn: z.string(),
+  Format: z.string(),
+  BucketAccountId: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const InventoryConfigurationStateSchema = z.object({
+  Destination: DestinationStateSchema,
+  OptionalFields: z.array(z.string()),
+  IncludedObjectVersions: z.string(),
+  Enabled: z.boolean(),
+  Id: z.string(),
+  Prefix: z.string(),
+  ScheduleFrequency: z.string(),
+}).partial();
+
+const RedirectAllRequestsToStateSchema = z.object({
+  Protocol: z.string(),
+  HostName: z.string(),
+}).partial();
+
+const RedirectRuleStateSchema = z.object({
+  ReplaceKeyWith: z.string(),
+  HttpRedirectCode: z.string(),
+  Protocol: z.string(),
+  HostName: z.string(),
+  ReplaceKeyPrefixWith: z.string(),
+}).partial();
+
+const RoutingRuleConditionStateSchema = z.object({
+  KeyPrefixEquals: z.string(),
+  HttpErrorCodeReturnedEquals: z.string(),
+}).partial();
+
+const RoutingRuleStateSchema = z.object({
+  RedirectRule: RedirectRuleStateSchema,
+  RoutingRuleCondition: RoutingRuleConditionStateSchema,
+}).partial();
+
+const S3TablesDestinationStateSchema = z.object({
+  TableBucketArn: z.string(),
+  TableName: z.string(),
+  TableArn: z.string(),
+  TableNamespace: z.string(),
+}).partial();
+
+const DataExportStateSchema = z.object({
+  Destination: DestinationStateSchema,
+  OutputSchemaVersion: z.string(),
+}).partial();
+
+const StorageClassAnalysisStateSchema = z.object({
+  DataExport: DataExportStateSchema,
+}).partial();
+
+const TagFilterStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const AnalyticsConfigurationStateSchema = z.object({
+  StorageClassAnalysis: StorageClassAnalysisStateSchema,
+  TagFilters: z.array(TagFilterStateSchema),
+  Id: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const OwnershipControlsRuleStateSchema = z.object({
+  ObjectOwnership: z.string(),
+}).partial();
+
+const DefaultEventHoldStateSchema = z.object({
+  Years: z.number(),
+  Days: z.number(),
+}).partial();
+
+const DefaultRetentionStateSchema = z.object({
+  Years: z.number(),
+  Days: z.number(),
+  Mode: z.string(),
+  DefaultEventHold: DefaultEventHoldStateSchema,
+}).partial();
+
+const ObjectLockRuleStateSchema = z.object({
+  DefaultRetention: DefaultRetentionStateSchema,
+}).partial();
+
+const MetadataDestinationStateSchema = z.object({
+  TableBucketArn: z.string(),
+  TableBucketType: z.string(),
+  TableNamespace: z.string(),
+}).partial();
+
+const MetadataTableEncryptionConfigurationStateSchema = z.object({
+  KmsKeyArn: z.string(),
+  SseAlgorithm: z.string(),
+}).partial();
+
+const RecordExpirationStateSchema = z.object({
+  Days: z.number(),
+  Expiration: z.string(),
+}).partial();
+
+const JournalTableConfigurationStateSchema = z.object({
+  TableName: z.string(),
+  TableArn: z.string(),
+  EncryptionConfiguration: MetadataTableEncryptionConfigurationStateSchema,
+  RecordExpiration: RecordExpirationStateSchema,
+}).partial();
+
+const InventoryTableConfigurationStateSchema = z.object({
+  TableName: z.string(),
+  ConfigurationState: z.string(),
+  TableArn: z.string(),
+  EncryptionConfiguration: MetadataTableEncryptionConfigurationStateSchema,
+}).partial();
+
+const AnnotationTableConfigurationStateSchema = z.object({
+  Role: z.string(),
+  TableName: z.string(),
+  ConfigurationState: z.string(),
+  TableArn: z.string(),
+  EncryptionConfiguration: MetadataTableEncryptionConfigurationStateSchema,
+}).partial();
+
+const AccessControlTranslationStateSchema = z.object({
+  Owner: z.string(),
+}).partial();
+
+const ReplicationTimeValueStateSchema = z.object({
+  Minutes: z.number(),
+}).partial();
+
+const MetricsStateSchema = z.object({
+  Status: z.string(),
+  EventThreshold: ReplicationTimeValueStateSchema,
+}).partial();
+
+const EncryptionConfigurationStateSchema = z.object({
+  ReplicaKmsKeyID: z.string(),
+}).partial();
+
+const ReplicationTimeStateSchema = z.object({
+  Status: z.string(),
+  Time: ReplicationTimeValueStateSchema,
+}).partial();
+
+const ReplicationDestinationStateSchema = z.object({
+  AccessControlTranslation: AccessControlTranslationStateSchema,
+  Account: z.string(),
+  Metrics: MetricsStateSchema,
+  Bucket: z.string(),
+  EncryptionConfiguration: EncryptionConfigurationStateSchema,
+  StorageClass: z.string(),
+  ReplicationTime: ReplicationTimeStateSchema,
+}).partial();
+
+const ReplicationRuleAndOperatorStateSchema = z.object({
+  TagFilters: z.array(TagFilterStateSchema),
+  Prefix: z.string(),
+}).partial();
+
+const ReplicationRuleFilterStateSchema = z.object({
+  And: ReplicationRuleAndOperatorStateSchema,
+  TagFilter: TagFilterStateSchema,
+  Prefix: z.string(),
+}).partial();
+
+const ReplicaModificationsStateSchema = z.object({
+  Status: z.string(),
+}).partial();
+
+const SseKmsEncryptedObjectsStateSchema = z.object({
+  Status: z.string(),
+}).partial();
+
+const SourceSelectionCriteriaStateSchema = z.object({
+  ReplicaModifications: ReplicaModificationsStateSchema,
+  SseKmsEncryptedObjects: SseKmsEncryptedObjectsStateSchema,
+}).partial();
+
+const DeleteMarkerReplicationStateSchema = z.object({
+  Status: z.string(),
+}).partial();
+
+const ReplicationRuleStateSchema = z.object({
+  Status: z.string(),
+  Destination: ReplicationDestinationStateSchema,
+  Filter: ReplicationRuleFilterStateSchema,
+  Priority: z.number(),
+  SourceSelectionCriteria: SourceSelectionCriteriaStateSchema,
+  Id: z.string(),
+  Prefix: z.string(),
+  DeleteMarkerReplication: DeleteMarkerReplicationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const BlockedEncryptionTypesStateSchema = z.object({
+  EncryptionType: z.array(z.string()),
+}).partial();
+
+const ServerSideEncryptionByDefaultStateSchema = z.object({
+  SSEAlgorithm: z.string(),
+  KMSMasterKeyID: z.string(),
+}).partial();
+
+const ServerSideEncryptionRuleStateSchema = z.object({
+  BucketKeyEnabled: z.boolean(),
+  BlockedEncryptionTypes: BlockedEncryptionTypesStateSchema,
+  ServerSideEncryptionByDefault: ServerSideEncryptionByDefaultStateSchema,
+}).partial();
+
+const FilterRuleStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const S3KeyFilterStateSchema = z.object({
+  Rules: z.array(FilterRuleStateSchema),
+}).partial();
+
+const NotificationFilterStateSchema = z.object({
+  S3Key: S3KeyFilterStateSchema,
+}).partial();
+
+const TopicConfigurationStateSchema = z.object({
+  Filter: NotificationFilterStateSchema,
+  Event: z.string(),
+  Topic: z.string(),
+}).partial();
+
+const QueueConfigurationStateSchema = z.object({
+  Filter: NotificationFilterStateSchema,
+  Event: z.string(),
+  Queue: z.string(),
+}).partial();
+
+const LambdaConfigurationStateSchema = z.object({
+  Function: z.string(),
+  Filter: NotificationFilterStateSchema,
+  Event: z.string(),
+}).partial();
+
+const EventBridgeConfigurationStateSchema = z.object({
+  EventBridgeEnabled: z.boolean(),
+}).partial();
+
+const TransitionStateSchema = z.object({
+  TransitionDate: z.string(),
+  StorageClass: z.string(),
+  TransitionInDays: z.number(),
+}).partial();
+
+const NoncurrentVersionTransitionStateSchema = z.object({
+  StorageClass: z.string(),
+  TransitionInDays: z.number(),
+  NewerNoncurrentVersions: z.number(),
+}).partial();
+
+const NoncurrentVersionExpirationStateSchema = z.object({
+  NoncurrentDays: z.number(),
+  NewerNoncurrentVersions: z.number(),
+}).partial();
+
+const AbortIncompleteMultipartUploadStateSchema = z.object({
+  DaysAfterInitiation: z.number(),
+}).partial();
+
+const RuleStateSchema = z.object({
+  Status: z.string(),
+  ExpiredObjectDeleteMarker: z.boolean(),
+  NoncurrentVersionExpirationInDays: z.number(),
+  Transitions: z.array(TransitionStateSchema),
+  ObjectSizeGreaterThan: z.string(),
+  TagFilters: z.array(TagFilterStateSchema),
+  NoncurrentVersionTransitions: z.array(NoncurrentVersionTransitionStateSchema),
+  Prefix: z.string(),
+  ObjectSizeLessThan: z.string(),
+  NoncurrentVersionTransition: NoncurrentVersionTransitionStateSchema,
+  ExpirationDate: z.string(),
+  NoncurrentVersionExpiration: NoncurrentVersionExpirationStateSchema,
+  ExpirationInDays: z.number(),
+  Transition: TransitionStateSchema,
+  Id: z.string(),
+  AbortIncompleteMultipartUpload: AbortIncompleteMultipartUploadStateSchema,
+}).partial();
+
+const MetricsConfigurationStateSchema = z.object({
+  AccessPointArn: z.string(),
+  TagFilters: z.array(TagFilterStateSchema),
+  Id: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const TieringStateSchema = z.object({
+  AccessTier: z.string(),
+  Days: z.number(),
+}).partial();
+
+const IntelligentTieringConfigurationStateSchema = z.object({
+  Status: z.string(),
+  Tierings: z.array(TieringStateSchema),
+  TagFilters: z.array(TagFilterStateSchema),
+  Id: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const CorsRuleStateSchema = z.object({
+  ExposedHeaders: z.array(z.string()),
+  AllowedMethods: z.array(z.string()),
+  AllowedOrigins: z.array(z.string()),
+  AllowedHeaders: z.array(z.string()),
+  MaxAge: z.number(),
+  Id: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -902,85 +1223,89 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   BucketNamespace: z.string().optional(),
-  InventoryConfigurations: z.array(InventoryConfigurationSchema).optional(),
+  InventoryConfigurations: z.array(InventoryConfigurationStateSchema)
+    .optional(),
   BucketNamePrefix: z.string().optional(),
   WebsiteConfiguration: z.object({
     IndexDocument: z.string(),
-    RedirectAllRequestsTo: RedirectAllRequestsToSchema,
-    RoutingRules: z.array(RoutingRuleSchema),
+    RedirectAllRequestsTo: RedirectAllRequestsToStateSchema,
+    RoutingRules: z.array(RoutingRuleStateSchema),
     ErrorDocument: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DualStackDomainName: z.string().optional(),
   AccessControl: z.string().optional(),
   MetadataTableConfiguration: z.object({
-    S3TablesDestination: S3TablesDestinationSchema,
-  }).optional(),
-  AnalyticsConfigurations: z.array(AnalyticsConfigurationSchema).optional(),
+    S3TablesDestination: S3TablesDestinationStateSchema,
+  }).partial().optional(),
+  AnalyticsConfigurations: z.array(AnalyticsConfigurationStateSchema)
+    .optional(),
   AbacStatus: z.string().optional(),
   AccelerateConfiguration: z.object({
     AccelerationStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   PublicAccessBlockConfiguration: z.object({
     RestrictPublicBuckets: z.boolean(),
     BlockPublicPolicy: z.boolean(),
     BlockPublicAcls: z.boolean(),
     IgnorePublicAcls: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   BucketName: z.string(),
   RegionalDomainName: z.string().optional(),
   OwnershipControls: z.object({
-    Rules: z.array(OwnershipControlsRuleSchema),
-  }).optional(),
+    Rules: z.array(OwnershipControlsRuleStateSchema),
+  }).partial().optional(),
   ObjectLockConfiguration: z.object({
     ObjectLockEnabled: z.string(),
-    Rule: ObjectLockRuleSchema,
-  }).optional(),
+    Rule: ObjectLockRuleStateSchema,
+  }).partial().optional(),
   ObjectLockEnabled: z.boolean().optional(),
   LoggingConfiguration: z.object({
     TargetObjectKeyFormat: z.record(z.string(), z.unknown()),
     LogFilePrefix: z.string(),
     DestinationBucketName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MetadataConfiguration: z.object({
-    Destination: MetadataDestinationSchema,
-    JournalTableConfiguration: JournalTableConfigurationSchema,
-    InventoryTableConfiguration: InventoryTableConfigurationSchema,
-    AnnotationTableConfiguration: AnnotationTableConfigurationSchema,
-  }).optional(),
+    Destination: MetadataDestinationStateSchema,
+    JournalTableConfiguration: JournalTableConfigurationStateSchema,
+    InventoryTableConfiguration: InventoryTableConfigurationStateSchema,
+    AnnotationTableConfiguration: AnnotationTableConfigurationStateSchema,
+  }).partial().optional(),
   ReplicationConfiguration: z.object({
     Role: z.string(),
-    Rules: z.array(ReplicationRuleSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    Rules: z.array(ReplicationRuleStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   DomainName: z.string().optional(),
   BucketEncryption: z.object({
-    ServerSideEncryptionConfiguration: z.array(ServerSideEncryptionRuleSchema),
-  }).optional(),
+    ServerSideEncryptionConfiguration: z.array(
+      ServerSideEncryptionRuleStateSchema,
+    ),
+  }).partial().optional(),
   WebsiteURL: z.string().optional(),
   NotificationConfiguration: z.object({
-    TopicConfigurations: z.array(TopicConfigurationSchema),
-    QueueConfigurations: z.array(QueueConfigurationSchema),
-    LambdaConfigurations: z.array(LambdaConfigurationSchema),
-    EventBridgeConfiguration: EventBridgeConfigurationSchema,
-  }).optional(),
+    TopicConfigurations: z.array(TopicConfigurationStateSchema),
+    QueueConfigurations: z.array(QueueConfigurationStateSchema),
+    LambdaConfigurations: z.array(LambdaConfigurationStateSchema),
+    EventBridgeConfiguration: EventBridgeConfigurationStateSchema,
+  }).partial().optional(),
   LifecycleConfiguration: z.object({
     TransitionDefaultMinimumObjectSize: z.string(),
-    Rules: z.array(RuleSchema),
-  }).optional(),
+    Rules: z.array(RuleStateSchema),
+  }).partial().optional(),
   VersioningConfiguration: z.object({
     Status: z.string(),
-  }).optional(),
-  MetricsConfigurations: z.array(MetricsConfigurationSchema).optional(),
+  }).partial().optional(),
+  MetricsConfigurations: z.array(MetricsConfigurationStateSchema).optional(),
   IntelligentTieringConfigurations: z.array(
-    IntelligentTieringConfigurationSchema,
+    IntelligentTieringConfigurationStateSchema,
   ).optional(),
   CorsConfiguration: z.object({
-    CorsRules: z.array(CorsRuleSchema),
-  }).optional(),
+    CorsRules: z.array(CorsRuleStateSchema),
+  }).partial().optional(),
   Arn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -1195,7 +1520,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 Bucket. Registered at `@swamp/aws/s3/bucket`. */
 export const model = {
   type: "@swamp/aws/s3/bucket",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1289,6 +1614,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

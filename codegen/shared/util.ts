@@ -193,3 +193,27 @@ const BROKEN_REGEXES: Record<
   "[ -퟿-�𐀀-􏿿\r\n\t]*": undefined,
   "[\\p{Graph}\\x20]*": undefined,
 };
+
+/**
+ * Throws when generated model code declares the same top-level binding twice.
+ * Extracted schemas, StateSchema copies, enrichment bodies and custom-method
+ * sources are all inlined into one file; a clash would otherwise surface only
+ * later, as a `deno check` failure on the generated model.
+ */
+export function assertUniqueTopLevelDeclarations(
+  code: string,
+  label: string,
+): void {
+  const seen = new Set<string>();
+  const pattern =
+    /^(?:export\s+)?(?:const|let|var|class|(?:async\s+)?function\*?)\s+([A-Za-z_$][\w$]*)/gm;
+  for (const match of code.matchAll(pattern)) {
+    const name = match[1];
+    if (seen.has(name)) {
+      throw new Error(
+        `${label}: generated code declares top-level "${name}" more than once`,
+      );
+    }
+    seen.add(name);
+  }
+}

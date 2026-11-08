@@ -666,157 +666,171 @@ const StateSchema = z.object({
   lastModifierEmail: z.string().optional(),
   lockHolderEmail: z.string().optional(),
   name: z.string(),
-  testInputParameters: z.array(z.object({
-    containsLargeData: z.boolean(),
-    dataType: z.string(),
-    defaultValue: z.object({
-      booleanArray: z.object({
-        booleanValues: z.array(z.unknown()),
-      }),
-      booleanValue: z.boolean(),
-      doubleArray: z.object({
-        doubleValues: z.array(z.unknown()),
-      }),
-      doubleValue: z.number(),
-      intArray: z.object({
-        intValues: z.array(z.unknown()),
-      }),
-      intValue: z.string(),
-      jsonValue: z.string(),
-      stringArray: z.object({
-        stringValues: z.array(z.unknown()),
-      }),
-      stringValue: z.string(),
-    }),
-    description: z.string(),
-    displayName: z.string(),
-    inputOutputType: z.string(),
-    isTransient: z.boolean(),
-    jsonSchema: z.string(),
-    key: z.string(),
-    masked: z.boolean(),
-    producer: z.string(),
-    searchable: z.boolean(),
-  })).optional(),
-  testTaskConfigs: z.array(z.object({
-    assertions: z.array(z.object({
-      assertionStrategy: z.string(),
-      condition: z.string(),
-      parameter: z.object({
-        key: z.unknown(),
-        masked: z.unknown(),
-        value: z.unknown(),
-      }),
-      retryCount: z.number(),
-    })),
-    mockConfig: z.object({
-      failedExecutions: z.string(),
-      mockStrategy: z.string(),
-      parameters: z.array(z.object({
-        key: z.unknown(),
-        masked: z.unknown(),
-        value: z.unknown(),
-      })),
-    }),
-    task: z.string(),
-    taskConfig: z.object({
-      conditionalFailurePolicies: z.object({
-        defaultFailurePolicy: z.object({
-          condition: z.unknown(),
-          intervalTime: z.unknown(),
-          maxRetries: z.unknown(),
-          retryStrategy: z.unknown(),
-        }),
-        failurePolicies: z.array(z.unknown()),
-      }),
+  testInputParameters: z.array(
+    z.object({
+      containsLargeData: z.boolean(),
+      dataType: z.string(),
+      defaultValue: z.object({
+        booleanArray: z.object({
+          booleanValues: z.array(z.unknown()),
+        }).partial(),
+        booleanValue: z.boolean(),
+        doubleArray: z.object({
+          doubleValues: z.array(z.unknown()),
+        }).partial(),
+        doubleValue: z.number(),
+        intArray: z.object({
+          intValues: z.array(z.unknown()),
+        }).partial(),
+        intValue: z.string(),
+        jsonValue: z.string(),
+        stringArray: z.object({
+          stringValues: z.array(z.unknown()),
+        }).partial(),
+        stringValue: z.string(),
+      }).partial(),
       description: z.string(),
       displayName: z.string(),
-      errorCatcherId: z.string(),
-      externalTaskType: z.string(),
-      failurePolicy: z.object({
-        condition: z.string(),
-        intervalTime: z.string(),
-        maxRetries: z.number(),
-        retryStrategy: z.string(),
-      }),
-      jsonValidationOption: z.string(),
-      nextTasks: z.array(z.object({
-        condition: z.unknown(),
-        description: z.unknown(),
-        displayName: z.unknown(),
-        taskConfigId: z.unknown(),
-        taskId: z.unknown(),
-      })),
-      nextTasksExecutionPolicy: z.string(),
-      parameters: z.record(z.string(), z.unknown()),
-      position: z.object({
-        x: z.number(),
-        y: z.number(),
-      }),
-      successPolicy: z.object({
-        finalState: z.string(),
-      }),
-      synchronousCallFailurePolicy: z.object({
-        condition: z.string(),
-        intervalTime: z.string(),
-        maxRetries: z.number(),
-        retryStrategy: z.string(),
-      }),
+      inputOutputType: z.string(),
+      isTransient: z.boolean(),
+      jsonSchema: z.string(),
+      key: z.string(),
+      masked: z.boolean(),
+      producer: z.string(),
+      searchable: z.boolean(),
+    }).partial(),
+  ).optional(),
+  testTaskConfigs: z.array(
+    z.object({
+      assertions: z.array(
+        z.object({
+          assertionStrategy: z.string(),
+          condition: z.string(),
+          parameter: z.object({
+            key: z.unknown(),
+            masked: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+          retryCount: z.number(),
+        }).partial(),
+      ),
+      mockConfig: z.object({
+        failedExecutions: z.string(),
+        mockStrategy: z.string(),
+        parameters: z.array(
+          z.object({
+            key: z.unknown(),
+            masked: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       task: z.string(),
-      taskExecutionStrategy: z.string(),
-      taskId: z.string(),
-      taskTemplate: z.string(),
-    }),
-    taskNumber: z.string(),
-  })).optional(),
+      taskConfig: z.object({
+        conditionalFailurePolicies: z.object({
+          defaultFailurePolicy: z.object({
+            condition: z.unknown(),
+            intervalTime: z.unknown(),
+            maxRetries: z.unknown(),
+            retryStrategy: z.unknown(),
+          }).partial(),
+          failurePolicies: z.array(z.unknown()),
+        }).partial(),
+        description: z.string(),
+        displayName: z.string(),
+        errorCatcherId: z.string(),
+        externalTaskType: z.string(),
+        failurePolicy: z.object({
+          condition: z.string(),
+          intervalTime: z.string(),
+          maxRetries: z.number(),
+          retryStrategy: z.string(),
+        }).partial(),
+        jsonValidationOption: z.string(),
+        nextTasks: z.array(
+          z.object({
+            condition: z.unknown(),
+            description: z.unknown(),
+            displayName: z.unknown(),
+            taskConfigId: z.unknown(),
+            taskId: z.unknown(),
+          }).partial(),
+        ),
+        nextTasksExecutionPolicy: z.string(),
+        parameters: z.record(z.string(), z.unknown()),
+        position: z.object({
+          x: z.number(),
+          y: z.number(),
+        }).partial(),
+        successPolicy: z.object({
+          finalState: z.string(),
+        }).partial(),
+        synchronousCallFailurePolicy: z.object({
+          condition: z.string(),
+          intervalTime: z.string(),
+          maxRetries: z.number(),
+          retryStrategy: z.string(),
+        }).partial(),
+        task: z.string(),
+        taskExecutionStrategy: z.string(),
+        taskId: z.string(),
+        taskTemplate: z.string(),
+      }).partial(),
+      taskNumber: z.string(),
+    }).partial(),
+  ).optional(),
   triggerConfig: z.object({
-    alertConfig: z.array(z.object({
-      aggregationPeriod: z.string(),
-      alertThreshold: z.number(),
-      disableAlert: z.boolean(),
-      displayName: z.string(),
-      durationThreshold: z.string(),
-      metricType: z.string(),
-      onlyFinalAttempt: z.boolean(),
-      thresholdType: z.string(),
-      thresholdValue: z.object({
-        absolute: z.string(),
-        percentage: z.number(),
-      }),
-    })),
+    alertConfig: z.array(
+      z.object({
+        aggregationPeriod: z.string(),
+        alertThreshold: z.number(),
+        disableAlert: z.boolean(),
+        displayName: z.string(),
+        durationThreshold: z.string(),
+        metricType: z.string(),
+        onlyFinalAttempt: z.boolean(),
+        thresholdType: z.string(),
+        thresholdValue: z.object({
+          absolute: z.string(),
+          percentage: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     cloudSchedulerConfig: z.object({
       cronTab: z.string(),
       errorMessage: z.string(),
       location: z.string(),
       serviceAccountEmail: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     errorCatcherId: z.string(),
     inputVariables: z.object({
       names: z.array(z.string()),
-    }),
+    }).partial(),
     label: z.string(),
     nextTasksExecutionPolicy: z.string(),
     outputVariables: z.object({
       names: z.array(z.string()),
-    }),
+    }).partial(),
     position: z.object({
       x: z.number(),
       y: z.number(),
-    }),
+    }).partial(),
     properties: z.record(z.string(), z.unknown()),
-    startTasks: z.array(z.object({
-      condition: z.string(),
-      description: z.string(),
-      displayName: z.string(),
-      taskConfigId: z.string(),
-      taskId: z.string(),
-    })),
+    startTasks: z.array(
+      z.object({
+        condition: z.string(),
+        description: z.string(),
+        displayName: z.string(),
+        taskConfigId: z.string(),
+        taskId: z.string(),
+      }).partial(),
+    ),
     trigger: z.string(),
     triggerId: z.string(),
     triggerNumber: z.string(),
     triggerType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   triggerId: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -1346,7 +1360,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Integrations.Versions.TestCases. Registered at `@swamp/gcp/integrations/integrations-versions-testcases`. */
 export const model = {
   type: "@swamp/gcp/integrations/integrations-versions-testcases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1431,6 +1445,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

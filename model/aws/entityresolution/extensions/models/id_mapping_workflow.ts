@@ -111,6 +111,44 @@ const TagSchema = z.object({
   ),
 });
 
+const IdMappingWorkflowInputSourceStateSchema = z.object({
+  Type: z.string(),
+  InputSourceARN: z.string(),
+  SchemaArn: z.string(),
+}).partial();
+
+const RuleStateSchema = z.object({
+  MatchingKeys: z.array(z.string()),
+  RuleName: z.string(),
+}).partial();
+
+const IdMappingRuleBasedPropertiesStateSchema = z.object({
+  AttributeMatchingModel: z.string(),
+  RuleDefinitionType: z.string(),
+  Rules: z.array(RuleStateSchema),
+  RecordMatchingModel: z.string(),
+}).partial();
+
+const IntermediateSourceConfigurationStateSchema = z.object({
+  IntermediateS3Path: z.string(),
+}).partial();
+
+const ProviderPropertiesStateSchema = z.object({
+  IntermediateSourceConfiguration: IntermediateSourceConfigurationStateSchema,
+  ProviderServiceArn: z.string(),
+  ProviderConfiguration: z.record(z.string(), z.unknown()),
+}).partial();
+
+const IdMappingWorkflowOutputSourceStateSchema = z.object({
+  KMSArn: z.string(),
+  OutputS3Path: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -150,26 +188,28 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Description: z.string().optional(),
-  InputSourceConfig: z.array(IdMappingWorkflowInputSourceSchema).optional(),
+  InputSourceConfig: z.array(IdMappingWorkflowInputSourceStateSchema)
+    .optional(),
   IdMappingTechniques: z.object({
-    RuleBasedProperties: IdMappingRuleBasedPropertiesSchema,
-    ProviderProperties: ProviderPropertiesSchema,
+    RuleBasedProperties: IdMappingRuleBasedPropertiesStateSchema,
+    ProviderProperties: ProviderPropertiesStateSchema,
     IdMappingType: z.string(),
     NormalizationVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   WorkflowName: z.string(),
   CreatedAt: z.string().optional(),
-  OutputSourceConfig: z.array(IdMappingWorkflowOutputSourceSchema).optional(),
+  OutputSourceConfig: z.array(IdMappingWorkflowOutputSourceStateSchema)
+    .optional(),
   IdMappingIncrementalRunConfig: z.object({
     IncrementalRunType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   WorkflowArn: z.string().optional(),
   UpdatedAt: z.string().optional(),
   RoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -219,7 +259,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EntityResolution IdMappingWorkflow. Registered at `@swamp/aws/entityresolution/id-mapping-workflow`. */
 export const model = {
   type: "@swamp/aws/entityresolution/id-mapping-workflow",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -283,6 +323,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

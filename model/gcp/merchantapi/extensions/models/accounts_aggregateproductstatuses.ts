@@ -97,16 +97,18 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   country: z.string().optional(),
-  itemLevelIssues: z.array(z.object({
-    attribute: z.string(),
-    code: z.string(),
-    description: z.string(),
-    detail: z.string(),
-    documentationUri: z.string(),
-    productCount: z.string(),
-    resolution: z.string(),
-    severity: z.string(),
-  })).optional(),
+  itemLevelIssues: z.array(
+    z.object({
+      attribute: z.string(),
+      code: z.string(),
+      description: z.string(),
+      detail: z.string(),
+      documentationUri: z.string(),
+      productCount: z.string(),
+      resolution: z.string(),
+      severity: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   reportingContext: z.string().optional(),
   stats: z.object({
@@ -114,7 +116,7 @@ const StateSchema = z.object({
     disapprovedCount: z.string(),
     expiringCount: z.string(),
     pendingCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -158,7 +160,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.AggregateProductStatuses. Registered at `@swamp/gcp/merchantapi/accounts-aggregateproductstatuses`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-aggregateproductstatuses",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -177,6 +179,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

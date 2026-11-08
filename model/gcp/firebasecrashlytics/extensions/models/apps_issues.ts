@@ -175,20 +175,24 @@ const StateSchema = z.object({
   name: z.string(),
   notesCount: z.string().optional(),
   sampleEvent: z.string().optional(),
-  signals: z.array(z.object({
-    description: z.string(),
-    signal: z.string(),
-  })).optional(),
+  signals: z.array(
+    z.object({
+      description: z.string(),
+      signal: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   stateUpdateTime: z.string().optional(),
   subtitle: z.string().optional(),
   title: z.string().optional(),
   uri: z.string().optional(),
-  variants: z.array(z.object({
-    id: z.string(),
-    sampleEvent: z.string(),
-    uri: z.string(),
-  })).optional(),
+  variants: z.array(
+    z.object({
+      id: z.string(),
+      sampleEvent: z.string(),
+      uri: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -298,7 +302,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase Crashlytics Apps.Issues. Registered at `@swamp/gcp/firebasecrashlytics/apps-issues`. */
 export const model = {
   type: "@swamp/gcp/firebasecrashlytics/apps-issues",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -352,6 +356,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -308,43 +308,47 @@ const StateSchema = z.object({
     euRepresentativeEmail: z.string(),
     euRepresentativeName: z.string(),
     euRepresentativePhone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   enabledNotificationTypes: z.array(z.string()).optional(),
   enterpriseDisplayName: z.string().optional(),
   enterpriseType: z.string().optional(),
   googleAuthenticationSettings: z.object({
     googleAuthenticationRequired: z.string(),
-  }).optional(),
+  }).partial().optional(),
   logo: z.object({
     sha256Hash: z.string(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   managedGoogleDomainType: z.string().optional(),
   managedGooglePlayAccountsEnterpriseType: z.string().optional(),
   name: z.string(),
   primaryColor: z.number().optional(),
   pubsubTopic: z.string().optional(),
-  signinDetails: z.array(z.object({
-    allowPersonalUsage: z.string(),
-    defaultStatus: z.string(),
-    googleAuthenticationOptions: z.object({
-      authenticationRequirement: z.string(),
-    }),
-    qrCode: z.string(),
-    signinEnrollmentToken: z.string(),
-    signinUrl: z.string(),
-    tokenTag: z.string(),
-  })).optional(),
-  termsAndConditions: z.array(z.object({
-    content: z.object({
-      defaultMessage: z.string(),
-      localizedMessages: z.record(z.string(), z.unknown()),
-    }),
-    header: z.object({
-      defaultMessage: z.string(),
-      localizedMessages: z.record(z.string(), z.unknown()),
-    }),
-  })).optional(),
+  signinDetails: z.array(
+    z.object({
+      allowPersonalUsage: z.string(),
+      defaultStatus: z.string(),
+      googleAuthenticationOptions: z.object({
+        authenticationRequirement: z.string(),
+      }).partial(),
+      qrCode: z.string(),
+      signinEnrollmentToken: z.string(),
+      signinUrl: z.string(),
+      tokenTag: z.string(),
+    }).partial(),
+  ).optional(),
+  termsAndConditions: z.array(
+    z.object({
+      content: z.object({
+        defaultMessage: z.string(),
+        localizedMessages: z.record(z.string(), z.unknown()),
+      }).partial(),
+      header: z.object({
+        defaultMessage: z.string(),
+        localizedMessages: z.record(z.string(), z.unknown()),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -524,7 +528,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises. Registered at `@swamp/gcp/androidmanagement/enterprises`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -678,6 +682,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

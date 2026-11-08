@@ -121,38 +121,40 @@ const StateSchema = z.object({
   hierarchyDetail: z.object({
     partitionDetail: z.object({
       table: z.string(),
-    }),
+    }).partial(),
     tableDetail: z.object({
       partitionCount: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   lastSuccessfulRun: z.object({
     run: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   latestRun: z.object({
     run: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   latestStatusDetail: z.object({
     completedPercentage: z.number(),
     error: z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
     summary: z.object({
-      metrics: z.array(z.object({
-        completed: z.string(),
-        failed: z.string(),
-        pending: z.string(),
-        total: z.string(),
-        unit: z.string(),
-      })),
+      metrics: z.array(
+        z.object({
+          completed: z.string(),
+          failed: z.string(),
+          pending: z.string(),
+          total: z.string(),
+          unit: z.string(),
+        }).partial(),
+      ),
       progressUnit: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   type: z.string().optional(),
   updateTime: z.string().optional(),
@@ -202,7 +204,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Data Transfer TransferConfigs.TransferResources. Registered at `@swamp/gcp/bigquerydatatransfer/transferconfigs-transferresources`. */
 export const model = {
   type: "@swamp/gcp/bigquerydatatransfer/transferconfigs-transferresources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -356,6 +358,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

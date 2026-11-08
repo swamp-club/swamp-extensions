@@ -99,7 +99,7 @@ const StateSchema = z.object({
       contactEmail: z.string(),
       phoneNumber: z.string(),
       websiteUrl: z.string(),
-    }),
+    }).partial(),
     appSubcategory: z.string(),
     deliveryToken: z.string(),
     developerDetails: z.object({
@@ -108,53 +108,65 @@ const StateSchema = z.object({
       developerName: z.string(),
       phoneNumber: z.string(),
       website: z.string(),
-    }),
-    deviceCompatibilityRequirements: z.array(z.object({
-      compatibleScreens: z.array(z.object({
-        density: z.unknown(),
-        screenSize: z.unknown(),
-      })),
-      glEsVersion: z.number(),
-      isScreenRequired: z.boolean(),
-      nativePlatforms: z.array(z.string()),
-      requiredSoftwareLibraries: z.array(z.string()),
-      requiredSystemFeatures: z.array(z.string()),
-      requiresSmallestWidthDp: z.string(),
-      sdkVersion: z.object({
-        maxSdkVersion: z.string(),
-        minSdkVersion: z.string(),
-        targetSdkVersion: z.string(),
-      }),
-      supportedGlTextures: z.array(z.string()),
-      supportedScreens: z.array(z.string()),
-      use32BitAbi: z.string(),
-      usesConfigurations: z.array(z.object({
-        requiredKeyboardType: z.unknown(),
-        requiredNavigationType: z.unknown(),
-        requiredTouchscreenType: z.unknown(),
-        requiresFiveWayNavigation: z.unknown(),
-        requiresHardwareKeyboard: z.unknown(),
-      })),
-    })),
-    excludedDevicesByIdentifier: z.array(z.object({
-      deviceBrand: z.string(),
-      deviceModel: z.string(),
-    })),
-    excludedDevicesBySelector: z.array(z.object({
-      deviceTypeSelector: z.string(),
-      ramSelector: z.object({
-        ramMbLessThanOrEqual: z.string(),
-      }),
-      socSelectors: z.array(z.object({
-        socMake: z.unknown(),
-        socModel: z.unknown(),
-      })),
-    })),
+    }).partial(),
+    deviceCompatibilityRequirements: z.array(
+      z.object({
+        compatibleScreens: z.array(
+          z.object({
+            density: z.unknown(),
+            screenSize: z.unknown(),
+          }).partial(),
+        ),
+        glEsVersion: z.number(),
+        isScreenRequired: z.boolean(),
+        nativePlatforms: z.array(z.string()),
+        requiredSoftwareLibraries: z.array(z.string()),
+        requiredSystemFeatures: z.array(z.string()),
+        requiresSmallestWidthDp: z.string(),
+        sdkVersion: z.object({
+          maxSdkVersion: z.string(),
+          minSdkVersion: z.string(),
+          targetSdkVersion: z.string(),
+        }).partial(),
+        supportedGlTextures: z.array(z.string()),
+        supportedScreens: z.array(z.string()),
+        use32BitAbi: z.string(),
+        usesConfigurations: z.array(
+          z.object({
+            requiredKeyboardType: z.unknown(),
+            requiredNavigationType: z.unknown(),
+            requiredTouchscreenType: z.unknown(),
+            requiresFiveWayNavigation: z.unknown(),
+            requiresHardwareKeyboard: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+    excludedDevicesByIdentifier: z.array(
+      z.object({
+        deviceBrand: z.string(),
+        deviceModel: z.string(),
+      }).partial(),
+    ),
+    excludedDevicesBySelector: z.array(
+      z.object({
+        deviceTypeSelector: z.string(),
+        ramSelector: z.object({
+          ramMbLessThanOrEqual: z.string(),
+        }).partial(),
+        socSelectors: z.array(
+          z.object({
+            socMake: z.unknown(),
+            socModel: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
     firstReleaseDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     hasInAppAds: z.boolean(),
     hasInAppPurchases: z.boolean(),
     iarcCertificateId: z.string(),
@@ -162,52 +174,58 @@ const StateSchema = z.object({
     lastPublishTime: z.string(),
     localizedStoreListings: z.object({
       defaultLanguageCode: z.string(),
-      localizedStoreListings: z.array(z.object({
-        appName: z.string(),
-        featureGraphic: z.object({
-          imageUrl: z.unknown(),
-        }),
-        fullDescription: z.string(),
-        icon: z.object({
-          imageUrl: z.unknown(),
-        }),
-        languageCode: z.string(),
-        phoneScreenshots: z.object({
-          screenshots: z.unknown(),
-        }),
-        shortDescription: z.string(),
-        tabletRegularScreenshots: z.object({
-          screenshots: z.unknown(),
-        }),
-        tabletSmallScreenshots: z.object({
-          screenshots: z.unknown(),
-        }),
-        video: z.object({
-          videoUrl: z.unknown(),
-        }),
-      })),
-    }),
+      localizedStoreListings: z.array(
+        z.object({
+          appName: z.string(),
+          featureGraphic: z.object({
+            imageUrl: z.unknown(),
+          }).partial(),
+          fullDescription: z.string(),
+          icon: z.object({
+            imageUrl: z.unknown(),
+          }).partial(),
+          languageCode: z.string(),
+          phoneScreenshots: z.object({
+            screenshots: z.unknown(),
+          }).partial(),
+          shortDescription: z.string(),
+          tabletRegularScreenshots: z.object({
+            screenshots: z.unknown(),
+          }).partial(),
+          tabletSmallScreenshots: z.object({
+            screenshots: z.unknown(),
+          }).partial(),
+          video: z.object({
+            videoUrl: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     packageName: z.string(),
-    permissions: z.array(z.object({
-      maxSdkVersion: z.number(),
-      name: z.string(),
-    })),
-    permissionsSdk23: z.array(z.object({
-      maxSdkVersion: z.number(),
-      name: z.string(),
-    })),
+    permissions: z.array(
+      z.object({
+        maxSdkVersion: z.number(),
+        name: z.string(),
+      }).partial(),
+    ),
+    permissionsSdk23: z.array(
+      z.object({
+        maxSdkVersion: z.number(),
+        name: z.string(),
+      }).partial(),
+    ),
     priceInTheUnitedStates: z.object({
       currencyCode: z.string(),
       nanos: z.number(),
       units: z.string(),
-    }),
+    }).partial(),
     privacyPolicyUrl: z.string(),
     salePriceInTheUnitedStates: z.object({
       currencyCode: z.string(),
       nanos: z.number(),
       units: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -251,7 +269,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Appstorecatalog.Recentappviews. Registered at `@swamp/gcp/androidpublisher/appstorecatalog-recentappviews`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/appstorecatalog-recentappviews",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -270,6 +288,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

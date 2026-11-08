@@ -398,7 +398,7 @@ const StateSchema = z.object({
       slaId: z.string(),
       slpName: z.string(),
       sltName: z.string(),
-    }),
+    }).partial(),
     gcpBackupConfig: z.object({
       autoProtectionPolicyBinding: z.string(),
       backupPlan: z.string(),
@@ -407,15 +407,15 @@ const StateSchema = z.object({
       backupPlanRevisionId: z.string(),
       backupPlanRevisionName: z.string(),
       backupPlanRules: z.array(z.string()),
-    }),
+    }).partial(),
     lastBackupError: z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     lastBackupState: z.string(),
     lastSuccessfulBackupConsistencyTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   backupCount: z.string().optional(),
   configState: z.string().optional(),
   createTime: z.string().optional(),
@@ -427,48 +427,50 @@ const StateSchema = z.object({
     hostId: z.string(),
     hostname: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataSourceGcpResource: z.object({
     alloyDbClusterDatasourceProperties: z.object({
       clusterUid: z.string(),
       name: z.string(),
-      pitrWindows: z.array(z.object({
-        endTime: z.string(),
-        logRetentionDays: z.string(),
-        startTime: z.string(),
-      })),
-    }),
+      pitrWindows: z.array(
+        z.object({
+          endTime: z.string(),
+          logRetentionDays: z.string(),
+          startTime: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     cloudSqlInstanceDatasourceProperties: z.object({
       databaseInstalledVersion: z.string(),
       instanceCreateTime: z.string(),
       instanceTier: z.string(),
       name: z.string(),
-    }),
+    }).partial(),
     computeInstanceDatasourceProperties: z.object({
       description: z.string(),
       machineType: z.string(),
       name: z.string(),
       totalDiskCount: z.string(),
       totalDiskSizeGb: z.string(),
-    }),
+    }).partial(),
     diskDatasourceProperties: z.object({
       description: z.string(),
       name: z.string(),
       sizeGb: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     filestoreInstanceDatasourceProperties: z.object({
       instanceCreateTime: z.string(),
       name: z.string(),
-    }),
+    }).partial(),
     gcpResourcename: z.string(),
     location: z.string(),
     netappVolumeDatasourceProperties: z.object({
       sourceResource: z.string(),
       sourceResourceCreateTime: z.string(),
-    }),
+    }).partial(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -751,7 +753,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupVaults.DataSources. Registered at `@swamp/gcp/backupdr/backupvaults-datasources`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupvaults-datasources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -910,6 +912,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

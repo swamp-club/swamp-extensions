@@ -75,6 +75,31 @@ const LogDeliveryConfigurationRequestSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const CloudWatchLogsDestinationDetailsStateSchema = z.object({
+  LogGroup: z.string(),
+}).partial();
+
+const KinesisFirehoseDestinationDetailsStateSchema = z.object({
+  DeliveryStream: z.string(),
+}).partial();
+
+const DestinationDetailsStateSchema = z.object({
+  CloudWatchLogsDetails: CloudWatchLogsDestinationDetailsStateSchema,
+  KinesisFirehoseDetails: KinesisFirehoseDestinationDetailsStateSchema,
+}).partial();
+
+const LogDeliveryConfigurationRequestStateSchema = z.object({
+  LogType: z.string(),
+  LogFormat: z.string(),
+  DestinationType: z.string(),
+  DestinationDetails: DestinationDetailsStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -179,7 +204,7 @@ const StateSchema = z.object({
   VpcSecurityGroupIds: z.array(z.string()).optional(),
   ClusterName: z.string(),
   Engine: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   EngineVersion: z.string().optional(),
   PreferredMaintenanceWindow: z.string().optional(),
   PreferredAvailabilityZone: z.string().optional(),
@@ -187,20 +212,20 @@ const StateSchema = z.object({
   NetworkType: z.string().optional(),
   IpDiscovery: z.string().optional(),
   SnapshotRetentionLimit: z.number().optional(),
-  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestSchema)
+  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestStateSchema)
     .optional(),
   TransitEncryptionEnabled: z.boolean().optional(),
   ConfigurationEndpoint: z.object({
     Address: z.string(),
     Port: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RedisEndpoint: z.object({
     Address: z.string(),
     Port: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -301,7 +326,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElastiCache CacheCluster. Registered at `@swamp/aws/elasticache/cache-cluster`. */
 export const model = {
   type: "@swamp/aws/elasticache/cache-cluster",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -345,6 +370,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

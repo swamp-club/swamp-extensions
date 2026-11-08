@@ -118,21 +118,25 @@ const StateSchema = z.object({
   categories: z.array(z.string()).optional(),
   description: z.string().optional(),
   name: z.string(),
-  policySets: z.array(z.object({
-    description: z.string(),
-    policies: z.array(z.object({
-      complianceStandards: z.array(z.unknown()),
-      constraint: z.object({
-        orgPolicyConstraint: z.unknown(),
-        orgPolicyConstraintCustom: z.unknown(),
-        securityHealthAnalyticsCustomModule: z.unknown(),
-        securityHealthAnalyticsModule: z.unknown(),
-      }),
+  policySets: z.array(
+    z.object({
       description: z.string(),
-      policyId: z.string(),
-    })),
-    policySetId: z.string(),
-  })).optional(),
+      policies: z.array(
+        z.object({
+          complianceStandards: z.array(z.unknown()),
+          constraint: z.object({
+            orgPolicyConstraint: z.unknown(),
+            orgPolicyConstraintCustom: z.unknown(),
+            securityHealthAnalyticsCustomModule: z.unknown(),
+            securityHealthAnalyticsModule: z.unknown(),
+          }).partial(),
+          description: z.string(),
+          policyId: z.string(),
+        }).partial(),
+      ),
+      policySetId: z.string(),
+    }).partial(),
+  ).optional(),
   revisionId: z.string().optional(),
   state: z.string().optional(),
 }).passthrough();
@@ -178,7 +182,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Posture PostureTemplates. Registered at `@swamp/gcp/securityposture/posturetemplates`. */
 export const model = {
   type: "@swamp/gcp/securityposture/posturetemplates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -307,6 +311,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

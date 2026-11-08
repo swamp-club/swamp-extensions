@@ -57,6 +57,26 @@ const LogConfigurationSchema = z.object({
   FirehoseConfiguration: FirehoseConfigurationSchema.optional(),
 });
 
+const CloudWatchLogsConfigurationStateSchema = z.object({
+  LogGroupArn: z.string(),
+}).partial();
+
+const S3ConfigurationStateSchema = z.object({
+  BucketArn: z.string(),
+}).partial();
+
+const FirehoseConfigurationStateSchema = z.object({
+  StreamArn: z.string(),
+}).partial();
+
+const LogConfigurationStateSchema = z.object({
+  LogLevel: z.string(),
+  EventSource: z.string(),
+  CloudWatchLogsConfiguration: CloudWatchLogsConfigurationStateSchema,
+  S3Configuration: S3ConfigurationStateSchema,
+  FirehoseConfiguration: FirehoseConfigurationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -80,10 +100,10 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Id: z.string(),
   UserPoolId: z.string().optional(),
-  LogConfigurations: z.array(LogConfigurationSchema).optional(),
+  LogConfigurations: z.array(LogConfigurationStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -114,7 +134,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito LogDeliveryConfiguration. Registered at `@swamp/aws/cognito/log-delivery-configuration`. */
 export const model = {
   type: "@swamp/aws/cognito/log-delivery-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -173,6 +193,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

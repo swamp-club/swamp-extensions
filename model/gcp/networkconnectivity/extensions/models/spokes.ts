@@ -385,11 +385,13 @@ const StateSchema = z.object({
   gateway: z.object({
     capacity: z.string(),
     cloudRouters: z.array(z.string()),
-    ipRangeReservations: z.array(z.object({
-      ipRange: z.string(),
-    })),
+    ipRangeReservations: z.array(
+      z.object({
+        ipRange: z.string(),
+      }).partial(),
+    ),
     sacAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   group: z.string().optional(),
   hub: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -405,7 +407,7 @@ const StateSchema = z.object({
     siteToSiteDataTransfer: z.boolean(),
     uris: z.array(z.string()),
     vpcNetwork: z.string(),
-  }).optional(),
+  }).partial().optional(),
   linkedProducerVpcNetwork: z.object({
     excludeExportRanges: z.array(z.string()),
     includeExportRanges: z.array(z.string()),
@@ -415,23 +417,25 @@ const StateSchema = z.object({
     proposedExcludeExportRanges: z.array(z.string()),
     proposedIncludeExportRanges: z.array(z.string()),
     serviceConsumerVpcSpoke: z.string(),
-  }).optional(),
+  }).partial().optional(),
   linkedRouterApplianceInstances: z.object({
     excludeExportRanges: z.array(z.string()),
     excludeImportRanges: z.array(z.string()),
     includeExportRanges: z.array(z.string()),
     includeImportRanges: z.array(z.string()),
-    instances: z.array(z.object({
-      ipAddress: z.string(),
-      virtualMachine: z.string(),
-    })),
+    instances: z.array(
+      z.object({
+        ipAddress: z.string(),
+        virtualMachine: z.string(),
+      }).partial(),
+    ),
     proposedExcludeExportRanges: z.array(z.string()),
     proposedExcludeImportRanges: z.array(z.string()),
     proposedIncludeExportRanges: z.array(z.string()),
     proposedIncludeImportRanges: z.array(z.string()),
     siteToSiteDataTransfer: z.boolean(),
     vpcNetwork: z.string(),
-  }).optional(),
+  }).partial().optional(),
   linkedVpcNetwork: z.object({
     excludeExportRanges: z.array(z.string()),
     includeExportRanges: z.array(z.string()),
@@ -439,7 +443,7 @@ const StateSchema = z.object({
     proposedExcludeExportRanges: z.array(z.string()),
     proposedIncludeExportRanges: z.array(z.string()),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   linkedVpnTunnels: z.object({
     excludeExportRanges: z.array(z.string()),
     excludeImportRanges: z.array(z.string()),
@@ -452,13 +456,15 @@ const StateSchema = z.object({
     siteToSiteDataTransfer: z.boolean(),
     uris: z.array(z.string()),
     vpcNetwork: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  reasons: z.array(z.object({
-    code: z.string(),
-    message: z.string(),
-    userDetails: z.string(),
-  })).optional(),
+  reasons: z.array(
+    z.object({
+      code: z.string(),
+      message: z.string(),
+      userDetails: z.string(),
+    }).partial(),
+  ).optional(),
   spokeType: z.string().optional(),
   state: z.string().optional(),
   uniqueId: z.string().optional(),
@@ -708,7 +714,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity Spokes. Registered at `@swamp/gcp/networkconnectivity/spokes`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/spokes",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -929,6 +935,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

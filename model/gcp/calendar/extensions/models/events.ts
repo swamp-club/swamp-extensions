@@ -713,32 +713,36 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   anyoneCanAddSelf: z.boolean().optional(),
-  attachments: z.array(z.object({
-    fileId: z.string(),
-    fileUrl: z.string(),
-    iconLink: z.string(),
-    mimeType: z.string(),
-    title: z.string(),
-  })).optional(),
-  attendees: z.array(z.object({
-    additionalGuests: z.number(),
-    asyncOperation: z.string(),
-    comment: z.string(),
-    displayName: z.string(),
-    email: z.string(),
-    id: z.string(),
-    optional: z.boolean(),
-    organizer: z.boolean(),
-    resource: z.boolean(),
-    responseStatus: z.string(),
-    self: z.boolean(),
-  })).optional(),
+  attachments: z.array(
+    z.object({
+      fileId: z.string(),
+      fileUrl: z.string(),
+      iconLink: z.string(),
+      mimeType: z.string(),
+      title: z.string(),
+    }).partial(),
+  ).optional(),
+  attendees: z.array(
+    z.object({
+      additionalGuests: z.number(),
+      asyncOperation: z.string(),
+      comment: z.string(),
+      displayName: z.string(),
+      email: z.string(),
+      id: z.string(),
+      optional: z.boolean(),
+      organizer: z.boolean(),
+      resource: z.boolean(),
+      responseStatus: z.string(),
+      self: z.boolean(),
+    }).partial(),
+  ).optional(),
   attendeesOmitted: z.boolean().optional(),
   birthdayProperties: z.object({
     contact: z.string(),
     customTypeName: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   colorId: z.string().optional(),
   conferenceData: z.object({
     conferenceId: z.string(),
@@ -746,51 +750,53 @@ const StateSchema = z.object({
       iconUri: z.string(),
       key: z.object({
         type: z.string(),
-      }),
+      }).partial(),
       name: z.string(),
-    }),
+    }).partial(),
     createRequest: z.object({
       conferenceSolutionKey: z.object({
         type: z.string(),
-      }),
+      }).partial(),
       requestId: z.string(),
       status: z.object({
         statusCode: z.string(),
-      }),
-    }),
-    entryPoints: z.array(z.object({
-      accessCode: z.string(),
-      entryPointFeatures: z.array(z.string()),
-      entryPointType: z.string(),
-      label: z.string(),
-      meetingCode: z.string(),
-      passcode: z.string(),
-      password: z.string(),
-      pin: z.string(),
-      regionCode: z.string(),
-      uri: z.string(),
-    })),
+      }).partial(),
+    }).partial(),
+    entryPoints: z.array(
+      z.object({
+        accessCode: z.string(),
+        entryPointFeatures: z.array(z.string()),
+        entryPointType: z.string(),
+        label: z.string(),
+        meetingCode: z.string(),
+        passcode: z.string(),
+        password: z.string(),
+        pin: z.string(),
+        regionCode: z.string(),
+        uri: z.string(),
+      }).partial(),
+    ),
     notes: z.string(),
     parameters: z.object({
       addOnParameters: z.object({
         parameters: z.record(z.string(), z.unknown()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     signature: z.string(),
-  }).optional(),
+  }).partial().optional(),
   created: z.string().optional(),
   creator: z.object({
     displayName: z.string(),
     email: z.string(),
     id: z.string(),
     self: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   end: z.object({
     date: z.string(),
     dateTime: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endTimeUnspecified: z.boolean().optional(),
   etag: z.string().optional(),
   eventLabelId: z.string().optional(),
@@ -798,12 +804,12 @@ const StateSchema = z.object({
   extendedProperties: z.object({
     private: z.record(z.string(), z.unknown()),
     shared: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   focusTimeProperties: z.object({
     autoDeclineMode: z.string(),
     chatStatus: z.string(),
     declineMessage: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gadget: z.object({
     display: z.string(),
     height: z.number(),
@@ -813,7 +819,7 @@ const StateSchema = z.object({
     title: z.string(),
     type: z.string(),
     width: z.number(),
-  }).optional(),
+  }).partial().optional(),
   guestsCanInviteOthers: z.boolean().optional(),
   guestsCanModify: z.boolean().optional(),
   guestsCanSeeOtherGuests: z.boolean().optional(),
@@ -829,36 +835,38 @@ const StateSchema = z.object({
     email: z.string(),
     id: z.string(),
     self: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   originalStartTime: z.object({
     date: z.string(),
     dateTime: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   outOfOfficeProperties: z.object({
     autoDeclineMode: z.string(),
     declineMessage: z.string(),
-  }).optional(),
+  }).partial().optional(),
   privateCopy: z.boolean().optional(),
   recurrence: z.array(z.string()).optional(),
   recurringEventId: z.string().optional(),
   reminders: z.object({
-    overrides: z.array(z.object({
-      method: z.string(),
-      minutes: z.number(),
-    })),
+    overrides: z.array(
+      z.object({
+        method: z.string(),
+        minutes: z.number(),
+      }).partial(),
+    ),
     useDefault: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   sequence: z.number().optional(),
   source: z.object({
     title: z.string(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   start: z.object({
     date: z.string(),
     dateTime: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.string().optional(),
   summary: z.string().optional(),
   transparency: z.string().optional(),
@@ -867,7 +875,7 @@ const StateSchema = z.object({
   workingLocationProperties: z.object({
     customLocation: z.object({
       label: z.string(),
-    }),
+    }).partial(),
     homeOffice: z.string(),
     officeLocation: z.object({
       buildingId: z.string(),
@@ -875,9 +883,9 @@ const StateSchema = z.object({
       floorId: z.string(),
       floorSectionId: z.string(),
       label: z.string(),
-    }),
+    }).partial(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1343,7 +1351,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar Events. Registered at `@swamp/gcp/calendar/events`. */
 export const model = {
   type: "@swamp/gcp/calendar/events",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1507,6 +1515,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -437,36 +437,44 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  configVariables: z.array(z.object({
-    boolValue: z.boolean(),
-    intValue: z.string(),
-    key: z.string(),
-    secretValue: z.object({
-      secretValue: z.string(),
-      secretVersion: z.string(),
-    }),
-    stringValue: z.string(),
-  })).optional(),
-  createTime: z.string().optional(),
-  destinationConfigs: z.array(z.object({
-    destinations: z.array(z.object({
-      host: z.string(),
-      port: z.number(),
-      serviceAttachment: z.string(),
-    })),
-    key: z.string(),
-  })).optional(),
-  endUserAuthenticationConfig: z.object({
-    additionalVariables: z.array(z.object({
+  configVariables: z.array(
+    z.object({
       boolValue: z.boolean(),
       intValue: z.string(),
       key: z.string(),
       secretValue: z.object({
         secretValue: z.string(),
         secretVersion: z.string(),
-      }),
+      }).partial(),
       stringValue: z.string(),
-    })),
+    }).partial(),
+  ).optional(),
+  createTime: z.string().optional(),
+  destinationConfigs: z.array(
+    z.object({
+      destinations: z.array(
+        z.object({
+          host: z.string(),
+          port: z.number(),
+          serviceAttachment: z.string(),
+        }).partial(),
+      ),
+      key: z.string(),
+    }).partial(),
+  ).optional(),
+  endUserAuthenticationConfig: z.object({
+    additionalVariables: z.array(
+      z.object({
+        boolValue: z.boolean(),
+        intValue: z.string(),
+        key: z.string(),
+        secretValue: z.object({
+          secretValue: z.string(),
+          secretVersion: z.string(),
+        }).partial(),
+        stringValue: z.string(),
+      }).partial(),
+    ),
     authKey: z.string(),
     authType: z.string(),
     oauth2AuthCodeFlow: z.object({
@@ -476,97 +484,99 @@ const StateSchema = z.object({
       clientSecret: z.object({
         secretValue: z.string(),
         secretVersion: z.string(),
-      }),
+      }).partial(),
       enablePkce: z.boolean(),
       oauthTokenData: z.object({
         accessToken: z.object({
           secretValue: z.string(),
           secretVersion: z.string(),
-        }),
+        }).partial(),
         createTime: z.string(),
         expiry: z.string(),
         refreshToken: z.object({
           secretValue: z.string(),
           secretVersion: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       pkceVerifier: z.string(),
       redirectUri: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     oauth2AuthCodeFlowGoogleManaged: z.object({
       authCode: z.string(),
       oauthTokenData: z.object({
         accessToken: z.object({
           secretValue: z.string(),
           secretVersion: z.string(),
-        }),
+        }).partial(),
         createTime: z.string(),
         expiry: z.string(),
         refreshToken: z.object({
           secretValue: z.string(),
           secretVersion: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       redirectUri: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     oauth2ClientCredentials: z.object({
       clientId: z.string(),
       clientSecret: z.object({
         secretValue: z.string(),
         secretVersion: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     oauth2JwtBearer: z.object({
       clientKey: z.object({
         secretValue: z.string(),
         secretVersion: z.string(),
-      }),
+      }).partial(),
       jwtClaims: z.object({
         audience: z.string(),
         issuer: z.string(),
         subject: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sshPublicKey: z.object({
       certType: z.string(),
       sshClientCert: z.object({
         secretValue: z.string(),
         secretVersion: z.string(),
-      }),
+      }).partial(),
       sshClientCertPass: z.object({
         secretValue: z.string(),
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
+    }).partial(),
     userPassword: z.object({
       password: z.object({
         secretValue: z.string(),
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.array(z.string()).optional(),
   name: z.string(),
   notifyEndpointDestination: z.object({
     endpoint: z.object({
       endpointUri: z.string(),
-      headers: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
-    }),
+      headers: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     serviceAccount: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   roles: z.array(z.string()).optional(),
   status: z.object({
     description: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   userId: z.string().optional(),
 }).passthrough();
@@ -876,7 +886,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Connectors Connections.EndUserAuthentications. Registered at `@swamp/gcp/connectors/connections-enduserauthentications`. */
 export const model = {
   type: "@swamp/gcp/connectors/connections-enduserauthentications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -895,6 +905,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

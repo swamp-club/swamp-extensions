@@ -126,15 +126,17 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   etag: z.string().optional(),
   ingestion: z.object({
-    rules: z.array(z.object({
-      integrationSelector: z.object({
-        integration: z.string(),
-      }),
-      lineageEnablement: z.object({
-        enabled: z.boolean(),
-      }),
-    })),
-  }).optional(),
+    rules: z.array(
+      z.object({
+        integrationSelector: z.object({
+          integration: z.string(),
+        }).partial(),
+        lineageEnablement: z.object({
+          enabled: z.boolean(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
 }).passthrough();
 
@@ -207,7 +209,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Data Lineage Config. Registered at `@swamp/gcp/datalineage/config`. */
 export const model = {
   type: "@swamp/gcp/datalineage/config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -356,6 +358,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -108,11 +108,13 @@ const StateSchema = z.object({
   description: z.object({
     messageKey: z.string(),
     messageText: z.string(),
-    parameters: z.array(z.object({
-      key: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
+    parameters: z.array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   eventType: z.string().optional(),
   targetNumWorkers: z.string().optional(),
   time: z.string().optional(),
@@ -158,7 +160,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataflow Jobs.Messages. Registered at `@swamp/gcp/dataflow/jobs-messages`. */
 export const model = {
   type: "@swamp/gcp/dataflow/jobs-messages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -287,6 +289,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

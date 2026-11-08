@@ -226,29 +226,31 @@ const StateSchema = z.object({
   claimReviewAuthor: z.object({
     imageUrl: z.string(),
     name: z.string(),
-  }).optional(),
-  claimReviewMarkups: z.array(z.object({
-    claimAppearances: z.array(z.string()),
-    claimAuthor: z.object({
-      imageUrl: z.string(),
-      jobTitle: z.string(),
-      name: z.string(),
-      sameAs: z.string(),
-    }),
-    claimDate: z.string(),
-    claimFirstAppearance: z.string(),
-    claimLocation: z.string(),
-    claimReviewed: z.string(),
-    rating: z.object({
-      bestRating: z.number(),
-      imageUrl: z.string(),
-      ratingExplanation: z.string(),
-      ratingValue: z.number(),
-      textualRating: z.string(),
-      worstRating: z.number(),
-    }),
-    url: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  claimReviewMarkups: z.array(
+    z.object({
+      claimAppearances: z.array(z.string()),
+      claimAuthor: z.object({
+        imageUrl: z.string(),
+        jobTitle: z.string(),
+        name: z.string(),
+        sameAs: z.string(),
+      }).partial(),
+      claimDate: z.string(),
+      claimFirstAppearance: z.string(),
+      claimLocation: z.string(),
+      claimReviewed: z.string(),
+      rating: z.object({
+        bestRating: z.number(),
+        imageUrl: z.string(),
+        ratingExplanation: z.string(),
+        ratingValue: z.number(),
+        textualRating: z.string(),
+        worstRating: z.number(),
+      }).partial(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   pageUrl: z.string().optional(),
   publishDate: z.string().optional(),
@@ -369,7 +371,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Fact Check Tools Pages. Registered at `@swamp/gcp/factchecktools/pages`. */
 export const model = {
   type: "@swamp/gcp/factchecktools/pages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -508,6 +510,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

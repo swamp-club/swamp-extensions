@@ -560,6 +560,273 @@ const LaunchTemplateTagSpecificationSchema = z.object({
   Tags: z.array(TagSchema).describe("The tags for the resource.").optional(),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const TagSpecificationStateSchema = z.object({
+  ResourceType: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const NetworkPerformanceOptionsStateSchema = z.object({
+  BandwidthWeighting: z.string(),
+}).partial();
+
+const EbsStateSchema = z.object({
+  SnapshotId: z.string(),
+  VolumeType: z.string(),
+  KmsKeyId: z.string(),
+  Encrypted: z.boolean(),
+  EbsCardIndex: z.number(),
+  Throughput: z.number(),
+  Iops: z.number(),
+  VolumeInitializationRate: z.number(),
+  VolumeSize: z.number(),
+  DeleteOnTermination: z.boolean(),
+}).partial();
+
+const BlockDeviceMappingStateSchema = z.object({
+  Ebs: EbsStateSchema,
+  NoDevice: z.string(),
+  VirtualName: z.string(),
+  DeviceName: z.string(),
+}).partial();
+
+const MaintenanceOptionsStateSchema = z.object({
+  AutoRecovery: z.string(),
+}).partial();
+
+const IamInstanceProfileStateSchema = z.object({
+  Arn: z.string(),
+  Name: z.string(),
+}).partial();
+
+const PlacementStateSchema = z.object({
+  GroupName: z.string(),
+  Tenancy: z.string(),
+  SpreadDomain: z.string(),
+  PartitionNumber: z.number(),
+  AvailabilityZone: z.string(),
+  Affinity: z.string(),
+  HostId: z.string(),
+  HostResourceGroupArn: z.string(),
+  GroupId: z.string(),
+}).partial();
+
+const PrivateIpAddStateSchema = z.object({
+  PrivateIpAddress: z.string(),
+  Primary: z.boolean(),
+}).partial();
+
+const Ipv4PrefixSpecificationStateSchema = z.object({
+  Ipv4Prefix: z.string(),
+}).partial();
+
+const Ipv6PrefixSpecificationStateSchema = z.object({
+  Ipv6Prefix: z.string(),
+}).partial();
+
+const Ipv6AddStateSchema = z.object({
+  Ipv6Address: z.string(),
+}).partial();
+
+const EnaSrdUdpSpecificationStateSchema = z.object({
+  EnaSrdUdpEnabled: z.boolean(),
+}).partial();
+
+const EnaSrdSpecificationStateSchema = z.object({
+  EnaSrdEnabled: z.boolean(),
+  EnaSrdUdpSpecification: EnaSrdUdpSpecificationStateSchema,
+}).partial();
+
+const ConnectionTrackingSpecificationStateSchema = z.object({
+  UdpTimeout: z.number(),
+  TcpEstablishedTimeout: z.number(),
+  UdpStreamTimeout: z.number(),
+}).partial();
+
+const NetworkInterfaceStateSchema = z.object({
+  Description: z.string(),
+  PrivateIpAddress: z.string(),
+  PrivateIpAddresses: z.array(PrivateIpAddStateSchema),
+  SecondaryPrivateIpAddressCount: z.number(),
+  Ipv6PrefixCount: z.number(),
+  Ipv4Prefixes: z.array(Ipv4PrefixSpecificationStateSchema),
+  DeviceIndex: z.number(),
+  PrimaryIpv6: z.boolean(),
+  Ipv4PrefixCount: z.number(),
+  EnaQueueCount: z.number(),
+  Ipv6Prefixes: z.array(Ipv6PrefixSpecificationStateSchema),
+  SubnetId: z.string(),
+  Ipv6Addresses: z.array(Ipv6AddStateSchema),
+  AssociatePublicIpAddress: z.boolean(),
+  NetworkInterfaceId: z.string(),
+  NetworkCardIndex: z.number(),
+  InterfaceType: z.string(),
+  AssociateCarrierIpAddress: z.boolean(),
+  EnaSrdSpecification: EnaSrdSpecificationStateSchema,
+  Ipv6AddressCount: z.number(),
+  Groups: z.array(z.string()),
+  DeleteOnTermination: z.boolean(),
+  ConnectionTrackingSpecification: ConnectionTrackingSpecificationStateSchema,
+}).partial();
+
+const EnclaveOptionsStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const MonitoringStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const HibernationOptionsStateSchema = z.object({
+  Configured: z.boolean(),
+}).partial();
+
+const MetadataOptionsStateSchema = z.object({
+  HttpPutResponseHopLimit: z.number(),
+  HttpTokens: z.string(),
+  HttpProtocolIpv6: z.string(),
+  InstanceMetadataTags: z.string(),
+  HttpEndpoint: z.string(),
+}).partial();
+
+const LicenseSpecificationStateSchema = z.object({
+  LicenseConfigurationArn: z.string(),
+}).partial();
+
+const CpuOptionsStateSchema = z.object({
+  ThreadsPerCore: z.number(),
+  AmdSevSnp: z.string(),
+  NestedVirtualization: z.string(),
+  CoreCount: z.number(),
+}).partial();
+
+const PrivateDnsNameOptionsStateSchema = z.object({
+  EnableResourceNameDnsARecord: z.boolean(),
+  HostnameType: z.string(),
+  EnableResourceNameDnsAAAARecord: z.boolean(),
+}).partial();
+
+const SpotOptionsStateSchema = z.object({
+  SpotInstanceType: z.string(),
+  InstanceInterruptionBehavior: z.string(),
+  MaxPrice: z.string(),
+  BlockDurationMinutes: z.number(),
+  ValidUntil: z.string(),
+}).partial();
+
+const InstanceMarketOptionsStateSchema = z.object({
+  SpotOptions: SpotOptionsStateSchema,
+  MarketType: z.string(),
+}).partial();
+
+const MemoryGiBPerVCpuStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const VCpuCountStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const MemoryMiBStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const NetworkInterfaceCountStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorCountStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const NetworkBandwidthGbpsStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const ReferenceStateSchema = z.object({
+  InstanceFamily: z.string(),
+}).partial();
+
+const CpuStateSchema = z.object({
+  References: z.array(ReferenceStateSchema),
+}).partial();
+
+const BaselinePerformanceFactorsStateSchema = z.object({
+  Cpu: CpuStateSchema,
+}).partial();
+
+const BaselineEbsBandwidthMbpsStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorTotalMemoryMiBStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const TotalLocalStorageGBStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const InstanceRequirementsStateSchema = z.object({
+  InstanceGenerations: z.array(z.string()),
+  MemoryGiBPerVCpu: MemoryGiBPerVCpuStateSchema,
+  AcceleratorTypes: z.array(z.string()),
+  VCpuCount: VCpuCountStateSchema,
+  AcceleratorManufacturers: z.array(z.string()),
+  LocalStorage: z.string(),
+  CpuManufacturers: z.array(z.string()),
+  BareMetal: z.string(),
+  RequireHibernateSupport: z.boolean(),
+  MaxSpotPriceAsPercentageOfOptimalOnDemandPrice: z.number(),
+  OnDemandMaxPricePercentageOverLowestPrice: z.number(),
+  MemoryMiB: MemoryMiBStateSchema,
+  LocalStorageTypes: z.array(z.string()),
+  NetworkInterfaceCount: NetworkInterfaceCountStateSchema,
+  ExcludedInstanceTypes: z.array(z.string()),
+  AllowedInstanceTypes: z.array(z.string()),
+  AcceleratorCount: AcceleratorCountStateSchema,
+  NetworkBandwidthGbps: NetworkBandwidthGbpsStateSchema,
+  BaselinePerformanceFactors: BaselinePerformanceFactorsStateSchema,
+  SpotMaxPricePercentageOverLowestPrice: z.number(),
+  BaselineEbsBandwidthMbps: BaselineEbsBandwidthMbpsStateSchema,
+  AcceleratorNames: z.array(z.string()),
+  AcceleratorTotalMemoryMiB: AcceleratorTotalMemoryMiBStateSchema,
+  BurstablePerformance: z.string(),
+  TotalLocalStorageGB: TotalLocalStorageGBStateSchema,
+}).partial();
+
+const CapacityReservationTargetStateSchema = z.object({
+  CapacityReservationResourceGroupArn: z.string(),
+  CapacityReservationId: z.string(),
+}).partial();
+
+const CapacityReservationSpecificationStateSchema = z.object({
+  CapacityReservationPreference: z.string(),
+  CapacityReservationTarget: CapacityReservationTargetStateSchema,
+}).partial();
+
+const CreditSpecificationStateSchema = z.object({
+  CpuCredits: z.string(),
+}).partial();
+
+const LaunchTemplateTagSpecificationStateSchema = z.object({
+  ResourceType: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -681,44 +948,46 @@ const StateSchema = z.object({
   LaunchTemplateName: z.string().optional(),
   LaunchTemplateData: z.object({
     SecurityGroups: z.array(z.string()),
-    TagSpecifications: z.array(TagSpecificationSchema),
-    NetworkPerformanceOptions: NetworkPerformanceOptionsSchema,
+    TagSpecifications: z.array(TagSpecificationStateSchema),
+    NetworkPerformanceOptions: NetworkPerformanceOptionsStateSchema,
     UserData: z.string(),
-    BlockDeviceMappings: z.array(BlockDeviceMappingSchema),
-    MaintenanceOptions: MaintenanceOptionsSchema,
-    IamInstanceProfile: IamInstanceProfileSchema,
+    BlockDeviceMappings: z.array(BlockDeviceMappingStateSchema),
+    MaintenanceOptions: MaintenanceOptionsStateSchema,
+    IamInstanceProfile: IamInstanceProfileStateSchema,
     KernelId: z.string(),
     EbsOptimized: z.boolean(),
-    Placement: PlacementSchema,
-    NetworkInterfaces: z.array(NetworkInterfaceSchema),
-    EnclaveOptions: EnclaveOptionsSchema,
+    Placement: PlacementStateSchema,
+    NetworkInterfaces: z.array(NetworkInterfaceStateSchema),
+    EnclaveOptions: EnclaveOptionsStateSchema,
     ImageId: z.string(),
     InstanceType: z.string(),
-    Monitoring: MonitoringSchema,
-    HibernationOptions: HibernationOptionsSchema,
-    MetadataOptions: MetadataOptionsSchema,
-    LicenseSpecifications: z.array(LicenseSpecificationSchema),
+    Monitoring: MonitoringStateSchema,
+    HibernationOptions: HibernationOptionsStateSchema,
+    MetadataOptions: MetadataOptionsStateSchema,
+    LicenseSpecifications: z.array(LicenseSpecificationStateSchema),
     InstanceInitiatedShutdownBehavior: z.string(),
     DisableApiStop: z.boolean(),
-    CpuOptions: CpuOptionsSchema,
-    PrivateDnsNameOptions: PrivateDnsNameOptionsSchema,
+    CpuOptions: CpuOptionsStateSchema,
+    PrivateDnsNameOptions: PrivateDnsNameOptionsStateSchema,
     SecurityGroupIds: z.array(z.string()),
     KeyName: z.string(),
     DisableApiTermination: z.boolean(),
-    InstanceMarketOptions: InstanceMarketOptionsSchema,
-    InstanceRequirements: InstanceRequirementsSchema,
+    InstanceMarketOptions: InstanceMarketOptionsStateSchema,
+    InstanceRequirements: InstanceRequirementsStateSchema,
     RamDiskId: z.string(),
-    CapacityReservationSpecification: CapacityReservationSpecificationSchema,
-    CreditSpecification: CreditSpecificationSchema,
-  }).optional(),
+    CapacityReservationSpecification:
+      CapacityReservationSpecificationStateSchema,
+    CreditSpecification: CreditSpecificationStateSchema,
+  }).partial().optional(),
   VersionDescription: z.string().optional(),
-  TagSpecifications: z.array(LaunchTemplateTagSpecificationSchema).optional(),
+  TagSpecifications: z.array(LaunchTemplateTagSpecificationStateSchema)
+    .optional(),
   LatestVersionNumber: z.string().optional(),
   LaunchTemplateId: z.string(),
   DefaultVersionNumber: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -846,7 +1115,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 LaunchTemplate. Registered at `@swamp/aws/ec2/launch-template`. */
 export const model = {
   type: "@swamp/aws/ec2/launch-template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -925,6 +1194,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

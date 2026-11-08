@@ -249,62 +249,66 @@ const StateSchema = z.object({
     enableContinuousRun: z.boolean(),
     enablePredeploymentRun: z.boolean(),
     testCases: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
-  versionConfigs: z.array(z.object({
-    version: z.string(),
-  })).optional(),
+  versionConfigs: z.array(
+    z.object({
+      version: z.string(),
+    }).partial(),
+  ).optional(),
   webhookConfig: z.object({
-    webhookOverrides: z.array(z.object({
-      disabled: z.boolean(),
-      displayName: z.string(),
-      genericWebService: z.object({
-        allowedCaCerts: z.array(z.unknown()),
-        httpMethod: z.string(),
-        oauthConfig: z.object({
-          clientId: z.unknown(),
-          clientSecret: z.unknown(),
-          scopes: z.unknown(),
-          secretVersionForClientSecret: z.unknown(),
-          tokenEndpoint: z.unknown(),
-        }),
-        parameterMapping: z.record(z.string(), z.unknown()),
-        password: z.string(),
-        requestBody: z.string(),
-        requestHeaders: z.record(z.string(), z.unknown()),
-        secretVersionForUsernamePassword: z.string(),
-        secretVersionsForRequestHeaders: z.record(z.string(), z.unknown()),
-        serviceAccountAuthConfig: z.object({
-          serviceAccount: z.unknown(),
-        }),
-        serviceAgentAuth: z.string(),
-        uri: z.string(),
-        username: z.string(),
-        webhookType: z.string(),
-      }),
-      name: z.string(),
-      serviceDirectory: z.object({
+    webhookOverrides: z.array(
+      z.object({
+        disabled: z.boolean(),
+        displayName: z.string(),
         genericWebService: z.object({
-          allowedCaCerts: z.unknown(),
-          httpMethod: z.unknown(),
-          oauthConfig: z.unknown(),
-          parameterMapping: z.unknown(),
-          password: z.unknown(),
-          requestBody: z.unknown(),
-          requestHeaders: z.unknown(),
-          secretVersionForUsernamePassword: z.unknown(),
-          secretVersionsForRequestHeaders: z.unknown(),
-          serviceAccountAuthConfig: z.unknown(),
-          serviceAgentAuth: z.unknown(),
-          uri: z.unknown(),
-          username: z.unknown(),
-          webhookType: z.unknown(),
-        }),
-        service: z.string(),
-      }),
-      timeout: z.string(),
-    })),
-  }).optional(),
+          allowedCaCerts: z.array(z.unknown()),
+          httpMethod: z.string(),
+          oauthConfig: z.object({
+            clientId: z.unknown(),
+            clientSecret: z.unknown(),
+            scopes: z.unknown(),
+            secretVersionForClientSecret: z.unknown(),
+            tokenEndpoint: z.unknown(),
+          }).partial(),
+          parameterMapping: z.record(z.string(), z.unknown()),
+          password: z.string(),
+          requestBody: z.string(),
+          requestHeaders: z.record(z.string(), z.unknown()),
+          secretVersionForUsernamePassword: z.string(),
+          secretVersionsForRequestHeaders: z.record(z.string(), z.unknown()),
+          serviceAccountAuthConfig: z.object({
+            serviceAccount: z.unknown(),
+          }).partial(),
+          serviceAgentAuth: z.string(),
+          uri: z.string(),
+          username: z.string(),
+          webhookType: z.string(),
+        }).partial(),
+        name: z.string(),
+        serviceDirectory: z.object({
+          genericWebService: z.object({
+            allowedCaCerts: z.unknown(),
+            httpMethod: z.unknown(),
+            oauthConfig: z.unknown(),
+            parameterMapping: z.unknown(),
+            password: z.unknown(),
+            requestBody: z.unknown(),
+            requestHeaders: z.unknown(),
+            secretVersionForUsernamePassword: z.unknown(),
+            secretVersionsForRequestHeaders: z.unknown(),
+            serviceAccountAuthConfig: z.unknown(),
+            serviceAgentAuth: z.unknown(),
+            uri: z.unknown(),
+            username: z.unknown(),
+            webhookType: z.unknown(),
+          }).partial(),
+          service: z.string(),
+        }).partial(),
+        timeout: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -432,7 +436,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.Environments. Registered at `@swamp/gcp/dialogflow/agents-environments`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-environments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -576,6 +580,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

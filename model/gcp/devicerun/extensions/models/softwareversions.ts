@@ -112,7 +112,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  androidxTestOrchestratorDetails: z.object({}).optional(),
+  androidxTestOrchestratorDetails: z.object({}).partial().optional(),
   displayName: z.string().optional(),
   isDefault: z.boolean().optional(),
   lifecycle: z.object({
@@ -120,15 +120,15 @@ const StateSchema = z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   softwareType: z.string().optional(),
   version: z.string().optional(),
   xcodeDetails: z.object({
     supportedIosVersions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -172,7 +172,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Device Run SoftwareVersions. Registered at `@swamp/gcp/devicerun/softwareversions`. */
 export const model = {
   type: "@swamp/gcp/devicerun/softwareversions",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -186,6 +186,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

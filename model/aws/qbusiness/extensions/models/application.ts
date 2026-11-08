@@ -43,6 +43,11 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -118,38 +123,38 @@ const StateSchema = z.object({
   ApplicationId: z.string(),
   AttachmentsConfiguration: z.object({
     AttachmentsControlMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AutoSubscriptionConfiguration: z.object({
     AutoSubscribe: z.string(),
     DefaultSubscriptionType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ClientIdsForOIDC: z.array(z.string()).optional(),
   CreatedAt: z.string().optional(),
   Description: z.string().optional(),
   DisplayName: z.string().optional(),
   EncryptionConfiguration: z.object({
     KmsKeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   IamIdentityProviderArn: z.string().optional(),
   IdentityCenterApplicationArn: z.string().optional(),
   IdentityCenterInstanceArn: z.string().optional(),
   IdentityType: z.string().optional(),
   PersonalizationConfiguration: z.object({
     PersonalizationControlMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   QAppsConfiguration: z.object({
     QAppsControlMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   QuickSightConfiguration: z.object({
     ClientNamespace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RoleArn: z.string().optional(),
   Status: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -230,7 +235,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QBusiness Application. Registered at `@swamp/aws/qbusiness/application`. */
 export const model = {
   type: "@swamp/aws/qbusiness/application",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -299,6 +304,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

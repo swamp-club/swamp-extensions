@@ -128,6 +128,54 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const ConfigurationStateSchema = z.object({
+  Classification: z.string(),
+  Properties: z.record(z.string(), z.unknown()),
+  Configurations: z.array(z.record(z.string(), z.unknown())),
+}).partial();
+
+const ParametricCloudWatchMonitoringConfigurationStateSchema = z.object({
+  LogGroupName: z.string(),
+  LogStreamNamePrefix: z.string(),
+}).partial();
+
+const ParametricS3MonitoringConfigurationStateSchema = z.object({
+  LogUri: z.string(),
+}).partial();
+
+const ParametricMonitoringConfigurationStateSchema = z.object({
+  PersistentAppUI: z.string(),
+  CloudWatchMonitoringConfiguration:
+    ParametricCloudWatchMonitoringConfigurationStateSchema,
+  S3MonitoringConfiguration: ParametricS3MonitoringConfigurationStateSchema,
+}).partial();
+
+const ParametricConfigurationOverridesStateSchema = z.object({
+  ApplicationConfiguration: z.array(ConfigurationStateSchema),
+  MonitoringConfiguration: ParametricMonitoringConfigurationStateSchema,
+}).partial();
+
+const SparkSubmitJobDriverStateSchema = z.object({
+  EntryPoint: z.string(),
+  EntryPointArguments: z.array(z.string()),
+  SparkSubmitParameters: z.string(),
+}).partial();
+
+const SparkSqlJobDriverStateSchema = z.object({
+  EntryPoint: z.string(),
+  SparkSqlParameters: z.string(),
+}).partial();
+
+const JobDriverStateSchema = z.object({
+  SparkSubmitJobDriver: SparkSubmitJobDriverStateSchema,
+  SparkSqlJobDriver: SparkSqlJobDriverStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -186,19 +234,19 @@ const StateSchema = z.object({
   JobTemplateData: z.object({
     ExecutionRoleArn: z.string(),
     ReleaseLabel: z.string(),
-    ConfigurationOverrides: ParametricConfigurationOverridesSchema,
-    JobDriver: JobDriverSchema,
+    ConfigurationOverrides: ParametricConfigurationOverridesStateSchema,
+    JobDriver: JobDriverStateSchema,
     ParameterConfiguration: z.record(z.string(), z.unknown()),
     JobTags: z.record(z.string(), z.unknown()),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Id: z.string().optional(),
   Arn: z.string(),
   CreatedAt: z.string().optional(),
   CreatedBy: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -262,7 +310,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRContainers JobTemplate. Registered at `@swamp/aws/emrcontainers/job-template`. */
 export const model = {
   type: "@swamp/aws/emrcontainers/job-template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -281,6 +329,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

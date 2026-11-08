@@ -45,6 +45,11 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -117,7 +122,7 @@ const StateSchema = z.object({
     ETag: z.string(),
     Version: z.string(),
     Key: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Description: z.string().optional(),
   MinimumCompressionSize: z.number().optional(),
   Parameters: z.union([z.string(), z.record(z.string(), z.unknown())])
@@ -137,13 +142,13 @@ const StateSchema = z.object({
     IpAddressType: z.string(),
     Types: z.array(z.string()),
     VpcEndpointIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Body: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   EndpointAccessMode: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -219,7 +224,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGateway RestApi. Registered at `@swamp/aws/apigateway/rest-api`. */
 export const model = {
   type: "@swamp/aws/apigateway/rest-api",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -293,6 +298,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

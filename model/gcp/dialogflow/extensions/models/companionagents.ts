@@ -223,52 +223,64 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  cesToolSpecs: z.array(z.object({
-    cesTool: z.string(),
-    confirmationRequirement: z.string(),
-    parameterOverrides: z.array(z.object({
-      contextReferenceKey: z.string(),
-      fieldPath: z.string(),
-      parameterName: z.string(),
-    })),
-    proactiveEnabled: z.boolean(),
-    reactiveEnabled: z.boolean(),
-  })).optional(),
+  cesToolSpecs: z.array(
+    z.object({
+      cesTool: z.string(),
+      confirmationRequirement: z.string(),
+      parameterOverrides: z.array(
+        z.object({
+          contextReferenceKey: z.string(),
+          fieldPath: z.string(),
+          parameterName: z.string(),
+        }).partial(),
+      ),
+      proactiveEnabled: z.boolean(),
+      reactiveEnabled: z.boolean(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   name: z.string(),
-  skillConfigs: z.array(z.object({
-    guidanceSkillConfig: z.object({
-      guidanceInstructions: z.array(z.object({
-        actions: z.unknown(),
-        condition: z.unknown(),
-        disableSuggestedReply: z.unknown(),
-        displayDetails: z.unknown(),
-        displayName: z.unknown(),
-        triggerEvent: z.unknown(),
-      })),
-      knowledgeSource: z.object({}),
-      overarchingGuidance: z.string(),
-    }),
-    skillTriggeringEvent: z.string(),
-    translationSkillConfig: z.object({
-      agentLanguageCode: z.string(),
-      customerLanguageCode: z.string(),
-    }),
-  })).optional(),
-  toolsetTools: z.array(z.object({
-    confirmationRequirement: z.string(),
-    operationId: z.string(),
-    parameterOverrides: z.array(z.object({
-      contextReferenceKey: z.string(),
-      fieldPath: z.string(),
-      parameterName: z.string(),
-    })),
-    proactiveEnabled: z.boolean(),
-    reactiveEnabled: z.boolean(),
-    toolset: z.string(),
-  })).optional(),
+  skillConfigs: z.array(
+    z.object({
+      guidanceSkillConfig: z.object({
+        guidanceInstructions: z.array(
+          z.object({
+            actions: z.unknown(),
+            condition: z.unknown(),
+            disableSuggestedReply: z.unknown(),
+            displayDetails: z.unknown(),
+            displayName: z.unknown(),
+            triggerEvent: z.unknown(),
+          }).partial(),
+        ),
+        knowledgeSource: z.object({}).partial(),
+        overarchingGuidance: z.string(),
+      }).partial(),
+      skillTriggeringEvent: z.string(),
+      translationSkillConfig: z.object({
+        agentLanguageCode: z.string(),
+        customerLanguageCode: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  toolsetTools: z.array(
+    z.object({
+      confirmationRequirement: z.string(),
+      operationId: z.string(),
+      parameterOverrides: z.array(
+        z.object({
+          contextReferenceKey: z.string(),
+          fieldPath: z.string(),
+          parameterName: z.string(),
+        }).partial(),
+      ),
+      proactiveEnabled: z.boolean(),
+      reactiveEnabled: z.boolean(),
+      toolset: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -375,7 +387,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow CompanionAgents. Registered at `@swamp/gcp/dialogflow/companionagents`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/companionagents",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -389,6 +401,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

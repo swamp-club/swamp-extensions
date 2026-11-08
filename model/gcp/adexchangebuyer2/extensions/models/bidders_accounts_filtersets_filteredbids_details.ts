@@ -105,7 +105,7 @@ const StateSchema = z.object({
   bidCount: z.object({
     value: z.string(),
     variance: z.string(),
-  }).optional(),
+  }).partial().optional(),
   detail: z.string().optional(),
   detailId: z.number().optional(),
   rowDimensions: z.object({
@@ -113,8 +113,8 @@ const StateSchema = z.object({
     timeInterval: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -162,7 +162,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/adexchangebuyer2/bidders-accounts-filtersets-filteredbids-details",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -281,6 +281,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

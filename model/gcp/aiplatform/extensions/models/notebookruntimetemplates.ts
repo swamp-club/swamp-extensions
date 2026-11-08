@@ -359,21 +359,21 @@ const StateSchema = z.object({
   dataPersistentDiskSpec: z.object({
     diskSizeGb: z.string(),
     diskType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   eucConfig: z.object({
     bypassActasCheck: z.boolean(),
     eucDisabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   idleShutdownConfig: z.object({
     idleShutdownDisabled: z.boolean(),
     idleTimeout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   isDefault: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   machineSpec: z.object({
@@ -385,41 +385,43 @@ const StateSchema = z.object({
       key: z.string(),
       reservationAffinityType: z.string(),
       values: z.array(z.string()),
-    }),
+    }).partial(),
     tpuTopology: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   networkSpec: z.object({
     enableInternetAccess: z.boolean(),
     network: z.string(),
     subnetwork: z.string(),
-  }).optional(),
+  }).partial().optional(),
   networkTags: z.array(z.string()).optional(),
   notebookRuntimeType: z.string().optional(),
   reservationAffinity: z.object({
     consumeReservationType: z.string(),
     key: z.string(),
     values: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   serviceAccount: z.string().optional(),
   shieldedVmConfig: z.object({
     enableSecureBoot: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   softwareConfig: z.object({
     colabImage: z.object({
       description: z.string(),
       releaseName: z.string(),
-    }),
-    env: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
+    }).partial(),
+    env: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     postStartupScriptConfig: z.object({
       postStartupScript: z.string(),
       postStartupScriptBehavior: z.string(),
       postStartupScriptUrl: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -649,7 +651,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform NotebookRuntimeTemplates. Registered at `@swamp/gcp/aiplatform/notebookruntimetemplates`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/notebookruntimetemplates",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -882,6 +884,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

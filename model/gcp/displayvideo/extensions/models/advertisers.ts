@@ -305,31 +305,31 @@ const StateSchema = z.object({
       cmSyncableSiteIds: z.array(z.string()),
       dv360ToCmCostReportingEnabled: z.boolean(),
       dv360ToCmDataSharingEnabled: z.boolean(),
-    }),
+    }).partial(),
     thirdPartyOnlyConfig: z.object({
       pixelOrderIdReportingEnabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   advertiserId: z.string().optional(),
   billingConfig: z.object({
     billingProfileId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   containsEuPoliticalAds: z.string().optional(),
   creativeConfig: z.object({
     dynamicCreativeEnabled: z.boolean(),
     iasClientId: z.string(),
     obaComplianceDisabled: z.boolean(),
     videoCreativeDataSharingAuthorized: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   dataAccessConfig: z.object({
     sdfConfig: z.object({
       overridePartnerSdfConfig: z.boolean(),
       sdfConfig: z.object({
         adminEmail: z.string(),
         version: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   defaultBusinessName: z.string().optional(),
   defaultLogoAssetId: z.string().optional(),
   displayName: z.string().optional(),
@@ -338,17 +338,17 @@ const StateSchema = z.object({
     currencyCode: z.string(),
     domainUrl: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   integrationDetails: z.object({
     details: z.string(),
     integrationCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   partnerId: z.string().optional(),
   prismaEnabled: z.boolean().optional(),
   servingConfig: z.object({
     exemptTvFromViewabilityTargeting: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -531,7 +531,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers. Registered at `@swamp/gcp/displayvideo/advertisers`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -685,6 +685,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -93,20 +93,20 @@ const StateSchema = z.object({
     entriesCount: z.number(),
     firstValue: z.string(),
     riceParameter: z.number(),
-  }).optional(),
+  }).partial().optional(),
   additionsFourBytes: z.object({
     encodedData: z.string(),
     entriesCount: z.number(),
     firstValue: z.number(),
     riceParameter: z.number(),
-  }).optional(),
+  }).partial().optional(),
   additionsSixteenBytes: z.object({
     encodedData: z.string(),
     entriesCount: z.number(),
     firstValueHi: z.string(),
     firstValueLo: z.string(),
     riceParameter: z.number(),
-  }).optional(),
+  }).partial().optional(),
   additionsThirtyTwoBytes: z.object({
     encodedData: z.string(),
     entriesCount: z.number(),
@@ -115,19 +115,19 @@ const StateSchema = z.object({
     firstValueSecondPart: z.string(),
     firstValueThirdPart: z.string(),
     riceParameter: z.number(),
-  }).optional(),
+  }).partial().optional(),
   compressedRemovals: z.object({
     encodedData: z.string(),
     entriesCount: z.number(),
     firstValue: z.number(),
     riceParameter: z.number(),
-  }).optional(),
+  }).partial().optional(),
   metadata: z.object({
     description: z.string(),
     hashLength: z.string(),
     likelySafeTypes: z.array(z.string()),
     threatTypes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   minimumWaitDuration: z.string().optional(),
   name: z.string(),
   partialUpdate: z.boolean().optional(),
@@ -173,7 +173,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Safe Browsing HashList. Registered at `@swamp/gcp/safebrowsing/hashlist`. */
 export const model = {
   type: "@swamp/gcp/safebrowsing/hashlist",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -292,6 +292,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

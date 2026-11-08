@@ -445,43 +445,45 @@ const StateSchema = z.object({
   action: z.object({
     generativeAnswer: z.object({
       prompt: z.string(),
-    }),
+    }).partial(),
     respondImmediately: z.object({
-      responses: z.array(z.object({
-        disabled: z.boolean(),
-        text: z.string(),
-      })),
-    }),
+      responses: z.array(
+        z.object({
+          disabled: z.boolean(),
+          text: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     transferAgent: z.object({
       agent: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   codeCallback: z.object({
     afterAgentCallback: z.object({
       description: z.string(),
       disabled: z.boolean(),
       proactiveExecutionEnabled: z.boolean(),
       pythonCode: z.string(),
-    }),
+    }).partial(),
     afterModelCallback: z.object({
       description: z.string(),
       disabled: z.boolean(),
       proactiveExecutionEnabled: z.boolean(),
       pythonCode: z.string(),
-    }),
+    }).partial(),
     beforeAgentCallback: z.object({
       description: z.string(),
       disabled: z.boolean(),
       proactiveExecutionEnabled: z.boolean(),
       pythonCode: z.string(),
-    }),
+    }).partial(),
     beforeModelCallback: z.object({
       description: z.string(),
       disabled: z.boolean(),
       proactiveExecutionEnabled: z.boolean(),
       pythonCode: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   contentFilter: z.object({
     bannedContents: z.array(z.string()),
     bannedContentsInAgentResponse: z.array(z.string()),
@@ -489,7 +491,7 @@ const StateSchema = z.object({
     disregardDiacritics: z.boolean(),
     matchType: z.string(),
     sensitiveWordsExemptions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -503,10 +505,10 @@ const StateSchema = z.object({
       model: z.string(),
       temperature: z.number(),
       thinkingLevel: z.string(),
-    }),
+    }).partial(),
     policyScope: z.string(),
     prompt: z.string(),
-  }).optional(),
+  }).partial().optional(),
   llmPromptSecurity: z.object({
     customPolicy: z.object({
       allowShortUtterance: z.boolean(),
@@ -516,26 +518,28 @@ const StateSchema = z.object({
         model: z.string(),
         temperature: z.number(),
         thinkingLevel: z.string(),
-      }),
+      }).partial(),
       policyScope: z.string(),
       prompt: z.string(),
-    }),
+    }).partial(),
     defaultSettings: z.object({
       defaultPromptTemplate: z.string(),
-    }),
+    }).partial(),
     failOpen: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   modelSafety: z.object({
-    safetySettings: z.array(z.object({
-      category: z.string(),
-      threshold: z.string(),
-    })),
-  }).optional(),
+    safetySettings: z.array(
+      z.object({
+        category: z.string(),
+        threshold: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   supervisor: z.object({
     detectionMode: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -849,7 +853,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Guardrails. Registered at `@swamp/gcp/ces/apps-guardrails`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-guardrails",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1008,6 +1012,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

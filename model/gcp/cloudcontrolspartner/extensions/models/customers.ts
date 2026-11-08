@@ -175,13 +175,15 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   customerOnboardingState: z.object({
-    onboardingSteps: z.array(z.object({
-      completionState: z.string(),
-      completionTime: z.string(),
-      startTime: z.string(),
-      step: z.string(),
-    })),
-  }).optional(),
+    onboardingSteps: z.array(
+      z.object({
+        completionState: z.string(),
+        completionTime: z.string(),
+        startTime: z.string(),
+        step: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   displayName: z.string().optional(),
   isOnboarded: z.boolean().optional(),
   name: z.string(),
@@ -236,7 +238,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Controls Partner Customers. Registered at `@swamp/gcp/cloudcontrolspartner/customers`. */
 export const model = {
   type: "@swamp/gcp/cloudcontrolspartner/customers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -374,6 +376,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

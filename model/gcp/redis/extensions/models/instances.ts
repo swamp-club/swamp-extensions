@@ -323,36 +323,40 @@ const StateSchema = z.object({
     createTime: z.string(),
     description: z.string(),
     updateTime: z.string(),
-    weeklyMaintenanceWindow: z.array(z.object({
-      day: z.string(),
-      duration: z.string(),
-      startTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
-  }).optional(),
+    weeklyMaintenanceWindow: z.array(
+      z.object({
+        day: z.string(),
+        duration: z.string(),
+        startTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   maintenanceSchedule: z.object({
     canReschedule: z.boolean(),
     endTime: z.string(),
     scheduleDeadlineTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   maintenanceVersion: z.string().optional(),
   memorySizeGb: z.number().optional(),
   name: z.string(),
-  nodes: z.array(z.object({
-    id: z.string(),
-    zone: z.string(),
-  })).optional(),
+  nodes: z.array(
+    z.object({
+      id: z.string(),
+      zone: z.string(),
+    }).partial(),
+  ).optional(),
   persistenceConfig: z.object({
     persistenceMode: z.string(),
     rdbNextSnapshotTime: z.string(),
     rdbSnapshotPeriod: z.string(),
     rdbSnapshotStartTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   persistenceIamIdentity: z.string().optional(),
   port: z.number().optional(),
   readEndpoint: z.string().optional(),
@@ -365,13 +369,15 @@ const StateSchema = z.object({
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   secondaryIpRange: z.string().optional(),
-  serverCaCerts: z.array(z.object({
-    cert: z.string(),
-    createTime: z.string(),
-    expireTime: z.string(),
-    serialNumber: z.string(),
-    sha1Fingerprint: z.string(),
-  })).optional(),
+  serverCaCerts: z.array(
+    z.object({
+      cert: z.string(),
+      createTime: z.string(),
+      expireTime: z.string(),
+      serialNumber: z.string(),
+      sha1Fingerprint: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   statusMessage: z.string().optional(),
   suspensionReasons: z.array(z.string()).optional(),
@@ -567,7 +573,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Cloud Memorystore for Redis Instances. Registered at `@swamp/gcp/redis/instances`. */
 export const model = {
   type: "@swamp/gcp/redis/instances",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -709,6 +715,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

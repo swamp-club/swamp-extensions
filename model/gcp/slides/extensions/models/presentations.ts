@@ -1541,324 +1541,18 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  comments: z.array(z.object({
-    anchorId: z.string(),
-    commentId: z.string(),
-    headPost: z.object({
-      assigneeEmail: z.string(),
-      author: z.object({
-        anonymous: z.boolean(),
-        displayName: z.string(),
-        me: z.boolean(),
-        user: z.string(),
-      }),
-      commentAction: z.string(),
-      content: z.string(),
-      contentHtml: z.string(),
-      createTime: z.string(),
-      deleted: z.boolean(),
-      fromCopiedPresentation: z.boolean(),
-      fromImportedPresentation: z.boolean(),
-      postId: z.string(),
-      updateTime: z.string(),
-    }),
-    plainTextQuote: z.string(),
-    replies: z.array(z.object({
-      assigneeEmail: z.string(),
-      author: z.object({
-        anonymous: z.unknown(),
-        displayName: z.unknown(),
-        me: z.unknown(),
-        user: z.unknown(),
-      }),
-      commentAction: z.string(),
-      content: z.string(),
-      contentHtml: z.string(),
-      createTime: z.string(),
-      deleted: z.boolean(),
-      fromCopiedPresentation: z.boolean(),
-      fromImportedPresentation: z.boolean(),
-      postId: z.string(),
-      updateTime: z.string(),
-    })),
-    status: z.string(),
-  })).optional(),
-  commentsViewMode: z.string().optional(),
-  layouts: z.array(z.object({
-    commentAnchors: z.array(z.object({
-      anchorId: z.string(),
-      objectAnchors: z.array(z.unknown()),
-    })),
-    comments: z.array(z.object({
-      anchorId: z.string(),
-      commentId: z.string(),
-      headPost: z.object({
-        assigneeEmail: z.unknown(),
-        author: z.unknown(),
-        commentAction: z.unknown(),
-        content: z.unknown(),
-        contentHtml: z.unknown(),
-        createTime: z.unknown(),
-        deleted: z.unknown(),
-        fromCopiedPresentation: z.unknown(),
-        fromImportedPresentation: z.unknown(),
-        postId: z.unknown(),
-        updateTime: z.unknown(),
-      }),
-      plainTextQuote: z.string(),
-      replies: z.array(z.unknown()),
-      status: z.string(),
-    })),
-    commentsViewMode: z.string(),
-    layoutProperties: z.object({
-      displayName: z.string(),
-      masterObjectId: z.string(),
-      name: z.string(),
-    }),
-    masterProperties: z.object({
-      displayName: z.string(),
-    }),
-    notesProperties: z.object({
-      speakerNotesObjectId: z.string(),
-    }),
-    objectId: z.string(),
-    pageElements: z.array(z.object({
-      description: z.string(),
-      elementGroup: z.object({
-        children: z.unknown(),
-      }),
-      image: z.object({
-        contentUrl: z.unknown(),
-        imageProperties: z.unknown(),
-        placeholder: z.unknown(),
-        sourceUrl: z.unknown(),
-      }),
-      line: z.object({
-        lineCategory: z.unknown(),
-        lineProperties: z.unknown(),
-        lineType: z.unknown(),
-      }),
-      objectId: z.string(),
-      shape: z.object({
-        placeholder: z.unknown(),
-        shapeProperties: z.unknown(),
-        shapeType: z.unknown(),
-        text: z.unknown(),
-      }),
-      sheetsChart: z.object({
-        chartId: z.unknown(),
-        contentUrl: z.unknown(),
-        sheetsChartProperties: z.unknown(),
-        spreadsheetId: z.unknown(),
-      }),
-      size: z.object({
-        height: z.unknown(),
-        width: z.unknown(),
-      }),
-      speakerSpotlight: z.object({
-        speakerSpotlightProperties: z.unknown(),
-      }),
-      table: z.object({
-        columns: z.unknown(),
-        horizontalBorderRows: z.unknown(),
-        rows: z.unknown(),
-        tableColumns: z.unknown(),
-        tableRows: z.unknown(),
-        verticalBorderRows: z.unknown(),
-      }),
-      title: z.string(),
-      transform: z.object({
-        scaleX: z.unknown(),
-        scaleY: z.unknown(),
-        shearX: z.unknown(),
-        shearY: z.unknown(),
-        translateX: z.unknown(),
-        translateY: z.unknown(),
-        unit: z.unknown(),
-      }),
-      video: z.object({
-        id: z.unknown(),
-        source: z.unknown(),
-        url: z.unknown(),
-        videoProperties: z.unknown(),
-      }),
-      wordArt: z.object({
-        renderedText: z.unknown(),
-      }),
-    })),
-    pageProperties: z.object({
-      colorScheme: z.object({
-        colors: z.array(z.unknown()),
-      }),
-      pageBackgroundFill: z.object({
-        propertyState: z.string(),
-        solidFill: z.object({
-          alpha: z.unknown(),
-          color: z.unknown(),
-        }),
-        stretchedPictureFill: z.object({
-          contentUrl: z.unknown(),
-          size: z.unknown(),
-        }),
-      }),
-    }),
-    pageType: z.string(),
-    revisionId: z.string(),
-    slideProperties: z.object({
-      isSkipped: z.boolean(),
-      layoutObjectId: z.string(),
-      masterObjectId: z.string(),
-      notesPage: z.record(z.string(), z.unknown()),
-    }),
-  })).optional(),
-  locale: z.string().optional(),
-  masters: z.array(z.object({
-    commentAnchors: z.array(z.object({
-      anchorId: z.string(),
-      objectAnchors: z.array(z.unknown()),
-    })),
-    comments: z.array(z.object({
-      anchorId: z.string(),
-      commentId: z.string(),
-      headPost: z.object({
-        assigneeEmail: z.unknown(),
-        author: z.unknown(),
-        commentAction: z.unknown(),
-        content: z.unknown(),
-        contentHtml: z.unknown(),
-        createTime: z.unknown(),
-        deleted: z.unknown(),
-        fromCopiedPresentation: z.unknown(),
-        fromImportedPresentation: z.unknown(),
-        postId: z.unknown(),
-        updateTime: z.unknown(),
-      }),
-      plainTextQuote: z.string(),
-      replies: z.array(z.unknown()),
-      status: z.string(),
-    })),
-    commentsViewMode: z.string(),
-    layoutProperties: z.object({
-      displayName: z.string(),
-      masterObjectId: z.string(),
-      name: z.string(),
-    }),
-    masterProperties: z.object({
-      displayName: z.string(),
-    }),
-    notesProperties: z.object({
-      speakerNotesObjectId: z.string(),
-    }),
-    objectId: z.string(),
-    pageElements: z.array(z.object({
-      description: z.string(),
-      elementGroup: z.object({
-        children: z.unknown(),
-      }),
-      image: z.object({
-        contentUrl: z.unknown(),
-        imageProperties: z.unknown(),
-        placeholder: z.unknown(),
-        sourceUrl: z.unknown(),
-      }),
-      line: z.object({
-        lineCategory: z.unknown(),
-        lineProperties: z.unknown(),
-        lineType: z.unknown(),
-      }),
-      objectId: z.string(),
-      shape: z.object({
-        placeholder: z.unknown(),
-        shapeProperties: z.unknown(),
-        shapeType: z.unknown(),
-        text: z.unknown(),
-      }),
-      sheetsChart: z.object({
-        chartId: z.unknown(),
-        contentUrl: z.unknown(),
-        sheetsChartProperties: z.unknown(),
-        spreadsheetId: z.unknown(),
-      }),
-      size: z.object({
-        height: z.unknown(),
-        width: z.unknown(),
-      }),
-      speakerSpotlight: z.object({
-        speakerSpotlightProperties: z.unknown(),
-      }),
-      table: z.object({
-        columns: z.unknown(),
-        horizontalBorderRows: z.unknown(),
-        rows: z.unknown(),
-        tableColumns: z.unknown(),
-        tableRows: z.unknown(),
-        verticalBorderRows: z.unknown(),
-      }),
-      title: z.string(),
-      transform: z.object({
-        scaleX: z.unknown(),
-        scaleY: z.unknown(),
-        shearX: z.unknown(),
-        shearY: z.unknown(),
-        translateX: z.unknown(),
-        translateY: z.unknown(),
-        unit: z.unknown(),
-      }),
-      video: z.object({
-        id: z.unknown(),
-        source: z.unknown(),
-        url: z.unknown(),
-        videoProperties: z.unknown(),
-      }),
-      wordArt: z.object({
-        renderedText: z.unknown(),
-      }),
-    })),
-    pageProperties: z.object({
-      colorScheme: z.object({
-        colors: z.array(z.unknown()),
-      }),
-      pageBackgroundFill: z.object({
-        propertyState: z.string(),
-        solidFill: z.object({
-          alpha: z.unknown(),
-          color: z.unknown(),
-        }),
-        stretchedPictureFill: z.object({
-          contentUrl: z.unknown(),
-          size: z.unknown(),
-        }),
-      }),
-    }),
-    pageType: z.string(),
-    revisionId: z.string(),
-    slideProperties: z.object({
-      isSkipped: z.boolean(),
-      layoutObjectId: z.string(),
-      masterObjectId: z.string(),
-      notesPage: z.record(z.string(), z.unknown()),
-    }),
-  })).optional(),
-  notesMaster: z.object({
-    commentAnchors: z.array(z.object({
-      anchorId: z.string(),
-      objectAnchors: z.array(z.object({
-        objectId: z.unknown(),
-        shapeTextAnchors: z.unknown(),
-        tableCellAnchors: z.unknown(),
-      })),
-    })),
-    comments: z.array(z.object({
+  comments: z.array(
+    z.object({
       anchorId: z.string(),
       commentId: z.string(),
       headPost: z.object({
         assigneeEmail: z.string(),
         author: z.object({
-          anonymous: z.unknown(),
-          displayName: z.unknown(),
-          me: z.unknown(),
-          user: z.unknown(),
-        }),
+          anonymous: z.boolean(),
+          displayName: z.string(),
+          me: z.boolean(),
+          user: z.string(),
+        }).partial(),
         commentAction: z.string(),
         content: z.string(),
         contentHtml: z.string(),
@@ -1868,160 +1562,498 @@ const StateSchema = z.object({
         fromImportedPresentation: z.boolean(),
         postId: z.string(),
         updateTime: z.string(),
-      }),
+      }).partial(),
       plainTextQuote: z.string(),
-      replies: z.array(z.object({
-        assigneeEmail: z.unknown(),
-        author: z.unknown(),
-        commentAction: z.unknown(),
-        content: z.unknown(),
-        contentHtml: z.unknown(),
-        createTime: z.unknown(),
-        deleted: z.unknown(),
-        fromCopiedPresentation: z.unknown(),
-        fromImportedPresentation: z.unknown(),
-        postId: z.unknown(),
-        updateTime: z.unknown(),
-      })),
+      replies: z.array(
+        z.object({
+          assigneeEmail: z.string(),
+          author: z.object({
+            anonymous: z.unknown(),
+            displayName: z.unknown(),
+            me: z.unknown(),
+            user: z.unknown(),
+          }).partial(),
+          commentAction: z.string(),
+          content: z.string(),
+          contentHtml: z.string(),
+          createTime: z.string(),
+          deleted: z.boolean(),
+          fromCopiedPresentation: z.boolean(),
+          fromImportedPresentation: z.boolean(),
+          postId: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+      ),
       status: z.string(),
-    })),
+    }).partial(),
+  ).optional(),
+  commentsViewMode: z.string().optional(),
+  layouts: z.array(
+    z.object({
+      commentAnchors: z.array(
+        z.object({
+          anchorId: z.string(),
+          objectAnchors: z.array(z.unknown()),
+        }).partial(),
+      ),
+      comments: z.array(
+        z.object({
+          anchorId: z.string(),
+          commentId: z.string(),
+          headPost: z.object({
+            assigneeEmail: z.unknown(),
+            author: z.unknown(),
+            commentAction: z.unknown(),
+            content: z.unknown(),
+            contentHtml: z.unknown(),
+            createTime: z.unknown(),
+            deleted: z.unknown(),
+            fromCopiedPresentation: z.unknown(),
+            fromImportedPresentation: z.unknown(),
+            postId: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          plainTextQuote: z.string(),
+          replies: z.array(z.unknown()),
+          status: z.string(),
+        }).partial(),
+      ),
+      commentsViewMode: z.string(),
+      layoutProperties: z.object({
+        displayName: z.string(),
+        masterObjectId: z.string(),
+        name: z.string(),
+      }).partial(),
+      masterProperties: z.object({
+        displayName: z.string(),
+      }).partial(),
+      notesProperties: z.object({
+        speakerNotesObjectId: z.string(),
+      }).partial(),
+      objectId: z.string(),
+      pageElements: z.array(
+        z.object({
+          description: z.string(),
+          elementGroup: z.object({
+            children: z.unknown(),
+          }).partial(),
+          image: z.object({
+            contentUrl: z.unknown(),
+            imageProperties: z.unknown(),
+            placeholder: z.unknown(),
+            sourceUrl: z.unknown(),
+          }).partial(),
+          line: z.object({
+            lineCategory: z.unknown(),
+            lineProperties: z.unknown(),
+            lineType: z.unknown(),
+          }).partial(),
+          objectId: z.string(),
+          shape: z.object({
+            placeholder: z.unknown(),
+            shapeProperties: z.unknown(),
+            shapeType: z.unknown(),
+            text: z.unknown(),
+          }).partial(),
+          sheetsChart: z.object({
+            chartId: z.unknown(),
+            contentUrl: z.unknown(),
+            sheetsChartProperties: z.unknown(),
+            spreadsheetId: z.unknown(),
+          }).partial(),
+          size: z.object({
+            height: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+          speakerSpotlight: z.object({
+            speakerSpotlightProperties: z.unknown(),
+          }).partial(),
+          table: z.object({
+            columns: z.unknown(),
+            horizontalBorderRows: z.unknown(),
+            rows: z.unknown(),
+            tableColumns: z.unknown(),
+            tableRows: z.unknown(),
+            verticalBorderRows: z.unknown(),
+          }).partial(),
+          title: z.string(),
+          transform: z.object({
+            scaleX: z.unknown(),
+            scaleY: z.unknown(),
+            shearX: z.unknown(),
+            shearY: z.unknown(),
+            translateX: z.unknown(),
+            translateY: z.unknown(),
+            unit: z.unknown(),
+          }).partial(),
+          video: z.object({
+            id: z.unknown(),
+            source: z.unknown(),
+            url: z.unknown(),
+            videoProperties: z.unknown(),
+          }).partial(),
+          wordArt: z.object({
+            renderedText: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      pageProperties: z.object({
+        colorScheme: z.object({
+          colors: z.array(z.unknown()),
+        }).partial(),
+        pageBackgroundFill: z.object({
+          propertyState: z.string(),
+          solidFill: z.object({
+            alpha: z.unknown(),
+            color: z.unknown(),
+          }).partial(),
+          stretchedPictureFill: z.object({
+            contentUrl: z.unknown(),
+            size: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      pageType: z.string(),
+      revisionId: z.string(),
+      slideProperties: z.object({
+        isSkipped: z.boolean(),
+        layoutObjectId: z.string(),
+        masterObjectId: z.string(),
+        notesPage: z.record(z.string(), z.unknown()),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  locale: z.string().optional(),
+  masters: z.array(
+    z.object({
+      commentAnchors: z.array(
+        z.object({
+          anchorId: z.string(),
+          objectAnchors: z.array(z.unknown()),
+        }).partial(),
+      ),
+      comments: z.array(
+        z.object({
+          anchorId: z.string(),
+          commentId: z.string(),
+          headPost: z.object({
+            assigneeEmail: z.unknown(),
+            author: z.unknown(),
+            commentAction: z.unknown(),
+            content: z.unknown(),
+            contentHtml: z.unknown(),
+            createTime: z.unknown(),
+            deleted: z.unknown(),
+            fromCopiedPresentation: z.unknown(),
+            fromImportedPresentation: z.unknown(),
+            postId: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          plainTextQuote: z.string(),
+          replies: z.array(z.unknown()),
+          status: z.string(),
+        }).partial(),
+      ),
+      commentsViewMode: z.string(),
+      layoutProperties: z.object({
+        displayName: z.string(),
+        masterObjectId: z.string(),
+        name: z.string(),
+      }).partial(),
+      masterProperties: z.object({
+        displayName: z.string(),
+      }).partial(),
+      notesProperties: z.object({
+        speakerNotesObjectId: z.string(),
+      }).partial(),
+      objectId: z.string(),
+      pageElements: z.array(
+        z.object({
+          description: z.string(),
+          elementGroup: z.object({
+            children: z.unknown(),
+          }).partial(),
+          image: z.object({
+            contentUrl: z.unknown(),
+            imageProperties: z.unknown(),
+            placeholder: z.unknown(),
+            sourceUrl: z.unknown(),
+          }).partial(),
+          line: z.object({
+            lineCategory: z.unknown(),
+            lineProperties: z.unknown(),
+            lineType: z.unknown(),
+          }).partial(),
+          objectId: z.string(),
+          shape: z.object({
+            placeholder: z.unknown(),
+            shapeProperties: z.unknown(),
+            shapeType: z.unknown(),
+            text: z.unknown(),
+          }).partial(),
+          sheetsChart: z.object({
+            chartId: z.unknown(),
+            contentUrl: z.unknown(),
+            sheetsChartProperties: z.unknown(),
+            spreadsheetId: z.unknown(),
+          }).partial(),
+          size: z.object({
+            height: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+          speakerSpotlight: z.object({
+            speakerSpotlightProperties: z.unknown(),
+          }).partial(),
+          table: z.object({
+            columns: z.unknown(),
+            horizontalBorderRows: z.unknown(),
+            rows: z.unknown(),
+            tableColumns: z.unknown(),
+            tableRows: z.unknown(),
+            verticalBorderRows: z.unknown(),
+          }).partial(),
+          title: z.string(),
+          transform: z.object({
+            scaleX: z.unknown(),
+            scaleY: z.unknown(),
+            shearX: z.unknown(),
+            shearY: z.unknown(),
+            translateX: z.unknown(),
+            translateY: z.unknown(),
+            unit: z.unknown(),
+          }).partial(),
+          video: z.object({
+            id: z.unknown(),
+            source: z.unknown(),
+            url: z.unknown(),
+            videoProperties: z.unknown(),
+          }).partial(),
+          wordArt: z.object({
+            renderedText: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      pageProperties: z.object({
+        colorScheme: z.object({
+          colors: z.array(z.unknown()),
+        }).partial(),
+        pageBackgroundFill: z.object({
+          propertyState: z.string(),
+          solidFill: z.object({
+            alpha: z.unknown(),
+            color: z.unknown(),
+          }).partial(),
+          stretchedPictureFill: z.object({
+            contentUrl: z.unknown(),
+            size: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      pageType: z.string(),
+      revisionId: z.string(),
+      slideProperties: z.object({
+        isSkipped: z.boolean(),
+        layoutObjectId: z.string(),
+        masterObjectId: z.string(),
+        notesPage: z.record(z.string(), z.unknown()),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  notesMaster: z.object({
+    commentAnchors: z.array(
+      z.object({
+        anchorId: z.string(),
+        objectAnchors: z.array(
+          z.object({
+            objectId: z.unknown(),
+            shapeTextAnchors: z.unknown(),
+            tableCellAnchors: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+    comments: z.array(
+      z.object({
+        anchorId: z.string(),
+        commentId: z.string(),
+        headPost: z.object({
+          assigneeEmail: z.string(),
+          author: z.object({
+            anonymous: z.unknown(),
+            displayName: z.unknown(),
+            me: z.unknown(),
+            user: z.unknown(),
+          }).partial(),
+          commentAction: z.string(),
+          content: z.string(),
+          contentHtml: z.string(),
+          createTime: z.string(),
+          deleted: z.boolean(),
+          fromCopiedPresentation: z.boolean(),
+          fromImportedPresentation: z.boolean(),
+          postId: z.string(),
+          updateTime: z.string(),
+        }).partial(),
+        plainTextQuote: z.string(),
+        replies: z.array(
+          z.object({
+            assigneeEmail: z.unknown(),
+            author: z.unknown(),
+            commentAction: z.unknown(),
+            content: z.unknown(),
+            contentHtml: z.unknown(),
+            createTime: z.unknown(),
+            deleted: z.unknown(),
+            fromCopiedPresentation: z.unknown(),
+            fromImportedPresentation: z.unknown(),
+            postId: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+        ),
+        status: z.string(),
+      }).partial(),
+    ),
     commentsViewMode: z.string(),
     layoutProperties: z.object({
       displayName: z.string(),
       masterObjectId: z.string(),
       name: z.string(),
-    }),
+    }).partial(),
     masterProperties: z.object({
       displayName: z.string(),
-    }),
+    }).partial(),
     notesProperties: z.object({
       speakerNotesObjectId: z.string(),
-    }),
+    }).partial(),
     objectId: z.string(),
-    pageElements: z.array(z.object({
-      description: z.string(),
-      elementGroup: z.object({
-        children: z.array(z.unknown()),
-      }),
-      image: z.object({
-        contentUrl: z.string(),
-        imageProperties: z.object({
-          brightness: z.unknown(),
-          contrast: z.unknown(),
-          cropProperties: z.unknown(),
-          link: z.unknown(),
-          outline: z.unknown(),
-          recolor: z.unknown(),
-          shadow: z.unknown(),
-          transparency: z.unknown(),
-        }),
-        placeholder: z.object({
-          index: z.unknown(),
-          parentObjectId: z.unknown(),
-          type: z.unknown(),
-        }),
-        sourceUrl: z.string(),
-      }),
-      line: z.object({
-        lineCategory: z.string(),
-        lineProperties: z.object({
-          dashStyle: z.unknown(),
-          endArrow: z.unknown(),
-          endConnection: z.unknown(),
-          lineFill: z.unknown(),
-          link: z.unknown(),
-          startArrow: z.unknown(),
-          startConnection: z.unknown(),
-          weight: z.unknown(),
-        }),
-        lineType: z.string(),
-      }),
-      objectId: z.string(),
-      shape: z.object({
-        placeholder: z.object({
-          index: z.unknown(),
-          parentObjectId: z.unknown(),
-          type: z.unknown(),
-        }),
-        shapeProperties: z.object({
-          autofit: z.unknown(),
-          contentAlignment: z.unknown(),
-          link: z.unknown(),
-          outline: z.unknown(),
-          shadow: z.unknown(),
-          shapeBackgroundFill: z.unknown(),
-        }),
-        shapeType: z.string(),
-        text: z.object({
-          lists: z.unknown(),
-          textElements: z.unknown(),
-        }),
-      }),
-      sheetsChart: z.object({
-        chartId: z.number(),
-        contentUrl: z.string(),
-        sheetsChartProperties: z.object({
-          chartImageProperties: z.unknown(),
-        }),
-        spreadsheetId: z.string(),
-      }),
-      size: z.object({
-        height: z.object({
-          magnitude: z.unknown(),
-          unit: z.unknown(),
-        }),
-        width: z.object({
-          magnitude: z.unknown(),
-          unit: z.unknown(),
-        }),
-      }),
-      speakerSpotlight: z.object({
-        speakerSpotlightProperties: z.object({
-          outline: z.unknown(),
-          shadow: z.unknown(),
-        }),
-      }),
-      table: z.object({
-        columns: z.number(),
-        horizontalBorderRows: z.array(z.unknown()),
-        rows: z.number(),
-        tableColumns: z.array(z.unknown()),
-        tableRows: z.array(z.unknown()),
-        verticalBorderRows: z.array(z.unknown()),
-      }),
-      title: z.string(),
-      transform: z.object({
-        scaleX: z.number(),
-        scaleY: z.number(),
-        shearX: z.number(),
-        shearY: z.number(),
-        translateX: z.number(),
-        translateY: z.number(),
-        unit: z.string(),
-      }),
-      video: z.object({
-        id: z.string(),
-        source: z.string(),
-        url: z.string(),
-        videoProperties: z.object({
-          autoPlay: z.unknown(),
-          end: z.unknown(),
-          mute: z.unknown(),
-          outline: z.unknown(),
-          start: z.unknown(),
-        }),
-      }),
-      wordArt: z.object({
-        renderedText: z.string(),
-      }),
-    })),
+    pageElements: z.array(
+      z.object({
+        description: z.string(),
+        elementGroup: z.object({
+          children: z.array(z.unknown()),
+        }).partial(),
+        image: z.object({
+          contentUrl: z.string(),
+          imageProperties: z.object({
+            brightness: z.unknown(),
+            contrast: z.unknown(),
+            cropProperties: z.unknown(),
+            link: z.unknown(),
+            outline: z.unknown(),
+            recolor: z.unknown(),
+            shadow: z.unknown(),
+            transparency: z.unknown(),
+          }).partial(),
+          placeholder: z.object({
+            index: z.unknown(),
+            parentObjectId: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          sourceUrl: z.string(),
+        }).partial(),
+        line: z.object({
+          lineCategory: z.string(),
+          lineProperties: z.object({
+            dashStyle: z.unknown(),
+            endArrow: z.unknown(),
+            endConnection: z.unknown(),
+            lineFill: z.unknown(),
+            link: z.unknown(),
+            startArrow: z.unknown(),
+            startConnection: z.unknown(),
+            weight: z.unknown(),
+          }).partial(),
+          lineType: z.string(),
+        }).partial(),
+        objectId: z.string(),
+        shape: z.object({
+          placeholder: z.object({
+            index: z.unknown(),
+            parentObjectId: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          shapeProperties: z.object({
+            autofit: z.unknown(),
+            contentAlignment: z.unknown(),
+            link: z.unknown(),
+            outline: z.unknown(),
+            shadow: z.unknown(),
+            shapeBackgroundFill: z.unknown(),
+          }).partial(),
+          shapeType: z.string(),
+          text: z.object({
+            lists: z.unknown(),
+            textElements: z.unknown(),
+          }).partial(),
+        }).partial(),
+        sheetsChart: z.object({
+          chartId: z.number(),
+          contentUrl: z.string(),
+          sheetsChartProperties: z.object({
+            chartImageProperties: z.unknown(),
+          }).partial(),
+          spreadsheetId: z.string(),
+        }).partial(),
+        size: z.object({
+          height: z.object({
+            magnitude: z.unknown(),
+            unit: z.unknown(),
+          }).partial(),
+          width: z.object({
+            magnitude: z.unknown(),
+            unit: z.unknown(),
+          }).partial(),
+        }).partial(),
+        speakerSpotlight: z.object({
+          speakerSpotlightProperties: z.object({
+            outline: z.unknown(),
+            shadow: z.unknown(),
+          }).partial(),
+        }).partial(),
+        table: z.object({
+          columns: z.number(),
+          horizontalBorderRows: z.array(z.unknown()),
+          rows: z.number(),
+          tableColumns: z.array(z.unknown()),
+          tableRows: z.array(z.unknown()),
+          verticalBorderRows: z.array(z.unknown()),
+        }).partial(),
+        title: z.string(),
+        transform: z.object({
+          scaleX: z.number(),
+          scaleY: z.number(),
+          shearX: z.number(),
+          shearY: z.number(),
+          translateX: z.number(),
+          translateY: z.number(),
+          unit: z.string(),
+        }).partial(),
+        video: z.object({
+          id: z.string(),
+          source: z.string(),
+          url: z.string(),
+          videoProperties: z.object({
+            autoPlay: z.unknown(),
+            end: z.unknown(),
+            mute: z.unknown(),
+            outline: z.unknown(),
+            start: z.unknown(),
+          }).partial(),
+        }).partial(),
+        wordArt: z.object({
+          renderedText: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     pageProperties: z.object({
       colorScheme: z.object({
-        colors: z.array(z.object({
-          color: z.unknown(),
-          type: z.unknown(),
-        })),
-      }),
+        colors: z.array(
+          z.object({
+            color: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       pageBackgroundFill: z.object({
         propertyState: z.string(),
         solidFill: z.object({
@@ -2029,17 +2061,17 @@ const StateSchema = z.object({
           color: z.object({
             rgbColor: z.unknown(),
             themeColor: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         stretchedPictureFill: z.object({
           contentUrl: z.string(),
           size: z.object({
             height: z.unknown(),
             width: z.unknown(),
-          }),
-        }),
-      }),
-    }),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     pageType: z.string(),
     revisionId: z.string(),
     slideProperties: z.object({
@@ -2047,147 +2079,155 @@ const StateSchema = z.object({
       layoutObjectId: z.string(),
       masterObjectId: z.string(),
       notesPage: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   pageSize: z.object({
     height: z.object({
       magnitude: z.number(),
       unit: z.string(),
-    }),
+    }).partial(),
     width: z.object({
       magnitude: z.number(),
       unit: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   presentationId: z.string().optional(),
   revisionId: z.string().optional(),
-  slides: z.array(z.object({
-    commentAnchors: z.array(z.object({
-      anchorId: z.string(),
-      objectAnchors: z.array(z.unknown()),
-    })),
-    comments: z.array(z.object({
-      anchorId: z.string(),
-      commentId: z.string(),
-      headPost: z.object({
-        assigneeEmail: z.unknown(),
-        author: z.unknown(),
-        commentAction: z.unknown(),
-        content: z.unknown(),
-        contentHtml: z.unknown(),
-        createTime: z.unknown(),
-        deleted: z.unknown(),
-        fromCopiedPresentation: z.unknown(),
-        fromImportedPresentation: z.unknown(),
-        postId: z.unknown(),
-        updateTime: z.unknown(),
-      }),
-      plainTextQuote: z.string(),
-      replies: z.array(z.unknown()),
-      status: z.string(),
-    })),
-    commentsViewMode: z.string(),
-    layoutProperties: z.object({
-      displayName: z.string(),
-      masterObjectId: z.string(),
-      name: z.string(),
-    }),
-    masterProperties: z.object({
-      displayName: z.string(),
-    }),
-    notesProperties: z.object({
-      speakerNotesObjectId: z.string(),
-    }),
-    objectId: z.string(),
-    pageElements: z.array(z.object({
-      description: z.string(),
-      elementGroup: z.object({
-        children: z.unknown(),
-      }),
-      image: z.object({
-        contentUrl: z.unknown(),
-        imageProperties: z.unknown(),
-        placeholder: z.unknown(),
-        sourceUrl: z.unknown(),
-      }),
-      line: z.object({
-        lineCategory: z.unknown(),
-        lineProperties: z.unknown(),
-        lineType: z.unknown(),
-      }),
+  slides: z.array(
+    z.object({
+      commentAnchors: z.array(
+        z.object({
+          anchorId: z.string(),
+          objectAnchors: z.array(z.unknown()),
+        }).partial(),
+      ),
+      comments: z.array(
+        z.object({
+          anchorId: z.string(),
+          commentId: z.string(),
+          headPost: z.object({
+            assigneeEmail: z.unknown(),
+            author: z.unknown(),
+            commentAction: z.unknown(),
+            content: z.unknown(),
+            contentHtml: z.unknown(),
+            createTime: z.unknown(),
+            deleted: z.unknown(),
+            fromCopiedPresentation: z.unknown(),
+            fromImportedPresentation: z.unknown(),
+            postId: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          plainTextQuote: z.string(),
+          replies: z.array(z.unknown()),
+          status: z.string(),
+        }).partial(),
+      ),
+      commentsViewMode: z.string(),
+      layoutProperties: z.object({
+        displayName: z.string(),
+        masterObjectId: z.string(),
+        name: z.string(),
+      }).partial(),
+      masterProperties: z.object({
+        displayName: z.string(),
+      }).partial(),
+      notesProperties: z.object({
+        speakerNotesObjectId: z.string(),
+      }).partial(),
       objectId: z.string(),
-      shape: z.object({
-        placeholder: z.unknown(),
-        shapeProperties: z.unknown(),
-        shapeType: z.unknown(),
-        text: z.unknown(),
-      }),
-      sheetsChart: z.object({
-        chartId: z.unknown(),
-        contentUrl: z.unknown(),
-        sheetsChartProperties: z.unknown(),
-        spreadsheetId: z.unknown(),
-      }),
-      size: z.object({
-        height: z.unknown(),
-        width: z.unknown(),
-      }),
-      speakerSpotlight: z.object({
-        speakerSpotlightProperties: z.unknown(),
-      }),
-      table: z.object({
-        columns: z.unknown(),
-        horizontalBorderRows: z.unknown(),
-        rows: z.unknown(),
-        tableColumns: z.unknown(),
-        tableRows: z.unknown(),
-        verticalBorderRows: z.unknown(),
-      }),
-      title: z.string(),
-      transform: z.object({
-        scaleX: z.unknown(),
-        scaleY: z.unknown(),
-        shearX: z.unknown(),
-        shearY: z.unknown(),
-        translateX: z.unknown(),
-        translateY: z.unknown(),
-        unit: z.unknown(),
-      }),
-      video: z.object({
-        id: z.unknown(),
-        source: z.unknown(),
-        url: z.unknown(),
-        videoProperties: z.unknown(),
-      }),
-      wordArt: z.object({
-        renderedText: z.unknown(),
-      }),
-    })),
-    pageProperties: z.object({
-      colorScheme: z.object({
-        colors: z.array(z.unknown()),
-      }),
-      pageBackgroundFill: z.object({
-        propertyState: z.string(),
-        solidFill: z.object({
-          alpha: z.unknown(),
-          color: z.unknown(),
-        }),
-        stretchedPictureFill: z.object({
-          contentUrl: z.unknown(),
-          size: z.unknown(),
-        }),
-      }),
-    }),
-    pageType: z.string(),
-    revisionId: z.string(),
-    slideProperties: z.object({
-      isSkipped: z.boolean(),
-      layoutObjectId: z.string(),
-      masterObjectId: z.string(),
-      notesPage: z.record(z.string(), z.unknown()),
-    }),
-  })).optional(),
+      pageElements: z.array(
+        z.object({
+          description: z.string(),
+          elementGroup: z.object({
+            children: z.unknown(),
+          }).partial(),
+          image: z.object({
+            contentUrl: z.unknown(),
+            imageProperties: z.unknown(),
+            placeholder: z.unknown(),
+            sourceUrl: z.unknown(),
+          }).partial(),
+          line: z.object({
+            lineCategory: z.unknown(),
+            lineProperties: z.unknown(),
+            lineType: z.unknown(),
+          }).partial(),
+          objectId: z.string(),
+          shape: z.object({
+            placeholder: z.unknown(),
+            shapeProperties: z.unknown(),
+            shapeType: z.unknown(),
+            text: z.unknown(),
+          }).partial(),
+          sheetsChart: z.object({
+            chartId: z.unknown(),
+            contentUrl: z.unknown(),
+            sheetsChartProperties: z.unknown(),
+            spreadsheetId: z.unknown(),
+          }).partial(),
+          size: z.object({
+            height: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+          speakerSpotlight: z.object({
+            speakerSpotlightProperties: z.unknown(),
+          }).partial(),
+          table: z.object({
+            columns: z.unknown(),
+            horizontalBorderRows: z.unknown(),
+            rows: z.unknown(),
+            tableColumns: z.unknown(),
+            tableRows: z.unknown(),
+            verticalBorderRows: z.unknown(),
+          }).partial(),
+          title: z.string(),
+          transform: z.object({
+            scaleX: z.unknown(),
+            scaleY: z.unknown(),
+            shearX: z.unknown(),
+            shearY: z.unknown(),
+            translateX: z.unknown(),
+            translateY: z.unknown(),
+            unit: z.unknown(),
+          }).partial(),
+          video: z.object({
+            id: z.unknown(),
+            source: z.unknown(),
+            url: z.unknown(),
+            videoProperties: z.unknown(),
+          }).partial(),
+          wordArt: z.object({
+            renderedText: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      pageProperties: z.object({
+        colorScheme: z.object({
+          colors: z.array(z.unknown()),
+        }).partial(),
+        pageBackgroundFill: z.object({
+          propertyState: z.string(),
+          solidFill: z.object({
+            alpha: z.unknown(),
+            color: z.unknown(),
+          }).partial(),
+          stretchedPictureFill: z.object({
+            contentUrl: z.unknown(),
+            size: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      pageType: z.string(),
+      revisionId: z.string(),
+      slideProperties: z.object({
+        isSkipped: z.boolean(),
+        layoutObjectId: z.string(),
+        masterObjectId: z.string(),
+        notesPage: z.record(z.string(), z.unknown()),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   title: z.string().optional(),
 }).passthrough();
 
@@ -3669,7 +3709,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Slides Presentations. Registered at `@swamp/gcp/slides/presentations`. */
 export const model = {
   type: "@swamp/gcp/slides/presentations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3813,6 +3853,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -263,6 +263,143 @@ const CaseSummarizationAIAgentConfigurationSchema = z.object({
   Locale: z.string().min(1).optional(),
 });
 
+const TagConditionStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const KnowledgeBaseAssociationConfigurationDataStateSchema = z.object({
+  ContentTagFilter: z.object({
+    TagCondition: TagConditionStateSchema,
+    AndConditions: z.array(TagConditionStateSchema),
+    OrConditions: z.array(
+      z.object({
+        AndConditions: z.array(TagConditionStateSchema),
+        TagCondition: TagConditionStateSchema,
+      }).partial(),
+    ),
+  }).partial(),
+  MaxResults: z.number(),
+  OverrideKnowledgeBaseSearchType: z.string(),
+}).partial();
+
+const AssociationConfigurationStateSchema = z.object({
+  AssociationId: z.string(),
+  AssociationType: z.string(),
+  AssociationConfigurationData: z.object({
+    KnowledgeBaseAssociationConfigurationData:
+      KnowledgeBaseAssociationConfigurationDataStateSchema,
+  }).partial(),
+}).partial();
+
+const ManualSearchAIAgentConfigurationStateSchema = z.object({
+  AnswerGenerationAIPromptId: z.string(),
+  AnswerGenerationAIGuardrailId: z.string(),
+  AssociationConfigurations: z.array(AssociationConfigurationStateSchema),
+  Locale: z.string(),
+}).partial();
+
+const AnswerRecommendationAIAgentConfigurationStateSchema = z.object({
+  IntentLabelingGenerationAIPromptId: z.string(),
+  QueryReformulationAIPromptId: z.string(),
+  AnswerGenerationAIPromptId: z.string(),
+  AnswerGenerationAIGuardrailId: z.string(),
+  AssociationConfigurations: z.array(AssociationConfigurationStateSchema),
+  Locale: z.string(),
+}).partial();
+
+const SelfServiceAIAgentConfigurationStateSchema = z.object({
+  SelfServicePreProcessingAIPromptId: z.string(),
+  SelfServiceAnswerGenerationAIPromptId: z.string(),
+  SelfServiceAIGuardrailId: z.string(),
+  AssociationConfigurations: z.array(AssociationConfigurationStateSchema),
+}).partial();
+
+const EmailResponseAIAgentConfigurationStateSchema = z.object({
+  EmailResponseAIPromptId: z.string(),
+  EmailQueryReformulationAIPromptId: z.string(),
+  AssociationConfigurations: z.array(AssociationConfigurationStateSchema),
+  Locale: z.string(),
+}).partial();
+
+const EmailOverviewAIAgentConfigurationStateSchema = z.object({
+  EmailOverviewAIPromptId: z.string(),
+  Locale: z.string(),
+}).partial();
+
+const EmailGenerativeAnswerAIAgentConfigurationStateSchema = z.object({
+  EmailGenerativeAnswerAIPromptId: z.string(),
+  EmailQueryReformulationAIPromptId: z.string(),
+  AssociationConfigurations: z.array(AssociationConfigurationStateSchema),
+  Locale: z.string(),
+}).partial();
+
+const ToolInstructionStateSchema = z.object({
+  Instruction: z.string(),
+  Examples: z.array(z.string()),
+}).partial();
+
+const ToolOverrideConstantInputValueStateSchema = z.object({
+  Type: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ToolOverrideInputValueStateSchema = z.object({
+  JsonPath: z.string(),
+  Value: z.object({
+    Constant: ToolOverrideConstantInputValueStateSchema,
+  }).partial(),
+}).partial();
+
+const ToolOutputConfigurationStateSchema = z.object({
+  OutputVariableNameOverride: z.string(),
+  SessionDataNamespace: z.string(),
+}).partial();
+
+const ToolOutputFilterStateSchema = z.object({
+  JsonPath: z.string(),
+  OutputConfiguration: ToolOutputConfigurationStateSchema,
+}).partial();
+
+const UserInteractionConfigurationStateSchema = z.object({
+  IsUserConfirmationRequired: z.boolean(),
+}).partial();
+
+const ToolConfigurationStateSchema = z.object({
+  ToolName: z.string(),
+  ToolType: z.string(),
+  Title: z.string(),
+  ToolId: z.string(),
+  Description: z.string(),
+  Instruction: ToolInstructionStateSchema,
+  OverrideInputValues: z.array(ToolOverrideInputValueStateSchema),
+  OutputFilters: z.array(ToolOutputFilterStateSchema),
+  InputSchema: z.record(z.string(), z.unknown()),
+  OutputSchema: z.record(z.string(), z.unknown()),
+  Annotations: z.record(z.string(), z.unknown()),
+  UserInteractionConfiguration: UserInteractionConfigurationStateSchema,
+}).partial();
+
+const OrchestrationAIAgentConfigurationStateSchema = z.object({
+  OrchestrationAIPromptId: z.string(),
+  OrchestrationAIGuardrailId: z.string(),
+  ConnectInstanceArn: z.string(),
+  Locale: z.string(),
+  ToolConfigurations: z.array(ToolConfigurationStateSchema),
+}).partial();
+
+const NoteTakingAIAgentConfigurationStateSchema = z.object({
+  NoteTakingAIPromptId: z.string(),
+  NoteTakingAIGuardrailId: z.string(),
+  Locale: z.string(),
+}).partial();
+
+const CaseSummarizationAIAgentConfigurationStateSchema = z.object({
+  CaseSummarizationAIPromptId: z.string(),
+  CaseSummarizationAIGuardrailId: z.string(),
+  Locale: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -329,19 +466,23 @@ const StateSchema = z.object({
   AssistantId: z.string(),
   AssistantArn: z.string().optional(),
   Configuration: z.object({
-    ManualSearchAIAgentConfiguration: ManualSearchAIAgentConfigurationSchema,
+    ManualSearchAIAgentConfiguration:
+      ManualSearchAIAgentConfigurationStateSchema,
     AnswerRecommendationAIAgentConfiguration:
-      AnswerRecommendationAIAgentConfigurationSchema,
-    SelfServiceAIAgentConfiguration: SelfServiceAIAgentConfigurationSchema,
-    EmailResponseAIAgentConfiguration: EmailResponseAIAgentConfigurationSchema,
-    EmailOverviewAIAgentConfiguration: EmailOverviewAIAgentConfigurationSchema,
+      AnswerRecommendationAIAgentConfigurationStateSchema,
+    SelfServiceAIAgentConfiguration: SelfServiceAIAgentConfigurationStateSchema,
+    EmailResponseAIAgentConfiguration:
+      EmailResponseAIAgentConfigurationStateSchema,
+    EmailOverviewAIAgentConfiguration:
+      EmailOverviewAIAgentConfigurationStateSchema,
     EmailGenerativeAnswerAIAgentConfiguration:
-      EmailGenerativeAnswerAIAgentConfigurationSchema,
-    OrchestrationAIAgentConfiguration: OrchestrationAIAgentConfigurationSchema,
-    NoteTakingAIAgentConfiguration: NoteTakingAIAgentConfigurationSchema,
+      EmailGenerativeAnswerAIAgentConfigurationStateSchema,
+    OrchestrationAIAgentConfiguration:
+      OrchestrationAIAgentConfigurationStateSchema,
+    NoteTakingAIAgentConfiguration: NoteTakingAIAgentConfigurationStateSchema,
     CaseSummarizationAIAgentConfiguration:
-      CaseSummarizationAIAgentConfigurationSchema,
-  }).optional(),
+      CaseSummarizationAIAgentConfigurationStateSchema,
+  }).partial().optional(),
   Description: z.string().optional(),
   Name: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
@@ -349,7 +490,7 @@ const StateSchema = z.object({
   ModifiedTimeSeconds: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -420,7 +561,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom AIAgent. Registered at `@swamp/aws/wisdom/aiagent`. */
 export const model = {
   type: "@swamp/aws/wisdom/aiagent",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -489,6 +630,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

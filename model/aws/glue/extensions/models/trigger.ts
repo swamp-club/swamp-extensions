@@ -79,6 +79,27 @@ const ConditionSchema = z.object({
   LogicalOperator: z.string().describe("A logical operator.").optional(),
 });
 
+const NotificationPropertyStateSchema = z.object({
+  NotifyDelayAfter: z.number(),
+}).partial();
+
+const ActionStateSchema = z.object({
+  NotificationProperty: NotificationPropertyStateSchema,
+  CrawlerName: z.string(),
+  Timeout: z.number(),
+  JobName: z.string(),
+  Arguments: z.record(z.string(), z.unknown()),
+  SecurityConfiguration: z.string(),
+}).partial();
+
+const ConditionStateSchema = z.object({
+  JobName: z.string(),
+  CrawlerName: z.string(),
+  State: z.string(),
+  CrawlState: z.string(),
+  LogicalOperator: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -135,22 +156,22 @@ const StateSchema = z.object({
   Type: z.string().optional(),
   StartOnCreation: z.boolean().optional(),
   Description: z.string().optional(),
-  Actions: z.array(ActionSchema).optional(),
+  Actions: z.array(ActionStateSchema).optional(),
   EventBatchingCondition: z.object({
     BatchSize: z.number(),
     BatchWindow: z.number(),
-  }).optional(),
+  }).partial().optional(),
   WorkflowName: z.string().optional(),
   Schedule: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   Name: z.string(),
   Predicate: z.object({
     Logical: z.string(),
-    Conditions: z.array(ConditionSchema),
-  }).optional(),
+    Conditions: z.array(ConditionStateSchema),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -215,7 +236,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Trigger. Registered at `@swamp/aws/glue/trigger`. */
 export const model = {
   type: "@swamp/aws/glue/trigger",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -284,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

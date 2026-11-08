@@ -299,27 +299,31 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   bucketName: z.string().optional(),
   cdnPolicy: z.object({
-    bypassCacheOnRequestHeaders: z.array(z.object({
-      headerName: z.string(),
-    })),
+    bypassCacheOnRequestHeaders: z.array(
+      z.object({
+        headerName: z.string(),
+      }).partial(),
+    ),
     cacheKeyPolicy: z.object({
       includeHttpHeaders: z.array(z.string()),
       queryStringWhitelist: z.array(z.string()),
-    }),
+    }).partial(),
     cacheMode: z.string(),
     clientTtl: z.number(),
     defaultTtl: z.number(),
     maxTtl: z.number(),
     negativeCaching: z.boolean(),
-    negativeCachingPolicy: z.array(z.object({
-      code: z.number(),
-      ttl: z.number(),
-    })),
+    negativeCachingPolicy: z.array(
+      z.object({
+        code: z.number(),
+        ttl: z.number(),
+      }).partial(),
+    ),
     requestCoalescing: z.boolean(),
     serveWhileStale: z.number(),
     signedUrlCacheMaxAgeSec: z.string(),
     signedUrlKeyNames: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   compressionMode: z.string().optional(),
   creationTimestamp: z.string().optional(),
   customResponseHeaders: z.array(z.string()).optional(),
@@ -332,12 +336,14 @@ const StateSchema = z.object({
   name: z.string(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
-  usedBy: z.array(z.object({
-    reference: z.string(),
-  })).optional(),
+  usedBy: z.array(
+    z.object({
+      reference: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -470,7 +476,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionBackendBuckets. Registered at `@swamp/gcp/compute/regionbackendbuckets`. */
 export const model = {
   type: "@swamp/gcp/compute/regionbackendbuckets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -514,6 +520,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -57,6 +57,15 @@ const DomainNameConfigurationSchema = z.object({
   ).optional(),
 });
 
+const DomainNameConfigurationStateSchema = z.object({
+  OwnershipVerificationCertificateArn: z.string(),
+  EndpointType: z.string(),
+  CertificateName: z.string(),
+  SecurityPolicy: z.string(),
+  CertificateArn: z.string(),
+  IpAddressType: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -102,17 +111,18 @@ const StateSchema = z.object({
   MutualTlsAuthentication: z.object({
     TruststoreVersion: z.string(),
     TruststoreUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RegionalHostedZoneId: z.string().optional(),
   RegionalDomainName: z.string().optional(),
   DomainNameArn: z.string().optional(),
   DomainName: z.string(),
-  DomainNameConfigurations: z.array(DomainNameConfigurationSchema).optional(),
+  DomainNameConfigurations: z.array(DomainNameConfigurationStateSchema)
+    .optional(),
   RoutingMode: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -166,7 +176,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 DomainName. Registered at `@swamp/aws/apigatewayv2/domain-name`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/domain-name",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +245,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

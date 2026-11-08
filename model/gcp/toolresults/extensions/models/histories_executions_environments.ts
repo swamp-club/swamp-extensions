@@ -133,15 +133,17 @@ const StateSchema = z.object({
   completionTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
-  dimensionValue: z.array(z.object({
-    key: z.string(),
-    value: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  dimensionValue: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   displayName: z.string().optional(),
   environmentId: z.string().optional(),
   environmentResult: z.object({
@@ -154,93 +156,99 @@ const StateSchema = z.object({
         otherNativeCrash: z.boolean(),
         timedOut: z.boolean(),
         unableToCrawl: z.boolean(),
-      }),
+      }).partial(),
       inconclusiveDetail: z.object({
         abortedByUser: z.boolean(),
         hasErrorLogs: z.boolean(),
         infrastructureFailure: z.boolean(),
-      }),
+      }).partial(),
       skippedDetail: z.object({
         incompatibleAppVersion: z.boolean(),
         incompatibleArchitecture: z.boolean(),
         incompatibleDevice: z.boolean(),
         pendingTimeout: z.boolean(),
-      }),
+      }).partial(),
       successDetail: z.object({
         otherNativeCrash: z.boolean(),
-      }),
+      }).partial(),
       summary: z.string(),
-    }),
+    }).partial(),
     state: z.string(),
-    testSuiteOverviews: z.array(z.object({
-      elapsedTime: z.object({
-        nanos: z.number(),
-        seconds: z.string(),
-      }),
-      errorCount: z.number(),
-      failureCount: z.number(),
-      flakyCount: z.number(),
-      name: z.string(),
-      skippedCount: z.number(),
-      totalCount: z.number(),
-      xmlSource: z.object({
-        fileUri: z.string(),
-      }),
-    })),
-  }).optional(),
+    testSuiteOverviews: z.array(
+      z.object({
+        elapsedTime: z.object({
+          nanos: z.number(),
+          seconds: z.string(),
+        }).partial(),
+        errorCount: z.number(),
+        failureCount: z.number(),
+        flakyCount: z.number(),
+        name: z.string(),
+        skippedCount: z.number(),
+        totalCount: z.number(),
+        xmlSource: z.object({
+          fileUri: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   executionId: z.string().optional(),
   historyId: z.string().optional(),
   projectId: z.string().optional(),
   resultsStorage: z.object({
     resultsStoragePath: z.object({
       fileUri: z.string(),
-    }),
+    }).partial(),
     xunitXmlFile: z.object({
       fileUri: z.string(),
-    }),
-  }).optional(),
-  shardSummaries: z.array(z.object({
-    runs: z.array(z.object({})),
-    shardResult: z.object({
-      outcome: z.object({
-        failureDetail: z.object({
-          crashed: z.unknown(),
-          deviceOutOfMemory: z.unknown(),
-          failedRoboscript: z.unknown(),
-          notInstalled: z.unknown(),
-          otherNativeCrash: z.unknown(),
-          timedOut: z.unknown(),
-          unableToCrawl: z.unknown(),
-        }),
-        inconclusiveDetail: z.object({
-          abortedByUser: z.unknown(),
-          hasErrorLogs: z.unknown(),
-          infrastructureFailure: z.unknown(),
-        }),
-        skippedDetail: z.object({
-          incompatibleAppVersion: z.unknown(),
-          incompatibleArchitecture: z.unknown(),
-          incompatibleDevice: z.unknown(),
-          pendingTimeout: z.unknown(),
-        }),
-        successDetail: z.object({
-          otherNativeCrash: z.unknown(),
-        }),
-        summary: z.string(),
-      }),
-      state: z.string(),
-      testSuiteOverviews: z.array(z.object({
-        elapsedTime: z.unknown(),
-        errorCount: z.unknown(),
-        failureCount: z.unknown(),
-        flakyCount: z.unknown(),
-        name: z.unknown(),
-        skippedCount: z.unknown(),
-        totalCount: z.unknown(),
-        xmlSource: z.unknown(),
-      })),
-    }),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  shardSummaries: z.array(
+    z.object({
+      runs: z.array(z.object({}).partial()),
+      shardResult: z.object({
+        outcome: z.object({
+          failureDetail: z.object({
+            crashed: z.unknown(),
+            deviceOutOfMemory: z.unknown(),
+            failedRoboscript: z.unknown(),
+            notInstalled: z.unknown(),
+            otherNativeCrash: z.unknown(),
+            timedOut: z.unknown(),
+            unableToCrawl: z.unknown(),
+          }).partial(),
+          inconclusiveDetail: z.object({
+            abortedByUser: z.unknown(),
+            hasErrorLogs: z.unknown(),
+            infrastructureFailure: z.unknown(),
+          }).partial(),
+          skippedDetail: z.object({
+            incompatibleAppVersion: z.unknown(),
+            incompatibleArchitecture: z.unknown(),
+            incompatibleDevice: z.unknown(),
+            pendingTimeout: z.unknown(),
+          }).partial(),
+          successDetail: z.object({
+            otherNativeCrash: z.unknown(),
+          }).partial(),
+          summary: z.string(),
+        }).partial(),
+        state: z.string(),
+        testSuiteOverviews: z.array(
+          z.object({
+            elapsedTime: z.unknown(),
+            errorCount: z.unknown(),
+            failureCount: z.unknown(),
+            flakyCount: z.unknown(),
+            name: z.unknown(),
+            skippedCount: z.unknown(),
+            totalCount: z.unknown(),
+            xmlSource: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -283,7 +291,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tool Results Histories.Executions.Environments. Registered at `@swamp/gcp/toolresults/histories-executions-environments`. */
 export const model = {
   type: "@swamp/gcp/toolresults/histories-executions-environments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -422,6 +430,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

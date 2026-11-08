@@ -122,14 +122,14 @@ const StateSchema = z.object({
       name: z.string(),
       sensitivityScore: z.object({
         score: z.string(),
-      }),
+      }).partial(),
       version: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   columnType: z.string().optional(),
   dataRiskLevel: z.object({
     score: z.string(),
-  }).optional(),
+  }).partial().optional(),
   datasetId: z.string().optional(),
   datasetLocation: z.string().optional(),
   datasetProjectId: z.string().optional(),
@@ -137,17 +137,19 @@ const StateSchema = z.object({
   estimatedUniquenessScore: z.string().optional(),
   freeTextScore: z.number().optional(),
   name: z.string(),
-  otherMatches: z.array(z.object({
-    estimatedPrevalence: z.number(),
-    excludedFromAnalysis: z.boolean(),
-    infoType: z.object({
-      name: z.string(),
-      sensitivityScore: z.object({
-        score: z.string(),
-      }),
-      version: z.string(),
-    }),
-  })).optional(),
+  otherMatches: z.array(
+    z.object({
+      estimatedPrevalence: z.number(),
+      excludedFromAnalysis: z.boolean(),
+      infoType: z.object({
+        name: z.string(),
+        sensitivityScore: z.object({
+          score: z.string(),
+        }).partial(),
+        version: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   policyState: z.string().optional(),
   profileLastGenerated: z.string().optional(),
   profileStatus: z.object({
@@ -155,12 +157,12 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     timestamp: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sensitivityScore: z.object({
     score: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   tableDataProfile: z.string().optional(),
   tableFullResource: z.string().optional(),
@@ -208,7 +210,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) ColumnDataProfiles. Registered at `@swamp/gcp/dlp/columndataprofiles`. */
 export const model = {
   type: "@swamp/gcp/dlp/columndataprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -332,6 +334,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

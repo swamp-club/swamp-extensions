@@ -1469,16 +1469,18 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   approvalConfig: z.object({
     approvalRequired: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   autodetect: z.boolean().optional(),
   bitbucketServerTriggerConfig: z.object({
     bitbucketServerConfig: z.object({
       apiKey: z.string(),
-      connectedRepositories: z.array(z.object({
-        projectKey: z.string(),
-        repoSlug: z.string(),
-        webhookId: z.number(),
-      })),
+      connectedRepositories: z.array(
+        z.object({
+          projectKey: z.string(),
+          repoSlug: z.string(),
+          webhookId: z.number(),
+        }).partial(),
+      ),
       createTime: z.string(),
       hostUri: z.string(),
       name: z.string(),
@@ -1488,123 +1490,141 @@ const StateSchema = z.object({
         adminAccessTokenVersionName: z.string(),
         readAccessTokenVersionName: z.string(),
         webhookSecretVersionName: z.string(),
-      }),
+      }).partial(),
       sslCa: z.string(),
       username: z.string(),
       webhookKey: z.string(),
-    }),
+    }).partial(),
     bitbucketServerConfigResource: z.string(),
     projectKey: z.string(),
     pullRequest: z.object({
       branch: z.string(),
       commentControl: z.string(),
       invertRegex: z.boolean(),
-    }),
+    }).partial(),
     push: z.object({
       branch: z.string(),
       invertRegex: z.boolean(),
       tag: z.string(),
-    }),
+    }).partial(),
     repoSlug: z.string(),
-  }).optional(),
+  }).partial().optional(),
   build: z.object({
     approval: z.object({
       config: z.object({
         approvalRequired: z.boolean(),
-      }),
+      }).partial(),
       result: z.object({
         approvalTime: z.string(),
         approverAccount: z.string(),
         comment: z.string(),
         decision: z.string(),
         url: z.string(),
-      }),
+      }).partial(),
       state: z.string(),
-    }),
+    }).partial(),
     artifacts: z.object({
-      genericArtifacts: z.array(z.object({
-        folder: z.string(),
-        registryPath: z.string(),
-      })),
-      goModules: z.array(z.object({
-        modulePath: z.string(),
-        moduleVersion: z.string(),
-        repositoryLocation: z.string(),
-        repositoryName: z.string(),
-        repositoryProjectId: z.string(),
-        sourcePath: z.string(),
-      })),
+      genericArtifacts: z.array(
+        z.object({
+          folder: z.string(),
+          registryPath: z.string(),
+        }).partial(),
+      ),
+      goModules: z.array(
+        z.object({
+          modulePath: z.string(),
+          moduleVersion: z.string(),
+          repositoryLocation: z.string(),
+          repositoryName: z.string(),
+          repositoryProjectId: z.string(),
+          sourcePath: z.string(),
+        }).partial(),
+      ),
       images: z.array(z.string()),
-      mavenArtifacts: z.array(z.object({
-        artifactId: z.string(),
-        deployFolder: z.string(),
-        groupId: z.string(),
-        path: z.string(),
-        repository: z.string(),
-        version: z.string(),
-      })),
-      npmPackages: z.array(z.object({
-        packagePath: z.string(),
-        repository: z.string(),
-      })),
+      mavenArtifacts: z.array(
+        z.object({
+          artifactId: z.string(),
+          deployFolder: z.string(),
+          groupId: z.string(),
+          path: z.string(),
+          repository: z.string(),
+          version: z.string(),
+        }).partial(),
+      ),
+      npmPackages: z.array(
+        z.object({
+          packagePath: z.string(),
+          repository: z.string(),
+        }).partial(),
+      ),
       objects: z.object({
         location: z.string(),
         paths: z.array(z.string()),
         timing: z.object({
           endTime: z.string(),
           startTime: z.string(),
-        }),
-      }),
-      oci: z.array(z.object({
-        file: z.string(),
-        registryPath: z.string(),
-        tags: z.array(z.unknown()),
-      })),
-      pythonPackages: z.array(z.object({
-        paths: z.array(z.unknown()),
-        repository: z.string(),
-      })),
-    }),
+        }).partial(),
+      }).partial(),
+      oci: z.array(
+        z.object({
+          file: z.string(),
+          registryPath: z.string(),
+          tags: z.array(z.unknown()),
+        }).partial(),
+      ),
+      pythonPackages: z.array(
+        z.object({
+          paths: z.array(z.unknown()),
+          repository: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     availableSecrets: z.object({
-      inline: z.array(z.object({
-        envMap: z.record(z.string(), z.unknown()),
-        kmsKeyName: z.string(),
-      })),
-      secretManager: z.array(z.object({
-        env: z.string(),
-        versionName: z.string(),
-      })),
-    }),
+      inline: z.array(
+        z.object({
+          envMap: z.record(z.string(), z.unknown()),
+          kmsKeyName: z.string(),
+        }).partial(),
+      ),
+      secretManager: z.array(
+        z.object({
+          env: z.string(),
+          versionName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     buildTriggerId: z.string(),
     createTime: z.string(),
-    dependencies: z.array(z.object({
-      empty: z.boolean(),
-      genericArtifact: z.object({
-        destPath: z.string(),
-        resource: z.string(),
-      }),
-      gitSource: z.object({
-        depth: z.string(),
-        destPath: z.string(),
-        fetchTags: z.boolean(),
-        recurseSubmodules: z.boolean(),
-        repository: z.object({
-          developerConnect: z.unknown(),
-          url: z.unknown(),
-        }),
-        revision: z.string(),
-      }),
-    })),
+    dependencies: z.array(
+      z.object({
+        empty: z.boolean(),
+        genericArtifact: z.object({
+          destPath: z.string(),
+          resource: z.string(),
+        }).partial(),
+        gitSource: z.object({
+          depth: z.string(),
+          destPath: z.string(),
+          fetchTags: z.boolean(),
+          recurseSubmodules: z.boolean(),
+          repository: z.object({
+            developerConnect: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+          revision: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     failureInfo: z.object({
       detail: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     finishTime: z.string(),
     gitConfig: z.object({
       http: z.object({
         proxySecretVersionName: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     id: z.string(),
     images: z.array(z.string()),
     logUrl: z.string(),
@@ -1624,7 +1644,7 @@ const StateSchema = z.object({
         name: z.string(),
         resolvedWorkerRelease: z.string(),
         workerRelease: z.string(),
-      }),
+      }).partial(),
       pubsubTopic: z.string(),
       rankedMachineSeries: z.array(z.string()),
       requestedVerifyOption: z.string(),
@@ -1632,13 +1652,15 @@ const StateSchema = z.object({
       secretEnv: z.array(z.string()),
       sourceProvenanceHash: z.array(z.string()),
       substitutionOption: z.string(),
-      volumes: z.array(z.object({
-        name: z.string(),
-        path: z.string(),
-      })),
+      volumes: z.array(
+        z.object({
+          name: z.string(),
+          path: z.string(),
+        }).partial(),
+      ),
       workerPool: z.string(),
       workerRelease: z.string(),
-    }),
+    }).partial(),
     projectId: z.string(),
     queueTtl: z.string(),
     results: z.object({
@@ -1646,106 +1668,120 @@ const StateSchema = z.object({
       artifactTiming: z.object({
         endTime: z.string(),
         startTime: z.string(),
-      }),
+      }).partial(),
       buildStepImages: z.array(z.string()),
       buildStepOutputs: z.array(z.string()),
       buildStepResults: z.record(z.string(), z.unknown()),
-      genericArtifacts: z.array(z.object({
-        artifactFingerprint: z.object({
-          fileHash: z.unknown(),
-        }),
-        artifactRegistryPackage: z.string(),
-        fileHashes: z.record(z.string(), z.unknown()),
-        pushTiming: z.object({
-          endTime: z.unknown(),
-          startTime: z.unknown(),
-        }),
-        uri: z.string(),
-      })),
-      goModules: z.array(z.object({
-        artifactRegistryPackage: z.string(),
-        fileHashes: z.object({
-          fileHash: z.unknown(),
-        }),
-        pushTiming: z.object({
-          endTime: z.unknown(),
-          startTime: z.unknown(),
-        }),
-        uri: z.string(),
-      })),
-      images: z.array(z.object({
-        artifactRegistryPackage: z.string(),
-        digest: z.string(),
-        name: z.string(),
-        ociMediaType: z.string(),
-        pushTiming: z.object({
-          endTime: z.unknown(),
-          startTime: z.unknown(),
-        }),
-      })),
-      mavenArtifacts: z.array(z.object({
-        artifactRegistryPackage: z.string(),
-        fileHashes: z.object({
-          fileHash: z.unknown(),
-        }),
-        pushTiming: z.object({
-          endTime: z.unknown(),
-          startTime: z.unknown(),
-        }),
-        uri: z.string(),
-      })),
-      npmPackages: z.array(z.object({
-        artifactRegistryPackage: z.string(),
-        fileHashes: z.object({
-          fileHash: z.unknown(),
-        }),
-        pushTiming: z.object({
-          endTime: z.unknown(),
-          startTime: z.unknown(),
-        }),
-        uri: z.string(),
-      })),
+      genericArtifacts: z.array(
+        z.object({
+          artifactFingerprint: z.object({
+            fileHash: z.unknown(),
+          }).partial(),
+          artifactRegistryPackage: z.string(),
+          fileHashes: z.record(z.string(), z.unknown()),
+          pushTiming: z.object({
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+          uri: z.string(),
+        }).partial(),
+      ),
+      goModules: z.array(
+        z.object({
+          artifactRegistryPackage: z.string(),
+          fileHashes: z.object({
+            fileHash: z.unknown(),
+          }).partial(),
+          pushTiming: z.object({
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+          uri: z.string(),
+        }).partial(),
+      ),
+      images: z.array(
+        z.object({
+          artifactRegistryPackage: z.string(),
+          digest: z.string(),
+          name: z.string(),
+          ociMediaType: z.string(),
+          pushTiming: z.object({
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      mavenArtifacts: z.array(
+        z.object({
+          artifactRegistryPackage: z.string(),
+          fileHashes: z.object({
+            fileHash: z.unknown(),
+          }).partial(),
+          pushTiming: z.object({
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+          uri: z.string(),
+        }).partial(),
+      ),
+      npmPackages: z.array(
+        z.object({
+          artifactRegistryPackage: z.string(),
+          fileHashes: z.object({
+            fileHash: z.unknown(),
+          }).partial(),
+          pushTiming: z.object({
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+          uri: z.string(),
+        }).partial(),
+      ),
       numArtifacts: z.string(),
-      pythonPackages: z.array(z.object({
-        artifactRegistryPackage: z.string(),
-        fileHashes: z.object({
-          fileHash: z.unknown(),
-        }),
-        pushTiming: z.object({
-          endTime: z.unknown(),
-          startTime: z.unknown(),
-        }),
-        uri: z.string(),
-      })),
+      pythonPackages: z.array(
+        z.object({
+          artifactRegistryPackage: z.string(),
+          fileHashes: z.object({
+            fileHash: z.unknown(),
+          }).partial(),
+          pushTiming: z.object({
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+          uri: z.string(),
+        }).partial(),
+      ),
       resourceUsage: z.object({
         averageCpuUtilization: z.number(),
         averageMemoryUtilization: z.number(),
         peakCpuUtilization: z.number(),
         peakMemoryUtilization: z.number(),
         totalCpuDuration: z.string(),
-      }),
-    }),
-    secrets: z.array(z.object({
-      kmsKeyName: z.string(),
-      secretEnv: z.record(z.string(), z.unknown()),
-    })),
+      }).partial(),
+    }).partial(),
+    secrets: z.array(
+      z.object({
+        kmsKeyName: z.string(),
+        secretEnv: z.record(z.string(), z.unknown()),
+      }).partial(),
+    ),
     serviceAccount: z.string(),
     source: z.object({
       connectedRepository: z.object({
         dir: z.string(),
         repository: z.string(),
         revision: z.string(),
-      }),
+      }).partial(),
       developerConnectConfig: z.object({
         dir: z.string(),
         gitRepositoryLink: z.string(),
         revision: z.string(),
-      }),
+      }).partial(),
       gitSource: z.object({
         dir: z.string(),
         revision: z.string(),
         url: z.string(),
-      }),
+      }).partial(),
       repoSource: z.object({
         branchName: z.string(),
         commitSha: z.string(),
@@ -1755,31 +1791,31 @@ const StateSchema = z.object({
         repoName: z.string(),
         substitutions: z.record(z.string(), z.unknown()),
         tagName: z.string(),
-      }),
+      }).partial(),
       storageSource: z.object({
         bucket: z.string(),
         generation: z.string(),
         object: z.string(),
         sourceFetcher: z.string(),
-      }),
+      }).partial(),
       storageSourceManifest: z.object({
         bucket: z.string(),
         generation: z.string(),
         object: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sourceProvenance: z.object({
       fileHashes: z.record(z.string(), z.unknown()),
       resolvedConnectedRepository: z.object({
         dir: z.string(),
         repository: z.string(),
         revision: z.string(),
-      }),
+      }).partial(),
       resolvedGitSource: z.object({
         dir: z.string(),
         revision: z.string(),
         url: z.string(),
-      }),
+      }).partial(),
       resolvedRepoSource: z.object({
         branchName: z.string(),
         commitSha: z.string(),
@@ -1789,65 +1825,73 @@ const StateSchema = z.object({
         repoName: z.string(),
         substitutions: z.record(z.string(), z.unknown()),
         tagName: z.string(),
-      }),
+      }).partial(),
       resolvedStorageSource: z.object({
         bucket: z.string(),
         generation: z.string(),
         object: z.string(),
         sourceFetcher: z.string(),
-      }),
+      }).partial(),
       resolvedStorageSourceManifest: z.object({
         bucket: z.string(),
         generation: z.string(),
         object: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     startTime: z.string(),
     status: z.string(),
     statusDetail: z.string(),
-    steps: z.array(z.object({
-      allowExitCodes: z.array(z.number()),
-      allowFailure: z.boolean(),
-      args: z.array(z.string()),
-      automapSubstitutions: z.boolean(),
-      dir: z.string(),
-      entrypoint: z.string(),
-      env: z.array(z.string()),
-      exitCode: z.number(),
-      id: z.string(),
-      name: z.string(),
-      pullTiming: z.object({
-        endTime: z.string(),
-        startTime: z.string(),
-      }),
-      results: z.array(z.object({
-        attestationContent: z.unknown(),
-        attestationType: z.unknown(),
-        name: z.unknown(),
-      })),
-      script: z.string(),
-      secretEnv: z.array(z.string()),
-      status: z.string(),
-      timeout: z.string(),
-      timing: z.object({
-        endTime: z.string(),
-        startTime: z.string(),
-      }),
-      volumes: z.array(z.object({
-        name: z.unknown(),
-        path: z.unknown(),
-      })),
-      waitFor: z.array(z.string()),
-    })),
+    steps: z.array(
+      z.object({
+        allowExitCodes: z.array(z.number()),
+        allowFailure: z.boolean(),
+        args: z.array(z.string()),
+        automapSubstitutions: z.boolean(),
+        dir: z.string(),
+        entrypoint: z.string(),
+        env: z.array(z.string()),
+        exitCode: z.number(),
+        id: z.string(),
+        name: z.string(),
+        pullTiming: z.object({
+          endTime: z.string(),
+          startTime: z.string(),
+        }).partial(),
+        results: z.array(
+          z.object({
+            attestationContent: z.unknown(),
+            attestationType: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+        ),
+        script: z.string(),
+        secretEnv: z.array(z.string()),
+        status: z.string(),
+        timeout: z.string(),
+        timing: z.object({
+          endTime: z.string(),
+          startTime: z.string(),
+        }).partial(),
+        volumes: z.array(
+          z.object({
+            name: z.unknown(),
+            path: z.unknown(),
+          }).partial(),
+        ),
+        waitFor: z.array(z.string()),
+      }).partial(),
+    ),
     substitutions: z.record(z.string(), z.unknown()),
     tags: z.array(z.string()),
     timeout: z.string(),
     timing: z.record(z.string(), z.unknown()),
-    warnings: z.array(z.object({
-      priority: z.string(),
-      text: z.string(),
-    })),
-  }).optional(),
+    warnings: z.array(
+      z.object({
+        priority: z.string(),
+        text: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   developerConnectEventConfig: z.object({
@@ -1857,13 +1901,13 @@ const StateSchema = z.object({
       branch: z.string(),
       commentControl: z.string(),
       invertRegex: z.boolean(),
-    }),
+    }).partial(),
     push: z.object({
       branch: z.string(),
       invertRegex: z.boolean(),
       tag: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   disabled: z.boolean().optional(),
   eventType: z.string().optional(),
   filename: z.string().optional(),
@@ -1876,7 +1920,7 @@ const StateSchema = z.object({
     repository: z.string(),
     revision: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   github: z.object({
     enterpriseConfigResourceName: z.string(),
     installationId: z.string(),
@@ -1886,13 +1930,13 @@ const StateSchema = z.object({
       branch: z.string(),
       commentControl: z.string(),
       invertRegex: z.boolean(),
-    }),
+    }).partial(),
     push: z.object({
       branch: z.string(),
       invertRegex: z.boolean(),
       tag: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   id: z.string().optional(),
   ignoredFiles: z.array(z.string()).optional(),
   includeBuildLogs: z.string().optional(),
@@ -1903,21 +1947,21 @@ const StateSchema = z.object({
     state: z.string(),
     subscription: z.string(),
     topic: z.string(),
-  }).optional(),
+  }).partial().optional(),
   repositoryEventConfig: z.object({
     pullRequest: z.object({
       branch: z.string(),
       commentControl: z.string(),
       invertRegex: z.boolean(),
-    }),
+    }).partial(),
     push: z.object({
       branch: z.string(),
       invertRegex: z.boolean(),
       tag: z.string(),
-    }),
+    }).partial(),
     repository: z.string(),
     repositoryType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resourceName: z.string().optional(),
   serviceAccount: z.string().optional(),
   sourceToBuild: z.object({
@@ -1927,7 +1971,7 @@ const StateSchema = z.object({
     repoType: z.string(),
     repository: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   substitutions: z.record(z.string(), z.unknown()).optional(),
   tags: z.array(z.string()).optional(),
   triggerTemplate: z.object({
@@ -1939,11 +1983,11 @@ const StateSchema = z.object({
     repoName: z.string(),
     substitutions: z.record(z.string(), z.unknown()),
     tagName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   webhookConfig: z.object({
     secret: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -3272,7 +3316,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Build Triggers. Registered at `@swamp/gcp/cloudbuild/triggers`. */
 export const model = {
   type: "@swamp/gcp/cloudbuild/triggers",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -3331,6 +3375,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -209,6 +209,102 @@ const TagSchema = z.object({
   ),
 });
 
+const EventBridgeActionStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const TaskActionStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  ContactFlowArn: z.string(),
+  References: z.record(z.string(), z.unknown()),
+}).partial();
+
+const NotificationRecipientTypeStateSchema = z.object({
+  UserTags: z.record(z.string(), z.unknown()),
+  UserArns: z.array(z.string()),
+}).partial();
+
+const SendNotificationActionStateSchema = z.object({
+  DeliveryMethod: z.string(),
+  Subject: z.string(),
+  Content: z.string(),
+  ContentType: z.string(),
+  Recipient: NotificationRecipientTypeStateSchema,
+  Exclusion: NotificationRecipientTypeStateSchema,
+}).partial();
+
+const NotificationContentStateSchema = z.object({
+  EnUS: z.string(),
+  DeDE: z.string(),
+  EsES: z.string(),
+  FrFR: z.string(),
+  IdID: z.string(),
+  ItIT: z.string(),
+  JaJP: z.string(),
+  KoKR: z.string(),
+  PtBR: z.string(),
+  ZhCN: z.string(),
+  ZhTW: z.string(),
+}).partial();
+
+const InAppNotificationRecipientTypeStateSchema = z.object({
+  UserTags: z.record(z.string(), z.unknown()),
+  UserArns: z.array(z.string()),
+}).partial();
+
+const SendInAppNotificationActionStateSchema = z.object({
+  Content: NotificationContentStateSchema,
+  Recipient: InAppNotificationRecipientTypeStateSchema,
+  Exclusion: InAppNotificationRecipientTypeStateSchema,
+  Priority: z.string(),
+}).partial();
+
+const FieldValueStateSchema = z.object({
+  StringValue: z.string(),
+  BooleanValue: z.boolean(),
+  DoubleValue: z.number(),
+  EmptyValue: z.record(z.string(), z.unknown()),
+}).partial();
+
+const FieldStateSchema = z.object({
+  Id: z.string(),
+  Value: FieldValueStateSchema,
+}).partial();
+
+const CreateCaseActionStateSchema = z.object({
+  Fields: z.array(FieldStateSchema),
+  TemplateId: z.string(),
+}).partial();
+
+const UpdateCaseActionStateSchema = z.object({
+  Fields: z.array(FieldStateSchema),
+}).partial();
+
+const SubmitAutoEvaluationActionStateSchema = z.object({
+  EvaluationFormArn: z.string(),
+}).partial();
+
+const SlaTargetFieldValueStateSchema = z.object({
+  StringValue: z.string(),
+}).partial();
+
+const AssignSlaActionStateSchema = z.object({
+  SlaAssignmentType: z.string(),
+  CaseSlaConfiguration: z.object({
+    Type: z.string(),
+    Name: z.string(),
+    FieldId: z.string(),
+    TargetFieldValues: z.array(SlaTargetFieldValueStateSchema),
+    TargetSlaMinutes: z.number(),
+  }).partial(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -301,25 +397,27 @@ const StateSchema = z.object({
   TriggerEventSource: z.object({
     EventSourceName: z.string(),
     IntegrationAssociationArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Function: z.string().optional(),
   Actions: z.object({
     AssignContactCategoryActions: z.array(z.record(z.string(), z.unknown())),
-    EventBridgeActions: z.array(EventBridgeActionSchema),
-    TaskActions: z.array(TaskActionSchema),
-    SendNotificationActions: z.array(SendNotificationActionSchema),
-    SendInAppNotificationActions: z.array(SendInAppNotificationActionSchema),
-    CreateCaseActions: z.array(CreateCaseActionSchema),
-    UpdateCaseActions: z.array(UpdateCaseActionSchema),
+    EventBridgeActions: z.array(EventBridgeActionStateSchema),
+    TaskActions: z.array(TaskActionStateSchema),
+    SendNotificationActions: z.array(SendNotificationActionStateSchema),
+    SendInAppNotificationActions: z.array(
+      SendInAppNotificationActionStateSchema,
+    ),
+    CreateCaseActions: z.array(CreateCaseActionStateSchema),
+    UpdateCaseActions: z.array(UpdateCaseActionStateSchema),
     EndAssociatedTasksActions: z.array(z.record(z.string(), z.unknown())),
-    SubmitAutoEvaluationActions: z.array(SubmitAutoEvaluationActionSchema),
-    AssignSlaActions: z.array(AssignSlaActionSchema),
-  }).optional(),
+    SubmitAutoEvaluationActions: z.array(SubmitAutoEvaluationActionStateSchema),
+    AssignSlaActions: z.array(AssignSlaActionStateSchema),
+  }).partial().optional(),
   PublishStatus: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -415,7 +513,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Rule. Registered at `@swamp/aws/connect/rule`. */
 export const model = {
   type: "@swamp/aws/connect/rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -504,6 +602,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

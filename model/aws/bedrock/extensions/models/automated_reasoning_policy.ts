@@ -85,6 +85,34 @@ const TagSchema = z.object({
   ).describe("Tag Value"),
 });
 
+const PolicyDefinitionTypeValueStateSchema = z.object({
+  Value: z.string(),
+  Description: z.string(),
+}).partial();
+
+const PolicyDefinitionTypeStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Values: z.array(PolicyDefinitionTypeValueStateSchema),
+}).partial();
+
+const PolicyDefinitionRuleStateSchema = z.object({
+  Id: z.string(),
+  Expression: z.string(),
+  AlternateExpression: z.string(),
+}).partial();
+
+const PolicyDefinitionVariableStateSchema = z.object({
+  Name: z.string(),
+  Type: z.string(),
+  Description: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -134,10 +162,10 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   PolicyDefinition: z.object({
     Version: z.string(),
-    Types: z.array(PolicyDefinitionTypeSchema),
-    Rules: z.array(PolicyDefinitionRuleSchema),
-    Variables: z.array(PolicyDefinitionVariableSchema),
-  }).optional(),
+    Types: z.array(PolicyDefinitionTypeStateSchema),
+    Rules: z.array(PolicyDefinitionRuleStateSchema),
+    Variables: z.array(PolicyDefinitionVariableStateSchema),
+  }).partial().optional(),
   PolicyArn: z.string(),
   KmsKeyId: z.string().optional(),
   KmsKeyArn: z.string().optional(),
@@ -146,11 +174,11 @@ const StateSchema = z.object({
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   PolicyId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ForceDelete: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -205,7 +233,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock AutomatedReasoningPolicy. Registered at `@swamp/aws/bedrock/automated-reasoning-policy`. */
 export const model = {
   type: "@swamp/aws/bedrock/automated-reasoning-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -279,6 +307,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

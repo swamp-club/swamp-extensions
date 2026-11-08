@@ -364,12 +364,14 @@ const StateSchema = z.object({
     kind: z.string(),
     name: z.object({
       kind: z.string(),
-      translations: z.array(z.object({
-        kind: z.string(),
-        locale: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translations: z.array(
+        z.object({
+          kind: z.string(),
+          locale: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     scoreFormat: z.object({
       currencyCode: z.string(),
       numDecimalPlaces: z.number(),
@@ -378,31 +380,31 @@ const StateSchema = z.object({
         few: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         many: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         one: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         other: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         two: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         zero: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     sortRank: z.number(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   published: z.object({
@@ -410,12 +412,14 @@ const StateSchema = z.object({
     kind: z.string(),
     name: z.object({
       kind: z.string(),
-      translations: z.array(z.object({
-        kind: z.string(),
-        locale: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translations: z.array(
+        z.object({
+          kind: z.string(),
+          locale: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     scoreFormat: z.object({
       currencyCode: z.string(),
       numDecimalPlaces: z.number(),
@@ -424,31 +428,31 @@ const StateSchema = z.object({
         few: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         many: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         one: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         other: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         two: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
+        }).partial(),
         zero: z.object({
           kind: z.string(),
           translations: z.array(z.unknown()),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     sortRank: z.number(),
-  }).optional(),
+  }).partial().optional(),
   scoreMax: z.string().optional(),
   scoreMin: z.string().optional(),
   scoreOrder: z.string().optional(),
@@ -699,7 +703,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Games Services Publishing LeaderboardConfigurations. Registered at `@swamp/gcp/gamesconfiguration/leaderboardconfigurations`. */
 export const model = {
   type: "@swamp/gcp/gamesconfiguration/leaderboardconfigurations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -833,6 +837,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

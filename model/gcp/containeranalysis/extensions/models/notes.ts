@@ -1092,53 +1092,55 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  aiSkillAnalysis: z.object({}).optional(),
+  aiSkillAnalysis: z.object({}).partial().optional(),
   attestation: z.object({
     hint: z.object({
       humanReadableName: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   build: z.object({
     builderVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   compliance: z.object({
     cisBenchmark: z.object({
       profileLevel: z.number(),
       severity: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     impact: z.string(),
     rationale: z.string(),
     remediation: z.string(),
     scanInstructions: z.string(),
     title: z.string(),
-    version: z.array(z.object({
-      benchmarkDocument: z.string(),
-      cpeUri: z.string(),
-      version: z.string(),
-    })),
-  }).optional(),
+    version: z.array(
+      z.object({
+        benchmarkDocument: z.string(),
+        cpeUri: z.string(),
+        version: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deployment: z.object({
     resourceUri: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   discovery: z.object({
     analysisKind: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dsseAttestation: z.object({
     hint: z.object({
       humanReadableName: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   expirationTime: z.string().optional(),
   image: z.object({
     fingerprint: z.object({
       v1Name: z.string(),
       v2Blob: z.array(z.string()),
       v2Name: z.string(),
-    }),
+    }).partial(),
     resourceUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   longDescription: z.string().optional(),
   name: z.string(),
@@ -1146,29 +1148,33 @@ const StateSchema = z.object({
     architecture: z.string(),
     cpeUri: z.string(),
     description: z.string(),
-    digest: z.array(z.object({
-      algo: z.string(),
-      digestBytes: z.string(),
-    })),
-    distribution: z.array(z.object({
-      architecture: z.string(),
-      cpeUri: z.string(),
-      description: z.string(),
-      latestVersion: z.object({
-        epoch: z.number(),
-        fullName: z.string(),
-        inclusive: z.boolean(),
-        kind: z.string(),
-        name: z.string(),
-        revision: z.string(),
-      }),
-      maintainer: z.string(),
-      url: z.string(),
-    })),
+    digest: z.array(
+      z.object({
+        algo: z.string(),
+        digestBytes: z.string(),
+      }).partial(),
+    ),
+    distribution: z.array(
+      z.object({
+        architecture: z.string(),
+        cpeUri: z.string(),
+        description: z.string(),
+        latestVersion: z.object({
+          epoch: z.number(),
+          fullName: z.string(),
+          inclusive: z.boolean(),
+          kind: z.string(),
+          name: z.string(),
+          revision: z.string(),
+        }).partial(),
+        maintainer: z.string(),
+        url: z.string(),
+      }).partial(),
+    ),
     license: z.object({
       comments: z.string(),
       expression: z.string(),
-    }),
+    }).partial(),
     maintainer: z.string(),
     name: z.string(),
     packageType: z.string(),
@@ -1180,27 +1186,31 @@ const StateSchema = z.object({
       kind: z.string(),
       name: z.string(),
       revision: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   relatedNoteNames: z.array(z.string()).optional(),
-  relatedUrl: z.array(z.object({
-    label: z.string(),
-    url: z.string(),
-  })).optional(),
+  relatedUrl: z.array(
+    z.object({
+      label: z.string(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   sbomReference: z.object({
     format: z.string(),
     version: z.string(),
-  }).optional(),
-  secret: z.object({}).optional(),
+  }).partial().optional(),
+  secret: z.object({}).partial().optional(),
   shortDescription: z.string().optional(),
   updateTime: z.string().optional(),
   upgrade: z.object({
-    distributions: z.array(z.object({
-      classification: z.string(),
-      cpeUri: z.string(),
-      cve: z.array(z.string()),
-      severity: z.string(),
-    })),
+    distributions: z.array(
+      z.object({
+        classification: z.string(),
+        cpeUri: z.string(),
+        cve: z.array(z.string()),
+        severity: z.string(),
+      }).partial(),
+    ),
     package: z.string(),
     version: z.object({
       epoch: z.number(),
@@ -1209,23 +1219,25 @@ const StateSchema = z.object({
       kind: z.string(),
       name: z.string(),
       revision: z.string(),
-    }),
+    }).partial(),
     windowsUpdate: z.object({
-      categories: z.array(z.object({
-        categoryId: z.string(),
-        name: z.string(),
-      })),
+      categories: z.array(
+        z.object({
+          categoryId: z.string(),
+          name: z.string(),
+        }).partial(),
+      ),
       description: z.string(),
       identity: z.object({
         revision: z.number(),
         updateId: z.string(),
-      }),
+      }).partial(),
       kbArticleIds: z.array(z.string()),
       lastPublishedTimestamp: z.string(),
       supportUrl: z.string(),
       title: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   vulnerability: z.object({
     advisoryPublishTime: z.string(),
     cvssScore: z.number(),
@@ -1250,7 +1262,7 @@ const StateSchema = z.object({
       vulnerableSystemAvailabilityImpact: z.string(),
       vulnerableSystemConfidentialityImpact: z.string(),
       vulnerableSystemIntegrityImpact: z.string(),
-    }),
+    }).partial(),
     cvssV3: z.object({
       attackComplexity: z.string(),
       attackVector: z.string(),
@@ -1263,7 +1275,7 @@ const StateSchema = z.object({
       privilegesRequired: z.string(),
       scope: z.string(),
       userInteraction: z.string(),
-    }),
+    }).partial(),
     cvssV4: z.object({
       attackComplexity: z.string(),
       attackRequirements: z.string(),
@@ -1285,57 +1297,63 @@ const StateSchema = z.object({
       vulnerableSystemAvailabilityImpact: z.string(),
       vulnerableSystemConfidentialityImpact: z.string(),
       vulnerableSystemIntegrityImpact: z.string(),
-    }),
+    }).partial(),
     cvssVersion: z.string(),
-    details: z.array(z.object({
-      affectedCpeUri: z.string(),
-      affectedPackage: z.string(),
-      affectedVersionEnd: z.object({
-        epoch: z.number(),
-        fullName: z.string(),
-        inclusive: z.boolean(),
-        kind: z.string(),
-        name: z.string(),
-        revision: z.string(),
-      }),
-      affectedVersionStart: z.object({
-        epoch: z.number(),
-        fullName: z.string(),
-        inclusive: z.boolean(),
-        kind: z.string(),
-        name: z.string(),
-        revision: z.string(),
-      }),
-      description: z.string(),
-      fixedCpeUri: z.string(),
-      fixedPackage: z.string(),
-      fixedVersion: z.object({
-        epoch: z.number(),
-        fullName: z.string(),
-        inclusive: z.boolean(),
-        kind: z.string(),
-        name: z.string(),
-        revision: z.string(),
-      }),
-      isObsolete: z.boolean(),
-      packageType: z.string(),
-      severityName: z.string(),
-      source: z.string(),
-      sourceUpdateTime: z.string(),
-      vendor: z.string(),
-    })),
+    details: z.array(
+      z.object({
+        affectedCpeUri: z.string(),
+        affectedPackage: z.string(),
+        affectedVersionEnd: z.object({
+          epoch: z.number(),
+          fullName: z.string(),
+          inclusive: z.boolean(),
+          kind: z.string(),
+          name: z.string(),
+          revision: z.string(),
+        }).partial(),
+        affectedVersionStart: z.object({
+          epoch: z.number(),
+          fullName: z.string(),
+          inclusive: z.boolean(),
+          kind: z.string(),
+          name: z.string(),
+          revision: z.string(),
+        }).partial(),
+        description: z.string(),
+        fixedCpeUri: z.string(),
+        fixedPackage: z.string(),
+        fixedVersion: z.object({
+          epoch: z.number(),
+          fullName: z.string(),
+          inclusive: z.boolean(),
+          kind: z.string(),
+          name: z.string(),
+          revision: z.string(),
+        }).partial(),
+        isObsolete: z.boolean(),
+        packageType: z.string(),
+        severityName: z.string(),
+        source: z.string(),
+        sourceUpdateTime: z.string(),
+        vendor: z.string(),
+      }).partial(),
+    ),
     severity: z.string(),
     sourceUpdateTime: z.string(),
-    windowsDetails: z.array(z.object({
-      cpeUri: z.string(),
-      description: z.string(),
-      fixingKbs: z.array(z.object({
-        name: z.unknown(),
-        url: z.unknown(),
-      })),
-      name: z.string(),
-    })),
-  }).optional(),
+    windowsDetails: z.array(
+      z.object({
+        cpeUri: z.string(),
+        description: z.string(),
+        fixingKbs: z.array(
+          z.object({
+            name: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+        ),
+        name: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   vulnerabilityAssessment: z.object({
     assessment: z.object({
       cve: z.string(),
@@ -1343,39 +1361,43 @@ const StateSchema = z.object({
       justification: z.object({
         details: z.string(),
         justificationType: z.string(),
-      }),
+      }).partial(),
       longDescription: z.string(),
-      relatedUris: z.array(z.object({
-        label: z.string(),
-        url: z.string(),
-      })),
-      remediations: z.array(z.object({
-        details: z.string(),
-        remediationType: z.string(),
-        remediationUri: z.object({
-          label: z.unknown(),
-          url: z.unknown(),
-        }),
-      })),
+      relatedUris: z.array(
+        z.object({
+          label: z.string(),
+          url: z.string(),
+        }).partial(),
+      ),
+      remediations: z.array(
+        z.object({
+          details: z.string(),
+          remediationType: z.string(),
+          remediationUri: z.object({
+            label: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       shortDescription: z.string(),
       state: z.string(),
       vulnerabilityId: z.string(),
-    }),
+    }).partial(),
     languageCode: z.string(),
     longDescription: z.string(),
     product: z.object({
       genericUri: z.string(),
       id: z.string(),
       name: z.string(),
-    }),
+    }).partial(),
     publisher: z.object({
       issuingAuthority: z.string(),
       name: z.string(),
       publisherNamespace: z.string(),
-    }),
+    }).partial(),
     shortDescription: z.string(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2342,7 +2364,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Container Analysis Notes. Registered at `@swamp/gcp/containeranalysis/notes`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/notes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2536,6 +2558,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

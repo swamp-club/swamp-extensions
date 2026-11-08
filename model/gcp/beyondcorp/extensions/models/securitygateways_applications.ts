@@ -275,48 +275,54 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   displayName: z.string().optional(),
-  endpointMatchers: z.array(z.object({
-    hostname: z.string(),
-    ports: z.array(z.number()),
-  })).optional(),
+  endpointMatchers: z.array(
+    z.object({
+      hostname: z.string(),
+      ports: z.array(z.number()),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   schema: z.string().optional(),
   updateTime: z.string().optional(),
-  upstreams: z.array(z.object({
-    egressPolicy: z.object({
-      regions: z.array(z.string()),
-    }),
-    external: z.object({
-      endpoints: z.array(z.object({
-        hostname: z.unknown(),
-        port: z.unknown(),
-      })),
-    }),
-    network: z.object({
-      name: z.string(),
-    }),
-    proxyProtocol: z.object({
-      allowedClientHeaders: z.array(z.string()),
-      clientIp: z.boolean(),
-      contextualHeaders: z.object({
-        deviceInfo: z.object({
-          outputType: z.unknown(),
-        }),
-        dispatchInfo: z.object({
-          outputType: z.unknown(),
-        }),
-        groupInfo: z.object({
-          outputType: z.unknown(),
-        }),
-        outputType: z.string(),
-        userInfo: z.object({
-          outputType: z.unknown(),
-        }),
-      }),
-      gatewayIdentity: z.string(),
-      metadataHeaders: z.record(z.string(), z.unknown()),
-    }),
-  })).optional(),
+  upstreams: z.array(
+    z.object({
+      egressPolicy: z.object({
+        regions: z.array(z.string()),
+      }).partial(),
+      external: z.object({
+        endpoints: z.array(
+          z.object({
+            hostname: z.unknown(),
+            port: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      network: z.object({
+        name: z.string(),
+      }).partial(),
+      proxyProtocol: z.object({
+        allowedClientHeaders: z.array(z.string()),
+        clientIp: z.boolean(),
+        contextualHeaders: z.object({
+          deviceInfo: z.object({
+            outputType: z.unknown(),
+          }).partial(),
+          dispatchInfo: z.object({
+            outputType: z.unknown(),
+          }).partial(),
+          groupInfo: z.object({
+            outputType: z.unknown(),
+          }).partial(),
+          outputType: z.string(),
+          userInfo: z.object({
+            outputType: z.unknown(),
+          }).partial(),
+        }).partial(),
+        gatewayIdentity: z.string(),
+        metadataHeaders: z.record(z.string(), z.unknown()),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -454,7 +460,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BeyondCorp SecurityGateways.Applications. Registered at `@swamp/gcp/beyondcorp/securitygateways-applications`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/securitygateways-applications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -658,6 +664,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

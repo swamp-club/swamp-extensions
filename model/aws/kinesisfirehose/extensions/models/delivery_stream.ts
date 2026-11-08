@@ -360,6 +360,283 @@ const TagSchema = z.object({
   ),
 });
 
+const HttpEndpointCommonAttributeStateSchema = z.object({
+  AttributeValue: z.string(),
+  AttributeName: z.string(),
+}).partial();
+
+const HttpEndpointRequestConfigurationStateSchema = z.object({
+  CommonAttributes: z.array(HttpEndpointCommonAttributeStateSchema),
+  ContentEncoding: z.string(),
+}).partial();
+
+const BufferingHintsStateSchema = z.object({
+  IntervalInSeconds: z.number(),
+  SizeInMBs: z.number(),
+}).partial();
+
+const KMSEncryptionConfigStateSchema = z.object({
+  AWSKMSKeyARN: z.string(),
+}).partial();
+
+const EncryptionConfigurationStateSchema = z.object({
+  KMSEncryptionConfig: KMSEncryptionConfigStateSchema,
+  NoEncryptionConfig: z.string(),
+}).partial();
+
+const CloudWatchLoggingOptionsStateSchema = z.object({
+  LogStreamName: z.string(),
+  Enabled: z.boolean(),
+  LogGroupName: z.string(),
+}).partial();
+
+const S3DestinationConfigurationStateSchema = z.object({
+  ErrorOutputPrefix: z.string(),
+  BucketARN: z.string(),
+  BufferingHints: BufferingHintsStateSchema,
+  CompressionFormat: z.string(),
+  EncryptionConfiguration: EncryptionConfigurationStateSchema,
+  Prefix: z.string(),
+  CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
+  RoleARN: z.string(),
+}).partial();
+
+const RetryOptionsStateSchema = z.object({
+  DurationInSeconds: z.number(),
+}).partial();
+
+const SecretsManagerConfigurationStateSchema = z.object({
+  SecretARN: z.string(),
+  Enabled: z.boolean(),
+  RoleARN: z.string(),
+}).partial();
+
+const HttpEndpointConfigurationStateSchema = z.object({
+  AccessKey: z.string(),
+  Url: z.string(),
+  Name: z.string(),
+}).partial();
+
+const ProcessorParameterStateSchema = z.object({
+  ParameterValue: z.string(),
+  ParameterName: z.string(),
+}).partial();
+
+const ProcessorStateSchema = z.object({
+  Type: z.string(),
+  Parameters: z.array(ProcessorParameterStateSchema),
+}).partial();
+
+const ProcessingConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  Processors: z.array(ProcessorStateSchema),
+}).partial();
+
+const CatalogConfigurationStateSchema = z.object({
+  CatalogArn: z.string(),
+  WarehouseLocation: z.string(),
+}).partial();
+
+const PartitionFieldStateSchema = z.object({
+  SourceName: z.string(),
+}).partial();
+
+const DestinationTableConfigurationStateSchema = z.object({
+  DestinationDatabaseName: z.string(),
+  S3ErrorOutputPrefix: z.string(),
+  DestinationTableName: z.string(),
+  UniqueKeys: z.array(z.string()),
+  PartitionSpec: z.object({
+    Identity: z.array(PartitionFieldStateSchema),
+  }).partial(),
+}).partial();
+
+const TableCreationConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const SchemaEvolutionConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const CopyCommandStateSchema = z.object({
+  DataTableName: z.string(),
+  CopyOptions: z.string(),
+  DataTableColumns: z.string(),
+}).partial();
+
+const RedshiftRetryOptionsStateSchema = z.object({
+  DurationInSeconds: z.number(),
+}).partial();
+
+const DocumentIdOptionsStateSchema = z.object({
+  DefaultDocumentIdFormat: z.string(),
+}).partial();
+
+const AmazonopensearchserviceBufferingHintsStateSchema = z.object({
+  IntervalInSeconds: z.number(),
+  SizeInMBs: z.number(),
+}).partial();
+
+const AmazonopensearchserviceRetryOptionsStateSchema = z.object({
+  DurationInSeconds: z.number(),
+}).partial();
+
+const VpcConfigurationStateSchema = z.object({
+  SubnetIds: z.array(z.string()),
+  SecurityGroupIds: z.array(z.string()),
+  RoleARN: z.string(),
+}).partial();
+
+const AuthenticationConfigurationStateSchema = z.object({
+  Connectivity: z.string(),
+  RoleARN: z.string(),
+}).partial();
+
+const SplunkBufferingHintsStateSchema = z.object({
+  IntervalInSeconds: z.number(),
+  SizeInMBs: z.number(),
+}).partial();
+
+const SplunkRetryOptionsStateSchema = z.object({
+  DurationInSeconds: z.number(),
+}).partial();
+
+const HiveJsonSerDeStateSchema = z.object({
+  TimestampFormats: z.array(z.string()),
+}).partial();
+
+const OpenXJsonSerDeStateSchema = z.object({
+  ConvertDotsInJsonKeysToUnderscores: z.boolean(),
+  ColumnToJsonKeyMappings: z.record(z.string(), z.unknown()),
+  CaseInsensitive: z.boolean(),
+}).partial();
+
+const DeserializerStateSchema = z.object({
+  HiveJsonSerDe: HiveJsonSerDeStateSchema,
+  OpenXJsonSerDe: OpenXJsonSerDeStateSchema,
+}).partial();
+
+const InputFormatConfigurationStateSchema = z.object({
+  Deserializer: DeserializerStateSchema,
+}).partial();
+
+const SchemaConfigurationStateSchema = z.object({
+  VersionId: z.string(),
+  TableName: z.string(),
+  DatabaseName: z.string(),
+  Region: z.string(),
+  CatalogId: z.string(),
+  RoleARN: z.string(),
+}).partial();
+
+const OrcSerDeStateSchema = z.object({
+  PaddingTolerance: z.number(),
+  Compression: z.string(),
+  StripeSizeBytes: z.number(),
+  BloomFilterColumns: z.array(z.string()),
+  BloomFilterFalsePositiveProbability: z.number(),
+  EnablePadding: z.boolean(),
+  FormatVersion: z.string(),
+  RowIndexStride: z.number(),
+  BlockSizeBytes: z.number(),
+  DictionaryKeyThreshold: z.number(),
+}).partial();
+
+const ParquetSerDeStateSchema = z.object({
+  Compression: z.string(),
+  BlockSizeBytes: z.number(),
+  EnableDictionaryCompression: z.boolean(),
+  PageSizeBytes: z.number(),
+  MaxPaddingBytes: z.number(),
+  WriterVersion: z.string(),
+}).partial();
+
+const SerializerStateSchema = z.object({
+  OrcSerDe: OrcSerDeStateSchema,
+  ParquetSerDe: ParquetSerDeStateSchema,
+}).partial();
+
+const OutputFormatConfigurationStateSchema = z.object({
+  Serializer: SerializerStateSchema,
+}).partial();
+
+const DataFormatConversionConfigurationStateSchema = z.object({
+  InputFormatConfiguration: InputFormatConfigurationStateSchema,
+  Enabled: z.boolean(),
+  SchemaConfiguration: SchemaConfigurationStateSchema,
+  OutputFormatConfiguration: OutputFormatConfigurationStateSchema,
+}).partial();
+
+const DynamicPartitioningConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  RetryOptions: RetryOptionsStateSchema,
+}).partial();
+
+const AmazonOpenSearchServerlessBufferingHintsStateSchema = z.object({
+  IntervalInSeconds: z.number(),
+  SizeInMBs: z.number(),
+}).partial();
+
+const AmazonOpenSearchServerlessRetryOptionsStateSchema = z.object({
+  DurationInSeconds: z.number(),
+}).partial();
+
+const ElasticsearchBufferingHintsStateSchema = z.object({
+  IntervalInSeconds: z.number(),
+  SizeInMBs: z.number(),
+}).partial();
+
+const ElasticsearchRetryOptionsStateSchema = z.object({
+  DurationInSeconds: z.number(),
+}).partial();
+
+const SnowflakeVpcConfigurationStateSchema = z.object({
+  PrivateLinkVpceId: z.string(),
+}).partial();
+
+const SnowflakeRoleConfigurationStateSchema = z.object({
+  SnowflakeRole: z.string(),
+  Enabled: z.boolean(),
+}).partial();
+
+const SnowflakeBufferingHintsStateSchema = z.object({
+  IntervalInSeconds: z.number(),
+  SizeInMBs: z.number(),
+}).partial();
+
+const SnowflakeRetryOptionsStateSchema = z.object({
+  DurationInSeconds: z.number(),
+}).partial();
+
+const DatabaseColumnsStateSchema = z.object({
+  Exclude: z.array(z.string()),
+  Include: z.array(z.string()),
+}).partial();
+
+const DatabasesStateSchema = z.object({
+  Exclude: z.array(z.string()),
+  Include: z.array(z.string()),
+}).partial();
+
+const DatabaseSourceAuthenticationConfigurationStateSchema = z.object({
+  SecretsManagerConfiguration: SecretsManagerConfigurationStateSchema,
+}).partial();
+
+const DatabaseTablesStateSchema = z.object({
+  Exclude: z.array(z.string()),
+  Include: z.array(z.string()),
+}).partial();
+
+const DatabaseSourceVPCConfigurationStateSchema = z.object({
+  VpcEndpointServiceName: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -621,182 +898,193 @@ const StateSchema = z.object({
   DeliveryStreamEncryptionConfigurationInput: z.object({
     KeyType: z.string(),
     KeyARN: z.string(),
-  }).optional(),
+  }).partial().optional(),
   HttpEndpointDestinationConfiguration: z.object({
-    RequestConfiguration: HttpEndpointRequestConfigurationSchema,
-    S3Configuration: S3DestinationConfigurationSchema,
-    BufferingHints: BufferingHintsSchema,
-    RetryOptions: RetryOptionsSchema,
-    SecretsManagerConfiguration: SecretsManagerConfigurationSchema,
-    EndpointConfiguration: HttpEndpointConfigurationSchema,
-    ProcessingConfiguration: ProcessingConfigurationSchema,
+    RequestConfiguration: HttpEndpointRequestConfigurationStateSchema,
+    S3Configuration: S3DestinationConfigurationStateSchema,
+    BufferingHints: BufferingHintsStateSchema,
+    RetryOptions: RetryOptionsStateSchema,
+    SecretsManagerConfiguration: SecretsManagerConfigurationStateSchema,
+    EndpointConfiguration: HttpEndpointConfigurationStateSchema,
+    ProcessingConfiguration: ProcessingConfigurationStateSchema,
     RoleARN: z.string(),
-    CloudWatchLoggingOptions: CloudWatchLoggingOptionsSchema,
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
     S3BackupMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KinesisStreamSourceConfiguration: z.object({
     KinesisStreamARN: z.string(),
     RoleARN: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DeliveryStreamType: z.string().optional(),
   IcebergDestinationConfiguration: z.object({
-    CatalogConfiguration: CatalogConfigurationSchema,
-    S3Configuration: S3DestinationConfigurationSchema,
+    CatalogConfiguration: CatalogConfigurationStateSchema,
+    S3Configuration: S3DestinationConfigurationStateSchema,
     DestinationTableConfigurationList: z.array(
-      DestinationTableConfigurationSchema,
+      DestinationTableConfigurationStateSchema,
     ),
-    BufferingHints: BufferingHintsSchema,
-    TableCreationConfiguration: TableCreationConfigurationSchema,
-    RetryOptions: RetryOptionsSchema,
+    BufferingHints: BufferingHintsStateSchema,
+    TableCreationConfiguration: TableCreationConfigurationStateSchema,
+    RetryOptions: RetryOptionsStateSchema,
     s3BackupMode: z.string(),
-    ProcessingConfiguration: ProcessingConfigurationSchema,
-    SchemaEvolutionConfiguration: SchemaEvolutionConfigurationSchema,
+    ProcessingConfiguration: ProcessingConfigurationStateSchema,
+    SchemaEvolutionConfiguration: SchemaEvolutionConfigurationStateSchema,
     AppendOnly: z.boolean(),
-    CloudWatchLoggingOptions: CloudWatchLoggingOptionsSchema,
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
     RoleARN: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RedshiftDestinationConfiguration: z.object({
-    S3BackupConfiguration: S3DestinationConfigurationSchema,
-    S3Configuration: S3DestinationConfigurationSchema,
+    S3BackupConfiguration: S3DestinationConfigurationStateSchema,
+    S3Configuration: S3DestinationConfigurationStateSchema,
     Username: z.string(),
-    CopyCommand: CopyCommandSchema,
-    RetryOptions: RedshiftRetryOptionsSchema,
-    SecretsManagerConfiguration: SecretsManagerConfigurationSchema,
-    ProcessingConfiguration: ProcessingConfigurationSchema,
-    CloudWatchLoggingOptions: CloudWatchLoggingOptionsSchema,
+    CopyCommand: CopyCommandStateSchema,
+    RetryOptions: RedshiftRetryOptionsStateSchema,
+    SecretsManagerConfiguration: SecretsManagerConfigurationStateSchema,
+    ProcessingConfiguration: ProcessingConfigurationStateSchema,
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
     ClusterJDBCURL: z.string(),
     RoleARN: z.string(),
     Password: z.string(),
     S3BackupMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AmazonopensearchserviceDestinationConfiguration: z.object({
     TypeName: z.string(),
     IndexRotationPeriod: z.string(),
-    ProcessingConfiguration: ProcessingConfigurationSchema,
+    ProcessingConfiguration: ProcessingConfigurationStateSchema,
     ClusterEndpoint: z.string(),
     DomainARN: z.string(),
     RoleARN: z.string(),
     S3BackupMode: z.string(),
     IndexName: z.string(),
-    DocumentIdOptions: DocumentIdOptionsSchema,
-    S3Configuration: S3DestinationConfigurationSchema,
-    BufferingHints: AmazonopensearchserviceBufferingHintsSchema,
-    RetryOptions: AmazonopensearchserviceRetryOptionsSchema,
-    VpcConfiguration: VpcConfigurationSchema,
-    CloudWatchLoggingOptions: CloudWatchLoggingOptionsSchema,
-  }).optional(),
+    DocumentIdOptions: DocumentIdOptionsStateSchema,
+    S3Configuration: S3DestinationConfigurationStateSchema,
+    BufferingHints: AmazonopensearchserviceBufferingHintsStateSchema,
+    RetryOptions: AmazonopensearchserviceRetryOptionsStateSchema,
+    VpcConfiguration: VpcConfigurationStateSchema,
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
+  }).partial().optional(),
   MSKSourceConfiguration: z.object({
-    AuthenticationConfiguration: AuthenticationConfigurationSchema,
+    AuthenticationConfiguration: AuthenticationConfigurationStateSchema,
     ReadFromTimestamp: z.string(),
     MSKClusterARN: z.string(),
     TopicName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DirectPutSourceConfiguration: z.object({
     ThroughputHintInMBs: z.number(),
-  }).optional(),
+  }).partial().optional(),
   SplunkDestinationConfiguration: z.object({
     HECEndpoint: z.string(),
-    S3Configuration: S3DestinationConfigurationSchema,
-    BufferingHints: SplunkBufferingHintsSchema,
+    S3Configuration: S3DestinationConfigurationStateSchema,
+    BufferingHints: SplunkBufferingHintsStateSchema,
     HECToken: z.string(),
-    RetryOptions: SplunkRetryOptionsSchema,
+    RetryOptions: SplunkRetryOptionsStateSchema,
     HECEndpointType: z.string(),
-    SecretsManagerConfiguration: SecretsManagerConfigurationSchema,
+    SecretsManagerConfiguration: SecretsManagerConfigurationStateSchema,
     HECAcknowledgmentTimeoutInSeconds: z.number(),
-    ProcessingConfiguration: ProcessingConfigurationSchema,
-    CloudWatchLoggingOptions: CloudWatchLoggingOptionsSchema,
+    ProcessingConfiguration: ProcessingConfigurationStateSchema,
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
     S3BackupMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ExtendedS3DestinationConfiguration: z.object({
     ErrorOutputPrefix: z.string(),
-    S3BackupConfiguration: S3DestinationConfigurationSchema,
+    S3BackupConfiguration: S3DestinationConfigurationStateSchema,
     BucketARN: z.string(),
     CompressionFormat: z.string(),
-    DataFormatConversionConfiguration: DataFormatConversionConfigurationSchema,
-    EncryptionConfiguration: EncryptionConfigurationSchema,
+    DataFormatConversionConfiguration:
+      DataFormatConversionConfigurationStateSchema,
+    EncryptionConfiguration: EncryptionConfigurationStateSchema,
     CustomTimeZone: z.string(),
-    DynamicPartitioningConfiguration: DynamicPartitioningConfigurationSchema,
+    DynamicPartitioningConfiguration:
+      DynamicPartitioningConfigurationStateSchema,
     Prefix: z.string(),
-    ProcessingConfiguration: ProcessingConfigurationSchema,
+    ProcessingConfiguration: ProcessingConfigurationStateSchema,
     RoleARN: z.string(),
     S3BackupMode: z.string(),
-    BufferingHints: BufferingHintsSchema,
+    BufferingHints: BufferingHintsStateSchema,
     FileExtension: z.string(),
-    CloudWatchLoggingOptions: CloudWatchLoggingOptionsSchema,
-  }).optional(),
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
+  }).partial().optional(),
   AmazonOpenSearchServerlessDestinationConfiguration: z.object({
     IndexName: z.string(),
-    S3Configuration: S3DestinationConfigurationSchema,
-    BufferingHints: AmazonOpenSearchServerlessBufferingHintsSchema,
-    RetryOptions: AmazonOpenSearchServerlessRetryOptionsSchema,
+    S3Configuration: S3DestinationConfigurationStateSchema,
+    BufferingHints: AmazonOpenSearchServerlessBufferingHintsStateSchema,
+    RetryOptions: AmazonOpenSearchServerlessRetryOptionsStateSchema,
     CollectionEndpoint: z.string(),
-    VpcConfiguration: VpcConfigurationSchema,
-    ProcessingConfiguration: ProcessingConfigurationSchema,
-    CloudWatchLoggingOptions: CloudWatchLoggingOptionsSchema,
+    VpcConfiguration: VpcConfigurationStateSchema,
+    ProcessingConfiguration: ProcessingConfigurationStateSchema,
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
     RoleARN: z.string(),
     S3BackupMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ElasticsearchDestinationConfiguration: z.object({
     TypeName: z.string(),
     IndexRotationPeriod: z.string(),
-    ProcessingConfiguration: ProcessingConfigurationSchema,
+    ProcessingConfiguration: ProcessingConfigurationStateSchema,
     ClusterEndpoint: z.string(),
     DomainARN: z.string(),
     RoleARN: z.string(),
     S3BackupMode: z.string(),
     IndexName: z.string(),
-    DocumentIdOptions: DocumentIdOptionsSchema,
-    S3Configuration: S3DestinationConfigurationSchema,
-    BufferingHints: ElasticsearchBufferingHintsSchema,
-    RetryOptions: ElasticsearchRetryOptionsSchema,
-    VpcConfiguration: VpcConfigurationSchema,
-    CloudWatchLoggingOptions: CloudWatchLoggingOptionsSchema,
-  }).optional(),
+    DocumentIdOptions: DocumentIdOptionsStateSchema,
+    S3Configuration: S3DestinationConfigurationStateSchema,
+    BufferingHints: ElasticsearchBufferingHintsStateSchema,
+    RetryOptions: ElasticsearchRetryOptionsStateSchema,
+    VpcConfiguration: VpcConfigurationStateSchema,
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
+  }).partial().optional(),
   SnowflakeDestinationConfiguration: z.object({
     PrivateKey: z.string(),
     User: z.string(),
     Table: z.string(),
-    SnowflakeVpcConfiguration: SnowflakeVpcConfigurationSchema,
+    SnowflakeVpcConfiguration: SnowflakeVpcConfigurationStateSchema,
     DataLoadingOption: z.string(),
     Schema: z.string(),
     ContentColumnName: z.string(),
-    SecretsManagerConfiguration: SecretsManagerConfigurationSchema,
-    SnowflakeRoleConfiguration: SnowflakeRoleConfigurationSchema,
-    ProcessingConfiguration: ProcessingConfigurationSchema,
+    SecretsManagerConfiguration: SecretsManagerConfigurationStateSchema,
+    SnowflakeRoleConfiguration: SnowflakeRoleConfigurationStateSchema,
+    ProcessingConfiguration: ProcessingConfigurationStateSchema,
     AccountUrl: z.string(),
     RoleARN: z.string(),
     S3BackupMode: z.string(),
-    S3Configuration: S3DestinationConfigurationSchema,
-    BufferingHints: SnowflakeBufferingHintsSchema,
+    S3Configuration: S3DestinationConfigurationStateSchema,
+    BufferingHints: SnowflakeBufferingHintsStateSchema,
     MetaDataColumnName: z.string(),
     Database: z.string(),
-    RetryOptions: SnowflakeRetryOptionsSchema,
+    RetryOptions: SnowflakeRetryOptionsStateSchema,
     KeyPassphrase: z.string(),
-    CloudWatchLoggingOptions: CloudWatchLoggingOptionsSchema,
-  }).optional(),
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
+  }).partial().optional(),
   DatabaseSourceConfiguration: z.object({
     Digest: z.string(),
     Port: z.number(),
     PublicCertificate: z.string(),
-    Columns: DatabaseColumnsSchema,
+    Columns: DatabaseColumnsStateSchema,
     Type: z.string(),
     SurrogateKeys: z.array(z.string()),
-    Databases: DatabasesSchema,
+    Databases: DatabasesStateSchema,
     Endpoint: z.string(),
     SSLMode: z.string(),
     SnapshotWatermarkTable: z.string(),
     DatabaseSourceAuthenticationConfiguration:
-      DatabaseSourceAuthenticationConfigurationSchema,
-    Tables: DatabaseTablesSchema,
-    DatabaseSourceVPCConfiguration: DatabaseSourceVPCConfigurationSchema,
-  }).optional(),
-  S3DestinationConfiguration: S3DestinationConfigurationSchema.optional(),
+      DatabaseSourceAuthenticationConfigurationStateSchema,
+    Tables: DatabaseTablesStateSchema,
+    DatabaseSourceVPCConfiguration: DatabaseSourceVPCConfigurationStateSchema,
+  }).partial().optional(),
+  S3DestinationConfiguration: z.object({
+    ErrorOutputPrefix: z.string(),
+    BucketARN: z.string(),
+    BufferingHints: BufferingHintsStateSchema,
+    CompressionFormat: z.string(),
+    EncryptionConfiguration: EncryptionConfigurationStateSchema,
+    Prefix: z.string(),
+    CloudWatchLoggingOptions: CloudWatchLoggingOptionsStateSchema,
+    RoleARN: z.string(),
+  }).partial().optional(),
   DeliveryStreamName: z.string(),
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -1072,7 +1360,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for KinesisFirehose DeliveryStream. Registered at `@swamp/aws/kinesisfirehose/delivery-stream`. */
 export const model = {
   type: "@swamp/aws/kinesisfirehose/delivery-stream",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1136,6 +1424,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

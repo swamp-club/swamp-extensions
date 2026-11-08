@@ -1631,11 +1631,11 @@ const StateSchema = z.object({
     alcoholContent: z.boolean(),
     restricted: z.boolean(),
     videoGameRating: z.string(),
-  }).optional(),
+  }).partial().optional(),
   brandPartner: z.object({
     channelHandle: z.string(),
     channelId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentDetails: z.object({
     caption: z.string(),
     contentRating: z.object({
@@ -1710,11 +1710,11 @@ const StateSchema = z.object({
       smsaRating: z.string(),
       tvpgRating: z.string(),
       ytRating: z.string(),
-    }),
+    }).partial(),
     countryRestriction: z.object({
       allowed: z.boolean(),
       exception: z.array(z.string()),
-    }),
+    }).partial(),
     definition: z.string(),
     dimension: z.string(),
     duration: z.string(),
@@ -1724,16 +1724,18 @@ const StateSchema = z.object({
     regionRestriction: z.object({
       allowed: z.array(z.string()),
       blocked: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   etag: z.string().optional(),
   fileDetails: z.object({
-    audioStreams: z.array(z.object({
-      bitrateBps: z.string(),
-      channelCount: z.number(),
-      codec: z.string(),
-      vendor: z.string(),
-    })),
+    audioStreams: z.array(
+      z.object({
+        bitrateBps: z.string(),
+        channelCount: z.number(),
+        codec: z.string(),
+        vendor: z.string(),
+      }).partial(),
+    ),
     bitrateBps: z.string(),
     container: z.string(),
     creationTime: z.string(),
@@ -1741,17 +1743,19 @@ const StateSchema = z.object({
     fileName: z.string(),
     fileSize: z.string(),
     fileType: z.string(),
-    videoStreams: z.array(z.object({
-      aspectRatio: z.number(),
-      bitrateBps: z.string(),
-      codec: z.string(),
-      frameRateFps: z.number(),
-      heightPixels: z.number(),
-      rotation: z.string(),
-      vendor: z.string(),
-      widthPixels: z.number(),
-    })),
-  }).optional(),
+    videoStreams: z.array(
+      z.object({
+        aspectRatio: z.number(),
+        bitrateBps: z.string(),
+        codec: z.string(),
+        frameRateFps: z.number(),
+        heightPixels: z.number(),
+        rotation: z.string(),
+        vendor: z.string(),
+        widthPixels: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   liveStreamingDetails: z.object({
@@ -1761,22 +1765,22 @@ const StateSchema = z.object({
     concurrentViewers: z.string(),
     scheduledEndTime: z.string(),
     scheduledStartTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   localizations: z.record(z.string(), z.unknown()).optional(),
   monetizationDetails: z.object({
     access: z.object({
       allowed: z.boolean(),
       exception: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   paidProductPlacementDetails: z.object({
     hasPaidProductPlacement: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   player: z.object({
     embedHeight: z.string(),
     embedHtml: z.string(),
     embedWidth: z.string(),
-  }).optional(),
+  }).partial().optional(),
   processingDetails: z.object({
     editorSuggestionsAvailability: z.string(),
     fileDetailsAvailability: z.string(),
@@ -1786,21 +1790,21 @@ const StateSchema = z.object({
       partsProcessed: z.string(),
       partsTotal: z.string(),
       timeLeftMs: z.string(),
-    }),
+    }).partial(),
     processingStatus: z.string(),
     tagSuggestionsAvailability: z.string(),
     thumbnailsAvailability: z.string(),
-  }).optional(),
-  projectDetails: z.object({}).optional(),
+  }).partial().optional(),
+  projectDetails: z.object({}).partial().optional(),
   recordingDetails: z.object({
     location: z.object({
       altitude: z.number(),
       latitude: z.number(),
       longitude: z.number(),
-    }),
+    }).partial(),
     locationDescription: z.string(),
     recordingDate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   snippet: z.object({
     categoryId: z.string(),
     channelId: z.string(),
@@ -1812,7 +1816,7 @@ const StateSchema = z.object({
     localized: z.object({
       description: z.string(),
       title: z.string(),
-    }),
+    }).partial(),
     publishedAt: z.string(),
     tags: z.array(z.string()),
     thumbnails: z.object({
@@ -1820,57 +1824,57 @@ const StateSchema = z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       fhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       high: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       maxres: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       medium: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       qhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       shortsAspectRatio: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       standard: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       uhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   statistics: z.object({
     commentCount: z.string(),
     dislikeCount: z.string(),
     favoriteCount: z.string(),
     likeCount: z.string(),
     viewCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     containsSyntheticMedia: z.boolean(),
     embeddable: z.boolean(),
@@ -1883,22 +1887,24 @@ const StateSchema = z.object({
     rejectionReason: z.string(),
     selfDeclaredMadeForKids: z.boolean(),
     uploadStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   suggestions: z.object({
     editorSuggestions: z.array(z.string()),
     processingErrors: z.array(z.string()),
     processingHints: z.array(z.string()),
     processingWarnings: z.array(z.string()),
-    tagSuggestions: z.array(z.object({
-      categoryRestricts: z.array(z.string()),
-      tag: z.string(),
-    })),
-  }).optional(),
+    tagSuggestions: z.array(
+      z.object({
+        categoryRestricts: z.array(z.string()),
+        tag: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   topicDetails: z.object({
     relevantTopicIds: z.array(z.string()),
     topicCategories: z.array(z.string()),
     topicIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -3371,7 +3377,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Videos. Registered at `@swamp/gcp/youtube/videos`. */
 export const model = {
   type: "@swamp/gcp/youtube/videos",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3545,6 +3551,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

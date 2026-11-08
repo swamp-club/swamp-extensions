@@ -239,32 +239,32 @@ const StateSchema = z.object({
   about: z.object({
     state: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inStock: z.object({
     state: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inventoryVerification: z.object({
     contact: z.string(),
     contactEmail: z.string(),
     contactState: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lfpLink: z.object({
     externalAccountId: z.string(),
     lfpProvider: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lsfType: z.string().optional(),
   name: z.string(),
   odo: z.object({
     state: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   pickup: z.object({
     state: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   regionCode: z.string().optional(),
 }).passthrough();
 
@@ -399,7 +399,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.OmnichannelSettings. Registered at `@swamp/gcp/merchantapi/accounts-omnichannelsettings`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-omnichannelsettings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -418,6 +418,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

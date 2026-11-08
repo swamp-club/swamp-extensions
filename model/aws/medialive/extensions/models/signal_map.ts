@@ -135,7 +135,7 @@ const StateSchema = z.object({
   LastSuccessfulMonitorDeployment: z.object({
     DetailsUri: z.string(),
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MediaResourceMap: z.record(z.string(), z.unknown()).optional(),
   ModifiedAt: z.string().optional(),
   MonitorChangesPendingDeployment: z.boolean().optional(),
@@ -143,13 +143,13 @@ const StateSchema = z.object({
     DetailsUri: z.string(),
     ErrorMessage: z.string(),
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Name: z.string().optional(),
   Status: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -239,7 +239,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive SignalMap. Registered at `@swamp/aws/medialive/signal-map`. */
 export const model = {
   type: "@swamp/aws/medialive/signal-map",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -308,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

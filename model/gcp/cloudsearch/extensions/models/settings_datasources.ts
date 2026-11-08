@@ -247,11 +247,13 @@ const StateSchema = z.object({
   disableServing: z.boolean().optional(),
   displayName: z.string().optional(),
   indexingServiceAccounts: z.array(z.string()).optional(),
-  itemsVisibility: z.array(z.object({
-    gsuiteDomain: z.boolean(),
-    gsuiteGroupEmail: z.string(),
-    gsuiteUserEmail: z.string(),
-  })).optional(),
+  itemsVisibility: z.array(
+    z.object({
+      gsuiteDomain: z.boolean(),
+      gsuiteGroupEmail: z.string(),
+      gsuiteUserEmail: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   operationIds: z.array(z.string()).optional(),
   returnThumbnailUrls: z.boolean().optional(),
@@ -384,7 +386,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Settings.Datasources. Registered at `@swamp/gcp/cloudsearch/settings-datasources`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/settings-datasources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -528,6 +530,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

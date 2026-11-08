@@ -157,23 +157,25 @@ const StateSchema = z.object({
   callbackOptions: z.object({
     updateRequestUrl: z.string(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contactInfo: z.object({
     alertsEmails: z.array(z.string()),
     email: z.string(),
     name: z.string(),
     phone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   homepageUrl: z.string().optional(),
   issuerId: z.string().optional(),
   name: z.string().optional(),
   smartTapMerchantData: z.object({
-    authenticationKeys: z.array(z.object({
-      id: z.number(),
-      publicKeyPem: z.string(),
-    })),
+    authenticationKeys: z.array(
+      z.object({
+        id: z.number(),
+        publicKeyPem: z.string(),
+      }).partial(),
+    ),
     smartTapMerchantId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -253,7 +255,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Wallet Issuer. Registered at `@swamp/gcp/walletobjects/issuer`. */
 export const model = {
   type: "@swamp/gcp/walletobjects/issuer",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -392,6 +394,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

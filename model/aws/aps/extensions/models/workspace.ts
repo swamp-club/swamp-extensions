@@ -85,6 +85,38 @@ const TagSchema = z.object({
   ),
 });
 
+const LimitsPerLabelSetEntryStateSchema = z.object({
+  MaxSeries: z.number(),
+}).partial();
+
+const LabelStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const LimitsPerLabelSetStateSchema = z.object({
+  Limits: LimitsPerLabelSetEntryStateSchema,
+  LabelSet: z.array(LabelStateSchema),
+}).partial();
+
+const CloudWatchLogDestinationStateSchema = z.object({
+  LogGroupArn: z.string(),
+}).partial();
+
+const LoggingFilterStateSchema = z.object({
+  QspThreshold: z.number(),
+}).partial();
+
+const LoggingDestinationStateSchema = z.object({
+  CloudWatchLogs: CloudWatchLogDestinationStateSchema,
+  Filters: LoggingFilterStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -145,21 +177,21 @@ const StateSchema = z.object({
   PrometheusEndpoint: z.string().optional(),
   LoggingConfiguration: z.object({
     LogGroupArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   WorkspaceConfiguration: z.object({
     RetentionPeriodInDays: z.number(),
-    LimitsPerLabelSets: z.array(LimitsPerLabelSetSchema),
+    LimitsPerLabelSets: z.array(LimitsPerLabelSetStateSchema),
     OutOfOrderTimeWindowInSeconds: z.number(),
     RuleQueryOffsetInSeconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
   QueryLoggingConfiguration: z.object({
-    Destinations: z.array(LoggingDestinationSchema),
-  }).optional(),
+    Destinations: z.array(LoggingDestinationStateSchema),
+  }).partial().optional(),
   KmsKeyArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -222,7 +254,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for APS Workspace. Registered at `@swamp/aws/aps/workspace`. */
 export const model = {
   type: "@swamp/aws/aps/workspace",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -286,6 +318,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

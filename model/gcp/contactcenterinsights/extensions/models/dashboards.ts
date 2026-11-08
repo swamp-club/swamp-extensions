@@ -325,12 +325,12 @@ const StateSchema = z.object({
     absoluteDateRange: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
+    }).partial(),
     relativeDateRange: z.object({
       quantity: z.string(),
       unit: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   filter: z.string().optional(),
@@ -342,47 +342,49 @@ const StateSchema = z.object({
       absoluteDateRange: z.object({
         endTime: z.string(),
         startTime: z.string(),
-      }),
+      }).partial(),
       relativeDateRange: z.object({
         quantity: z.string(),
         unit: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     description: z.string(),
     displayName: z.string(),
     filter: z.string(),
     height: z.number(),
-    widgets: z.array(z.object({
-      chart: z.object({
-        action: z.object({
-          conversationFilter: z.unknown(),
-          redirectAction: z.unknown(),
-        }),
-        chartType: z.string(),
-        chartVisualizationType: z.string(),
-        createTime: z.string(),
-        dataSource: z.object({
-          generativeInsights: z.unknown(),
-          queryMetrics: z.unknown(),
-        }),
-        dateRangeConfig: z.object({
-          absoluteDateRange: z.unknown(),
-          relativeDateRange: z.unknown(),
-        }),
-        description: z.string(),
-        displayName: z.string(),
+    widgets: z.array(
+      z.object({
+        chart: z.object({
+          action: z.object({
+            conversationFilter: z.unknown(),
+            redirectAction: z.unknown(),
+          }).partial(),
+          chartType: z.string(),
+          chartVisualizationType: z.string(),
+          createTime: z.string(),
+          dataSource: z.object({
+            generativeInsights: z.unknown(),
+            queryMetrics: z.unknown(),
+          }).partial(),
+          dateRangeConfig: z.object({
+            absoluteDateRange: z.unknown(),
+            relativeDateRange: z.unknown(),
+          }).partial(),
+          description: z.string(),
+          displayName: z.string(),
+          filter: z.string(),
+          height: z.number(),
+          name: z.string(),
+          updateTime: z.string(),
+          width: z.number(),
+        }).partial(),
+        chartReference: z.string(),
+        container: z.record(z.string(), z.unknown()),
         filter: z.string(),
-        height: z.number(),
-        name: z.string(),
-        updateTime: z.string(),
-        width: z.number(),
-      }),
-      chartReference: z.string(),
-      container: z.record(z.string(), z.unknown()),
-      filter: z.string(),
-    })),
+      }).partial(),
+    ),
     width: z.number(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -580,7 +582,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights Dashboards. Registered at `@swamp/gcp/contactcenterinsights/dashboards`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/dashboards",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -764,6 +766,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -315,149 +315,161 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   description: z.string().optional(),
-  examples: z.array(z.object({
-    actions: z.array(z.object({
-      agentUtterance: z.object({
-        text: z.unknown(),
-      }),
-      flowInvocation: z.object({
-        displayName: z.unknown(),
-        flow: z.unknown(),
-        flowState: z.unknown(),
-      }),
-      flowTransition: z.object({
-        displayName: z.unknown(),
-        flow: z.unknown(),
-      }),
-      playbookInvocation: z.object({
-        displayName: z.unknown(),
-        playbook: z.unknown(),
-        playbookInput: z.unknown(),
-        playbookOutput: z.unknown(),
-        playbookState: z.unknown(),
-      }),
-      playbookTransition: z.object({
-        displayName: z.unknown(),
-        playbook: z.unknown(),
-      }),
-      toolUse: z.object({
-        action: z.unknown(),
-        displayName: z.unknown(),
-        inputActionParameters: z.unknown(),
-        outputActionParameters: z.unknown(),
-        tool: z.unknown(),
-      }),
-      userUtterance: z.object({
-        text: z.unknown(),
-      }),
-    })),
-    conversationState: z.string(),
-    createTime: z.string(),
-    description: z.string(),
-    displayName: z.string(),
-    languageCode: z.string(),
-    name: z.string(),
-    playbookInput: z.object({
-      precedingConversationSummary: z.string(),
-    }),
-    playbookOutput: z.object({
-      executionSummary: z.string(),
-    }),
-    tokenCount: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  examples: z.array(
+    z.object({
+      actions: z.array(
+        z.object({
+          agentUtterance: z.object({
+            text: z.unknown(),
+          }).partial(),
+          flowInvocation: z.object({
+            displayName: z.unknown(),
+            flow: z.unknown(),
+            flowState: z.unknown(),
+          }).partial(),
+          flowTransition: z.object({
+            displayName: z.unknown(),
+            flow: z.unknown(),
+          }).partial(),
+          playbookInvocation: z.object({
+            displayName: z.unknown(),
+            playbook: z.unknown(),
+            playbookInput: z.unknown(),
+            playbookOutput: z.unknown(),
+            playbookState: z.unknown(),
+          }).partial(),
+          playbookTransition: z.object({
+            displayName: z.unknown(),
+            playbook: z.unknown(),
+          }).partial(),
+          toolUse: z.object({
+            action: z.unknown(),
+            displayName: z.unknown(),
+            inputActionParameters: z.unknown(),
+            outputActionParameters: z.unknown(),
+            tool: z.unknown(),
+          }).partial(),
+          userUtterance: z.object({
+            text: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      conversationState: z.string(),
+      createTime: z.string(),
+      description: z.string(),
+      displayName: z.string(),
+      languageCode: z.string(),
+      name: z.string(),
+      playbookInput: z.object({
+        precedingConversationSummary: z.string(),
+      }).partial(),
+      playbookOutput: z.object({
+        executionSummary: z.string(),
+      }).partial(),
+      tokenCount: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   playbook: z.object({
     codeBlock: z.object({
       code: z.string(),
-    }),
+    }).partial(),
     createTime: z.string(),
     displayName: z.string(),
     goal: z.string(),
-    handlers: z.array(z.object({
-      eventHandler: z.object({
-        condition: z.string(),
-        event: z.string(),
-        fulfillment: z.object({
-          advancedSettings: z.unknown(),
-          codeBlockFunction: z.unknown(),
-          conditionalCases: z.unknown(),
-          enableGenerativeFallback: z.unknown(),
-          generators: z.unknown(),
-          messages: z.unknown(),
-          returnPartialResponses: z.unknown(),
-          setParameterActions: z.unknown(),
-          tag: z.unknown(),
-          webhook: z.unknown(),
-        }),
-      }),
-      lifecycleHandler: z.object({
-        condition: z.string(),
-        fulfillment: z.object({
-          advancedSettings: z.unknown(),
-          codeBlockFunction: z.unknown(),
-          conditionalCases: z.unknown(),
-          enableGenerativeFallback: z.unknown(),
-          generators: z.unknown(),
-          messages: z.unknown(),
-          returnPartialResponses: z.unknown(),
-          setParameterActions: z.unknown(),
-          tag: z.unknown(),
-          webhook: z.unknown(),
-        }),
-        lifecycleStage: z.string(),
-      }),
-    })),
+    handlers: z.array(
+      z.object({
+        eventHandler: z.object({
+          condition: z.string(),
+          event: z.string(),
+          fulfillment: z.object({
+            advancedSettings: z.unknown(),
+            codeBlockFunction: z.unknown(),
+            conditionalCases: z.unknown(),
+            enableGenerativeFallback: z.unknown(),
+            generators: z.unknown(),
+            messages: z.unknown(),
+            returnPartialResponses: z.unknown(),
+            setParameterActions: z.unknown(),
+            tag: z.unknown(),
+            webhook: z.unknown(),
+          }).partial(),
+        }).partial(),
+        lifecycleHandler: z.object({
+          condition: z.string(),
+          fulfillment: z.object({
+            advancedSettings: z.unknown(),
+            codeBlockFunction: z.unknown(),
+            conditionalCases: z.unknown(),
+            enableGenerativeFallback: z.unknown(),
+            generators: z.unknown(),
+            messages: z.unknown(),
+            returnPartialResponses: z.unknown(),
+            setParameterActions: z.unknown(),
+            tag: z.unknown(),
+            webhook: z.unknown(),
+          }).partial(),
+          lifecycleStage: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     inlineActions: z.array(z.string()),
-    inputParameterDefinitions: z.array(z.object({
-      description: z.string(),
-      name: z.string(),
-      type: z.string(),
-      typeSchema: z.object({
-        inlineSchema: z.object({
-          items: z.unknown(),
-          type: z.unknown(),
-        }),
-        schemaReference: z.object({
-          schema: z.unknown(),
-          tool: z.unknown(),
-        }),
-      }),
-    })),
+    inputParameterDefinitions: z.array(
+      z.object({
+        description: z.string(),
+        name: z.string(),
+        type: z.string(),
+        typeSchema: z.object({
+          inlineSchema: z.object({
+            items: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          schemaReference: z.object({
+            schema: z.unknown(),
+            tool: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
     instruction: z.object({
       guidelines: z.string(),
-      steps: z.array(z.object({
-        steps: z.array(z.unknown()),
-        text: z.string(),
-      })),
-    }),
+      steps: z.array(
+        z.object({
+          steps: z.array(z.unknown()),
+          text: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     llmModelSettings: z.object({
       model: z.string(),
       promptText: z.string(),
-    }),
+    }).partial(),
     name: z.string(),
-    outputParameterDefinitions: z.array(z.object({
-      description: z.string(),
-      name: z.string(),
-      type: z.string(),
-      typeSchema: z.object({
-        inlineSchema: z.object({
-          items: z.unknown(),
-          type: z.unknown(),
-        }),
-        schemaReference: z.object({
-          schema: z.unknown(),
-          tool: z.unknown(),
-        }),
-      }),
-    })),
+    outputParameterDefinitions: z.array(
+      z.object({
+        description: z.string(),
+        name: z.string(),
+        type: z.string(),
+        typeSchema: z.object({
+          inlineSchema: z.object({
+            items: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          schemaReference: z.object({
+            schema: z.unknown(),
+            tool: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
     playbookType: z.string(),
     referencedFlows: z.array(z.string()),
     referencedPlaybooks: z.array(z.string()),
     referencedTools: z.array(z.string()),
     tokenCount: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -677,7 +689,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.Playbooks.Versions. Registered at `@swamp/gcp/dialogflow/agents-playbooks-versions`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-playbooks-versions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -831,6 +843,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

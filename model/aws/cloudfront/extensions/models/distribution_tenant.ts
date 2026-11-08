@@ -75,6 +75,35 @@ const ParameterSchema = z.object({
   Value: z.string().describe("The parameter value.").optional(),
 });
 
+const DomainResultStateSchema = z.object({
+  Domain: z.string(),
+  Status: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const WebAclCustomizationStateSchema = z.object({
+  Action: z.string(),
+  Arn: z.string(),
+}).partial();
+
+const CertificateStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const GeoRestrictionCustomizationStateSchema = z.object({
+  RestrictionType: z.string(),
+  Locations: z.array(z.string()),
+}).partial();
+
+const ParameterStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -141,17 +170,14 @@ const StateSchema = z.object({
   DistributionId: z.string().optional(),
   Name: z.string().optional(),
   Arn: z.string().optional(),
-  DomainResults: z.array(z.object({
-    Domain: z.string(),
-    Status: z.string(),
-  })).optional(),
-  Tags: z.array(TagSchema).optional(),
+  DomainResults: z.array(DomainResultStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Customizations: z.object({
-    WebAcl: WebAclCustomizationSchema,
-    Certificate: CertificateSchema,
-    GeoRestrictions: GeoRestrictionCustomizationSchema,
-  }).optional(),
-  Parameters: z.array(ParameterSchema).optional(),
+    WebAcl: WebAclCustomizationStateSchema,
+    Certificate: CertificateStateSchema,
+    GeoRestrictions: GeoRestrictionCustomizationStateSchema,
+  }).partial().optional(),
+  Parameters: z.array(ParameterStateSchema).optional(),
   ConnectionGroupId: z.string().optional(),
   CreatedTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
@@ -163,10 +189,10 @@ const StateSchema = z.object({
     ValidationTokenHost: z.string(),
     PrimaryDomainName: z.string(),
     CertificateTransparencyLoggingPreference: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -238,7 +264,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront DistributionTenant. Registered at `@swamp/aws/cloudfront/distribution-tenant`. */
 export const model = {
   type: "@swamp/aws/cloudfront/distribution-tenant",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -307,6 +333,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

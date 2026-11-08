@@ -269,28 +269,30 @@ const StateSchema = z.object({
   encryptionConfig: z.object({
     kmsKeyName: z.string(),
     kmsKeyNames: z.array(z.string()),
-  }).optional(),
-  encryptionInfo: z.array(z.object({
-    encryptionStatus: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    encryptionType: z.string(),
-    kmsKeyVersion: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  encryptionInfo: z.array(
+    z.object({
+      encryptionStatus: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      encryptionType: z.string(),
+      kmsKeyVersion: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   quorumInfo: z.object({
     etag: z.string(),
     initiator: z.string(),
     quorumType: z.object({
-      dualRegion: z.object({}),
+      dualRegion: z.object({}).partial(),
       singleRegion: z.object({
         servingLocation: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
   restoreInfo: z.object({
     backupInfo: z.object({
@@ -298,9 +300,9 @@ const StateSchema = z.object({
       createTime: z.string(),
       sourceDatabase: z.string(),
       versionTime: z.string(),
-    }),
+    }).partial(),
     sourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   versionRetentionPeriod: z.string().optional(),
 }).passthrough();
@@ -465,7 +467,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Spanner Instances.Databases. Registered at `@swamp/gcp/spanner/instances-databases`. */
 export const model = {
   type: "@swamp/gcp/spanner/instances-databases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -614,6 +616,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

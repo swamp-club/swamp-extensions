@@ -389,7 +389,7 @@ const StateSchema = z.object({
     nextJobTime: z.string(),
     schedule: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   schedulerServiceAccountEmail: z.string().optional(),
   state: z.string().optional(),
   type: z.string().optional(),
@@ -414,17 +414,17 @@ const StateSchema = z.object({
           workerRegion: z.string(),
           workerZone: z.string(),
           zone: z.string(),
-        }),
+        }).partial(),
         jobName: z.string(),
         launchOptions: z.record(z.string(), z.unknown()),
         parameters: z.record(z.string(), z.unknown()),
         transformNameMappings: z.record(z.string(), z.unknown()),
         update: z.boolean(),
-      }),
+      }).partial(),
       location: z.string(),
       projectId: z.string(),
       validateOnly: z.boolean(),
-    }),
+    }).partial(),
     dataflowLaunchTemplateRequest: z.object({
       gcsPath: z.string(),
       launchParameters: z.object({
@@ -445,17 +445,17 @@ const StateSchema = z.object({
           workerRegion: z.string(),
           workerZone: z.string(),
           zone: z.string(),
-        }),
+        }).partial(),
         jobName: z.string(),
         parameters: z.record(z.string(), z.unknown()),
         transformNameMapping: z.record(z.string(), z.unknown()),
         update: z.boolean(),
-      }),
+      }).partial(),
       location: z.string(),
       projectId: z.string(),
       validateOnly: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -717,7 +717,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Data pipelines Pipelines. Registered at `@swamp/gcp/datapipelines/pipelines`. */
 export const model = {
   type: "@swamp/gcp/datapipelines/pipelines",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -876,6 +876,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

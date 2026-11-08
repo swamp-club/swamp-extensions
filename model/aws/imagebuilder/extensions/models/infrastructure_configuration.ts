@@ -52,6 +52,16 @@ const AutoScalingGroupSchema = z.object({
   ).optional(),
 });
 
+const S3LogsStateSchema = z.object({
+  S3BucketName: z.string(),
+  S3KeyPrefix: z.string(),
+}).partial();
+
+const AutoScalingGroupStateSchema = z.object({
+  Name: z.string(),
+  CapacityWaitTimeoutSeconds: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -144,8 +154,8 @@ const StateSchema = z.object({
   InstanceTypes: z.array(z.string()).optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
   Logging: z.object({
-    S3Logs: S3LogsSchema,
-  }).optional(),
+    S3Logs: S3LogsStateSchema,
+  }).partial().optional(),
   SubnetId: z.string().optional(),
   KeyPair: z.string().optional(),
   TerminateInstanceOnFailure: z.boolean().optional(),
@@ -153,7 +163,7 @@ const StateSchema = z.object({
   InstanceMetadataOptions: z.object({
     HttpPutResponseHopLimit: z.number(),
     HttpTokens: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SnsTopicArn: z.string().optional(),
   ResourceTags: z.record(z.string(), z.unknown()).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
@@ -162,14 +172,14 @@ const StateSchema = z.object({
     Tenancy: z.string(),
     HostId: z.string(),
     HostResourceGroupArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ParentInstance: z.object({
-    AutoScalingGroup: AutoScalingGroupSchema,
-  }).optional(),
+    AutoScalingGroup: AutoScalingGroupStateSchema,
+  }).partial().optional(),
   TerminateInstanceOnCompletion: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -265,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder InfrastructureConfiguration. Registered at `@swamp/aws/imagebuilder/infrastructure-configuration`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/infrastructure-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -339,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

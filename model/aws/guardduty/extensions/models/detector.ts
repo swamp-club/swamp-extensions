@@ -76,6 +76,45 @@ const TagItemSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const CFNS3LogsConfigurationStateSchema = z.object({
+  Enable: z.boolean(),
+}).partial();
+
+const CFNKubernetesAuditLogsConfigurationStateSchema = z.object({
+  Enable: z.boolean(),
+}).partial();
+
+const CFNKubernetesConfigurationStateSchema = z.object({
+  AuditLogs: CFNKubernetesAuditLogsConfigurationStateSchema,
+}).partial();
+
+const CFNScanEc2InstanceWithFindingsConfigurationStateSchema = z.object({
+  EbsVolumes: z.boolean(),
+}).partial();
+
+const CFNMalwareProtectionConfigurationStateSchema = z.object({
+  ScanEc2InstanceWithFindings:
+    CFNScanEc2InstanceWithFindingsConfigurationStateSchema,
+}).partial();
+
+const CFNFeatureAdditionalConfigurationStateSchema = z.object({
+  Name: z.string(),
+  Status: z.string(),
+}).partial();
+
+const CFNFeatureConfigurationStateSchema = z.object({
+  Name: z.string(),
+  Status: z.string(),
+  AdditionalConfiguration: z.array(
+    CFNFeatureAdditionalConfigurationStateSchema,
+  ),
+}).partial();
+
+const TagItemStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -107,16 +146,16 @@ const StateSchema = z.object({
   FindingPublishingFrequency: z.string().optional(),
   Enable: z.boolean().optional(),
   DataSources: z.object({
-    S3Logs: CFNS3LogsConfigurationSchema,
-    Kubernetes: CFNKubernetesConfigurationSchema,
-    MalwareProtection: CFNMalwareProtectionConfigurationSchema,
-  }).optional(),
-  Features: z.array(CFNFeatureConfigurationSchema).optional(),
+    S3Logs: CFNS3LogsConfigurationStateSchema,
+    Kubernetes: CFNKubernetesConfigurationStateSchema,
+    MalwareProtection: CFNMalwareProtectionConfigurationStateSchema,
+  }).partial().optional(),
+  Features: z.array(CFNFeatureConfigurationStateSchema).optional(),
   Id: z.string(),
-  Tags: z.array(TagItemSchema).optional(),
+  Tags: z.array(TagItemStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -154,7 +193,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GuardDuty Detector. Registered at `@swamp/aws/guardduty/detector`. */
 export const model = {
   type: "@swamp/aws/guardduty/detector",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -218,6 +257,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

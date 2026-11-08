@@ -406,83 +406,103 @@ const StateSchema = z.object({
   customProvider: z.object({
     authzExtension: z.object({
       resources: z.array(z.string()),
-    }),
-    cloudIap: z.object({}),
-  }).optional(),
+    }).partial(),
+    cloudIap: z.object({}).partial(),
+  }).partial().optional(),
   description: z.string().optional(),
-  httpRules: z.array(z.object({
-    from: z.object({
-      notSources: z.array(z.object({
-        ipBlocks: z.unknown(),
-        principals: z.unknown(),
-        resources: z.unknown(),
-      })),
-      sources: z.array(z.object({
-        ipBlocks: z.unknown(),
-        principals: z.unknown(),
-        resources: z.unknown(),
-      })),
-    }),
-    to: z.object({
-      notOperations: z.array(z.object({
-        headerSet: z.unknown(),
-        hosts: z.unknown(),
-        mcp: z.unknown(),
-        methods: z.unknown(),
-        paths: z.unknown(),
-        snis: z.unknown(),
-      })),
-      operations: z.array(z.object({
-        headerSet: z.unknown(),
-        hosts: z.unknown(),
-        mcp: z.unknown(),
-        methods: z.unknown(),
-        paths: z.unknown(),
-        snis: z.unknown(),
-      })),
-    }),
-    when: z.string(),
-  })).optional(),
+  httpRules: z.array(
+    z.object({
+      from: z.object({
+        notSources: z.array(
+          z.object({
+            ipBlocks: z.unknown(),
+            principals: z.unknown(),
+            resources: z.unknown(),
+          }).partial(),
+        ),
+        sources: z.array(
+          z.object({
+            ipBlocks: z.unknown(),
+            principals: z.unknown(),
+            resources: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      to: z.object({
+        notOperations: z.array(
+          z.object({
+            headerSet: z.unknown(),
+            hosts: z.unknown(),
+            mcp: z.unknown(),
+            methods: z.unknown(),
+            paths: z.unknown(),
+            snis: z.unknown(),
+          }).partial(),
+        ),
+        operations: z.array(
+          z.object({
+            headerSet: z.unknown(),
+            hosts: z.unknown(),
+            mcp: z.unknown(),
+            methods: z.unknown(),
+            paths: z.unknown(),
+            snis: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      when: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  networkRules: z.array(z.object({
-    from: z.object({
-      notSources: z.array(z.object({
-        ipBlocks: z.unknown(),
-        principals: z.unknown(),
-        resources: z.unknown(),
-      })),
-      sources: z.array(z.object({
-        ipBlocks: z.unknown(),
-        principals: z.unknown(),
-        resources: z.unknown(),
-      })),
-    }),
-    to: z.object({
-      notOperations: z.array(z.object({
-        headerSet: z.unknown(),
-        hosts: z.unknown(),
-        mcp: z.unknown(),
-        methods: z.unknown(),
-        paths: z.unknown(),
-        snis: z.unknown(),
-      })),
-      operations: z.array(z.object({
-        headerSet: z.unknown(),
-        hosts: z.unknown(),
-        mcp: z.unknown(),
-        methods: z.unknown(),
-        paths: z.unknown(),
-        snis: z.unknown(),
-      })),
-    }),
-    when: z.string(),
-  })).optional(),
+  networkRules: z.array(
+    z.object({
+      from: z.object({
+        notSources: z.array(
+          z.object({
+            ipBlocks: z.unknown(),
+            principals: z.unknown(),
+            resources: z.unknown(),
+          }).partial(),
+        ),
+        sources: z.array(
+          z.object({
+            ipBlocks: z.unknown(),
+            principals: z.unknown(),
+            resources: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      to: z.object({
+        notOperations: z.array(
+          z.object({
+            headerSet: z.unknown(),
+            hosts: z.unknown(),
+            mcp: z.unknown(),
+            methods: z.unknown(),
+            paths: z.unknown(),
+            snis: z.unknown(),
+          }).partial(),
+        ),
+        operations: z.array(
+          z.object({
+            headerSet: z.unknown(),
+            hosts: z.unknown(),
+            mcp: z.unknown(),
+            methods: z.unknown(),
+            paths: z.unknown(),
+            snis: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      when: z.string(),
+    }).partial(),
+  ).optional(),
   policyProfile: z.string().optional(),
   target: z.object({
     loadBalancingScheme: z.string(),
     resources: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -752,7 +772,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security AuthzPolicies. Registered at `@swamp/gcp/networksecurity/authzpolicies`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/authzpolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -966,6 +986,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

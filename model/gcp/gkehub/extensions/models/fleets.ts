@@ -93,28 +93,32 @@ const StateSchema = z.object({
   defaultClusterConfig: z.object({
     binaryAuthorizationConfig: z.object({
       evaluationMode: z.string(),
-      policyBindings: z.array(z.object({
-        name: z.string(),
-      })),
-    }),
+      policyBindings: z.array(
+        z.object({
+          name: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     compliancePostureConfig: z.object({
-      complianceStandards: z.array(z.object({
-        standard: z.string(),
-      })),
+      complianceStandards: z.array(
+        z.object({
+          standard: z.string(),
+        }).partial(),
+      ),
       mode: z.string(),
-    }),
+    }).partial(),
     securityPostureConfig: z.object({
       mode: z.string(),
       vulnerabilityMode: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   deleteTime: z.string().optional(),
   displayName: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   state: z.object({
     code: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -160,7 +164,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Fleets. Registered at `@swamp/gcp/gkehub/fleets`. */
 export const model = {
   type: "@swamp/gcp/gkehub/fleets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -179,6 +183,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

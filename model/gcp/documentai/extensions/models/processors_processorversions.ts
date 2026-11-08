@@ -133,44 +133,48 @@ const StateSchema = z.object({
   deprecationInfo: z.object({
     deprecationTime: z.string(),
     replacementProcessorVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   documentSchema: z.object({
     description: z.string(),
     displayName: z.string(),
     documentPrompt: z.string(),
-    entityTypes: z.array(z.object({
-      baseTypes: z.array(z.string()),
-      displayName: z.string(),
-      enumValues: z.object({
-        values: z.array(z.unknown()),
-      }),
-      name: z.string(),
-      properties: z.array(z.object({
-        displayName: z.unknown(),
-        method: z.unknown(),
-        name: z.unknown(),
-        occurrenceType: z.unknown(),
-        valueType: z.unknown(),
-      })),
-    })),
+    entityTypes: z.array(
+      z.object({
+        baseTypes: z.array(z.string()),
+        displayName: z.string(),
+        enumValues: z.object({
+          values: z.array(z.unknown()),
+        }).partial(),
+        name: z.string(),
+        properties: z.array(
+          z.object({
+            displayName: z.unknown(),
+            method: z.unknown(),
+            name: z.unknown(),
+            occurrenceType: z.unknown(),
+            valueType: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
     metadata: z.object({
       documentAllowMultipleLabels: z.boolean(),
       documentSplitter: z.boolean(),
       prefixedNamingOnProperties: z.boolean(),
       skipNamingValidation: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   genAiModelInfo: z.object({
     customGenAiModelInfo: z.object({
       baseProcessorVersionId: z.string(),
       customModelType: z.string(),
-    }),
+    }).partial(),
     foundationGenAiModelInfo: z.object({
       finetuningAllowed: z.boolean(),
       minTrainLabeledDocuments: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   googleManaged: z.boolean().optional(),
   kmsKeyName: z.string().optional(),
   kmsKeyVersionName: z.string().optional(),
@@ -187,7 +191,7 @@ const StateSchema = z.object({
       recall: z.number(),
       totalDocumentsCount: z.number(),
       truePositivesCount: z.number(),
-    }),
+    }).partial(),
     aggregateMetricsExact: z.object({
       f1Score: z.number(),
       falseNegativesCount: z.number(),
@@ -200,10 +204,10 @@ const StateSchema = z.object({
       recall: z.number(),
       totalDocumentsCount: z.number(),
       truePositivesCount: z.number(),
-    }),
+    }).partial(),
     evaluation: z.string(),
     operation: z.string(),
-  }).optional(),
+  }).partial().optional(),
   modelType: z.string().optional(),
   name: z.string(),
   satisfiesPzi: z.boolean().optional(),
@@ -255,7 +259,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Document AI Processors.ProcessorVersions. Registered at `@swamp/gcp/documentai/processors-processorversions`. */
 export const model = {
   type: "@swamp/gcp/documentai/processors-processorversions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -389,6 +393,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

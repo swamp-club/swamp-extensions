@@ -44,6 +44,10 @@ const FlowAliasRoutingConfigurationListItemSchema = z.object({
   ).describe("Version.").optional(),
 });
 
+const FlowAliasRoutingConfigurationListItemStateSchema = z.object({
+  FlowVersion: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -91,19 +95,20 @@ const StateSchema = z.object({
   ConcurrencyConfiguration: z.object({
     Type: z.string(),
     MaxConcurrency: z.number(),
-  }).optional(),
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   Description: z.string().optional(),
   FlowId: z.string().optional(),
   Id: z.string().optional(),
   Name: z.string().optional(),
-  RoutingConfiguration: z.array(FlowAliasRoutingConfigurationListItemSchema)
-    .optional(),
+  RoutingConfiguration: z.array(
+    FlowAliasRoutingConfigurationListItemStateSchema,
+  ).optional(),
   UpdatedAt: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -155,7 +160,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock FlowAlias. Registered at `@swamp/aws/bedrock/flow-alias`. */
 export const model = {
   type: "@swamp/aws/bedrock/flow-alias",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -219,6 +224,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

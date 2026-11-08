@@ -192,12 +192,12 @@ const StateSchema = z.object({
     enableAudioRedaction: z.boolean(),
     gcsBucket: z.string(),
     storeTtsAudio: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   deidentifyTemplate: z.string().optional(),
   displayName: z.string().optional(),
   insightsExportSettings: z.object({
     enableInsightsExport: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   inspectTemplate: z.string().optional(),
   name: z.string(),
   purgeDataTypes: z.array(z.string()).optional(),
@@ -276,7 +276,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow SecuritySettings. Registered at `@swamp/gcp/dialogflow/securitysettings`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/securitysettings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -410,6 +410,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

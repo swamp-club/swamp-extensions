@@ -81,14 +81,18 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   name: z.string(),
-  taskExecutionDetails: z.array(z.object({
-    taskAttemptStats: z.array(z.object({
-      endTime: z.string(),
-      startTime: z.string(),
-    })),
-    taskExecutionState: z.string(),
-    taskNumber: z.string(),
-  })).optional(),
+  taskExecutionDetails: z.array(
+    z.object({
+      taskAttemptStats: z.array(
+        z.object({
+          endTime: z.string(),
+          startTime: z.string(),
+        }).partial(),
+      ),
+      taskExecutionState: z.string(),
+      taskNumber: z.string(),
+    }).partial(),
+  ).optional(),
   taskExecutionMetadata: z.object({
     ancestorIterationNumbers: z.array(z.string()),
     ancestorTaskNumbers: z.array(z.string()),
@@ -98,7 +102,7 @@ const StateSchema = z.object({
     taskAttempt: z.number(),
     taskLabel: z.string(),
     taskNumber: z.string(),
-  }).optional(),
+  }).partial().optional(),
   variables: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
@@ -140,7 +144,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Integrations.Executions.TaskExecutions. Registered at `@swamp/gcp/integrations/integrations-executions-taskexecutions`. */
 export const model = {
   type: "@swamp/gcp/integrations/integrations-executions-taskexecutions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -149,6 +153,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

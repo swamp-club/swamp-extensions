@@ -151,31 +151,33 @@ const StateSchema = z.object({
   deployTime: z.string().optional(),
   lastUpdateTime: z.string().optional(),
   remoteInAppUpdateData: z.object({
-    remoteAppUpdateDataPerBundle: z.array(z.object({
-      recoveredDeviceCount: z.string(),
-      totalDeviceCount: z.string(),
-      versionCode: z.string(),
-    })),
-  }).optional(),
+    remoteAppUpdateDataPerBundle: z.array(
+      z.object({
+        recoveredDeviceCount: z.string(),
+        totalDeviceCount: z.string(),
+        versionCode: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   status: z.string().optional(),
   targeting: z.object({
     allUsers: z.object({
       isAllUsersRequested: z.boolean(),
-    }),
+    }).partial(),
     androidSdks: z.object({
       sdkLevels: z.array(z.string()),
-    }),
+    }).partial(),
     regions: z.object({
       regionCode: z.array(z.string()),
-    }),
+    }).partial(),
     versionList: z.object({
       versionCodes: z.array(z.string()),
-    }),
+    }).partial(),
     versionRange: z.object({
       versionCodeEnd: z.string(),
       versionCodeStart: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -258,7 +260,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Apprecovery. Registered at `@swamp/gcp/androidpublisher/apprecovery`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/apprecovery",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -382,6 +384,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

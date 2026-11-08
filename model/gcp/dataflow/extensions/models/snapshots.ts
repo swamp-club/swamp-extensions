@@ -147,11 +147,13 @@ const StateSchema = z.object({
   diskSizeBytes: z.string().optional(),
   id: z.string().optional(),
   projectId: z.string().optional(),
-  pubsubMetadata: z.array(z.object({
-    expireTime: z.string(),
-    snapshotName: z.string(),
-    topicName: z.string(),
-  })).optional(),
+  pubsubMetadata: z.array(
+    z.object({
+      expireTime: z.string(),
+      snapshotName: z.string(),
+      topicName: z.string(),
+    }).partial(),
+  ).optional(),
   region: z.string().optional(),
   sourceJobId: z.string().optional(),
   state: z.string().optional(),
@@ -198,7 +200,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataflow Snapshots. Registered at `@swamp/gcp/dataflow/snapshots`. */
 export const model = {
   type: "@swamp/gcp/dataflow/snapshots",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -332,6 +334,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

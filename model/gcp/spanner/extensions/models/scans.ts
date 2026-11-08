@@ -102,76 +102,82 @@ const StateSchema = z.object({
     data: z.object({
       dataSourceEndToken: z.string(),
       dataSourceSeparatorToken: z.string(),
-      diagnosticMessages: z.array(z.object({
-        info: z.object({
-          args: z.unknown(),
-          message: z.unknown(),
-          token: z.unknown(),
-        }),
-        metric: z.object({
-          args: z.unknown(),
-          message: z.unknown(),
-          token: z.unknown(),
-        }),
-        metricSpecific: z.boolean(),
-        severity: z.string(),
-        shortMessage: z.object({
-          args: z.unknown(),
-          message: z.unknown(),
-          token: z.unknown(),
-        }),
-      })),
+      diagnosticMessages: z.array(
+        z.object({
+          info: z.object({
+            args: z.unknown(),
+            message: z.unknown(),
+            token: z.unknown(),
+          }).partial(),
+          metric: z.object({
+            args: z.unknown(),
+            message: z.unknown(),
+            token: z.unknown(),
+          }).partial(),
+          metricSpecific: z.boolean(),
+          severity: z.string(),
+          shortMessage: z.object({
+            args: z.unknown(),
+            message: z.unknown(),
+            token: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       endKeyStrings: z.array(z.string()),
       hasPii: z.boolean(),
       indexedKeys: z.array(z.string()),
       keySeparator: z.string(),
       keyUnit: z.string(),
-      metrics: z.array(z.object({
-        aggregation: z.string(),
-        category: z.object({
-          args: z.unknown(),
-          message: z.unknown(),
-          token: z.unknown(),
-        }),
-        derived: z.object({
-          denominator: z.unknown(),
-          numerator: z.unknown(),
-        }),
-        displayLabel: z.object({
-          args: z.unknown(),
-          message: z.unknown(),
-          token: z.unknown(),
-        }),
-        hasNonzeroData: z.boolean(),
-        hotValue: z.number(),
-        indexedHotKeys: z.record(z.string(), z.unknown()),
-        indexedKeyRangeInfos: z.record(z.string(), z.unknown()),
-        info: z.object({
-          args: z.unknown(),
-          message: z.unknown(),
-          token: z.unknown(),
-        }),
-        matrix: z.object({
-          rows: z.unknown(),
-        }),
-        unit: z.object({
-          args: z.unknown(),
-          message: z.unknown(),
-          token: z.unknown(),
-        }),
-        visible: z.boolean(),
-      })),
-      prefixNodes: z.array(z.object({
-        dataSourceNode: z.boolean(),
-        depth: z.number(),
-        endIndex: z.number(),
-        startIndex: z.number(),
-        word: z.string(),
-      })),
-    }),
+      metrics: z.array(
+        z.object({
+          aggregation: z.string(),
+          category: z.object({
+            args: z.unknown(),
+            message: z.unknown(),
+            token: z.unknown(),
+          }).partial(),
+          derived: z.object({
+            denominator: z.unknown(),
+            numerator: z.unknown(),
+          }).partial(),
+          displayLabel: z.object({
+            args: z.unknown(),
+            message: z.unknown(),
+            token: z.unknown(),
+          }).partial(),
+          hasNonzeroData: z.boolean(),
+          hotValue: z.number(),
+          indexedHotKeys: z.record(z.string(), z.unknown()),
+          indexedKeyRangeInfos: z.record(z.string(), z.unknown()),
+          info: z.object({
+            args: z.unknown(),
+            message: z.unknown(),
+            token: z.unknown(),
+          }).partial(),
+          matrix: z.object({
+            rows: z.unknown(),
+          }).partial(),
+          unit: z.object({
+            args: z.unknown(),
+            message: z.unknown(),
+            token: z.unknown(),
+          }).partial(),
+          visible: z.boolean(),
+        }).partial(),
+      ),
+      prefixNodes: z.array(
+        z.object({
+          dataSourceNode: z.boolean(),
+          depth: z.number(),
+          endIndex: z.number(),
+          startIndex: z.number(),
+          word: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     endTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   startTime: z.string().optional(),
 }).passthrough();
 
@@ -216,7 +222,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Spanner Scans. Registered at `@swamp/gcp/spanner/scans`. */
 export const model = {
   type: "@swamp/gcp/spanner/scans",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -340,6 +346,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

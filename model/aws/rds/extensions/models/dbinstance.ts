@@ -86,6 +86,39 @@ const AdditionalStorageVolumeSchema = z.object({
   StorageOperationPercentProgress: z.number().int().optional(),
 });
 
+const DBInstanceRoleStateSchema = z.object({
+  FeatureName: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const ProcessorFeatureStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const DBInstanceStatusInfoStateSchema = z.object({
+  Message: z.string(),
+  Normal: z.boolean(),
+  Status: z.string(),
+  StatusType: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const AdditionalStorageVolumeStateSchema = z.object({
+  VolumeName: z.string(),
+  StorageType: z.string(),
+  AllocatedStorage: z.string(),
+  Iops: z.number(),
+  MaxAllocatedStorage: z.number(),
+  StorageThroughput: z.number(),
+  StorageOperationStatus: z.string(),
+  StorageOperationPercentProgress: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -356,7 +389,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   AllocatedStorage: z.string().optional(),
   AllowMajorVersionUpgrade: z.boolean().optional(),
-  AssociatedRoles: z.array(DBInstanceRoleSchema).optional(),
+  AssociatedRoles: z.array(DBInstanceRoleStateSchema).optional(),
   AutoMinorVersionUpgrade: z.boolean().optional(),
   AutomaticBackupReplicationRegion: z.string().optional(),
   AutomaticBackupReplicationKmsKeyId: z.string().optional(),
@@ -369,7 +402,7 @@ const StateSchema = z.object({
   CertificateDetails: z.object({
     CAIdentifier: z.string(),
     ValidTill: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CertificateRotationRestart: z.boolean().optional(),
   CharacterSetName: z.string().optional(),
   CopyTagsToSnapshot: z.boolean().optional(),
@@ -404,7 +437,7 @@ const StateSchema = z.object({
     Address: z.string(),
     Port: z.string(),
     HostedZoneId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Engine: z.string().optional(),
   EngineLifecycleSupport: z.string().optional(),
   EngineVersion: z.string().optional(),
@@ -419,14 +452,14 @@ const StateSchema = z.object({
     Address: z.string(),
     Port: z.string(),
     HostedZoneId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MasterUserAuthenticationType: z.string().optional(),
   MasterUsername: z.string().optional(),
   MasterUserPassword: z.string().optional(),
   MasterUserSecret: z.object({
     SecretArn: z.string(),
     KmsKeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MaxAllocatedStorage: z.number().optional(),
   MonitoringInterval: z.number().optional(),
   MonitoringRoleArn: z.string().optional(),
@@ -440,7 +473,7 @@ const StateSchema = z.object({
   Port: z.string().optional(),
   PreferredBackupWindow: z.string().optional(),
   PreferredMaintenanceWindow: z.string().optional(),
-  ProcessorFeatures: z.array(ProcessorFeatureSchema).optional(),
+  ProcessorFeatures: z.array(ProcessorFeatureStateSchema).optional(),
   PromotionTier: z.number().optional(),
   PubliclyAccessible: z.boolean().optional(),
   ReadReplicaDBClusterIdentifiers: z.array(z.string()).optional(),
@@ -454,18 +487,13 @@ const StateSchema = z.object({
   SourceDBInstanceAutomatedBackupsArn: z.string().optional(),
   SourceDBInstanceIdentifier: z.string().optional(),
   SourceRegion: z.string().optional(),
-  StatusInfos: z.array(z.object({
-    Message: z.string(),
-    Normal: z.boolean(),
-    Status: z.string(),
-    StatusType: z.string(),
-  })).optional(),
+  StatusInfos: z.array(DBInstanceStatusInfoStateSchema).optional(),
   StorageEncrypted: z.boolean().optional(),
   StorageOperationStatus: z.string().optional(),
   StorageOperationPercentProgress: z.number().optional(),
   StorageType: z.string().optional(),
   StorageThroughput: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TdeCredentialArn: z.string().optional(),
   TdeCredentialPassword: z.string().optional(),
   Timezone: z.string().optional(),
@@ -473,10 +501,11 @@ const StateSchema = z.object({
   UseLatestRestorableTime: z.boolean().optional(),
   VPCSecurityGroups: z.array(z.string()).optional(),
   ApplyImmediately: z.boolean().optional(),
-  AdditionalStorageVolumes: z.array(AdditionalStorageVolumeSchema).optional(),
+  AdditionalStorageVolumes: z.array(AdditionalStorageVolumeStateSchema)
+    .optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -756,7 +785,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBInstance. Registered at `@swamp/aws/rds/dbinstance`. */
 export const model = {
   type: "@swamp/aws/rds/dbinstance",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -845,6 +874,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

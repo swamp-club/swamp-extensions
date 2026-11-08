@@ -124,6 +124,64 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const PopulationAnalysisSqlParametersStateSchema = z.object({
+  QueryString: z.string(),
+  AnalysisTemplateArn: z.string(),
+}).partial();
+
+const DifferentialPrivacyColumnStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const DifferentialPrivacyStateSchema = z.object({
+  Columns: z.array(DifferentialPrivacyColumnStateSchema),
+}).partial();
+
+const OutputColumnThresholdStateSchema = z.object({
+  OutputColumnName: z.string(),
+  MinimumIdentityCount: z.number(),
+}).partial();
+
+const AggregationThresholdStateSchema = z.object({
+  IdentityColumns: z.array(z.string()),
+  MinimumIdentityCount: z.number(),
+  Type: z.string(),
+  OutputColumnThresholds: z.array(OutputColumnThresholdStateSchema),
+  AllowedAggregateExpressionType: z.string(),
+}).partial();
+
+const ComparisonControlsStateSchema = z.object({
+  AllowedLiteralComparisonColumns: z.array(z.string()),
+  AllowedColumnComparisonColumns: z.array(z.string()),
+}).partial();
+
+const IntermediateTableAnalysisRuleCustomStateSchema = z.object({
+  AllowedAnalyses: z.array(z.string()),
+  AllowedAnalysisProviders: z.array(z.string()),
+  AdditionalAnalyses: z.string(),
+  AllowedResultReceivers: z.array(z.string()),
+  DifferentialPrivacy: DifferentialPrivacyStateSchema,
+  DisallowedOutputColumns: z.array(z.string()),
+  AggregationThresholds: z.array(AggregationThresholdStateSchema),
+  ComparisonControls: ComparisonControlsStateSchema,
+}).partial();
+
+const V1StateSchema = z.object({
+  V1: z.object({
+    Custom: IntermediateTableAnalysisRuleCustomStateSchema,
+  }).partial(),
+}).partial();
+
+const IntermediateTableAnalysisRuleStateSchema = z.object({
+  Type: z.string(),
+  Policy: V1StateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -173,15 +231,15 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   PopulationAnalysisConfiguration: z.object({
-    SqlParameters: PopulationAnalysisSqlParametersSchema,
-  }).optional(),
+    SqlParameters: PopulationAnalysisSqlParametersStateSchema,
+  }).partial().optional(),
   Status: z.string().optional(),
   KmsKeyArn: z.string().optional(),
-  AnalysisRules: z.array(IntermediateTableAnalysisRuleSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  AnalysisRules: z.array(IntermediateTableAnalysisRuleStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -231,7 +289,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms IntermediateTable. Registered at `@swamp/aws/cleanrooms/intermediate-table`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/intermediate-table",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -260,6 +318,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

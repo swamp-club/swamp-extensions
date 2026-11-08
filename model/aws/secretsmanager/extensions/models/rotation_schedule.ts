@@ -47,6 +47,11 @@ const ExternalSecretRotationMetadataItemSchema = z.object({
   ),
 });
 
+const ExternalSecretRotationMetadataItemStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -142,10 +147,10 @@ const StateSchema = z.object({
     SuperuserSecretArn: z.string(),
     SuperuserSecretKmsKeyArn: z.string(),
     VpcSubnetIds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SecretId: z.string().optional(),
   ExternalSecretRotationMetadata: z.array(
-    ExternalSecretRotationMetadataItemSchema,
+    ExternalSecretRotationMetadataItemStateSchema,
   ).optional(),
   Id: z.string(),
   ExternalSecretRotationRoleArn: z.string().optional(),
@@ -155,10 +160,10 @@ const StateSchema = z.object({
     ScheduleExpression: z.string(),
     Duration: z.string(),
     AutomaticallyAfterDays: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -252,7 +257,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecretsManager RotationSchedule. Registered at `@swamp/aws/secretsmanager/rotation-schedule`. */
 export const model = {
   type: "@swamp/aws/secretsmanager/rotation-schedule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -316,6 +321,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

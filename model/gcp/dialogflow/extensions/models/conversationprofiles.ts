@@ -392,7 +392,7 @@ const StateSchema = z.object({
   automatedAgentConfig: z.object({
     agent: z.string(),
     sessionTtl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   humanAgentAssistantConfig: z.object({
@@ -400,132 +400,136 @@ const StateSchema = z.object({
       companionAgent: z.string(),
       disableHighLatencyFeaturesSyncDelivery: z.boolean(),
       enableAsyncToolCall: z.boolean(),
-      featureConfigs: z.array(z.object({
-        conversationModelConfig: z.object({
-          baselineModelVersion: z.unknown(),
-          model: z.unknown(),
-        }),
-        conversationProcessConfig: z.object({
-          recentSentencesCount: z.unknown(),
-        }),
-        disableAgentQueryLogging: z.boolean(),
-        disableQuerySearchContext: z.boolean(),
-        enableConversationAugmentedQuery: z.boolean(),
-        enableEventBasedSuggestion: z.boolean(),
-        enableQuerySuggestionOnly: z.boolean(),
-        enableQuerySuggestionWhenNoAnswer: z.boolean(),
-        enableResponseDebugInfo: z.boolean(),
-        queryConfig: z.object({
-          confidenceThreshold: z.unknown(),
-          contextFilterSettings: z.unknown(),
-          contextSize: z.unknown(),
-          dialogflowQuerySource: z.unknown(),
-          documentQuerySource: z.unknown(),
-          knowledgeBaseQuerySource: z.unknown(),
-          maxResults: z.unknown(),
-          sections: z.unknown(),
-        }),
-        raiSettings: z.object({
-          raiCategoryConfigs: z.unknown(),
-        }),
-        suggestionFeature: z.object({
-          type: z.unknown(),
-        }),
-        suggestionTriggerEvent: z.string(),
-        suggestionTriggerSettings: z.object({
-          noSmalltalk: z.unknown(),
-          onlyEndUser: z.unknown(),
-        }),
-      })),
+      featureConfigs: z.array(
+        z.object({
+          conversationModelConfig: z.object({
+            baselineModelVersion: z.unknown(),
+            model: z.unknown(),
+          }).partial(),
+          conversationProcessConfig: z.object({
+            recentSentencesCount: z.unknown(),
+          }).partial(),
+          disableAgentQueryLogging: z.boolean(),
+          disableQuerySearchContext: z.boolean(),
+          enableConversationAugmentedQuery: z.boolean(),
+          enableEventBasedSuggestion: z.boolean(),
+          enableQuerySuggestionOnly: z.boolean(),
+          enableQuerySuggestionWhenNoAnswer: z.boolean(),
+          enableResponseDebugInfo: z.boolean(),
+          queryConfig: z.object({
+            confidenceThreshold: z.unknown(),
+            contextFilterSettings: z.unknown(),
+            contextSize: z.unknown(),
+            dialogflowQuerySource: z.unknown(),
+            documentQuerySource: z.unknown(),
+            knowledgeBaseQuerySource: z.unknown(),
+            maxResults: z.unknown(),
+            sections: z.unknown(),
+          }).partial(),
+          raiSettings: z.object({
+            raiCategoryConfigs: z.unknown(),
+          }).partial(),
+          suggestionFeature: z.object({
+            type: z.unknown(),
+          }).partial(),
+          suggestionTriggerEvent: z.string(),
+          suggestionTriggerSettings: z.object({
+            noSmalltalk: z.unknown(),
+            onlyEndUser: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       generators: z.array(z.string()),
       groupSuggestionResponses: z.boolean(),
       skipEmptyEventBasedSuggestion: z.boolean(),
       useUnredactedConversationData: z.boolean(),
-    }),
+    }).partial(),
     humanAgentSuggestionConfig: z.object({
       companionAgent: z.string(),
       disableHighLatencyFeaturesSyncDelivery: z.boolean(),
       enableAsyncToolCall: z.boolean(),
-      featureConfigs: z.array(z.object({
-        conversationModelConfig: z.object({
-          baselineModelVersion: z.unknown(),
-          model: z.unknown(),
-        }),
-        conversationProcessConfig: z.object({
-          recentSentencesCount: z.unknown(),
-        }),
-        disableAgentQueryLogging: z.boolean(),
-        disableQuerySearchContext: z.boolean(),
-        enableConversationAugmentedQuery: z.boolean(),
-        enableEventBasedSuggestion: z.boolean(),
-        enableQuerySuggestionOnly: z.boolean(),
-        enableQuerySuggestionWhenNoAnswer: z.boolean(),
-        enableResponseDebugInfo: z.boolean(),
-        queryConfig: z.object({
-          confidenceThreshold: z.unknown(),
-          contextFilterSettings: z.unknown(),
-          contextSize: z.unknown(),
-          dialogflowQuerySource: z.unknown(),
-          documentQuerySource: z.unknown(),
-          knowledgeBaseQuerySource: z.unknown(),
-          maxResults: z.unknown(),
-          sections: z.unknown(),
-        }),
-        raiSettings: z.object({
-          raiCategoryConfigs: z.unknown(),
-        }),
-        suggestionFeature: z.object({
-          type: z.unknown(),
-        }),
-        suggestionTriggerEvent: z.string(),
-        suggestionTriggerSettings: z.object({
-          noSmalltalk: z.unknown(),
-          onlyEndUser: z.unknown(),
-        }),
-      })),
+      featureConfigs: z.array(
+        z.object({
+          conversationModelConfig: z.object({
+            baselineModelVersion: z.unknown(),
+            model: z.unknown(),
+          }).partial(),
+          conversationProcessConfig: z.object({
+            recentSentencesCount: z.unknown(),
+          }).partial(),
+          disableAgentQueryLogging: z.boolean(),
+          disableQuerySearchContext: z.boolean(),
+          enableConversationAugmentedQuery: z.boolean(),
+          enableEventBasedSuggestion: z.boolean(),
+          enableQuerySuggestionOnly: z.boolean(),
+          enableQuerySuggestionWhenNoAnswer: z.boolean(),
+          enableResponseDebugInfo: z.boolean(),
+          queryConfig: z.object({
+            confidenceThreshold: z.unknown(),
+            contextFilterSettings: z.unknown(),
+            contextSize: z.unknown(),
+            dialogflowQuerySource: z.unknown(),
+            documentQuerySource: z.unknown(),
+            knowledgeBaseQuerySource: z.unknown(),
+            maxResults: z.unknown(),
+            sections: z.unknown(),
+          }).partial(),
+          raiSettings: z.object({
+            raiCategoryConfigs: z.unknown(),
+          }).partial(),
+          suggestionFeature: z.object({
+            type: z.unknown(),
+          }).partial(),
+          suggestionTriggerEvent: z.string(),
+          suggestionTriggerSettings: z.object({
+            noSmalltalk: z.unknown(),
+            onlyEndUser: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       generators: z.array(z.string()),
       groupSuggestionResponses: z.boolean(),
       skipEmptyEventBasedSuggestion: z.boolean(),
       useUnredactedConversationData: z.boolean(),
-    }),
+    }).partial(),
     messageAnalysisConfig: z.object({
       enableEntityExtraction: z.boolean(),
       enableSentimentAnalysis: z.boolean(),
       enableSentimentAnalysisV3: z.boolean(),
-    }),
+    }).partial(),
     notificationConfig: z.object({
       messageFormat: z.string(),
       topic: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   humanAgentHandoffConfig: z.object({
     livePersonConfig: z.object({
       accountNumber: z.string(),
-    }),
+    }).partial(),
     salesforceLiveAgentConfig: z.object({
       buttonId: z.string(),
       deploymentId: z.string(),
       endpointDomain: z.string(),
       organizationId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   languageCode: z.string().optional(),
   loggingConfig: z.object({
     enableStackdriverLogging: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   newMessageEventNotificationConfig: z.object({
     messageFormat: z.string(),
     topic: z.string(),
-  }).optional(),
+  }).partial().optional(),
   newRecognitionResultNotificationConfig: z.object({
     messageFormat: z.string(),
     topic: z.string(),
-  }).optional(),
+  }).partial().optional(),
   notificationConfig: z.object({
     messageFormat: z.string(),
     topic: z.string(),
-  }).optional(),
+  }).partial().optional(),
   securitySettings: z.string().optional(),
   sipConfig: z.object({
     allowVirtualAgentInteraction: z.boolean(),
@@ -535,7 +539,7 @@ const StateSchema = z.object({
     inactiveStart: z.boolean(),
     keepConversationRunning: z.boolean(),
     maxAudioRecordingDuration: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sttConfig: z.object({
     alternativeLanguageCodes: z.array(z.string()),
     audioEncoding: z.string(),
@@ -546,7 +550,7 @@ const StateSchema = z.object({
       prefixPaddingMs: z.number(),
       silenceDurationMs: z.number(),
       startOfSpeechSensitivity: z.string(),
-    }),
+    }).partial(),
     languageCode: z.string(),
     model: z.string(),
     phraseSets: z.array(z.string()),
@@ -555,23 +559,25 @@ const StateSchema = z.object({
     speechModelVariant: z.string(),
     useGeminiAsr: z.boolean(),
     useTimeoutBasedEndpointing: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   timeZone: z.string().optional(),
   ttsConfig: z.object({
     effectsProfileId: z.array(z.string()),
     pitch: z.number(),
-    pronunciations: z.array(z.object({
-      phoneticEncoding: z.string(),
-      phrase: z.string(),
-      pronunciation: z.string(),
-    })),
+    pronunciations: z.array(
+      z.object({
+        phoneticEncoding: z.string(),
+        phrase: z.string(),
+        pronunciation: z.string(),
+      }).partial(),
+    ),
     speakingRate: z.number(),
     voice: z.object({
       name: z.string(),
       ssmlGender: z.string(),
-    }),
+    }).partial(),
     volumeGainDb: z.number(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -847,7 +853,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow ConversationProfiles. Registered at `@swamp/gcp/dialogflow/conversationprofiles`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/conversationprofiles",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -896,6 +902,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

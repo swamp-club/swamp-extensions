@@ -177,7 +177,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   archiveUploadSource: z.object({
     archiveContent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   frontmatter: z.object({
     compatibility: z.string(),
@@ -185,18 +185,18 @@ const StateSchema = z.object({
     license: z.string(),
     metadata: z.record(z.string(), z.unknown()),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcsSource: z.object({
     generation: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   scanResult: z.object({
     errorMessage: z.string(),
     findings: z.array(z.string()),
     scanState: z.string(),
     scanTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sha256Hash: z.string().optional(),
   sizeBytes: z.string().optional(),
   state: z.string().optional(),
@@ -271,7 +271,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Skills.Revisions. Registered at `@swamp/gcp/agentregistry/skills-revisions`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/skills-revisions",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

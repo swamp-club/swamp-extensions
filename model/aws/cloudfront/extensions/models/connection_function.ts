@@ -57,6 +57,15 @@ const TagSchema = z.object({
   ),
 });
 
+const KeyValueStoreAssociationStateSchema = z.object({
+  KeyValueStoreARN: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -105,18 +114,18 @@ const StateSchema = z.object({
   ConnectionFunctionConfig: z.object({
     Comment: z.string(),
     Runtime: z.string(),
-    KeyValueStoreAssociations: z.array(KeyValueStoreAssociationSchema),
-  }).optional(),
+    KeyValueStoreAssociations: z.array(KeyValueStoreAssociationStateSchema),
+  }).partial().optional(),
   AutoPublish: z.boolean().optional(),
   Stage: z.string().optional(),
   Status: z.string().optional(),
   ETag: z.string().optional(),
   CreatedTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -167,7 +176,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront ConnectionFunction. Registered at `@swamp/aws/cloudfront/connection-function`. */
 export const model = {
   type: "@swamp/aws/cloudfront/connection-function",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -241,6 +250,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

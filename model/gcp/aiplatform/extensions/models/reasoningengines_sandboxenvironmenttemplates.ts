@@ -263,46 +263,52 @@ const StateSchema = z.object({
   customContainerEnvironment: z.object({
     customContainerSpec: z.object({
       imageUri: z.string(),
-    }),
-    ports: z.array(z.object({
-      port: z.number(),
-      protocol: z.string(),
-    })),
+    }).partial(),
+    ports: z.array(
+      z.object({
+        port: z.number(),
+        protocol: z.string(),
+      }).partial(),
+    ),
     resources: z.object({
       limits: z.record(z.string(), z.unknown()),
       requests: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   defaultContainerEnvironment: z.object({
     defaultContainerCategory: z.string(),
     resources: z.object({
       limits: z.record(z.string(), z.unknown()),
       requests: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   egressControlConfig: z.object({
-    dnsPeeringConfigs: z.array(z.object({
-      domain: z.string(),
-      targetNetwork: z.string(),
-      targetProject: z.string(),
-    })),
+    dnsPeeringConfigs: z.array(
+      z.object({
+        domain: z.string(),
+        targetNetwork: z.string(),
+        targetProject: z.string(),
+      }).partial(),
+    ),
     internetAccess: z.boolean(),
     networkAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ingressControlConfig: z.object({
     enablePrivateServiceConnect: z.boolean(),
     projectAllowlist: z.array(z.string()),
-    pscAutomationConfigs: z.array(z.object({
-      errorMessage: z.string(),
-      forwardingRule: z.string(),
-      ipAddress: z.string(),
-      network: z.string(),
-      projectId: z.string(),
-      state: z.string(),
-    })),
+    pscAutomationConfigs: z.array(
+      z.object({
+        errorMessage: z.string(),
+        forwardingRule: z.string(),
+        ipAddress: z.string(),
+        network: z.string(),
+        projectId: z.string(),
+        state: z.string(),
+      }).partial(),
+    ),
     serviceAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
@@ -462,7 +468,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.SandboxEnvironmentTemplates. Registered at `@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmenttemplates`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmenttemplates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -496,6 +502,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

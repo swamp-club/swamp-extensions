@@ -239,18 +239,18 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   logs: z.string().optional(),
   name: z.string(),
   previewArtifacts: z.object({
     artifacts: z.string(),
     content: z.string(),
-  }).optional(),
+  }).partial().optional(),
   previewMode: z.string().optional(),
   providerConfig: z.object({
     sourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   serviceAccount: z.string().optional(),
   state: z.string().optional(),
   terraformBlueprint: z.object({
@@ -260,19 +260,21 @@ const StateSchema = z.object({
       directory: z.string(),
       ref: z.string(),
       repo: z.string(),
-    }),
+    }).partial(),
     inputValues: z.record(z.string(), z.unknown()),
-  }).optional(),
-  tfErrors: z.array(z.object({
-    error: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    errorDescription: z.string(),
-    httpResponseCode: z.number(),
-    resourceAddress: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  tfErrors: z.array(
+    z.object({
+      error: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      errorDescription: z.string(),
+      httpResponseCode: z.number(),
+      resourceAddress: z.string(),
+    }).partial(),
+  ).optional(),
   tfVersion: z.string().optional(),
   tfVersionConstraint: z.string().optional(),
   workerPool: z.string().optional(),
@@ -393,7 +395,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Infrastructure Manager Previews. Registered at `@swamp/gcp/config/previews`. */
 export const model = {
   type: "@swamp/gcp/config/previews",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -564,6 +566,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

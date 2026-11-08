@@ -589,120 +589,124 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   clientConnectionConfig: z.object({
     inferenceTimeout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dedicatedEndpointDns: z.string().optional(),
   dedicatedEndpointEnabled: z.boolean().optional(),
-  deployedModels: z.array(z.object({
-    automaticResources: z.object({
-      maxReplicaCount: z.number(),
-      minReplicaCount: z.number(),
-    }),
-    checkpointId: z.string(),
-    createTime: z.string(),
-    dedicatedResources: z.object({
-      autoscalingMetricSpecs: z.array(z.object({
-        metricName: z.unknown(),
-        target: z.unknown(),
-      })),
-      machineSpec: z.object({
-        acceleratorCount: z.number(),
-        acceleratorType: z.string(),
-        gpuPartitionSize: z.string(),
-        machineType: z.string(),
-        reservationAffinity: z.object({
-          key: z.unknown(),
-          reservationAffinityType: z.unknown(),
-          values: z.unknown(),
-        }),
-        tpuTopology: z.string(),
-      }),
-      maxReplicaCount: z.number(),
-      minReplicaCount: z.number(),
-      requiredReplicaCount: z.number(),
-      spot: z.boolean(),
-    }),
-    disableContainerLogging: z.boolean(),
-    disableExplanations: z.boolean(),
-    displayName: z.string(),
-    enableAccessLogging: z.boolean(),
-    explanationSpec: z.object({
-      metadata: z.object({
-        featureAttributionsSchemaUri: z.string(),
-        inputs: z.record(z.string(), z.unknown()),
-        latentSpaceSource: z.string(),
-        outputs: z.record(z.string(), z.unknown()),
-      }),
-      parameters: z.object({
-        examples: z.object({
-          exampleGcsSource: z.unknown(),
-          nearestNeighborSearchConfig: z.unknown(),
-          neighborCount: z.unknown(),
-          presets: z.unknown(),
-        }),
-        integratedGradientsAttribution: z.object({
-          blurBaselineConfig: z.unknown(),
-          smoothGradConfig: z.unknown(),
-          stepCount: z.unknown(),
-        }),
-        outputIndices: z.array(z.unknown()),
-        sampledShapleyAttribution: z.object({
-          pathCount: z.unknown(),
-        }),
-        topK: z.number(),
-        xraiAttribution: z.object({
-          blurBaselineConfig: z.unknown(),
-          smoothGradConfig: z.unknown(),
-          stepCount: z.unknown(),
-        }),
-      }),
-    }),
-    fasterDeploymentConfig: z.object({
-      fastTryoutEnabled: z.boolean(),
-    }),
-    gdcConnectedModel: z.string(),
-    id: z.string(),
-    model: z.string(),
-    modelVersionId: z.string(),
-    privateEndpoints: z.object({
-      explainHttpUri: z.string(),
-      healthHttpUri: z.string(),
-      predictHttpUri: z.string(),
-      serviceAttachment: z.string(),
-    }),
-    serviceAccount: z.string(),
-    sharedResources: z.string(),
-    speculativeDecodingSpec: z.object({
-      draftModelSpeculation: z.object({
-        draftModel: z.string(),
-      }),
-      ngramSpeculation: z.object({
-        ngramSize: z.number(),
-      }),
-      speculativeTokenCount: z.number(),
-    }),
-    status: z.object({
-      availableReplicaCount: z.number(),
-      lastUpdateTime: z.string(),
-      message: z.string(),
-    }),
-    systemLabels: z.record(z.string(), z.unknown()),
-  })).optional(),
+  deployedModels: z.array(
+    z.object({
+      automaticResources: z.object({
+        maxReplicaCount: z.number(),
+        minReplicaCount: z.number(),
+      }).partial(),
+      checkpointId: z.string(),
+      createTime: z.string(),
+      dedicatedResources: z.object({
+        autoscalingMetricSpecs: z.array(
+          z.object({
+            metricName: z.unknown(),
+            target: z.unknown(),
+          }).partial(),
+        ),
+        machineSpec: z.object({
+          acceleratorCount: z.number(),
+          acceleratorType: z.string(),
+          gpuPartitionSize: z.string(),
+          machineType: z.string(),
+          reservationAffinity: z.object({
+            key: z.unknown(),
+            reservationAffinityType: z.unknown(),
+            values: z.unknown(),
+          }).partial(),
+          tpuTopology: z.string(),
+        }).partial(),
+        maxReplicaCount: z.number(),
+        minReplicaCount: z.number(),
+        requiredReplicaCount: z.number(),
+        spot: z.boolean(),
+      }).partial(),
+      disableContainerLogging: z.boolean(),
+      disableExplanations: z.boolean(),
+      displayName: z.string(),
+      enableAccessLogging: z.boolean(),
+      explanationSpec: z.object({
+        metadata: z.object({
+          featureAttributionsSchemaUri: z.string(),
+          inputs: z.record(z.string(), z.unknown()),
+          latentSpaceSource: z.string(),
+          outputs: z.record(z.string(), z.unknown()),
+        }).partial(),
+        parameters: z.object({
+          examples: z.object({
+            exampleGcsSource: z.unknown(),
+            nearestNeighborSearchConfig: z.unknown(),
+            neighborCount: z.unknown(),
+            presets: z.unknown(),
+          }).partial(),
+          integratedGradientsAttribution: z.object({
+            blurBaselineConfig: z.unknown(),
+            smoothGradConfig: z.unknown(),
+            stepCount: z.unknown(),
+          }).partial(),
+          outputIndices: z.array(z.unknown()),
+          sampledShapleyAttribution: z.object({
+            pathCount: z.unknown(),
+          }).partial(),
+          topK: z.number(),
+          xraiAttribution: z.object({
+            blurBaselineConfig: z.unknown(),
+            smoothGradConfig: z.unknown(),
+            stepCount: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      fasterDeploymentConfig: z.object({
+        fastTryoutEnabled: z.boolean(),
+      }).partial(),
+      gdcConnectedModel: z.string(),
+      id: z.string(),
+      model: z.string(),
+      modelVersionId: z.string(),
+      privateEndpoints: z.object({
+        explainHttpUri: z.string(),
+        healthHttpUri: z.string(),
+        predictHttpUri: z.string(),
+        serviceAttachment: z.string(),
+      }).partial(),
+      serviceAccount: z.string(),
+      sharedResources: z.string(),
+      speculativeDecodingSpec: z.object({
+        draftModelSpeculation: z.object({
+          draftModel: z.string(),
+        }).partial(),
+        ngramSpeculation: z.object({
+          ngramSize: z.number(),
+        }).partial(),
+        speculativeTokenCount: z.number(),
+      }).partial(),
+      status: z.object({
+        availableReplicaCount: z.number(),
+        lastUpdateTime: z.string(),
+        message: z.string(),
+      }).partial(),
+      systemLabels: z.record(z.string(), z.unknown()),
+    }).partial(),
+  ).optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   enablePrivateServiceConnect: z.boolean().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   gdcConfig: z.object({
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   genAiAdvancedFeaturesConfig: z.object({
     ragConfig: z.object({
       enableRag: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   modelDeploymentMonitoringJob: z.string().optional(),
   name: z.string(),
@@ -710,23 +714,25 @@ const StateSchema = z.object({
   predictRequestResponseLoggingConfig: z.object({
     bigqueryDestination: z.object({
       outputUri: z.string(),
-    }),
+    }).partial(),
     enabled: z.boolean(),
     samplingRate: z.number(),
-  }).optional(),
+  }).partial().optional(),
   privateServiceConnectConfig: z.object({
     enablePrivateServiceConnect: z.boolean(),
     projectAllowlist: z.array(z.string()),
-    pscAutomationConfigs: z.array(z.object({
-      errorMessage: z.string(),
-      forwardingRule: z.string(),
-      ipAddress: z.string(),
-      network: z.string(),
-      projectId: z.string(),
-      state: z.string(),
-    })),
+    pscAutomationConfigs: z.array(
+      z.object({
+        errorMessage: z.string(),
+        forwardingRule: z.string(),
+        ipAddress: z.string(),
+        network: z.string(),
+        projectId: z.string(),
+        state: z.string(),
+      }).partial(),
+    ),
     serviceAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   trafficSplit: z.record(z.string(), z.unknown()).optional(),
@@ -1191,7 +1197,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Endpoints. Registered at `@swamp/gcp/aiplatform/endpoints`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/endpoints",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1375,6 +1381,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

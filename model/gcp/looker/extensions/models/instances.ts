@@ -451,11 +451,11 @@ const StateSchema = z.object({
   acceleratedSecurityPatchEnabled: z.boolean().optional(),
   adminSettings: z.object({
     allowedEmailDomains: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   authType: z.object({
     googleAuthEnabled: z.boolean(),
     workforceAuthEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   catalogIntegrationOptOut: z.boolean().optional(),
   classType: z.string().optional(),
   consumerNetwork: z.string().optional(),
@@ -463,47 +463,49 @@ const StateSchema = z.object({
     egressFqdns: z.array(z.string()),
     marketplaceEnabled: z.boolean(),
     webProxyIps: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   controlledEgressEnabled: z.boolean().optional(),
   createTime: z.string().optional(),
   customDomain: z.object({
     domain: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   denyMaintenancePeriod: z.object({
     endDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     startDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     time: z.object({
       hours: z.number(),
       minutes: z.number(),
       nanos: z.number(),
       seconds: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   egressPublicIp: z.string().optional(),
   encryptionConfig: z.object({
     kmsKeyName: z.string(),
     kmsKeyNameVersion: z.string(),
     kmsKeyState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   fipsEnabled: z.boolean().optional(),
   geminiEnabled: z.boolean().optional(),
   ingressIpAllowlistConfig: z.object({
-    allowlistRules: z.array(z.object({
-      description: z.string(),
-      ipRange: z.string(),
-    })),
+    allowlistRules: z.array(
+      z.object({
+        description: z.string(),
+        ipRange: z.string(),
+      }).partial(),
+    ),
     enabled: z.boolean(),
     googleServicesEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ingressPrivateIp: z.string().optional(),
   ingressPublicIp: z.string().optional(),
   lastDenyMaintenancePeriod: z.object({
@@ -511,26 +513,26 @@ const StateSchema = z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     startDate: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     time: z.object({
       hours: z.number(),
       minutes: z.number(),
       nanos: z.number(),
       seconds: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   linkedLspProjectNumber: z.string().optional(),
   lookerUri: z.string().optional(),
   lookerVersion: z.string().optional(),
   maintenanceSchedule: z.object({
     endTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   maintenanceWindow: z.object({
     dayOfWeek: z.string(),
     startTime: z.object({
@@ -538,14 +540,14 @@ const StateSchema = z.object({
       minutes: z.number(),
       nanos: z.number(),
       seconds: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   oauthConfig: z.object({
     clientId: z.string(),
     clientSecret: z.string(),
     sharedOauthClientEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   periodicExportConfig: z.object({
     gcsUri: z.string(),
     kmsKey: z.string(),
@@ -554,21 +556,23 @@ const StateSchema = z.object({
       minutes: z.number(),
       nanos: z.number(),
       seconds: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   platformEdition: z.string().optional(),
   privateIpEnabled: z.boolean().optional(),
   pscConfig: z.object({
     allowedVpcs: z.array(z.string()),
     lookerServiceAttachmentUri: z.string(),
-    serviceAttachments: z.array(z.object({
-      connectionStatus: z.string(),
-      failureReason: z.string(),
-      localFqdn: z.string(),
-      localFqdns: z.array(z.string()),
-      targetServiceAttachmentUri: z.string(),
-    })),
-  }).optional(),
+    serviceAttachments: z.array(
+      z.object({
+        connectionStatus: z.string(),
+        failureReason: z.string(),
+        localFqdn: z.string(),
+        localFqdns: z.array(z.string()),
+        targetServiceAttachmentUri: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   pscEnabled: z.boolean().optional(),
   publicIpEnabled: z.boolean().optional(),
   releaseChannel: z.string().optional(),
@@ -583,7 +587,7 @@ const StateSchema = z.object({
     additionalDeveloperUserCount: z.number(),
     additionalStandardUserCount: z.number(),
     additionalViewerUserCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -906,7 +910,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Looker (Google Cloud core) Instances. Registered at `@swamp/gcp/looker/instances`. */
 export const model = {
   type: "@swamp/gcp/looker/instances",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1071,6 +1075,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

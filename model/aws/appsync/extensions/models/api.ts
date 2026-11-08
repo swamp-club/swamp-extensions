@@ -105,6 +105,46 @@ const TagSchema = z.object({
     ),
 });
 
+const OpenIDConnectConfigStateSchema = z.object({
+  ClientId: z.string(),
+  AuthTTL: z.number(),
+  Issuer: z.string(),
+  IatTTL: z.number(),
+}).partial();
+
+const CognitoConfigStateSchema = z.object({
+  AppIdClientRegex: z.string(),
+  UserPoolId: z.string(),
+  AwsRegion: z.string(),
+}).partial();
+
+const LambdaAuthorizerConfigStateSchema = z.object({
+  AuthorizerResultTtlInSeconds: z.number(),
+  AuthorizerUri: z.string(),
+  IdentityValidationExpression: z.string(),
+}).partial();
+
+const AuthProviderStateSchema = z.object({
+  AuthType: z.string(),
+  OpenIDConnectConfig: OpenIDConnectConfigStateSchema,
+  CognitoConfig: CognitoConfigStateSchema,
+  LambdaAuthorizerConfig: LambdaAuthorizerConfigStateSchema,
+}).partial();
+
+const AuthModeStateSchema = z.object({
+  AuthType: z.string(),
+}).partial();
+
+const EventLogConfigStateSchema = z.object({
+  LogLevel: z.string(),
+  CloudWatchLogsRoleArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -156,18 +196,18 @@ const StateSchema = z.object({
   Dns: z.object({
     Realtime: z.string(),
     Http: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EventConfig: z.object({
-    AuthProviders: z.array(AuthProviderSchema),
-    ConnectionAuthModes: z.array(AuthModeSchema),
-    DefaultPublishAuthModes: z.array(AuthModeSchema),
-    DefaultSubscribeAuthModes: z.array(AuthModeSchema),
-    LogConfig: EventLogConfigSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    AuthProviders: z.array(AuthProviderStateSchema),
+    ConnectionAuthModes: z.array(AuthModeStateSchema),
+    DefaultPublishAuthModes: z.array(AuthModeStateSchema),
+    DefaultSubscribeAuthModes: z.array(AuthModeStateSchema),
+    LogConfig: EventLogConfigStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -221,7 +261,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync Api. Registered at `@swamp/aws/appsync/api`. */
 export const model = {
   type: "@swamp/aws/appsync/api",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -285,6 +325,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

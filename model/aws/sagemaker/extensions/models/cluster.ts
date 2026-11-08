@@ -338,6 +338,138 @@ const TagSchema = z.object({
   ),
 });
 
+const ClusterSlurmConfigStateSchema = z.object({
+  PartitionNames: z.array(z.string()),
+  NodeType: z.string(),
+}).partial();
+
+const ClusterCapacityRequirementsStateSchema = z.object({
+  Spot: z.record(z.string(), z.unknown()),
+  OnDemand: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ClusterKubernetesTaintStateSchema = z.object({
+  Value: z.string(),
+  Effect: z.string(),
+  Key: z.string(),
+}).partial();
+
+const ClusterKubernetesConfigStateSchema = z.object({
+  Labels: z.record(z.string(), z.unknown()),
+  Taints: z.array(ClusterKubernetesTaintStateSchema),
+}).partial();
+
+const ClusterNetworkInterfaceStateSchema = z.object({
+  InterfaceType: z.string(),
+}).partial();
+
+const ClusterLifeCycleConfigStateSchema = z.object({
+  OnInitComplete: z.string(),
+  SourceS3Uri: z.string(),
+  OnCreate: z.string(),
+}).partial();
+
+const VpcConfigStateSchema = z.object({
+  Subnets: z.array(z.string()),
+  SecurityGroupIds: z.array(z.string()),
+}).partial();
+
+const AlarmDetailsStateSchema = z.object({
+  AlarmName: z.string(),
+}).partial();
+
+const CapacitySizeConfigStateSchema = z.object({
+  Type: z.string(),
+  Value: z.number(),
+}).partial();
+
+const RollingUpdatePolicyStateSchema = z.object({
+  MaximumBatchSize: CapacitySizeConfigStateSchema,
+  RollbackMaximumBatchSize: CapacitySizeConfigStateSchema,
+}).partial();
+
+const DeploymentConfigStateSchema = z.object({
+  AutoRollbackConfiguration: z.array(AlarmDetailsStateSchema),
+  RollingUpdatePolicy: RollingUpdatePolicyStateSchema,
+  WaitIntervalInSeconds: z.number(),
+}).partial();
+
+const ScheduledUpdateConfigStateSchema = z.object({
+  ScheduleExpression: z.string(),
+  DeploymentConfig: DeploymentConfigStateSchema,
+}).partial();
+
+const InstanceRequirementsStateSchema = z.object({
+  InstanceTypes: z.array(z.string()),
+}).partial();
+
+const PatchScheduleStateSchema = z.object({
+  NextPatchDate: z.string(),
+}).partial();
+
+const AutoPatchConfigStateSchema = z.object({
+  PatchingStrategy: z.string(),
+  PatchSchedule: PatchScheduleStateSchema,
+  DeploymentConfig: DeploymentConfigStateSchema,
+}).partial();
+
+const ClusterInstanceGroupStateSchema = z.object({
+  SlurmConfig: ClusterSlurmConfigStateSchema,
+  CapacityRequirements: ClusterCapacityRequirementsStateSchema,
+  InstanceGroupName: z.string(),
+  InstanceStorageConfigs: z.array(z.record(z.string(), z.unknown())),
+  KubernetesConfig: ClusterKubernetesConfigStateSchema,
+  NetworkInterface: ClusterNetworkInterfaceStateSchema,
+  LifeCycleConfig: ClusterLifeCycleConfigStateSchema,
+  TrainingPlanArn: z.string(),
+  ThreadsPerCore: z.number(),
+  OverrideVpcConfig: VpcConfigStateSchema,
+  InstanceCount: z.number(),
+  OnStartDeepHealthChecks: z.array(z.string()),
+  ImageId: z.string(),
+  CurrentCount: z.number(),
+  ScheduledUpdateConfig: ScheduledUpdateConfigStateSchema,
+  InstanceRequirements: InstanceRequirementsStateSchema,
+  InstanceType: z.string(),
+  AutoPatchConfig: AutoPatchConfigStateSchema,
+  ImageReleaseVersion: z.string(),
+  ExecutionRole: z.string(),
+  MinInstanceCount: z.number(),
+}).partial();
+
+const FSxLustreConfigStateSchema = z.object({
+  SizeInGiB: z.number(),
+  PerUnitStorageThroughput: z.number(),
+}).partial();
+
+const EnvironmentConfigStateSchema = z.object({
+  FSxLustreConfig: FSxLustreConfigStateSchema,
+}).partial();
+
+const ClusterRestrictedInstanceGroupStateSchema = z.object({
+  OverrideVpcConfig: VpcConfigStateSchema,
+  InstanceCount: z.number(),
+  OnStartDeepHealthChecks: z.array(z.string()),
+  EnvironmentConfig: EnvironmentConfigStateSchema,
+  InstanceGroupName: z.string(),
+  InstanceStorageConfigs: z.array(z.record(z.string(), z.unknown())),
+  CurrentCount: z.number(),
+  TrainingPlanArn: z.string(),
+  InstanceType: z.string(),
+  ThreadsPerCore: z.number(),
+  ExecutionRole: z.string(),
+}).partial();
+
+const SharedEnvironmentConfigStateSchema = z.object({
+  FSxLustreDeletionPolicy: z.string(),
+  FSxLustreConfig: FSxLustreConfigStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -419,16 +551,19 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ClusterArn: z.string(),
-  VpcConfig: VpcConfigSchema.optional(),
+  VpcConfig: z.object({
+    Subnets: z.array(z.string()),
+    SecurityGroupIds: z.array(z.string()),
+  }).partial().optional(),
   NodeRecovery: z.string().optional(),
-  InstanceGroups: z.array(ClusterInstanceGroupSchema).optional(),
-  RestrictedInstanceGroups: z.array(ClusterRestrictedInstanceGroupSchema)
+  InstanceGroups: z.array(ClusterInstanceGroupStateSchema).optional(),
+  RestrictedInstanceGroups: z.array(ClusterRestrictedInstanceGroupStateSchema)
     .optional(),
   Orchestrator: z.record(z.string(), z.unknown()).optional(),
   ClusterRole: z.string().optional(),
   RestrictedInstanceGroupsConfig: z.object({
-    SharedEnvironmentConfig: SharedEnvironmentConfigSchema,
-  }).optional(),
+    SharedEnvironmentConfig: SharedEnvironmentConfigStateSchema,
+  }).partial().optional(),
   NodeProvisioningMode: z.string().optional(),
   CreationTime: z.string().optional(),
   ClusterName: z.string().optional(),
@@ -436,16 +571,16 @@ const StateSchema = z.object({
   AutoScaling: z.object({
     Mode: z.string(),
     AutoScalerType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ClusterStatus: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TieredStorageConfig: z.object({
     Mode: z.string(),
     InstanceMemoryAllocationPercentage: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -536,7 +671,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Cluster. Registered at `@swamp/aws/sagemaker/cluster`. */
 export const model = {
   type: "@swamp/aws/sagemaker/cluster",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -650,6 +785,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

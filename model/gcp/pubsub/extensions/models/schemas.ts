@@ -172,7 +172,7 @@ const StateSchema = z.object({
   compiledProtoSchema: z.object({
     compiledBytes: z.string(),
     rootMessage: z.string(),
-  }).optional(),
+  }).partial().optional(),
   definition: z.string().optional(),
   name: z.string(),
   revisionCreateTime: z.string().optional(),
@@ -242,7 +242,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Schemas. Registered at `@swamp/gcp/pubsub/schemas`. */
 export const model = {
   type: "@swamp/gcp/pubsub/schemas",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -398,6 +398,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1163,202 +1163,208 @@ const StateSchema = z.object({
   dagTimeout: z.string().optional(),
   encryptionConfig: z.object({
     kmsKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
-  jobs: z.array(z.object({
-    flinkJob: z.object({
-      args: z.array(z.string()),
-      jarFileUris: z.array(z.string()),
-      loggingConfig: z.object({
-        driverLogLevels: z.record(z.string(), z.unknown()),
-      }),
-      mainClass: z.string(),
-      mainJarFileUri: z.string(),
-      properties: z.record(z.string(), z.unknown()),
-      savepointUri: z.string(),
-    }),
-    hadoopJob: z.object({
-      archiveUris: z.array(z.string()),
-      args: z.array(z.string()),
-      fileUris: z.array(z.string()),
-      jarFileUris: z.array(z.string()),
-      loggingConfig: z.object({
-        driverLogLevels: z.record(z.string(), z.unknown()),
-      }),
-      mainClass: z.string(),
-      mainJarFileUri: z.string(),
-      properties: z.record(z.string(), z.unknown()),
-    }),
-    hiveJob: z.object({
-      continueOnFailure: z.boolean(),
-      jarFileUris: z.array(z.string()),
-      properties: z.record(z.string(), z.unknown()),
-      queryFileUri: z.string(),
-      queryList: z.object({
-        queries: z.array(z.unknown()),
-      }),
-      scriptVariables: z.record(z.string(), z.unknown()),
-    }),
-    labels: z.record(z.string(), z.unknown()),
-    pigJob: z.object({
-      continueOnFailure: z.boolean(),
-      jarFileUris: z.array(z.string()),
-      loggingConfig: z.object({
-        driverLogLevels: z.record(z.string(), z.unknown()),
-      }),
-      properties: z.record(z.string(), z.unknown()),
-      queryFileUri: z.string(),
-      queryList: z.object({
-        queries: z.array(z.unknown()),
-      }),
-      scriptVariables: z.record(z.string(), z.unknown()),
-    }),
-    prerequisiteStepIds: z.array(z.string()),
-    prestoJob: z.object({
-      clientTags: z.array(z.string()),
-      continueOnFailure: z.boolean(),
-      loggingConfig: z.object({
-        driverLogLevels: z.record(z.string(), z.unknown()),
-      }),
-      outputFormat: z.string(),
-      properties: z.record(z.string(), z.unknown()),
-      queryFileUri: z.string(),
-      queryList: z.object({
-        queries: z.array(z.unknown()),
-      }),
-    }),
-    pysparkJob: z.object({
-      archiveUris: z.array(z.string()),
-      args: z.array(z.string()),
-      fileUris: z.array(z.string()),
-      jarFileUris: z.array(z.string()),
-      loggingConfig: z.object({
-        driverLogLevels: z.record(z.string(), z.unknown()),
-      }),
-      mainPythonFileUri: z.string(),
-      properties: z.record(z.string(), z.unknown()),
-      pythonFileUris: z.array(z.string()),
-    }),
-    scheduling: z.object({
-      maxFailuresPerHour: z.number(),
-      maxFailuresTotal: z.number(),
-    }),
-    sparkJob: z.object({
-      archiveUris: z.array(z.string()),
-      args: z.array(z.string()),
-      fileUris: z.array(z.string()),
-      jarFileUris: z.array(z.string()),
-      loggingConfig: z.object({
-        driverLogLevels: z.record(z.string(), z.unknown()),
-      }),
-      mainClass: z.string(),
-      mainJarFileUri: z.string(),
-      properties: z.record(z.string(), z.unknown()),
-    }),
-    sparkRJob: z.object({
-      archiveUris: z.array(z.string()),
-      args: z.array(z.string()),
-      fileUris: z.array(z.string()),
-      loggingConfig: z.object({
-        driverLogLevels: z.record(z.string(), z.unknown()),
-      }),
-      mainRFileUri: z.string(),
-      properties: z.record(z.string(), z.unknown()),
-    }),
-    sparkSqlJob: z.object({
-      jarFileUris: z.array(z.string()),
-      loggingConfig: z.object({
-        driverLogLevels: z.record(z.string(), z.unknown()),
-      }),
-      properties: z.record(z.string(), z.unknown()),
-      queryFileUri: z.string(),
-      queryList: z.object({
-        queries: z.array(z.unknown()),
-      }),
-      scriptVariables: z.record(z.string(), z.unknown()),
-    }),
-    stepId: z.string(),
-    trinoJob: z.object({
-      clientTags: z.array(z.string()),
-      continueOnFailure: z.boolean(),
-      loggingConfig: z.object({
-        driverLogLevels: z.record(z.string(), z.unknown()),
-      }),
-      outputFormat: z.string(),
-      properties: z.record(z.string(), z.unknown()),
-      queryFileUri: z.string(),
-      queryList: z.object({
-        queries: z.array(z.unknown()),
-      }),
-    }),
-  })).optional(),
+  jobs: z.array(
+    z.object({
+      flinkJob: z.object({
+        args: z.array(z.string()),
+        jarFileUris: z.array(z.string()),
+        loggingConfig: z.object({
+          driverLogLevels: z.record(z.string(), z.unknown()),
+        }).partial(),
+        mainClass: z.string(),
+        mainJarFileUri: z.string(),
+        properties: z.record(z.string(), z.unknown()),
+        savepointUri: z.string(),
+      }).partial(),
+      hadoopJob: z.object({
+        archiveUris: z.array(z.string()),
+        args: z.array(z.string()),
+        fileUris: z.array(z.string()),
+        jarFileUris: z.array(z.string()),
+        loggingConfig: z.object({
+          driverLogLevels: z.record(z.string(), z.unknown()),
+        }).partial(),
+        mainClass: z.string(),
+        mainJarFileUri: z.string(),
+        properties: z.record(z.string(), z.unknown()),
+      }).partial(),
+      hiveJob: z.object({
+        continueOnFailure: z.boolean(),
+        jarFileUris: z.array(z.string()),
+        properties: z.record(z.string(), z.unknown()),
+        queryFileUri: z.string(),
+        queryList: z.object({
+          queries: z.array(z.unknown()),
+        }).partial(),
+        scriptVariables: z.record(z.string(), z.unknown()),
+      }).partial(),
+      labels: z.record(z.string(), z.unknown()),
+      pigJob: z.object({
+        continueOnFailure: z.boolean(),
+        jarFileUris: z.array(z.string()),
+        loggingConfig: z.object({
+          driverLogLevels: z.record(z.string(), z.unknown()),
+        }).partial(),
+        properties: z.record(z.string(), z.unknown()),
+        queryFileUri: z.string(),
+        queryList: z.object({
+          queries: z.array(z.unknown()),
+        }).partial(),
+        scriptVariables: z.record(z.string(), z.unknown()),
+      }).partial(),
+      prerequisiteStepIds: z.array(z.string()),
+      prestoJob: z.object({
+        clientTags: z.array(z.string()),
+        continueOnFailure: z.boolean(),
+        loggingConfig: z.object({
+          driverLogLevels: z.record(z.string(), z.unknown()),
+        }).partial(),
+        outputFormat: z.string(),
+        properties: z.record(z.string(), z.unknown()),
+        queryFileUri: z.string(),
+        queryList: z.object({
+          queries: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+      pysparkJob: z.object({
+        archiveUris: z.array(z.string()),
+        args: z.array(z.string()),
+        fileUris: z.array(z.string()),
+        jarFileUris: z.array(z.string()),
+        loggingConfig: z.object({
+          driverLogLevels: z.record(z.string(), z.unknown()),
+        }).partial(),
+        mainPythonFileUri: z.string(),
+        properties: z.record(z.string(), z.unknown()),
+        pythonFileUris: z.array(z.string()),
+      }).partial(),
+      scheduling: z.object({
+        maxFailuresPerHour: z.number(),
+        maxFailuresTotal: z.number(),
+      }).partial(),
+      sparkJob: z.object({
+        archiveUris: z.array(z.string()),
+        args: z.array(z.string()),
+        fileUris: z.array(z.string()),
+        jarFileUris: z.array(z.string()),
+        loggingConfig: z.object({
+          driverLogLevels: z.record(z.string(), z.unknown()),
+        }).partial(),
+        mainClass: z.string(),
+        mainJarFileUri: z.string(),
+        properties: z.record(z.string(), z.unknown()),
+      }).partial(),
+      sparkRJob: z.object({
+        archiveUris: z.array(z.string()),
+        args: z.array(z.string()),
+        fileUris: z.array(z.string()),
+        loggingConfig: z.object({
+          driverLogLevels: z.record(z.string(), z.unknown()),
+        }).partial(),
+        mainRFileUri: z.string(),
+        properties: z.record(z.string(), z.unknown()),
+      }).partial(),
+      sparkSqlJob: z.object({
+        jarFileUris: z.array(z.string()),
+        loggingConfig: z.object({
+          driverLogLevels: z.record(z.string(), z.unknown()),
+        }).partial(),
+        properties: z.record(z.string(), z.unknown()),
+        queryFileUri: z.string(),
+        queryList: z.object({
+          queries: z.array(z.unknown()),
+        }).partial(),
+        scriptVariables: z.record(z.string(), z.unknown()),
+      }).partial(),
+      stepId: z.string(),
+      trinoJob: z.object({
+        clientTags: z.array(z.string()),
+        continueOnFailure: z.boolean(),
+        loggingConfig: z.object({
+          driverLogLevels: z.record(z.string(), z.unknown()),
+        }).partial(),
+        outputFormat: z.string(),
+        properties: z.record(z.string(), z.unknown()),
+        queryFileUri: z.string(),
+        queryList: z.object({
+          queries: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  parameters: z.array(z.object({
-    description: z.string(),
-    fields: z.array(z.string()),
-    name: z.string(),
-    validation: z.object({
-      regex: z.object({
-        regexes: z.array(z.unknown()),
-      }),
-      values: z.object({
-        values: z.array(z.unknown()),
-      }),
-    }),
-  })).optional(),
+  parameters: z.array(
+    z.object({
+      description: z.string(),
+      fields: z.array(z.string()),
+      name: z.string(),
+      validation: z.object({
+        regex: z.object({
+          regexes: z.array(z.unknown()),
+        }).partial(),
+        values: z.object({
+          values: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   placement: z.object({
     clusterSelector: z.object({
       clusterLabels: z.record(z.string(), z.unknown()),
       zone: z.string(),
-    }),
+    }).partial(),
     managedCluster: z.object({
       clusterName: z.string(),
       config: z.object({
         autoscalingConfig: z.object({
           policyUri: z.string(),
-        }),
-        auxiliaryNodeGroups: z.array(z.object({
-          nodeGroup: z.unknown(),
-          nodeGroupId: z.unknown(),
-        })),
+        }).partial(),
+        auxiliaryNodeGroups: z.array(
+          z.object({
+            nodeGroup: z.unknown(),
+            nodeGroupId: z.unknown(),
+          }).partial(),
+        ),
         clusterTier: z.string(),
         clusterType: z.string(),
         configBucket: z.string(),
         dataprocMetricConfig: z.object({
           metrics: z.array(z.unknown()),
-        }),
+        }).partial(),
         diagnosticBucket: z.string(),
         encryptionConfig: z.object({
           gcePdKmsKeyName: z.string(),
           kmsKey: z.string(),
-        }),
+        }).partial(),
         endpointConfig: z.object({
           enableHttpPortAccess: z.boolean(),
           httpPorts: z.record(z.string(), z.unknown()),
-        }),
+        }).partial(),
         engine: z.string(),
         gceClusterConfig: z.object({
           autoZoneExcludeZoneUris: z.array(z.unknown()),
           confidentialInstanceConfig: z.object({
             confidentialInstanceType: z.unknown(),
             enableConfidentialCompute: z.unknown(),
-          }),
+          }).partial(),
           internalIpOnly: z.boolean(),
           metadata: z.record(z.string(), z.unknown()),
           multiZoneConfig: z.object({
             targetShape: z.unknown(),
-          }),
+          }).partial(),
           networkUri: z.string(),
           nodeGroupAffinity: z.object({
             nodeGroupUri: z.unknown(),
-          }),
+          }).partial(),
           privateIpv6GoogleAccess: z.string(),
           reservationAffinity: z.object({
             consumeReservationType: z.unknown(),
             key: z.unknown(),
             values: z.unknown(),
-          }),
+          }).partial(),
           resourceManagerTags: z.record(z.string(), z.unknown()),
           serviceAccount: z.string(),
           serviceAccountScopes: z.array(z.unknown()),
@@ -1366,23 +1372,25 @@ const StateSchema = z.object({
             enableIntegrityMonitoring: z.unknown(),
             enableSecureBoot: z.unknown(),
             enableVtpm: z.unknown(),
-          }),
+          }).partial(),
           subnetworkUri: z.string(),
           tags: z.array(z.unknown()),
           zoneUri: z.string(),
-        }),
+        }).partial(),
         gkeClusterConfig: z.object({
           gkeClusterTarget: z.string(),
           namespacedGkeDeploymentTarget: z.object({
             clusterNamespace: z.unknown(),
             targetGkeCluster: z.unknown(),
-          }),
+          }).partial(),
           nodePoolTarget: z.array(z.unknown()),
-        }),
-        initializationActions: z.array(z.object({
-          executableFile: z.unknown(),
-          executionTimeout: z.unknown(),
-        })),
+        }).partial(),
+        initializationActions: z.array(
+          z.object({
+            executableFile: z.unknown(),
+            executionTimeout: z.unknown(),
+          }).partial(),
+        ),
         lifecycleConfig: z.object({
           autoDeleteTime: z.string(),
           autoDeleteTtl: z.string(),
@@ -1391,7 +1399,7 @@ const StateSchema = z.object({
           idleDeleteTtl: z.string(),
           idleStartTime: z.string(),
           idleStopTtl: z.string(),
-        }),
+        }).partial(),
         masterConfig: z.object({
           accelerators: z.array(z.unknown()),
           diskConfig: z.object({
@@ -1402,14 +1410,14 @@ const StateSchema = z.object({
             bootDiskType: z.unknown(),
             localSsdInterface: z.unknown(),
             numLocalSsds: z.unknown(),
-          }),
+          }).partial(),
           imageUri: z.string(),
           instanceFlexibilityPolicy: z.object({
             instanceMachineTypes: z.unknown(),
             instanceSelectionList: z.unknown(),
             instanceSelectionResults: z.unknown(),
             provisioningModelMix: z.unknown(),
-          }),
+          }).partial(),
           instanceNames: z.array(z.unknown()),
           instanceReferences: z.array(z.unknown()),
           isPreemptible: z.boolean(),
@@ -1418,28 +1426,28 @@ const StateSchema = z.object({
             instanceGroupManagerName: z.unknown(),
             instanceGroupManagerUri: z.unknown(),
             instanceTemplateName: z.unknown(),
-          }),
+          }).partial(),
           minCpuPlatform: z.string(),
           minNumInstances: z.number(),
           numInstances: z.number(),
           preemptibility: z.string(),
           startupConfig: z.object({
             requiredRegistrationFraction: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         masterFlexibleConfig: z.object({
           bootDiskSizeGb: z.number(),
           coreCount: z.number(),
           hardwareClass: z.string(),
           numInstances: z.number(),
-        }),
+        }).partial(),
         metastoreConfig: z.object({
           dataprocMetastoreService: z.string(),
-        }),
+        }).partial(),
         schedulingConfig: z.object({
           requestedRunDuration: z.string(),
           schedulingTimeout: z.string(),
-        }),
+        }).partial(),
         secondaryWorkerConfig: z.object({
           accelerators: z.array(z.unknown()),
           diskConfig: z.object({
@@ -1450,14 +1458,14 @@ const StateSchema = z.object({
             bootDiskType: z.unknown(),
             localSsdInterface: z.unknown(),
             numLocalSsds: z.unknown(),
-          }),
+          }).partial(),
           imageUri: z.string(),
           instanceFlexibilityPolicy: z.object({
             instanceMachineTypes: z.unknown(),
             instanceSelectionList: z.unknown(),
             instanceSelectionResults: z.unknown(),
             provisioningModelMix: z.unknown(),
-          }),
+          }).partial(),
           instanceNames: z.array(z.unknown()),
           instanceReferences: z.array(z.unknown()),
           isPreemptible: z.boolean(),
@@ -1466,26 +1474,26 @@ const StateSchema = z.object({
             instanceGroupManagerName: z.unknown(),
             instanceGroupManagerUri: z.unknown(),
             instanceTemplateName: z.unknown(),
-          }),
+          }).partial(),
           minCpuPlatform: z.string(),
           minNumInstances: z.number(),
           numInstances: z.number(),
           preemptibility: z.string(),
           startupConfig: z.object({
             requiredRegistrationFraction: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         secondaryWorkerFlexibleConfig: z.object({
           bootDiskSizeGb: z.number(),
           coreCount: z.number(),
           hardwareClass: z.string(),
           numInstances: z.number(),
-        }),
+        }).partial(),
         securityConfig: z.object({
           identityConfig: z.object({
             enableSsh: z.unknown(),
             userServiceAccountMapping: z.unknown(),
-          }),
+          }).partial(),
           kerberosConfig: z.object({
             crossRealmTrustAdminServer: z.unknown(),
             crossRealmTrustKdc: z.unknown(),
@@ -1502,13 +1510,13 @@ const StateSchema = z.object({
             tgtLifetimeHours: z.unknown(),
             truststorePasswordUri: z.unknown(),
             truststoreUri: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         softwareConfig: z.object({
           imageVersion: z.string(),
           optionalComponents: z.array(z.unknown()),
           properties: z.record(z.string(), z.unknown()),
-        }),
+        }).partial(),
         tempBucket: z.string(),
         workerConfig: z.object({
           accelerators: z.array(z.unknown()),
@@ -1520,14 +1528,14 @@ const StateSchema = z.object({
             bootDiskType: z.unknown(),
             localSsdInterface: z.unknown(),
             numLocalSsds: z.unknown(),
-          }),
+          }).partial(),
           imageUri: z.string(),
           instanceFlexibilityPolicy: z.object({
             instanceMachineTypes: z.unknown(),
             instanceSelectionList: z.unknown(),
             instanceSelectionResults: z.unknown(),
             provisioningModelMix: z.unknown(),
-          }),
+          }).partial(),
           instanceNames: z.array(z.unknown()),
           instanceReferences: z.array(z.unknown()),
           isPreemptible: z.boolean(),
@@ -1536,25 +1544,25 @@ const StateSchema = z.object({
             instanceGroupManagerName: z.unknown(),
             instanceGroupManagerUri: z.unknown(),
             instanceTemplateName: z.unknown(),
-          }),
+          }).partial(),
           minCpuPlatform: z.string(),
           minNumInstances: z.number(),
           numInstances: z.number(),
           preemptibility: z.string(),
           startupConfig: z.object({
             requiredRegistrationFraction: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         workerFlexibleConfig: z.object({
           bootDiskSizeGb: z.number(),
           coreCount: z.number(),
           hardwareClass: z.string(),
           numInstances: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       labels: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   version: z.number().optional(),
 }).passthrough();
@@ -2596,7 +2604,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc WorkflowTemplates. Registered at `@swamp/gcp/dataproc/workflowtemplates`. */
 export const model = {
   type: "@swamp/gcp/dataproc/workflowtemplates",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2845,6 +2853,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

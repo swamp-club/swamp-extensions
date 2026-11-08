@@ -95,6 +95,34 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const PatchFilterStateSchema = z.object({
+  Values: z.array(z.string()),
+  Key: z.string(),
+}).partial();
+
+const PatchFilterGroupStateSchema = z.object({
+  PatchFilters: z.array(PatchFilterStateSchema),
+}).partial();
+
+const RuleStateSchema = z.object({
+  ApproveUntilDate: z.string(),
+  EnableNonSecurity: z.boolean(),
+  PatchFilterGroup: PatchFilterGroupStateSchema,
+  ApproveAfterDays: z.number(),
+  ComplianceLevel: z.string(),
+}).partial();
+
+const PatchSourceStateSchema = z.object({
+  Products: z.array(z.string()),
+  Configuration: z.string(),
+  Name: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -194,9 +222,9 @@ const StateSchema = z.object({
   OperatingSystem: z.string().optional(),
   Description: z.string().optional(),
   ApprovalRules: z.object({
-    PatchRules: z.array(RuleSchema),
-  }).optional(),
-  Sources: z.array(PatchSourceSchema).optional(),
+    PatchRules: z.array(RuleStateSchema),
+  }).partial().optional(),
+  Sources: z.array(PatchSourceStateSchema).optional(),
   Name: z.string().optional(),
   RejectedPatches: z.array(z.string()).optional(),
   ApprovedPatches: z.array(z.string()).optional(),
@@ -204,12 +232,14 @@ const StateSchema = z.object({
   PatchGroups: z.array(z.string()).optional(),
   ApprovedPatchesComplianceLevel: z.string().optional(),
   ApprovedPatchesEnableNonSecurity: z.boolean().optional(),
-  GlobalFilters: PatchFilterGroupSchema.optional(),
+  GlobalFilters: z.object({
+    PatchFilters: z.array(PatchFilterStateSchema),
+  }).partial().optional(),
   AvailableSecurityUpdatesComplianceStatus: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -313,7 +343,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSM PatchBaseline. Registered at `@swamp/aws/ssm/patch-baseline`. */
 export const model = {
   type: "@swamp/aws/ssm/patch-baseline",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -377,6 +407,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -4134,6 +4134,3626 @@ const SheetSchema = z.object({
   ).optional(),
 });
 
+const StringParameterStateSchema = z.object({
+  Values: z.array(z.string()),
+  Name: z.string(),
+}).partial();
+
+const DecimalParameterStateSchema = z.object({
+  Values: z.array(z.number()),
+  Name: z.string(),
+}).partial();
+
+const IntegerParameterStateSchema = z.object({
+  Values: z.array(z.number()),
+  Name: z.string(),
+}).partial();
+
+const DateTimeParameterStateSchema = z.object({
+  Values: z.array(z.string()),
+  Name: z.string(),
+}).partial();
+
+const DataSetReferenceStateSchema = z.object({
+  DataSetArn: z.string(),
+  DataSetPlaceholder: z.string(),
+}).partial();
+
+const TopicReferenceStateSchema = z.object({
+  TopicArn: z.string(),
+  TopicPlaceholder: z.string(),
+}).partial();
+
+const AnalysisSourceTemplateStateSchema = z.object({
+  DataSetReferences: z.array(DataSetReferenceStateSchema),
+  Arn: z.string(),
+  TopicReferences: z.array(TopicReferenceStateSchema),
+}).partial();
+
+const AssetOptionsStateSchema = z.object({
+  Timezone: z.string(),
+  WeekStart: z.string(),
+}).partial();
+
+const ColumnIdentifierStateSchema = z.object({
+  ColumnName: z.string(),
+  DataSetIdentifier: z.string(),
+  TopicIdentifier: z.string(),
+}).partial();
+
+const CustomFilterListConfigurationStateSchema = z.object({
+  CategoryValues: z.array(z.string()),
+  NullOption: z.string(),
+  MatchOperator: z.string(),
+  SelectAllOptions: z.string(),
+}).partial();
+
+const CustomFilterConfigurationStateSchema = z.object({
+  CategoryValue: z.string(),
+  ParameterName: z.string(),
+  NullOption: z.string(),
+  MatchOperator: z.string(),
+  SelectAllOptions: z.string(),
+}).partial();
+
+const FilterListConfigurationStateSchema = z.object({
+  CategoryValues: z.array(z.string()),
+  NullOption: z.string(),
+  MatchOperator: z.string(),
+  SelectAllOptions: z.string(),
+}).partial();
+
+const CategoryFilterConfigurationStateSchema = z.object({
+  CustomFilterListConfiguration: CustomFilterListConfigurationStateSchema,
+  CustomFilterConfiguration: CustomFilterConfigurationStateSchema,
+  FilterListConfiguration: FilterListConfigurationStateSchema,
+}).partial();
+
+const FontSizeStateSchema = z.object({
+  Relative: z.string(),
+  Absolute: z.string(),
+}).partial();
+
+const FontWeightStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const FontConfigurationStateSchema = z.object({
+  FontFamily: z.string(),
+  FontStyle: z.string(),
+  FontSize: FontSizeStateSchema,
+  FontDecoration: z.string(),
+  FontColor: z.string(),
+  FontWeight: FontWeightStateSchema,
+}).partial();
+
+const LabelOptionsStateSchema = z.object({
+  CustomLabel: z.string(),
+  Visibility: z.string(),
+  FontConfiguration: FontConfigurationStateSchema,
+}).partial();
+
+const SheetControlInfoIconLabelOptionsStateSchema = z.object({
+  Visibility: z.string(),
+  InfoIconText: z.string(),
+}).partial();
+
+const SliderControlDisplayOptionsStateSchema = z.object({
+  TitleOptions: LabelOptionsStateSchema,
+  InfoIconLabelOptions: SheetControlInfoIconLabelOptionsStateSchema,
+}).partial();
+
+const DefaultSliderControlOptionsStateSchema = z.object({
+  Type: z.string(),
+  StepSize: z.number(),
+  DisplayOptions: SliderControlDisplayOptionsStateSchema,
+  MaximumValue: z.number(),
+  MinimumValue: z.number(),
+}).partial();
+
+const RelativeDateTimeControlDisplayOptionsStateSchema = z.object({
+  TitleOptions: LabelOptionsStateSchema,
+  InfoIconLabelOptions: SheetControlInfoIconLabelOptionsStateSchema,
+  DateTimeFormat: z.string(),
+}).partial();
+
+const DefaultRelativeDateTimeControlOptionsStateSchema = z.object({
+  DisplayOptions: RelativeDateTimeControlDisplayOptionsStateSchema,
+  CommitMode: z.string(),
+}).partial();
+
+const TextControlPlaceholderOptionsStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const TextFieldControlDisplayOptionsStateSchema = z.object({
+  TitleOptions: LabelOptionsStateSchema,
+  PlaceholderOptions: TextControlPlaceholderOptionsStateSchema,
+  InfoIconLabelOptions: SheetControlInfoIconLabelOptionsStateSchema,
+}).partial();
+
+const DefaultTextFieldControlOptionsStateSchema = z.object({
+  DisplayOptions: TextFieldControlDisplayOptionsStateSchema,
+}).partial();
+
+const TextAreaControlDisplayOptionsStateSchema = z.object({
+  TitleOptions: LabelOptionsStateSchema,
+  PlaceholderOptions: TextControlPlaceholderOptionsStateSchema,
+  InfoIconLabelOptions: SheetControlInfoIconLabelOptionsStateSchema,
+}).partial();
+
+const DefaultTextAreaControlOptionsStateSchema = z.object({
+  Delimiter: z.string(),
+  DisplayOptions: TextAreaControlDisplayOptionsStateSchema,
+}).partial();
+
+const ListControlSelectAllOptionsStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const DropDownControlDisplayOptionsStateSchema = z.object({
+  TitleOptions: LabelOptionsStateSchema,
+  SelectAllOptions: ListControlSelectAllOptionsStateSchema,
+  InfoIconLabelOptions: SheetControlInfoIconLabelOptionsStateSchema,
+}).partial();
+
+const FilterSelectableValuesStateSchema = z.object({
+  Values: z.array(z.string()),
+}).partial();
+
+const DefaultFilterDropDownControlOptionsStateSchema = z.object({
+  Type: z.string(),
+  DisplayOptions: DropDownControlDisplayOptionsStateSchema,
+  CommitMode: z.string(),
+  SelectableValues: FilterSelectableValuesStateSchema,
+}).partial();
+
+const DateTimePickerControlDisplayOptionsStateSchema = z.object({
+  TitleOptions: LabelOptionsStateSchema,
+  InfoIconLabelOptions: SheetControlInfoIconLabelOptionsStateSchema,
+  HelperTextVisibility: z.string(),
+  DateIconVisibility: z.string(),
+  DateTimeFormat: z.string(),
+}).partial();
+
+const DefaultDateTimePickerControlOptionsStateSchema = z.object({
+  Type: z.string(),
+  DisplayOptions: DateTimePickerControlDisplayOptionsStateSchema,
+  CommitMode: z.string(),
+}).partial();
+
+const ListControlSearchOptionsStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const ListControlDisplayOptionsStateSchema = z.object({
+  TitleOptions: LabelOptionsStateSchema,
+  SearchOptions: ListControlSearchOptionsStateSchema,
+  SelectAllOptions: ListControlSelectAllOptionsStateSchema,
+  InfoIconLabelOptions: SheetControlInfoIconLabelOptionsStateSchema,
+}).partial();
+
+const DefaultFilterListControlOptionsStateSchema = z.object({
+  Type: z.string(),
+  DisplayOptions: ListControlDisplayOptionsStateSchema,
+  SelectableValues: FilterSelectableValuesStateSchema,
+}).partial();
+
+const DefaultFilterControlOptionsStateSchema = z.object({
+  DefaultSliderOptions: DefaultSliderControlOptionsStateSchema,
+  DefaultRelativeDateTimeOptions:
+    DefaultRelativeDateTimeControlOptionsStateSchema,
+  DefaultTextFieldOptions: DefaultTextFieldControlOptionsStateSchema,
+  DefaultTextAreaOptions: DefaultTextAreaControlOptionsStateSchema,
+  DefaultDropdownOptions: DefaultFilterDropDownControlOptionsStateSchema,
+  DefaultDateTimePickerOptions: DefaultDateTimePickerControlOptionsStateSchema,
+  DefaultListOptions: DefaultFilterListControlOptionsStateSchema,
+}).partial();
+
+const DefaultFilterControlConfigurationStateSchema = z.object({
+  ControlOptions: DefaultFilterControlOptionsStateSchema,
+  Title: z.string(),
+}).partial();
+
+const CategoryInnerFilterStateSchema = z.object({
+  Configuration: CategoryFilterConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  DefaultFilterControlConfiguration:
+    DefaultFilterControlConfigurationStateSchema,
+}).partial();
+
+const InnerFilterStateSchema = z.object({
+  CategoryInnerFilter: CategoryInnerFilterStateSchema,
+}).partial();
+
+const NestedFilterStateSchema = z.object({
+  Column: ColumnIdentifierStateSchema,
+  InnerFilter: InnerFilterStateSchema,
+  IncludeInnerSet: z.boolean(),
+  FilterId: z.string(),
+}).partial();
+
+const AttributeAggregationFunctionStateSchema = z.object({
+  SimpleAttributeAggregation: z.string(),
+  ValueForMultipleValues: z.string(),
+}).partial();
+
+const PercentileAggregationStateSchema = z.object({
+  PercentileValue: z.number(),
+}).partial();
+
+const NumericalAggregationFunctionStateSchema = z.object({
+  PercentileAggregation: PercentileAggregationStateSchema,
+  SimpleNumericalAggregation: z.string(),
+}).partial();
+
+const AggregationFunctionStateSchema = z.object({
+  AttributeAggregationFunction: AttributeAggregationFunctionStateSchema,
+  DateAggregationFunction: z.string(),
+  NumericalAggregationFunction: NumericalAggregationFunctionStateSchema,
+  CategoricalAggregationFunction: z.string(),
+}).partial();
+
+const NumericEqualityFilterStateSchema = z.object({
+  AggregationFunction: AggregationFunctionStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  Value: z.number(),
+  ParameterName: z.string(),
+  NullOption: z.string(),
+  MatchOperator: z.string(),
+  SelectAllOptions: z.string(),
+  DefaultFilterControlConfiguration:
+    DefaultFilterControlConfigurationStateSchema,
+  FilterId: z.string(),
+}).partial();
+
+const NumericRangeFilterValueStateSchema = z.object({
+  StaticValue: z.number(),
+  Parameter: z.string(),
+}).partial();
+
+const NumericRangeFilterStateSchema = z.object({
+  AggregationFunction: AggregationFunctionStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  IncludeMaximum: z.boolean(),
+  RangeMinimum: NumericRangeFilterValueStateSchema,
+  NullOption: z.string(),
+  SelectAllOptions: z.string(),
+  DefaultFilterControlConfiguration:
+    DefaultFilterControlConfigurationStateSchema,
+  FilterId: z.string(),
+  RangeMaximum: NumericRangeFilterValueStateSchema,
+  IncludeMinimum: z.boolean(),
+}).partial();
+
+const RollingDateConfigurationStateSchema = z.object({
+  Expression: z.string(),
+  DataSetIdentifier: z.string(),
+}).partial();
+
+const TimeRangeFilterValueStateSchema = z.object({
+  RollingDate: RollingDateConfigurationStateSchema,
+  StaticValue: z.string(),
+  Parameter: z.string(),
+}).partial();
+
+const ExcludePeriodConfigurationStateSchema = z.object({
+  Status: z.string(),
+  Amount: z.number(),
+  Granularity: z.string(),
+}).partial();
+
+const TimeRangeFilterStateSchema = z.object({
+  RangeMinimumValue: TimeRangeFilterValueStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  RangeMaximumValue: TimeRangeFilterValueStateSchema,
+  IncludeMaximum: z.boolean(),
+  TimeGranularity: z.string(),
+  NullOption: z.string(),
+  DefaultFilterControlConfiguration:
+    DefaultFilterControlConfigurationStateSchema,
+  FilterId: z.string(),
+  IncludeMinimum: z.boolean(),
+  ExcludePeriodConfiguration: ExcludePeriodConfigurationStateSchema,
+}).partial();
+
+const AnchorDateConfigurationStateSchema = z.object({
+  AnchorOption: z.string(),
+  ParameterName: z.string(),
+}).partial();
+
+const RelativeDatesFilterStateSchema = z.object({
+  RelativeDateValue: z.number(),
+  Column: ColumnIdentifierStateSchema,
+  RelativeDateType: z.string(),
+  TimeGranularity: z.string(),
+  ParameterName: z.string(),
+  NullOption: z.string(),
+  DefaultFilterControlConfiguration:
+    DefaultFilterControlConfigurationStateSchema,
+  FilterId: z.string(),
+  AnchorDateConfiguration: AnchorDateConfigurationStateSchema,
+  MinimumGranularity: z.string(),
+  ExcludePeriodConfiguration: ExcludePeriodConfigurationStateSchema,
+}).partial();
+
+const AggregationSortConfigurationStateSchema = z.object({
+  AggregationFunction: AggregationFunctionStateSchema,
+  SortDirection: z.string(),
+  Column: ColumnIdentifierStateSchema,
+}).partial();
+
+const TopBottomFilterStateSchema = z.object({
+  AggregationSortConfigurations: z.array(
+    AggregationSortConfigurationStateSchema,
+  ),
+  Column: ColumnIdentifierStateSchema,
+  TimeGranularity: z.string(),
+  ParameterName: z.string(),
+  Limit: z.number(),
+  DefaultFilterControlConfiguration:
+    DefaultFilterControlConfigurationStateSchema,
+  FilterId: z.string(),
+}).partial();
+
+const TimeEqualityFilterStateSchema = z.object({
+  Column: ColumnIdentifierStateSchema,
+  RollingDate: RollingDateConfigurationStateSchema,
+  Value: z.string(),
+  TimeGranularity: z.string(),
+  ParameterName: z.string(),
+  DefaultFilterControlConfiguration:
+    DefaultFilterControlConfigurationStateSchema,
+  FilterId: z.string(),
+}).partial();
+
+const CategoryFilterStateSchema = z.object({
+  Configuration: CategoryFilterConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  DefaultFilterControlConfiguration:
+    DefaultFilterControlConfigurationStateSchema,
+  FilterId: z.string(),
+}).partial();
+
+const FilterStateSchema = z.object({
+  NestedFilter: NestedFilterStateSchema,
+  NumericEqualityFilter: NumericEqualityFilterStateSchema,
+  NumericRangeFilter: NumericRangeFilterStateSchema,
+  TimeRangeFilter: TimeRangeFilterStateSchema,
+  RelativeDatesFilter: RelativeDatesFilterStateSchema,
+  TopBottomFilter: TopBottomFilterStateSchema,
+  TimeEqualityFilter: TimeEqualityFilterStateSchema,
+  CategoryFilter: CategoryFilterStateSchema,
+}).partial();
+
+const SheetVisualScopingConfigurationStateSchema = z.object({
+  Scope: z.string(),
+  SheetId: z.string(),
+  VisualIds: z.array(z.string()),
+}).partial();
+
+const SelectedSheetsFilterScopeConfigurationStateSchema = z.object({
+  SheetVisualScopingConfigurations: z.array(
+    SheetVisualScopingConfigurationStateSchema,
+  ),
+}).partial();
+
+const FilterScopeConfigurationStateSchema = z.object({
+  AllSheets: z.record(z.string(), z.unknown()),
+  SelectedSheets: SelectedSheetsFilterScopeConfigurationStateSchema,
+}).partial();
+
+const FilterGroupStateSchema = z.object({
+  Status: z.string(),
+  Filters: z.array(FilterStateSchema),
+  CrossDataset: z.string(),
+  ScopeConfiguration: FilterScopeConfigurationStateSchema,
+  FilterGroupId: z.string(),
+}).partial();
+
+const QueryExecutionOptionsStateSchema = z.object({
+  QueryExecutionMode: z.string(),
+}).partial();
+
+const StaticFileUrlSourceOptionsStateSchema = z.object({
+  Url: z.string(),
+}).partial();
+
+const StaticFileS3SourceOptionsStateSchema = z.object({
+  BucketName: z.string(),
+  ObjectKey: z.string(),
+  Region: z.string(),
+}).partial();
+
+const StaticFileSourceStateSchema = z.object({
+  UrlOptions: StaticFileUrlSourceOptionsStateSchema,
+  S3Options: StaticFileS3SourceOptionsStateSchema,
+}).partial();
+
+const ImageStaticFileStateSchema = z.object({
+  StaticFileId: z.string(),
+  Source: StaticFileSourceStateSchema,
+}).partial();
+
+const SpatialStaticFileStateSchema = z.object({
+  StaticFileId: z.string(),
+  Source: StaticFileSourceStateSchema,
+}).partial();
+
+const StaticFileStateSchema = z.object({
+  ImageStaticFile: ImageStaticFileStateSchema,
+  SpatialStaticFile: SpatialStaticFileStateSchema,
+}).partial();
+
+const TopicIdentifierDeclarationStateSchema = z.object({
+  Identifier: z.string(),
+  TopicArn: z.string(),
+}).partial();
+
+const CalculatedFieldStateSchema = z.object({
+  Expression: z.string(),
+  DataSetIdentifier: z.string(),
+  TopicIdentifier: z.string(),
+  Name: z.string(),
+}).partial();
+
+const DataSetIdentifierDeclarationStateSchema = z.object({
+  Identifier: z.string(),
+  DataSetArn: z.string(),
+}).partial();
+
+const NegativeValueConfigurationStateSchema = z.object({
+  DisplayMode: z.string(),
+}).partial();
+
+const DecimalPlacesConfigurationStateSchema = z.object({
+  DecimalPlaces: z.number(),
+}).partial();
+
+const NullValueFormatConfigurationStateSchema = z.object({
+  NullString: z.string(),
+}).partial();
+
+const ThousandSeparatorOptionsStateSchema = z.object({
+  Symbol: z.string(),
+  Visibility: z.string(),
+  GroupingStyle: z.string(),
+}).partial();
+
+const NumericSeparatorConfigurationStateSchema = z.object({
+  DecimalSeparator: z.string(),
+  ThousandsSeparator: ThousandSeparatorOptionsStateSchema,
+}).partial();
+
+const NumberDisplayFormatConfigurationStateSchema = z.object({
+  NegativeValueConfiguration: NegativeValueConfigurationStateSchema,
+  DecimalPlacesConfiguration: DecimalPlacesConfigurationStateSchema,
+  NumberScale: z.string(),
+  NullValueFormatConfiguration: NullValueFormatConfigurationStateSchema,
+  Suffix: z.string(),
+  SeparatorConfiguration: NumericSeparatorConfigurationStateSchema,
+  Prefix: z.string(),
+}).partial();
+
+const CurrencyDisplayFormatConfigurationStateSchema = z.object({
+  NegativeValueConfiguration: NegativeValueConfigurationStateSchema,
+  DecimalPlacesConfiguration: DecimalPlacesConfigurationStateSchema,
+  NumberScale: z.string(),
+  NullValueFormatConfiguration: NullValueFormatConfigurationStateSchema,
+  Suffix: z.string(),
+  SeparatorConfiguration: NumericSeparatorConfigurationStateSchema,
+  Symbol: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const PercentageDisplayFormatConfigurationStateSchema = z.object({
+  NegativeValueConfiguration: NegativeValueConfigurationStateSchema,
+  DecimalPlacesConfiguration: DecimalPlacesConfigurationStateSchema,
+  NullValueFormatConfiguration: NullValueFormatConfigurationStateSchema,
+  Suffix: z.string(),
+  SeparatorConfiguration: NumericSeparatorConfigurationStateSchema,
+  Prefix: z.string(),
+}).partial();
+
+const NumericFormatConfigurationStateSchema = z.object({
+  NumberDisplayFormatConfiguration: NumberDisplayFormatConfigurationStateSchema,
+  CurrencyDisplayFormatConfiguration:
+    CurrencyDisplayFormatConfigurationStateSchema,
+  PercentageDisplayFormatConfiguration:
+    PercentageDisplayFormatConfigurationStateSchema,
+}).partial();
+
+const NumberFormatConfigurationStateSchema = z.object({
+  FormatConfiguration: NumericFormatConfigurationStateSchema,
+}).partial();
+
+const DateTimeFormatConfigurationStateSchema = z.object({
+  NumericFormatConfiguration: NumericFormatConfigurationStateSchema,
+  NullValueFormatConfiguration: NullValueFormatConfigurationStateSchema,
+  DateTimeFormat: z.string(),
+}).partial();
+
+const StringFormatConfigurationStateSchema = z.object({
+  NumericFormatConfiguration: NumericFormatConfigurationStateSchema,
+  NullValueFormatConfiguration: NullValueFormatConfigurationStateSchema,
+}).partial();
+
+const FormatConfigurationStateSchema = z.object({
+  NumberFormatConfiguration: NumberFormatConfigurationStateSchema,
+  DateTimeFormatConfiguration: DateTimeFormatConfigurationStateSchema,
+  StringFormatConfiguration: StringFormatConfigurationStateSchema,
+}).partial();
+
+const DecalSettingsStateSchema = z.object({
+  DecalStyleType: z.string(),
+  DecalColor: z.string(),
+  DecalVisibility: z.string(),
+  DecalPatternType: z.string(),
+  ElementValue: z.string(),
+}).partial();
+
+const DecalSettingsConfigurationStateSchema = z.object({
+  CustomDecalSettings: z.array(DecalSettingsStateSchema),
+}).partial();
+
+const CustomColorStateSchema = z.object({
+  Color: z.string(),
+  FieldValue: z.string(),
+  SpecialValue: z.string(),
+}).partial();
+
+const ColorsConfigurationStateSchema = z.object({
+  CustomColors: z.array(CustomColorStateSchema),
+}).partial();
+
+const ColumnConfigurationStateSchema = z.object({
+  Role: z.string(),
+  FormatConfiguration: FormatConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  DecalSettingsConfiguration: DecalSettingsConfigurationStateSchema,
+  ColorsConfiguration: ColorsConfigurationStateSchema,
+}).partial();
+
+const FreeFormLayoutScreenCanvasSizeOptionsStateSchema = z.object({
+  OptimizedViewPortWidth: z.string(),
+}).partial();
+
+const FreeFormLayoutCanvasSizeOptionsStateSchema = z.object({
+  ScreenCanvasSizeOptions: FreeFormLayoutScreenCanvasSizeOptionsStateSchema,
+}).partial();
+
+const DefaultFreeFormLayoutConfigurationStateSchema = z.object({
+  CanvasSizeOptions: FreeFormLayoutCanvasSizeOptionsStateSchema,
+}).partial();
+
+const GridLayoutScreenCanvasSizeOptionsStateSchema = z.object({
+  OptimizedViewPortWidth: z.string(),
+  ResizeOption: z.string(),
+}).partial();
+
+const GridLayoutCanvasSizeOptionsStateSchema = z.object({
+  ScreenCanvasSizeOptions: GridLayoutScreenCanvasSizeOptionsStateSchema,
+}).partial();
+
+const DefaultGridLayoutConfigurationStateSchema = z.object({
+  CanvasSizeOptions: GridLayoutCanvasSizeOptionsStateSchema,
+}).partial();
+
+const DefaultInteractiveLayoutConfigurationStateSchema = z.object({
+  FreeForm: DefaultFreeFormLayoutConfigurationStateSchema,
+  Grid: DefaultGridLayoutConfigurationStateSchema,
+}).partial();
+
+const SpacingStateSchema = z.object({
+  Left: z.string(),
+  Top: z.string(),
+  Right: z.string(),
+  Bottom: z.string(),
+}).partial();
+
+const SectionBasedLayoutPaperCanvasSizeOptionsStateSchema = z.object({
+  PaperMargin: SpacingStateSchema,
+  PaperSize: z.string(),
+  PaperOrientation: z.string(),
+}).partial();
+
+const SectionBasedLayoutCanvasSizeOptionsStateSchema = z.object({
+  PaperCanvasSizeOptions: SectionBasedLayoutPaperCanvasSizeOptionsStateSchema,
+}).partial();
+
+const DefaultSectionBasedLayoutConfigurationStateSchema = z.object({
+  CanvasSizeOptions: SectionBasedLayoutCanvasSizeOptionsStateSchema,
+}).partial();
+
+const DefaultPaginatedLayoutConfigurationStateSchema = z.object({
+  SectionBased: DefaultSectionBasedLayoutConfigurationStateSchema,
+}).partial();
+
+const DefaultNewSheetConfigurationStateSchema = z.object({
+  SheetContentType: z.string(),
+  InteractiveLayoutConfiguration:
+    DefaultInteractiveLayoutConfigurationStateSchema,
+  PaginatedLayoutConfiguration: DefaultPaginatedLayoutConfigurationStateSchema,
+}).partial();
+
+const AnalysisDefaultsStateSchema = z.object({
+  DefaultNewSheetConfiguration: DefaultNewSheetConfigurationStateSchema,
+}).partial();
+
+const ParameterSliderControlStateSchema = z.object({
+  ParameterControlId: z.string(),
+  StepSize: z.number(),
+  DisplayOptions: SliderControlDisplayOptionsStateSchema,
+  SourceParameterName: z.string(),
+  Title: z.string(),
+  MaximumValue: z.number(),
+  MinimumValue: z.number(),
+}).partial();
+
+const ParameterTextAreaControlStateSchema = z.object({
+  ParameterControlId: z.string(),
+  Delimiter: z.string(),
+  DisplayOptions: TextAreaControlDisplayOptionsStateSchema,
+  SourceParameterName: z.string(),
+  Title: z.string(),
+}).partial();
+
+const CascadingControlSourceStateSchema = z.object({
+  SourceSheetControlId: z.string(),
+  ColumnToMatch: ColumnIdentifierStateSchema,
+}).partial();
+
+const CascadingControlConfigurationStateSchema = z.object({
+  SourceControls: z.array(CascadingControlSourceStateSchema),
+}).partial();
+
+const ParameterSelectableValuesStateSchema = z.object({
+  LinkToDataSetColumn: ColumnIdentifierStateSchema,
+  Values: z.array(z.string()),
+}).partial();
+
+const ParameterDropDownControlStateSchema = z.object({
+  ParameterControlId: z.string(),
+  Type: z.string(),
+  DisplayOptions: DropDownControlDisplayOptionsStateSchema,
+  SourceParameterName: z.string(),
+  CascadingControlConfiguration: CascadingControlConfigurationStateSchema,
+  Title: z.string(),
+  CommitMode: z.string(),
+  SelectableValues: ParameterSelectableValuesStateSchema,
+}).partial();
+
+const ParameterTextFieldControlStateSchema = z.object({
+  ParameterControlId: z.string(),
+  DisplayOptions: TextFieldControlDisplayOptionsStateSchema,
+  SourceParameterName: z.string(),
+  Title: z.string(),
+}).partial();
+
+const ParameterListControlStateSchema = z.object({
+  ParameterControlId: z.string(),
+  Type: z.string(),
+  DisplayOptions: ListControlDisplayOptionsStateSchema,
+  SourceParameterName: z.string(),
+  CascadingControlConfiguration: CascadingControlConfigurationStateSchema,
+  Title: z.string(),
+  SelectableValues: ParameterSelectableValuesStateSchema,
+}).partial();
+
+const ParameterDateTimePickerControlStateSchema = z.object({
+  ParameterControlId: z.string(),
+  DisplayOptions: DateTimePickerControlDisplayOptionsStateSchema,
+  SourceParameterName: z.string(),
+  Title: z.string(),
+}).partial();
+
+const ParameterControlStateSchema = z.object({
+  Slider: ParameterSliderControlStateSchema,
+  TextArea: ParameterTextAreaControlStateSchema,
+  Dropdown: ParameterDropDownControlStateSchema,
+  TextField: ParameterTextFieldControlStateSchema,
+  List: ParameterListControlStateSchema,
+  DateTimePicker: ParameterDateTimePickerControlStateSchema,
+}).partial();
+
+const LocalNavigationConfigurationStateSchema = z.object({
+  TargetSheetId: z.string(),
+}).partial();
+
+const CustomActionNavigationOperationStateSchema = z.object({
+  LocalNavigationConfiguration: LocalNavigationConfigurationStateSchema,
+}).partial();
+
+const CustomParameterValuesStateSchema = z.object({
+  DecimalValues: z.array(z.number()),
+  IntegerValues: z.array(z.number()),
+  StringValues: z.array(z.string()),
+  DateTimeValues: z.array(z.string()),
+}).partial();
+
+const CustomValuesConfigurationStateSchema = z.object({
+  IncludeNullValue: z.boolean(),
+  CustomValues: CustomParameterValuesStateSchema,
+}).partial();
+
+const DestinationParameterValueConfigurationStateSchema = z.object({
+  CustomValuesConfiguration: CustomValuesConfigurationStateSchema,
+  SourceParameterName: z.string(),
+  SelectAllValueOptions: z.string(),
+  SourceField: z.string(),
+  SourceColumn: ColumnIdentifierStateSchema,
+}).partial();
+
+const SetParameterValueConfigurationStateSchema = z.object({
+  DestinationParameterName: z.string(),
+  Value: DestinationParameterValueConfigurationStateSchema,
+}).partial();
+
+const CustomActionSetParametersOperationStateSchema = z.object({
+  ParameterValueConfigurations: z.array(
+    SetParameterValueConfigurationStateSchema,
+  ),
+}).partial();
+
+const CustomActionURLOperationStateSchema = z.object({
+  URLTemplate: z.string(),
+  URLTarget: z.string(),
+}).partial();
+
+const ImageCustomActionOperationStateSchema = z.object({
+  NavigationOperation: CustomActionNavigationOperationStateSchema,
+  SetParametersOperation: CustomActionSetParametersOperationStateSchema,
+  URLOperation: CustomActionURLOperationStateSchema,
+}).partial();
+
+const ImageCustomActionStateSchema = z.object({
+  Status: z.string(),
+  Trigger: z.string(),
+  CustomActionId: z.string(),
+  Name: z.string(),
+  ActionOperations: z.array(ImageCustomActionOperationStateSchema),
+}).partial();
+
+const SheetImageTooltipTextStateSchema = z.object({
+  PlainText: z.string(),
+}).partial();
+
+const SheetImageTooltipConfigurationStateSchema = z.object({
+  Visibility: z.string(),
+  TooltipText: SheetImageTooltipTextStateSchema,
+}).partial();
+
+const SheetImageScalingConfigurationStateSchema = z.object({
+  ScalingType: z.string(),
+}).partial();
+
+const ImageMenuOptionStateSchema = z.object({
+  AvailabilityStatus: z.string(),
+}).partial();
+
+const ImageInteractionOptionsStateSchema = z.object({
+  ImageMenuOption: ImageMenuOptionStateSchema,
+}).partial();
+
+const SheetImageStaticFileSourceStateSchema = z.object({
+  StaticFileId: z.string(),
+}).partial();
+
+const SheetImageSourceStateSchema = z.object({
+  SheetImageStaticFileSource: SheetImageStaticFileSourceStateSchema,
+}).partial();
+
+const SheetImageStateSchema = z.object({
+  Actions: z.array(ImageCustomActionStateSchema),
+  SheetImageId: z.string(),
+  Tooltip: SheetImageTooltipConfigurationStateSchema,
+  Scaling: SheetImageScalingConfigurationStateSchema,
+  Interactions: ImageInteractionOptionsStateSchema,
+  Source: SheetImageSourceStateSchema,
+  ImageContentAltText: z.string(),
+}).partial();
+
+const GridLayoutElementBorderStyleStateSchema = z.object({
+  Color: z.string(),
+  Visibility: z.string(),
+  Width: z.string(),
+}).partial();
+
+const LoadingAnimationStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const GridLayoutElementBackgroundStyleStateSchema = z.object({
+  Color: z.string(),
+  Visibility: z.string(),
+}).partial();
+
+const GridLayoutElementStateSchema = z.object({
+  ElementType: z.string(),
+  ColumnSpan: z.number(),
+  ColumnIndex: z.number(),
+  RowIndex: z.number(),
+  BorderStyle: GridLayoutElementBorderStyleStateSchema,
+  BorderRadius: z.string(),
+  RowSpan: z.number(),
+  Padding: z.string(),
+  LoadingAnimation: LoadingAnimationStateSchema,
+  BackgroundStyle: GridLayoutElementBackgroundStyleStateSchema,
+  ElementId: z.string(),
+  SelectedBorderStyle: GridLayoutElementBorderStyleStateSchema,
+}).partial();
+
+const GridLayoutConfigurationStateSchema = z.object({
+  CanvasSizeOptions: GridLayoutCanvasSizeOptionsStateSchema,
+  Elements: z.array(GridLayoutElementStateSchema),
+}).partial();
+
+const SheetControlLayoutConfigurationStateSchema = z.object({
+  GridLayout: GridLayoutConfigurationStateSchema,
+}).partial();
+
+const SheetControlLayoutStateSchema = z.object({
+  Configuration: SheetControlLayoutConfigurationStateSchema,
+}).partial();
+
+const SheetTextBoxStateSchema = z.object({
+  SheetTextBoxId: z.string(),
+  Content: z.string(),
+}).partial();
+
+const SheetLayoutGroupMemberStateSchema = z.object({
+  Type: z.string(),
+  Id: z.string(),
+}).partial();
+
+const SheetLayoutGroupStateSchema = z.object({
+  Id: z.string(),
+  Members: z.array(SheetLayoutGroupMemberStateSchema),
+}).partial();
+
+const FreeFormLayoutElementBorderStyleStateSchema = z.object({
+  Color: z.string(),
+  Visibility: z.string(),
+  Width: z.string(),
+}).partial();
+
+const SheetElementConfigurationOverridesStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const SheetElementRenderingRuleStateSchema = z.object({
+  Expression: z.string(),
+  ConfigurationOverrides: SheetElementConfigurationOverridesStateSchema,
+}).partial();
+
+const FreeFormLayoutElementBackgroundStyleStateSchema = z.object({
+  Color: z.string(),
+  Visibility: z.string(),
+}).partial();
+
+const FreeFormLayoutElementStateSchema = z.object({
+  ElementType: z.string(),
+  BorderStyle: FreeFormLayoutElementBorderStyleStateSchema,
+  BorderRadius: z.string(),
+  RenderingRules: z.array(SheetElementRenderingRuleStateSchema),
+  YAxisLocation: z.string(),
+  BackgroundStyle: FreeFormLayoutElementBackgroundStyleStateSchema,
+  XAxisLocation: z.string(),
+  Padding: z.string(),
+  Height: z.string(),
+  Visibility: z.string(),
+  LoadingAnimation: LoadingAnimationStateSchema,
+  Width: z.string(),
+  ElementId: z.string(),
+  SelectedBorderStyle: FreeFormLayoutElementBorderStyleStateSchema,
+}).partial();
+
+const FreeFormLayoutConfigurationStateSchema = z.object({
+  CanvasSizeOptions: FreeFormLayoutCanvasSizeOptionsStateSchema,
+  Groups: z.array(SheetLayoutGroupStateSchema),
+  Elements: z.array(FreeFormLayoutElementStateSchema),
+}).partial();
+
+const FreeFormSectionLayoutConfigurationStateSchema = z.object({
+  Elements: z.array(FreeFormLayoutElementStateSchema),
+}).partial();
+
+const SectionLayoutConfigurationStateSchema = z.object({
+  FreeFormLayout: FreeFormSectionLayoutConfigurationStateSchema,
+}).partial();
+
+const SectionStyleStateSchema = z.object({
+  Padding: SpacingStateSchema,
+  Height: z.string(),
+}).partial();
+
+const HeaderFooterSectionConfigurationStateSchema = z.object({
+  Layout: SectionLayoutConfigurationStateSchema,
+  Style: SectionStyleStateSchema,
+  SectionId: z.string(),
+}).partial();
+
+const BodySectionContentStateSchema = z.object({
+  Layout: SectionLayoutConfigurationStateSchema,
+}).partial();
+
+const SectionAfterPageBreakStateSchema = z.object({
+  Status: z.string(),
+}).partial();
+
+const SectionPageBreakConfigurationStateSchema = z.object({
+  After: SectionAfterPageBreakStateSchema,
+}).partial();
+
+const ColumnSortStateSchema = z.object({
+  AggregationFunction: AggregationFunctionStateSchema,
+  SortBy: ColumnIdentifierStateSchema,
+  Direction: z.string(),
+}).partial();
+
+const BodySectionDynamicNumericDimensionConfigurationStateSchema = z.object({
+  Column: ColumnIdentifierStateSchema,
+  SortByMetrics: z.array(ColumnSortStateSchema),
+  Limit: z.number(),
+}).partial();
+
+const BodySectionDynamicCategoryDimensionConfigurationStateSchema = z.object({
+  Column: ColumnIdentifierStateSchema,
+  SortByMetrics: z.array(ColumnSortStateSchema),
+  Limit: z.number(),
+}).partial();
+
+const BodySectionRepeatDimensionConfigurationStateSchema = z.object({
+  DynamicNumericDimensionConfiguration:
+    BodySectionDynamicNumericDimensionConfigurationStateSchema,
+  DynamicCategoryDimensionConfiguration:
+    BodySectionDynamicCategoryDimensionConfigurationStateSchema,
+}).partial();
+
+const BodySectionRepeatPageBreakConfigurationStateSchema = z.object({
+  After: SectionAfterPageBreakStateSchema,
+}).partial();
+
+const BodySectionRepeatConfigurationStateSchema = z.object({
+  DimensionConfigurations: z.array(
+    BodySectionRepeatDimensionConfigurationStateSchema,
+  ),
+  NonRepeatingVisuals: z.array(z.string()),
+  PageBreakConfiguration: BodySectionRepeatPageBreakConfigurationStateSchema,
+}).partial();
+
+const BodySectionConfigurationStateSchema = z.object({
+  Content: BodySectionContentStateSchema,
+  Style: SectionStyleStateSchema,
+  PageBreakConfiguration: SectionPageBreakConfigurationStateSchema,
+  SectionId: z.string(),
+  RepeatConfiguration: BodySectionRepeatConfigurationStateSchema,
+}).partial();
+
+const SectionBasedLayoutConfigurationStateSchema = z.object({
+  CanvasSizeOptions: SectionBasedLayoutCanvasSizeOptionsStateSchema,
+  FooterSections: z.array(HeaderFooterSectionConfigurationStateSchema),
+  BodySections: z.array(BodySectionConfigurationStateSchema),
+  HeaderSections: z.array(HeaderFooterSectionConfigurationStateSchema),
+}).partial();
+
+const LayoutConfigurationStateSchema = z.object({
+  GridLayout: GridLayoutConfigurationStateSchema,
+  FreeFormLayout: FreeFormLayoutConfigurationStateSchema,
+  SectionBasedLayout: SectionBasedLayoutConfigurationStateSchema,
+}).partial();
+
+const LayoutStateSchema = z.object({
+  Configuration: LayoutConfigurationStateSchema,
+}).partial();
+
+const FilterSliderControlStateSchema = z.object({
+  FilterControlId: z.string(),
+  Type: z.string(),
+  StepSize: z.number(),
+  DisplayOptions: SliderControlDisplayOptionsStateSchema,
+  Title: z.string(),
+  MaximumValue: z.number(),
+  SourceFilterId: z.string(),
+  MinimumValue: z.number(),
+}).partial();
+
+const FilterTextAreaControlStateSchema = z.object({
+  FilterControlId: z.string(),
+  Delimiter: z.string(),
+  DisplayOptions: TextAreaControlDisplayOptionsStateSchema,
+  Title: z.string(),
+  SourceFilterId: z.string(),
+}).partial();
+
+const FilterDropDownControlStateSchema = z.object({
+  FilterControlId: z.string(),
+  Type: z.string(),
+  DisplayOptions: DropDownControlDisplayOptionsStateSchema,
+  CascadingControlConfiguration: CascadingControlConfigurationStateSchema,
+  Title: z.string(),
+  CommitMode: z.string(),
+  SourceFilterId: z.string(),
+  SelectableValues: FilterSelectableValuesStateSchema,
+}).partial();
+
+const FilterTextFieldControlStateSchema = z.object({
+  FilterControlId: z.string(),
+  DisplayOptions: TextFieldControlDisplayOptionsStateSchema,
+  Title: z.string(),
+  SourceFilterId: z.string(),
+}).partial();
+
+const FilterListControlStateSchema = z.object({
+  FilterControlId: z.string(),
+  Type: z.string(),
+  DisplayOptions: ListControlDisplayOptionsStateSchema,
+  CascadingControlConfiguration: CascadingControlConfigurationStateSchema,
+  Title: z.string(),
+  SourceFilterId: z.string(),
+  SelectableValues: FilterSelectableValuesStateSchema,
+}).partial();
+
+const FilterDateTimePickerControlStateSchema = z.object({
+  FilterControlId: z.string(),
+  Type: z.string(),
+  DisplayOptions: DateTimePickerControlDisplayOptionsStateSchema,
+  Title: z.string(),
+  CommitMode: z.string(),
+  SourceFilterId: z.string(),
+}).partial();
+
+const FilterRelativeDateTimeControlStateSchema = z.object({
+  FilterControlId: z.string(),
+  DisplayOptions: RelativeDateTimeControlDisplayOptionsStateSchema,
+  Title: z.string(),
+  CommitMode: z.string(),
+  SourceFilterId: z.string(),
+}).partial();
+
+const FilterCrossSheetControlStateSchema = z.object({
+  FilterControlId: z.string(),
+  CascadingControlConfiguration: CascadingControlConfigurationStateSchema,
+  SourceFilterId: z.string(),
+}).partial();
+
+const FilterControlStateSchema = z.object({
+  Slider: FilterSliderControlStateSchema,
+  TextArea: FilterTextAreaControlStateSchema,
+  Dropdown: FilterDropDownControlStateSchema,
+  TextField: FilterTextFieldControlStateSchema,
+  List: FilterListControlStateSchema,
+  DateTimePicker: FilterDateTimePickerControlStateSchema,
+  RelativeDateTime: FilterRelativeDateTimeControlStateSchema,
+  CrossSheet: FilterCrossSheetControlStateSchema,
+}).partial();
+
+const LongFormatTextStateSchema = z.object({
+  RichText: z.string(),
+  PlainText: z.string(),
+}).partial();
+
+const VisualSubtitleLabelOptionsStateSchema = z.object({
+  Visibility: z.string(),
+  FormatText: LongFormatTextStateSchema,
+}).partial();
+
+const ItemsLimitConfigurationStateSchema = z.object({
+  ItemsLimit: z.number(),
+  OtherCategories: z.string(),
+}).partial();
+
+const FieldSortStateSchema = z.object({
+  FieldId: z.string(),
+  Direction: z.string(),
+}).partial();
+
+const FieldSortOptionsStateSchema = z.object({
+  FieldSort: FieldSortStateSchema,
+  ColumnSort: ColumnSortStateSchema,
+}).partial();
+
+const FunnelChartSortConfigurationStateSchema = z.object({
+  CategoryItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+}).partial();
+
+const FunnelChartDataLabelOptionsStateSchema = z.object({
+  MeasureLabelVisibility: z.string(),
+  Position: z.string(),
+  Visibility: z.string(),
+  CategoryLabelVisibility: z.string(),
+  LabelColor: z.string(),
+  MeasureDataLabelStyle: z.string(),
+  LabelFontConfiguration: FontConfigurationStateSchema,
+}).partial();
+
+const AxisLabelReferenceOptionsStateSchema = z.object({
+  Column: ColumnIdentifierStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const AxisLabelOptionsStateSchema = z.object({
+  CustomLabel: z.string(),
+  ApplyTo: AxisLabelReferenceOptionsStateSchema,
+  FontConfiguration: FontConfigurationStateSchema,
+}).partial();
+
+const ChartAxisLabelOptionsStateSchema = z.object({
+  Visibility: z.string(),
+  SortIconVisibility: z.string(),
+  AxisLabelOptions: z.array(AxisLabelOptionsStateSchema),
+}).partial();
+
+const DateDimensionFieldStateSchema = z.object({
+  HierarchyId: z.string(),
+  FormatConfiguration: DateTimeFormatConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  FieldId: z.string(),
+  DateGranularity: z.string(),
+}).partial();
+
+const NumericalDimensionFieldStateSchema = z.object({
+  HierarchyId: z.string(),
+  FormatConfiguration: NumberFormatConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const CategoricalDimensionFieldStateSchema = z.object({
+  HierarchyId: z.string(),
+  FormatConfiguration: StringFormatConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const DimensionFieldStateSchema = z.object({
+  DateDimensionField: DateDimensionFieldStateSchema,
+  NumericalDimensionField: NumericalDimensionFieldStateSchema,
+  CategoricalDimensionField: CategoricalDimensionFieldStateSchema,
+}).partial();
+
+const DateMeasureFieldStateSchema = z.object({
+  AggregationFunction: z.string(),
+  FormatConfiguration: DateTimeFormatConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const NumericalMeasureFieldStateSchema = z.object({
+  AggregationFunction: NumericalAggregationFunctionStateSchema,
+  FormatConfiguration: NumberFormatConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const CategoricalMeasureFieldStateSchema = z.object({
+  AggregationFunction: z.string(),
+  FormatConfiguration: StringFormatConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const CalculatedMeasureFieldStateSchema = z.object({
+  Expression: z.string(),
+  FieldId: z.string(),
+}).partial();
+
+const MeasureFieldStateSchema = z.object({
+  DateMeasureField: DateMeasureFieldStateSchema,
+  NumericalMeasureField: NumericalMeasureFieldStateSchema,
+  CategoricalMeasureField: CategoricalMeasureFieldStateSchema,
+  CalculatedMeasureField: CalculatedMeasureFieldStateSchema,
+}).partial();
+
+const FunnelChartAggregatedFieldWellsStateSchema = z.object({
+  Category: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const FunnelChartFieldWellsStateSchema = z.object({
+  FunnelChartAggregatedFieldWells: FunnelChartAggregatedFieldWellsStateSchema,
+}).partial();
+
+const FieldTooltipItemStateSchema = z.object({
+  TooltipTarget: z.string(),
+  FieldId: z.string(),
+  Label: z.string(),
+  Visibility: z.string(),
+}).partial();
+
+const ColumnTooltipItemStateSchema = z.object({
+  Aggregation: AggregationFunctionStateSchema,
+  TooltipTarget: z.string(),
+  Column: ColumnIdentifierStateSchema,
+  Label: z.string(),
+  Visibility: z.string(),
+}).partial();
+
+const TooltipItemStateSchema = z.object({
+  FieldTooltipItem: FieldTooltipItemStateSchema,
+  ColumnTooltipItem: ColumnTooltipItemStateSchema,
+}).partial();
+
+const FieldBasedTooltipStateSchema = z.object({
+  TooltipFields: z.array(TooltipItemStateSchema),
+  AggregationVisibility: z.string(),
+  TooltipTitleType: z.string(),
+}).partial();
+
+const TooltipOptionsStateSchema = z.object({
+  SelectedTooltipType: z.string(),
+  TooltipVisibility: z.string(),
+  FieldBasedTooltip: FieldBasedTooltipStateSchema,
+}).partial();
+
+const ContextMenuOptionStateSchema = z.object({
+  AvailabilityStatus: z.string(),
+}).partial();
+
+const VisualMenuOptionStateSchema = z.object({
+  AvailabilityStatus: z.string(),
+}).partial();
+
+const VisualInteractionOptionsStateSchema = z.object({
+  ContextMenuOption: ContextMenuOptionStateSchema,
+  VisualMenuOption: VisualMenuOptionStateSchema,
+}).partial();
+
+const DataPathTypeStateSchema = z.object({
+  PivotTableDataPathType: z.string(),
+}).partial();
+
+const DataPathValueStateSchema = z.object({
+  DataPathType: DataPathTypeStateSchema,
+  FieldId: z.string(),
+  FieldValue: z.string(),
+}).partial();
+
+const DataPathColorStateSchema = z.object({
+  Element: DataPathValueStateSchema,
+  Color: z.string(),
+  TimeGranularity: z.string(),
+}).partial();
+
+const VisualPaletteStateSchema = z.object({
+  ChartColor: z.string(),
+  ColorMap: z.array(DataPathColorStateSchema),
+}).partial();
+
+const FunnelChartConfigurationStateSchema = z.object({
+  SortConfiguration: FunnelChartSortConfigurationStateSchema,
+  DataLabelOptions: FunnelChartDataLabelOptionsStateSchema,
+  CategoryLabelOptions: ChartAxisLabelOptionsStateSchema,
+  FieldWells: FunnelChartFieldWellsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  ValueLabelOptions: ChartAxisLabelOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+}).partial();
+
+const FilterOperationSelectedFieldsConfigurationStateSchema = z.object({
+  SelectedColumns: z.array(ColumnIdentifierStateSchema),
+  SelectedFields: z.array(z.string()),
+  SelectedFieldOptions: z.string(),
+}).partial();
+
+const SameSheetTargetVisualConfigurationStateSchema = z.object({
+  TargetVisualOptions: z.string(),
+  TargetVisuals: z.array(z.string()),
+}).partial();
+
+const FilterOperationTargetVisualsConfigurationStateSchema = z.object({
+  SameSheetTargetVisualConfiguration:
+    SameSheetTargetVisualConfigurationStateSchema,
+}).partial();
+
+const CustomActionFilterOperationStateSchema = z.object({
+  SelectedFieldsConfiguration:
+    FilterOperationSelectedFieldsConfigurationStateSchema,
+  TargetVisualsConfiguration:
+    FilterOperationTargetVisualsConfigurationStateSchema,
+}).partial();
+
+const VisualCustomActionOperationStateSchema = z.object({
+  NavigationOperation: CustomActionNavigationOperationStateSchema,
+  SetParametersOperation: CustomActionSetParametersOperationStateSchema,
+  FilterOperation: CustomActionFilterOperationStateSchema,
+  URLOperation: CustomActionURLOperationStateSchema,
+}).partial();
+
+const VisualCustomActionStateSchema = z.object({
+  Status: z.string(),
+  Trigger: z.string(),
+  CustomActionId: z.string(),
+  Name: z.string(),
+  ActionOperations: z.array(VisualCustomActionOperationStateSchema),
+}).partial();
+
+const ShortFormatTextStateSchema = z.object({
+  RichText: z.string(),
+  PlainText: z.string(),
+}).partial();
+
+const VisualTitleLabelOptionsStateSchema = z.object({
+  Visibility: z.string(),
+  FormatText: ShortFormatTextStateSchema,
+}).partial();
+
+const NumericEqualityDrillDownFilterStateSchema = z.object({
+  Column: ColumnIdentifierStateSchema,
+  Value: z.number(),
+}).partial();
+
+const TimeRangeDrillDownFilterStateSchema = z.object({
+  Column: ColumnIdentifierStateSchema,
+  RangeMinimum: z.string(),
+  TimeGranularity: z.string(),
+  RangeMaximum: z.string(),
+}).partial();
+
+const CategoryDrillDownFilterStateSchema = z.object({
+  Column: ColumnIdentifierStateSchema,
+  CategoryValues: z.array(z.string()),
+}).partial();
+
+const DrillDownFilterStateSchema = z.object({
+  NumericEqualityFilter: NumericEqualityDrillDownFilterStateSchema,
+  TimeRangeFilter: TimeRangeDrillDownFilterStateSchema,
+  CategoryFilter: CategoryDrillDownFilterStateSchema,
+}).partial();
+
+const DateTimeHierarchyStateSchema = z.object({
+  HierarchyId: z.string(),
+  DrillDownFilters: z.array(DrillDownFilterStateSchema),
+}).partial();
+
+const ExplicitHierarchyStateSchema = z.object({
+  HierarchyId: z.string(),
+  DrillDownFilters: z.array(DrillDownFilterStateSchema),
+  Columns: z.array(ColumnIdentifierStateSchema),
+}).partial();
+
+const PredefinedHierarchyStateSchema = z.object({
+  HierarchyId: z.string(),
+  DrillDownFilters: z.array(DrillDownFilterStateSchema),
+  Columns: z.array(ColumnIdentifierStateSchema),
+}).partial();
+
+const ColumnHierarchyStateSchema = z.object({
+  DateTimeHierarchy: DateTimeHierarchyStateSchema,
+  ExplicitHierarchy: ExplicitHierarchyStateSchema,
+  PredefinedHierarchy: PredefinedHierarchyStateSchema,
+}).partial();
+
+const FunnelChartVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: FunnelChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const PaginationConfigurationStateSchema = z.object({
+  PageSize: z.number(),
+  PageNumber: z.number(),
+}).partial();
+
+const BoxPlotSortConfigurationStateSchema = z.object({
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+  PaginationConfiguration: PaginationConfigurationStateSchema,
+}).partial();
+
+const LegendOptionsStateSchema = z.object({
+  Position: z.string(),
+  ValueFontConfiguration: FontConfigurationStateSchema,
+  Title: LabelOptionsStateSchema,
+  Visibility: z.string(),
+  Height: z.string(),
+  Width: z.string(),
+}).partial();
+
+const ReferenceLineDynamicDataConfigurationStateSchema = z.object({
+  Column: ColumnIdentifierStateSchema,
+  MeasureAggregationFunction: AggregationFunctionStateSchema,
+  Calculation: NumericalAggregationFunctionStateSchema,
+}).partial();
+
+const ReferenceLineStaticDataConfigurationStateSchema = z.object({
+  Value: z.number(),
+}).partial();
+
+const ReferenceLineDataConfigurationStateSchema = z.object({
+  DynamicConfiguration: ReferenceLineDynamicDataConfigurationStateSchema,
+  AxisBinding: z.string(),
+  SeriesType: z.string(),
+  StaticConfiguration: ReferenceLineStaticDataConfigurationStateSchema,
+}).partial();
+
+const ReferenceLineValueLabelConfigurationStateSchema = z.object({
+  FormatConfiguration: NumericFormatConfigurationStateSchema,
+  RelativePosition: z.string(),
+}).partial();
+
+const ReferenceLineCustomLabelConfigurationStateSchema = z.object({
+  CustomLabel: z.string(),
+}).partial();
+
+const ReferenceLineLabelConfigurationStateSchema = z.object({
+  HorizontalPosition: z.string(),
+  ValueLabelConfiguration: ReferenceLineValueLabelConfigurationStateSchema,
+  CustomLabelConfiguration: ReferenceLineCustomLabelConfigurationStateSchema,
+  FontColor: z.string(),
+  FontConfiguration: FontConfigurationStateSchema,
+  VerticalPosition: z.string(),
+}).partial();
+
+const ReferenceLineStyleConfigurationStateSchema = z.object({
+  Pattern: z.string(),
+  Color: z.string(),
+}).partial();
+
+const ReferenceLineStateSchema = z.object({
+  Status: z.string(),
+  DataConfiguration: ReferenceLineDataConfigurationStateSchema,
+  LabelConfiguration: ReferenceLineLabelConfigurationStateSchema,
+  StyleConfiguration: ReferenceLineStyleConfigurationStateSchema,
+}).partial();
+
+const DateAxisOptionsStateSchema = z.object({
+  MissingDateVisibility: z.string(),
+}).partial();
+
+const AxisLogarithmicScaleStateSchema = z.object({
+  Base: z.number(),
+}).partial();
+
+const AxisLinearScaleStateSchema = z.object({
+  StepSize: z.number(),
+  StepCount: z.number(),
+}).partial();
+
+const AxisScaleStateSchema = z.object({
+  Logarithmic: AxisLogarithmicScaleStateSchema,
+  Linear: AxisLinearScaleStateSchema,
+}).partial();
+
+const AxisDisplayMinMaxRangeStateSchema = z.object({
+  Minimum: z.number(),
+  Maximum: z.number(),
+}).partial();
+
+const AxisDisplayRangeStateSchema = z.object({
+  DataDriven: z.record(z.string(), z.unknown()),
+  MinMax: AxisDisplayMinMaxRangeStateSchema,
+}).partial();
+
+const NumericAxisOptionsStateSchema = z.object({
+  Scale: AxisScaleStateSchema,
+  Range: AxisDisplayRangeStateSchema,
+}).partial();
+
+const AxisDataOptionsStateSchema = z.object({
+  DateAxisOptions: DateAxisOptionsStateSchema,
+  NumericAxisOptions: NumericAxisOptionsStateSchema,
+}).partial();
+
+const AxisTickLabelOptionsStateSchema = z.object({
+  RotationAngle: z.number(),
+  LabelOptions: LabelOptionsStateSchema,
+}).partial();
+
+const PercentVisibleRangeStateSchema = z.object({
+  From: z.number(),
+  To: z.number(),
+}).partial();
+
+const VisibleRangeOptionsStateSchema = z.object({
+  PercentRange: PercentVisibleRangeStateSchema,
+}).partial();
+
+const ScrollBarOptionsStateSchema = z.object({
+  VisibleRange: VisibleRangeOptionsStateSchema,
+  Visibility: z.string(),
+}).partial();
+
+const AxisDisplayOptionsStateSchema = z.object({
+  DataOptions: AxisDataOptionsStateSchema,
+  TickLabelOptions: AxisTickLabelOptionsStateSchema,
+  AxisOffset: z.string(),
+  AxisLineVisibility: z.string(),
+  GridLineVisibility: z.string(),
+  ScrollbarOptions: ScrollBarOptionsStateSchema,
+}).partial();
+
+const BoxPlotAggregatedFieldWellsStateSchema = z.object({
+  GroupBy: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const BoxPlotFieldWellsStateSchema = z.object({
+  BoxPlotAggregatedFieldWells: BoxPlotAggregatedFieldWellsStateSchema,
+}).partial();
+
+const BoxPlotStyleOptionsStateSchema = z.object({
+  FillStyle: z.string(),
+}).partial();
+
+const BoxPlotOptionsStateSchema = z.object({
+  StyleOptions: BoxPlotStyleOptionsStateSchema,
+  OutlierVisibility: z.string(),
+  AllDataPointsVisibility: z.string(),
+}).partial();
+
+const BoxPlotChartConfigurationStateSchema = z.object({
+  SortConfiguration: BoxPlotSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  ReferenceLines: z.array(ReferenceLineStateSchema),
+  CategoryAxis: AxisDisplayOptionsStateSchema,
+  PrimaryYAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  CategoryLabelOptions: ChartAxisLabelOptionsStateSchema,
+  FieldWells: BoxPlotFieldWellsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  BoxPlotOptions: BoxPlotOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  PrimaryYAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+}).partial();
+
+const BoxPlotVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: BoxPlotChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const GeospatialCoordinateBoundsStateSchema = z.object({
+  West: z.number(),
+  South: z.number(),
+  North: z.number(),
+  East: z.number(),
+}).partial();
+
+const GeospatialMapStateStateSchema = z.object({
+  Bounds: GeospatialCoordinateBoundsStateSchema,
+  MapNavigation: z.string(),
+}).partial();
+
+const GeospatialMapStyleStateSchema = z.object({
+  BaseMapStyle: z.string(),
+  BaseMapVisibility: z.string(),
+  BackgroundColor: z.string(),
+}).partial();
+
+const GeospatialLayerColorFieldStateSchema = z.object({
+  ColorValuesFields: z.array(MeasureFieldStateSchema),
+  ColorDimensionsFields: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const UnaggregatedFieldStateSchema = z.object({
+  FormatConfiguration: FormatConfigurationStateSchema,
+  Column: ColumnIdentifierStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const GeospatialLayerJoinDefinitionStateSchema = z.object({
+  ColorField: GeospatialLayerColorFieldStateSchema,
+  ShapeKeyField: z.string(),
+  DatasetKeyField: UnaggregatedFieldStateSchema,
+}).partial();
+
+const LayerCustomActionOperationStateSchema = z.object({
+  NavigationOperation: CustomActionNavigationOperationStateSchema,
+  SetParametersOperation: CustomActionSetParametersOperationStateSchema,
+  FilterOperation: CustomActionFilterOperationStateSchema,
+  URLOperation: CustomActionURLOperationStateSchema,
+}).partial();
+
+const LayerCustomActionStateSchema = z.object({
+  Status: z.string(),
+  Trigger: z.string(),
+  CustomActionId: z.string(),
+  Name: z.string(),
+  ActionOperations: z.array(LayerCustomActionOperationStateSchema),
+}).partial();
+
+const GeospatialGradientStepColorStateSchema = z.object({
+  DataValue: z.number(),
+  Color: z.string(),
+}).partial();
+
+const GeospatialNullSymbolStyleStateSchema = z.object({
+  FillColor: z.string(),
+  StrokeWidth: z.number(),
+  StrokeColor: z.string(),
+}).partial();
+
+const GeospatialNullDataSettingsStateSchema = z.object({
+  SymbolStyle: GeospatialNullSymbolStyleStateSchema,
+}).partial();
+
+const GeospatialGradientColorStateSchema = z.object({
+  DefaultOpacity: z.number(),
+  StepColors: z.array(GeospatialGradientStepColorStateSchema),
+  NullDataVisibility: z.string(),
+  NullDataSettings: GeospatialNullDataSettingsStateSchema,
+}).partial();
+
+const GeospatialCategoricalDataColorStateSchema = z.object({
+  DataValue: z.string(),
+  Color: z.string(),
+}).partial();
+
+const GeospatialCategoricalColorStateSchema = z.object({
+  CategoryDataColors: z.array(GeospatialCategoricalDataColorStateSchema),
+  DefaultOpacity: z.number(),
+  NullDataVisibility: z.string(),
+  NullDataSettings: GeospatialNullDataSettingsStateSchema,
+}).partial();
+
+const GeospatialSolidColorStateSchema = z.object({
+  State: z.string(),
+  Color: z.string(),
+}).partial();
+
+const GeospatialColorStateSchema = z.object({
+  Gradient: GeospatialGradientColorStateSchema,
+  Categorical: GeospatialCategoricalColorStateSchema,
+  Solid: GeospatialSolidColorStateSchema,
+}).partial();
+
+const GeospatialLineWidthStateSchema = z.object({
+  LineWidth: z.number(),
+}).partial();
+
+const GeospatialCircleRadiusStateSchema = z.object({
+  Radius: z.number(),
+}).partial();
+
+const GeospatialCircleSymbolStyleStateSchema = z.object({
+  FillColor: GeospatialColorStateSchema,
+  StrokeWidth: GeospatialLineWidthStateSchema,
+  StrokeColor: GeospatialColorStateSchema,
+  CircleRadius: GeospatialCircleRadiusStateSchema,
+}).partial();
+
+const GeospatialPointStyleStateSchema = z.object({
+  CircleSymbolStyle: GeospatialCircleSymbolStyleStateSchema,
+}).partial();
+
+const GeospatialPointLayerStateSchema = z.object({
+  Style: GeospatialPointStyleStateSchema,
+}).partial();
+
+const GeospatialPolygonSymbolStyleStateSchema = z.object({
+  FillColor: GeospatialColorStateSchema,
+  StrokeWidth: GeospatialLineWidthStateSchema,
+  StrokeColor: GeospatialColorStateSchema,
+}).partial();
+
+const GeospatialPolygonStyleStateSchema = z.object({
+  PolygonSymbolStyle: GeospatialPolygonSymbolStyleStateSchema,
+}).partial();
+
+const GeospatialPolygonLayerStateSchema = z.object({
+  Style: GeospatialPolygonStyleStateSchema,
+}).partial();
+
+const GeospatialLineSymbolStyleStateSchema = z.object({
+  FillColor: GeospatialColorStateSchema,
+  LineWidth: GeospatialLineWidthStateSchema,
+}).partial();
+
+const GeospatialLineStyleStateSchema = z.object({
+  LineSymbolStyle: GeospatialLineSymbolStyleStateSchema,
+}).partial();
+
+const GeospatialLineLayerStateSchema = z.object({
+  Style: GeospatialLineStyleStateSchema,
+}).partial();
+
+const GeospatialLayerDefinitionStateSchema = z.object({
+  PointLayer: GeospatialPointLayerStateSchema,
+  PolygonLayer: GeospatialPolygonLayerStateSchema,
+  LineLayer: GeospatialLineLayerStateSchema,
+}).partial();
+
+const GeospatialStaticFileSourceStateSchema = z.object({
+  StaticFileId: z.string(),
+}).partial();
+
+const GeospatialDataSourceItemStateSchema = z.object({
+  StaticFileDataSource: GeospatialStaticFileSourceStateSchema,
+}).partial();
+
+const GeospatialLayerItemStateSchema = z.object({
+  LayerId: z.string(),
+  JoinDefinition: GeospatialLayerJoinDefinitionStateSchema,
+  Actions: z.array(LayerCustomActionStateSchema),
+  LayerType: z.string(),
+  LayerDefinition: GeospatialLayerDefinitionStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  Label: z.string(),
+  Visibility: z.string(),
+  DataSource: GeospatialDataSourceItemStateSchema,
+}).partial();
+
+const GeospatialLayerMapConfigurationStateSchema = z.object({
+  Legend: LegendOptionsStateSchema,
+  MapState: GeospatialMapStateStateSchema,
+  MapStyle: GeospatialMapStyleStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  MapLayers: z.array(GeospatialLayerItemStateSchema),
+}).partial();
+
+const LayerMapVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: GeospatialLayerMapConfigurationStateSchema,
+  DataSetIdentifier: z.string(),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  TopicIdentifier: z.string(),
+}).partial();
+
+const GeospatialMapStyleOptionsStateSchema = z.object({
+  BaseMapStyle: z.string(),
+}).partial();
+
+const GeospatialMapAggregatedFieldWellsStateSchema = z.object({
+  Colors: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+  Geospatial: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const GeospatialMapFieldWellsStateSchema = z.object({
+  GeospatialMapAggregatedFieldWells:
+    GeospatialMapAggregatedFieldWellsStateSchema,
+}).partial();
+
+const GeospatialWindowOptionsStateSchema = z.object({
+  Bounds: GeospatialCoordinateBoundsStateSchema,
+  MapZoomMode: z.string(),
+}).partial();
+
+const SimpleClusterMarkerStateSchema = z.object({
+  Color: z.string(),
+}).partial();
+
+const ClusterMarkerStateSchema = z.object({
+  SimpleClusterMarker: SimpleClusterMarkerStateSchema,
+}).partial();
+
+const ClusterMarkerConfigurationStateSchema = z.object({
+  ClusterMarker: ClusterMarkerStateSchema,
+}).partial();
+
+const GeospatialHeatmapDataColorStateSchema = z.object({
+  Color: z.string(),
+}).partial();
+
+const GeospatialHeatmapColorScaleStateSchema = z.object({
+  Colors: z.array(GeospatialHeatmapDataColorStateSchema),
+}).partial();
+
+const GeospatialHeatmapConfigurationStateSchema = z.object({
+  HeatmapColor: GeospatialHeatmapColorScaleStateSchema,
+}).partial();
+
+const GeospatialPointStyleOptionsStateSchema = z.object({
+  SelectedPointStyle: z.string(),
+  ClusterMarkerConfiguration: ClusterMarkerConfigurationStateSchema,
+  HeatmapConfiguration: GeospatialHeatmapConfigurationStateSchema,
+}).partial();
+
+const GeospatialMapConfigurationStateSchema = z.object({
+  Legend: LegendOptionsStateSchema,
+  MapStyleOptions: GeospatialMapStyleOptionsStateSchema,
+  FieldWells: GeospatialMapFieldWellsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  WindowOptions: GeospatialWindowOptionsStateSchema,
+  PointStyleOptions: GeospatialPointStyleOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+}).partial();
+
+const GeospatialMapVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: GeospatialMapConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const ScatterPlotSortConfigurationStateSchema = z.object({
+  ScatterPlotLimitConfiguration: ItemsLimitConfigurationStateSchema,
+}).partial();
+
+const MaximumLabelTypeStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const DataPathLabelTypeStateSchema = z.object({
+  FieldId: z.string(),
+  Visibility: z.string(),
+  FieldValue: z.string(),
+}).partial();
+
+const RangeEndsLabelTypeStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const FieldLabelTypeStateSchema = z.object({
+  FieldId: z.string(),
+  Visibility: z.string(),
+}).partial();
+
+const MinimumLabelTypeStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const DataLabelTypeStateSchema = z.object({
+  MaximumLabelType: MaximumLabelTypeStateSchema,
+  DataPathLabelType: DataPathLabelTypeStateSchema,
+  RangeEndsLabelType: RangeEndsLabelTypeStateSchema,
+  FieldLabelType: FieldLabelTypeStateSchema,
+  MinimumLabelType: MinimumLabelTypeStateSchema,
+}).partial();
+
+const DataLabelOptionsStateSchema = z.object({
+  DataLabelTypes: z.array(DataLabelTypeStateSchema),
+  MeasureLabelVisibility: z.string(),
+  Position: z.string(),
+  LabelContent: z.string(),
+  Visibility: z.string(),
+  TotalsVisibility: z.string(),
+  Overlap: z.string(),
+  CategoryLabelVisibility: z.string(),
+  LabelColor: z.string(),
+  LabelFontConfiguration: FontConfigurationStateSchema,
+}).partial();
+
+const ScatterPlotUnaggregatedFieldWellsStateSchema = z.object({
+  Category: z.array(DimensionFieldStateSchema),
+  Size: z.array(MeasureFieldStateSchema),
+  Label: z.array(DimensionFieldStateSchema),
+  XAxis: z.array(DimensionFieldStateSchema),
+  YAxis: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const ScatterPlotCategoricallyAggregatedFieldWellsStateSchema = z.object({
+  Category: z.array(DimensionFieldStateSchema),
+  Size: z.array(MeasureFieldStateSchema),
+  Label: z.array(DimensionFieldStateSchema),
+  XAxis: z.array(MeasureFieldStateSchema),
+  YAxis: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const ScatterPlotFieldWellsStateSchema = z.object({
+  ScatterPlotUnaggregatedFieldWells:
+    ScatterPlotUnaggregatedFieldWellsStateSchema,
+  ScatterPlotCategoricallyAggregatedFieldWells:
+    ScatterPlotCategoricallyAggregatedFieldWellsStateSchema,
+}).partial();
+
+const ScatterPlotConfigurationStateSchema = z.object({
+  YAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  SortConfiguration: ScatterPlotSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  YAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+  DataLabels: DataLabelOptionsStateSchema,
+  FieldWells: ScatterPlotFieldWellsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  XAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+  XAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+}).partial();
+
+const ScatterPlotVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: ScatterPlotConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const RadarChartSortConfigurationStateSchema = z.object({
+  ColorSort: z.array(FieldSortOptionsStateSchema),
+  ColorItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategoryItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+}).partial();
+
+const RadarChartAreaStyleSettingsStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const RadarChartSeriesSettingsStateSchema = z.object({
+  AreaStyleSettings: RadarChartAreaStyleSettingsStateSchema,
+}).partial();
+
+const RadarChartAggregatedFieldWellsStateSchema = z.object({
+  Category: z.array(DimensionFieldStateSchema),
+  Color: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const RadarChartFieldWellsStateSchema = z.object({
+  RadarChartAggregatedFieldWells: RadarChartAggregatedFieldWellsStateSchema,
+}).partial();
+
+const RadarChartConfigurationStateSchema = z.object({
+  SortConfiguration: RadarChartSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  Shape: z.string(),
+  BaseSeriesSettings: RadarChartSeriesSettingsStateSchema,
+  ColorLabelOptions: ChartAxisLabelOptionsStateSchema,
+  CategoryLabelOptions: ChartAxisLabelOptionsStateSchema,
+  AxesRangeScale: z.string(),
+  VisualPalette: VisualPaletteStateSchema,
+  AlternateBandColorsVisibility: z.string(),
+  StartAngle: z.number(),
+  CategoryAxis: AxisDisplayOptionsStateSchema,
+  FieldWells: RadarChartFieldWellsStateSchema,
+  ColorAxis: AxisDisplayOptionsStateSchema,
+  AlternateBandOddColor: z.string(),
+  Interactions: VisualInteractionOptionsStateSchema,
+  AlternateBandEvenColor: z.string(),
+}).partial();
+
+const RadarChartVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: RadarChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const ComboChartSortConfigurationStateSchema = z.object({
+  ColorSort: z.array(FieldSortOptionsStateSchema),
+  ColorItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategoryItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+}).partial();
+
+const YAxisOptionsStateSchema = z.object({
+  YAxis: z.string(),
+}).partial();
+
+const SingleAxisOptionsStateSchema = z.object({
+  YAxisOptions: YAxisOptionsStateSchema,
+}).partial();
+
+const BorderSettingsStateSchema = z.object({
+  BorderVisibility: z.string(),
+  BorderColor: z.string(),
+  BorderWidth: z.string(),
+}).partial();
+
+const LineChartLineStyleSettingsStateSchema = z.object({
+  LineInterpolation: z.string(),
+  LineStyle: z.string(),
+  LineVisibility: z.string(),
+  LineWidth: z.string(),
+}).partial();
+
+const LineChartMarkerStyleSettingsStateSchema = z.object({
+  MarkerShape: z.string(),
+  MarkerSize: z.string(),
+  MarkerVisibility: z.string(),
+  MarkerColor: z.string(),
+}).partial();
+
+const ComboChartDefaultSeriesSettingsStateSchema = z.object({
+  BorderSettings: BorderSettingsStateSchema,
+  DecalSettings: DecalSettingsStateSchema,
+  LineStyleSettings: LineChartLineStyleSettingsStateSchema,
+  MarkerStyleSettings: LineChartMarkerStyleSettingsStateSchema,
+}).partial();
+
+const ComboSeriesItemStateSchema = z.object({}).partial();
+
+const ComboChartAggregatedFieldWellsStateSchema = z.object({
+  BarValues: z.array(MeasureFieldStateSchema),
+  Category: z.array(DimensionFieldStateSchema),
+  Colors: z.array(DimensionFieldStateSchema),
+  LineValues: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const ComboChartFieldWellsStateSchema = z.object({
+  ComboChartAggregatedFieldWells: ComboChartAggregatedFieldWellsStateSchema,
+}).partial();
+
+const ComboChartConfigurationStateSchema = z.object({
+  SortConfiguration: ComboChartSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  ReferenceLines: z.array(ReferenceLineStateSchema),
+  ColorLabelOptions: ChartAxisLabelOptionsStateSchema,
+  BarDataLabels: DataLabelOptionsStateSchema,
+  CategoryLabelOptions: ChartAxisLabelOptionsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  SingleAxisOptions: SingleAxisOptionsStateSchema,
+  PrimaryYAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+  BarsArrangement: z.string(),
+  DefaultSeriesSettings: ComboChartDefaultSeriesSettingsStateSchema,
+  SecondaryYAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  Series: z.array(ComboSeriesItemStateSchema),
+  LineDataLabels: DataLabelOptionsStateSchema,
+  CategoryAxis: AxisDisplayOptionsStateSchema,
+  PrimaryYAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  FieldWells: ComboChartFieldWellsStateSchema,
+  SecondaryYAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+}).partial();
+
+const ComboChartVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: ComboChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const WordCloudSortConfigurationStateSchema = z.object({
+  CategoryItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+}).partial();
+
+const WordCloudAggregatedFieldWellsStateSchema = z.object({
+  GroupBy: z.array(DimensionFieldStateSchema),
+  Size: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const WordCloudFieldWellsStateSchema = z.object({
+  WordCloudAggregatedFieldWells: WordCloudAggregatedFieldWellsStateSchema,
+}).partial();
+
+const WordCloudOptionsStateSchema = z.object({
+  WordOrientation: z.string(),
+  WordScaling: z.string(),
+  CloudLayout: z.string(),
+  MaximumStringLength: z.number(),
+  WordCasing: z.string(),
+  WordPadding: z.string(),
+}).partial();
+
+const WordCloudChartConfigurationStateSchema = z.object({
+  SortConfiguration: WordCloudSortConfigurationStateSchema,
+  CategoryLabelOptions: ChartAxisLabelOptionsStateSchema,
+  FieldWells: WordCloudFieldWellsStateSchema,
+  WordCloudOptions: WordCloudOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+}).partial();
+
+const WordCloudVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: WordCloudChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const SankeyDiagramSortConfigurationStateSchema = z.object({
+  WeightSort: z.array(FieldSortOptionsStateSchema),
+  SourceItemsLimit: ItemsLimitConfigurationStateSchema,
+  DestinationItemsLimit: ItemsLimitConfigurationStateSchema,
+}).partial();
+
+const SankeyDiagramAggregatedFieldWellsStateSchema = z.object({
+  Destination: z.array(DimensionFieldStateSchema),
+  Source: z.array(DimensionFieldStateSchema),
+  Weight: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const SankeyDiagramFieldWellsStateSchema = z.object({
+  SankeyDiagramAggregatedFieldWells:
+    SankeyDiagramAggregatedFieldWellsStateSchema,
+}).partial();
+
+const SankeyDiagramChartConfigurationStateSchema = z.object({
+  SortConfiguration: SankeyDiagramSortConfigurationStateSchema,
+  DataLabels: DataLabelOptionsStateSchema,
+  FieldWells: SankeyDiagramFieldWellsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+}).partial();
+
+const SankeyDiagramVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: SankeyDiagramChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+}).partial();
+
+const GradientStopStateSchema = z.object({
+  GradientOffset: z.number(),
+  DataValue: z.number(),
+  Color: z.string(),
+}).partial();
+
+const GradientColorStateSchema = z.object({
+  Stops: z.array(GradientStopStateSchema),
+}).partial();
+
+const ConditionalFormattingGradientColorStateSchema = z.object({
+  Expression: z.string(),
+  Color: GradientColorStateSchema,
+}).partial();
+
+const ConditionalFormattingSolidColorStateSchema = z.object({
+  Expression: z.string(),
+  Color: z.string(),
+}).partial();
+
+const ConditionalFormattingColorStateSchema = z.object({
+  Gradient: ConditionalFormattingGradientColorStateSchema,
+  Solid: ConditionalFormattingSolidColorStateSchema,
+}).partial();
+
+const GaugeChartArcConditionalFormattingStateSchema = z.object({
+  ForegroundColor: ConditionalFormattingColorStateSchema,
+}).partial();
+
+const ConditionalFormattingIconDisplayConfigurationStateSchema = z.object({
+  IconDisplayOption: z.string(),
+}).partial();
+
+const ConditionalFormattingCustomIconOptionsStateSchema = z.object({
+  UnicodeIcon: z.string(),
+  Icon: z.string(),
+}).partial();
+
+const ConditionalFormattingCustomIconConditionStateSchema = z.object({
+  Expression: z.string(),
+  Color: z.string(),
+  DisplayConfiguration:
+    ConditionalFormattingIconDisplayConfigurationStateSchema,
+  IconOptions: ConditionalFormattingCustomIconOptionsStateSchema,
+}).partial();
+
+const ConditionalFormattingIconSetStateSchema = z.object({
+  Expression: z.string(),
+  IconSetType: z.string(),
+}).partial();
+
+const ConditionalFormattingIconStateSchema = z.object({
+  CustomCondition: ConditionalFormattingCustomIconConditionStateSchema,
+  IconSet: ConditionalFormattingIconSetStateSchema,
+}).partial();
+
+const GaugeChartPrimaryValueConditionalFormattingStateSchema = z.object({
+  TextColor: ConditionalFormattingColorStateSchema,
+  Icon: ConditionalFormattingIconStateSchema,
+}).partial();
+
+const GaugeChartConditionalFormattingOptionStateSchema = z.object({
+  Arc: GaugeChartArcConditionalFormattingStateSchema,
+  PrimaryValue: GaugeChartPrimaryValueConditionalFormattingStateSchema,
+}).partial();
+
+const GaugeChartConditionalFormattingStateSchema = z.object({
+  ConditionalFormattingOptions: z.array(
+    GaugeChartConditionalFormattingOptionStateSchema,
+  ),
+}).partial();
+
+const GaugeChartFieldWellsStateSchema = z.object({
+  TargetValues: z.array(MeasureFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const ArcConfigurationStateSchema = z.object({
+  ArcAngle: z.number(),
+  ArcThickness: z.string(),
+}).partial();
+
+const ComparisonFormatConfigurationStateSchema = z.object({
+  NumberDisplayFormatConfiguration: NumberDisplayFormatConfigurationStateSchema,
+  PercentageDisplayFormatConfiguration:
+    PercentageDisplayFormatConfigurationStateSchema,
+}).partial();
+
+const ComparisonConfigurationStateSchema = z.object({
+  ComparisonMethod: z.string(),
+  ComparisonFormat: ComparisonFormatConfigurationStateSchema,
+}).partial();
+
+const ArcAxisDisplayRangeStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const ArcAxisConfigurationStateSchema = z.object({
+  Range: ArcAxisDisplayRangeStateSchema,
+  ReserveRange: z.number(),
+}).partial();
+
+const GaugeChartOptionsStateSchema = z.object({
+  Arc: ArcConfigurationStateSchema,
+  Comparison: ComparisonConfigurationStateSchema,
+  PrimaryValueDisplayType: z.string(),
+  ArcAxis: ArcAxisConfigurationStateSchema,
+  PrimaryValueFontConfiguration: FontConfigurationStateSchema,
+}).partial();
+
+const GaugeChartColorConfigurationStateSchema = z.object({
+  ForegroundColor: z.string(),
+  BackgroundColor: z.string(),
+}).partial();
+
+const GaugeChartConfigurationStateSchema = z.object({
+  DataLabels: DataLabelOptionsStateSchema,
+  FieldWells: GaugeChartFieldWellsStateSchema,
+  TooltipOptions: TooltipOptionsStateSchema,
+  GaugeChartOptions: GaugeChartOptionsStateSchema,
+  ColorConfiguration: GaugeChartColorConfigurationStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+}).partial();
+
+const GaugeChartVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  ConditionalFormatting: GaugeChartConditionalFormattingStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: GaugeChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+}).partial();
+
+const ShapeConditionalFormatStateSchema = z.object({
+  BackgroundColor: ConditionalFormattingColorStateSchema,
+}).partial();
+
+const FilledMapShapeConditionalFormattingStateSchema = z.object({
+  Format: ShapeConditionalFormatStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const FilledMapConditionalFormattingOptionStateSchema = z.object({
+  Shape: FilledMapShapeConditionalFormattingStateSchema,
+}).partial();
+
+const FilledMapConditionalFormattingStateSchema = z.object({
+  ConditionalFormattingOptions: z.array(
+    FilledMapConditionalFormattingOptionStateSchema,
+  ),
+}).partial();
+
+const FilledMapSortConfigurationStateSchema = z.object({
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+}).partial();
+
+const FilledMapAggregatedFieldWellsStateSchema = z.object({
+  Values: z.array(MeasureFieldStateSchema),
+  Geospatial: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const FilledMapFieldWellsStateSchema = z.object({
+  FilledMapAggregatedFieldWells: FilledMapAggregatedFieldWellsStateSchema,
+}).partial();
+
+const FilledMapConfigurationStateSchema = z.object({
+  SortConfiguration: FilledMapSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  MapStyleOptions: GeospatialMapStyleOptionsStateSchema,
+  FieldWells: FilledMapFieldWellsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  WindowOptions: GeospatialWindowOptionsStateSchema,
+}).partial();
+
+const FilledMapVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  ConditionalFormatting: FilledMapConditionalFormattingStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: FilledMapConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const WaterfallChartSortConfigurationStateSchema = z.object({
+  BreakdownItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+}).partial();
+
+const WaterfallChartAggregatedFieldWellsStateSchema = z.object({
+  Categories: z.array(DimensionFieldStateSchema),
+  Breakdowns: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const WaterfallChartFieldWellsStateSchema = z.object({
+  WaterfallChartAggregatedFieldWells:
+    WaterfallChartAggregatedFieldWellsStateSchema,
+}).partial();
+
+const WaterfallChartOptionsStateSchema = z.object({
+  TotalBarLabel: z.string(),
+}).partial();
+
+const WaterfallChartGroupColorConfigurationStateSchema = z.object({
+  NegativeBarColor: z.string(),
+  TotalBarColor: z.string(),
+  PositiveBarColor: z.string(),
+}).partial();
+
+const WaterfallChartColorConfigurationStateSchema = z.object({
+  GroupColorConfiguration: WaterfallChartGroupColorConfigurationStateSchema,
+}).partial();
+
+const WaterfallChartConfigurationStateSchema = z.object({
+  CategoryAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  SortConfiguration: WaterfallChartSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  DataLabels: DataLabelOptionsStateSchema,
+  PrimaryYAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  FieldWells: WaterfallChartFieldWellsStateSchema,
+  WaterfallChartOptions: WaterfallChartOptionsStateSchema,
+  ColorConfiguration: WaterfallChartColorConfigurationStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  CategoryAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+  PrimaryYAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+}).partial();
+
+const WaterfallVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: WaterfallChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const CustomContentConfigurationStateSchema = z.object({
+  ContentUrl: z.string(),
+  ContentType: z.string(),
+  ImageScaling: z.string(),
+  Interactions: VisualInteractionOptionsStateSchema,
+}).partial();
+
+const CustomContentVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: CustomContentConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  DataSetIdentifier: z.string(),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  TopicIdentifier: z.string(),
+}).partial();
+
+const PieChartSortConfigurationStateSchema = z.object({
+  SmallMultiplesSort: z.array(FieldSortOptionsStateSchema),
+  CategoryItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+  SmallMultiplesLimitConfiguration: ItemsLimitConfigurationStateSchema,
+}).partial();
+
+const ContributionAnalysisDefaultStateSchema = z.object({
+  MeasureFieldId: z.string(),
+  ContributorDimensions: z.array(ColumnIdentifierStateSchema),
+}).partial();
+
+const PieChartAggregatedFieldWellsStateSchema = z.object({
+  Category: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+  SmallMultiples: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const PieChartFieldWellsStateSchema = z.object({
+  PieChartAggregatedFieldWells: PieChartAggregatedFieldWellsStateSchema,
+}).partial();
+
+const DonutCenterOptionsStateSchema = z.object({
+  LabelVisibility: z.string(),
+}).partial();
+
+const ArcOptionsStateSchema = z.object({
+  ArcThickness: z.string(),
+}).partial();
+
+const DonutOptionsStateSchema = z.object({
+  DonutCenterOptions: DonutCenterOptionsStateSchema,
+  ArcOptions: ArcOptionsStateSchema,
+}).partial();
+
+const PanelTitleOptionsStateSchema = z.object({
+  Visibility: z.string(),
+  FontConfiguration: FontConfigurationStateSchema,
+  HorizontalTextAlignment: z.string(),
+}).partial();
+
+const PanelConfigurationStateSchema = z.object({
+  BorderThickness: z.string(),
+  BorderStyle: z.string(),
+  GutterSpacing: z.string(),
+  BackgroundVisibility: z.string(),
+  BorderVisibility: z.string(),
+  BorderColor: z.string(),
+  Title: PanelTitleOptionsStateSchema,
+  GutterVisibility: z.string(),
+  BackgroundColor: z.string(),
+}).partial();
+
+const SmallMultiplesAxisPropertiesStateSchema = z.object({
+  Placement: z.string(),
+  Scale: z.string(),
+}).partial();
+
+const SmallMultiplesOptionsStateSchema = z.object({
+  MaxVisibleRows: z.number(),
+  PanelConfiguration: PanelConfigurationStateSchema,
+  MaxVisibleColumns: z.number(),
+  XAxis: SmallMultiplesAxisPropertiesStateSchema,
+  YAxis: SmallMultiplesAxisPropertiesStateSchema,
+}).partial();
+
+const PieChartConfigurationStateSchema = z.object({
+  SortConfiguration: PieChartSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  DataLabels: DataLabelOptionsStateSchema,
+  ContributionAnalysisDefaults: z.array(ContributionAnalysisDefaultStateSchema),
+  CategoryLabelOptions: ChartAxisLabelOptionsStateSchema,
+  FieldWells: PieChartFieldWellsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  DonutOptions: DonutOptionsStateSchema,
+  SmallMultiplesOptions: SmallMultiplesOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  ValueLabelOptions: ChartAxisLabelOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+}).partial();
+
+const PieChartVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: PieChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const KPIPrimaryValueConditionalFormattingStateSchema = z.object({
+  TextColor: ConditionalFormattingColorStateSchema,
+  Icon: ConditionalFormattingIconStateSchema,
+}).partial();
+
+const KPIActualValueConditionalFormattingStateSchema = z.object({
+  TextColor: ConditionalFormattingColorStateSchema,
+  Icon: ConditionalFormattingIconStateSchema,
+}).partial();
+
+const KPIComparisonValueConditionalFormattingStateSchema = z.object({
+  TextColor: ConditionalFormattingColorStateSchema,
+  Icon: ConditionalFormattingIconStateSchema,
+}).partial();
+
+const KPIProgressBarConditionalFormattingStateSchema = z.object({
+  ForegroundColor: ConditionalFormattingColorStateSchema,
+}).partial();
+
+const KPIConditionalFormattingOptionStateSchema = z.object({
+  PrimaryValue: KPIPrimaryValueConditionalFormattingStateSchema,
+  ActualValue: KPIActualValueConditionalFormattingStateSchema,
+  ComparisonValue: KPIComparisonValueConditionalFormattingStateSchema,
+  ProgressBar: KPIProgressBarConditionalFormattingStateSchema,
+}).partial();
+
+const KPIConditionalFormattingStateSchema = z.object({
+  ConditionalFormattingOptions: z.array(
+    KPIConditionalFormattingOptionStateSchema,
+  ),
+}).partial();
+
+const KPISortConfigurationStateSchema = z.object({
+  TrendGroupSort: z.array(FieldSortOptionsStateSchema),
+}).partial();
+
+const KPIVisualStandardLayoutStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const KPIVisualLayoutOptionsStateSchema = z.object({
+  StandardLayout: KPIVisualStandardLayoutStateSchema,
+}).partial();
+
+const TrendArrowOptionsStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const SecondaryValueOptionsStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const ProgressBarOptionsStateSchema = z.object({
+  Visibility: z.string(),
+}).partial();
+
+const KPISparklineOptionsStateSchema = z.object({
+  Type: z.string(),
+  Color: z.string(),
+  TooltipVisibility: z.string(),
+  Visibility: z.string(),
+}).partial();
+
+const KPIOptionsStateSchema = z.object({
+  SecondaryValueFontConfiguration: FontConfigurationStateSchema,
+  VisualLayoutOptions: KPIVisualLayoutOptionsStateSchema,
+  TrendArrows: TrendArrowOptionsStateSchema,
+  SecondaryValue: SecondaryValueOptionsStateSchema,
+  Comparison: ComparisonConfigurationStateSchema,
+  PrimaryValueDisplayType: z.string(),
+  ProgressBar: ProgressBarOptionsStateSchema,
+  PrimaryValueFontConfiguration: FontConfigurationStateSchema,
+  Sparkline: KPISparklineOptionsStateSchema,
+}).partial();
+
+const KPIFieldWellsStateSchema = z.object({
+  TargetValues: z.array(MeasureFieldStateSchema),
+  TrendGroups: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const KPIConfigurationStateSchema = z.object({
+  SortConfiguration: KPISortConfigurationStateSchema,
+  KPIOptions: KPIOptionsStateSchema,
+  FieldWells: KPIFieldWellsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+}).partial();
+
+const KPIVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  ConditionalFormatting: KPIConditionalFormattingStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: KPIConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const BinWidthOptionsStateSchema = z.object({
+  BinCountLimit: z.number(),
+  Value: z.number(),
+}).partial();
+
+const BinCountOptionsStateSchema = z.object({
+  Value: z.number(),
+}).partial();
+
+const HistogramBinOptionsStateSchema = z.object({
+  BinWidth: BinWidthOptionsStateSchema,
+  StartValue: z.number(),
+  SelectedBinType: z.string(),
+  BinCount: BinCountOptionsStateSchema,
+}).partial();
+
+const HistogramAggregatedFieldWellsStateSchema = z.object({
+  Values: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const HistogramFieldWellsStateSchema = z.object({
+  HistogramAggregatedFieldWells: HistogramAggregatedFieldWellsStateSchema,
+}).partial();
+
+const HistogramConfigurationStateSchema = z.object({
+  YAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+  DataLabels: DataLabelOptionsStateSchema,
+  BinOptions: HistogramBinOptionsStateSchema,
+  FieldWells: HistogramFieldWellsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  XAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+  XAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+}).partial();
+
+const HistogramVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: HistogramConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+}).partial();
+
+const PluginVisualItemsLimitConfigurationStateSchema = z.object({
+  ItemsLimit: z.number(),
+}).partial();
+
+const PluginVisualTableQuerySortStateSchema = z.object({
+  ItemsLimitConfiguration: PluginVisualItemsLimitConfigurationStateSchema,
+  RowSort: z.array(FieldSortOptionsStateSchema),
+}).partial();
+
+const PluginVisualSortConfigurationStateSchema = z.object({
+  PluginVisualTableQuerySort: PluginVisualTableQuerySortStateSchema,
+}).partial();
+
+const PluginVisualPropertyStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const PluginVisualOptionsStateSchema = z.object({
+  VisualProperties: z.array(PluginVisualPropertyStateSchema),
+}).partial();
+
+const PluginVisualFieldWellStateSchema = z.object({
+  Unaggregated: z.array(UnaggregatedFieldStateSchema),
+  AxisName: z.string(),
+  Measures: z.array(MeasureFieldStateSchema),
+  Dimensions: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const PluginVisualConfigurationStateSchema = z.object({
+  SortConfiguration: PluginVisualSortConfigurationStateSchema,
+  VisualOptions: PluginVisualOptionsStateSchema,
+  FieldWells: z.array(PluginVisualFieldWellStateSchema),
+}).partial();
+
+const PluginVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  PluginArn: z.string(),
+  VisualId: z.string(),
+  ChartConfiguration: PluginVisualConfigurationStateSchema,
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+}).partial();
+
+const TableRowConditionalFormattingStateSchema = z.object({
+  TextColor: ConditionalFormattingColorStateSchema,
+  BackgroundColor: ConditionalFormattingColorStateSchema,
+}).partial();
+
+const TextConditionalFormatStateSchema = z.object({
+  TextColor: ConditionalFormattingColorStateSchema,
+  Icon: ConditionalFormattingIconStateSchema,
+  BackgroundColor: ConditionalFormattingColorStateSchema,
+}).partial();
+
+const TableCellConditionalFormattingStateSchema = z.object({
+  FieldId: z.string(),
+  TextFormat: TextConditionalFormatStateSchema,
+}).partial();
+
+const TableConditionalFormattingOptionStateSchema = z.object({
+  Row: TableRowConditionalFormattingStateSchema,
+  Cell: TableCellConditionalFormattingStateSchema,
+}).partial();
+
+const TableConditionalFormattingStateSchema = z.object({
+  ConditionalFormattingOptions: z.array(
+    TableConditionalFormattingOptionStateSchema,
+  ),
+}).partial();
+
+const TableSortConfigurationStateSchema = z.object({
+  RowSort: z.array(FieldSortOptionsStateSchema),
+  PaginationConfiguration: PaginationConfigurationStateSchema,
+}).partial();
+
+const TablePaginatedReportOptionsStateSchema = z.object({
+  OverflowColumnHeaderVisibility: z.string(),
+  VerticalOverflowVisibility: z.string(),
+}).partial();
+
+const TableBorderOptionsStateSchema = z.object({
+  Thickness: z.number(),
+  Color: z.string(),
+  Style: z.string(),
+}).partial();
+
+const TableSideBorderOptionsStateSchema = z.object({
+  Left: TableBorderOptionsStateSchema,
+  Top: TableBorderOptionsStateSchema,
+  InnerHorizontal: TableBorderOptionsStateSchema,
+  Right: TableBorderOptionsStateSchema,
+  Bottom: TableBorderOptionsStateSchema,
+  InnerVertical: TableBorderOptionsStateSchema,
+}).partial();
+
+const GlobalTableBorderOptionsStateSchema = z.object({
+  UniformBorder: TableBorderOptionsStateSchema,
+  SideSpecificBorder: TableSideBorderOptionsStateSchema,
+}).partial();
+
+const TableCellStyleStateSchema = z.object({
+  VerticalTextAlignment: z.string(),
+  Visibility: z.string(),
+  Height: z.number(),
+  FontConfiguration: FontConfigurationStateSchema,
+  Border: GlobalTableBorderOptionsStateSchema,
+  TextWrap: z.string(),
+  HorizontalTextAlignment: z.string(),
+  BackgroundColor: z.string(),
+}).partial();
+
+const RowAlternateColorOptionsStateSchema = z.object({
+  Status: z.string(),
+  UsePrimaryBackgroundColor: z.string(),
+  RowAlternateColors: z.array(z.string()),
+}).partial();
+
+const TableOptionsStateSchema = z.object({
+  HeaderStyle: TableCellStyleStateSchema,
+  CellStyle: TableCellStyleStateSchema,
+  Orientation: z.string(),
+  RowAlternateColorOptions: RowAlternateColorOptionsStateSchema,
+}).partial();
+
+const SparklinesOptionsStateSchema = z.object({
+  LineInterpolation: z.string(),
+  MaxValueMarker: LineChartMarkerStyleSettingsStateSchema,
+  XAxisField: DimensionFieldStateSchema,
+  AllPointsMarker: LineChartMarkerStyleSettingsStateSchema,
+  MinValueMarker: LineChartMarkerStyleSettingsStateSchema,
+  FieldId: z.string(),
+  VisualType: z.string(),
+  LineColor: z.string(),
+  YAxisBehavior: z.string(),
+}).partial();
+
+const DataBarsOptionsStateSchema = z.object({
+  PositiveColor: z.string(),
+  FieldId: z.string(),
+  NegativeColor: z.string(),
+}).partial();
+
+const TableInlineVisualizationStateSchema = z.object({
+  Sparklines: SparklinesOptionsStateSchema,
+  DataBars: DataBarsOptionsStateSchema,
+}).partial();
+
+const TableUnaggregatedFieldWellsStateSchema = z.object({
+  Values: z.array(UnaggregatedFieldStateSchema),
+}).partial();
+
+const TableAggregatedFieldWellsStateSchema = z.object({
+  GroupBy: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+}).partial();
+
+const TableFieldWellsStateSchema = z.object({
+  TableUnaggregatedFieldWells: TableUnaggregatedFieldWellsStateSchema,
+  TableAggregatedFieldWells: TableAggregatedFieldWellsStateSchema,
+}).partial();
+
+const TablePinnedFieldOptionsStateSchema = z.object({
+  PinnedLeftFields: z.array(z.string()),
+}).partial();
+
+const TransposedTableOptionStateSchema = z.object({
+  ColumnWidth: z.string(),
+  ColumnIndex: z.number(),
+  ColumnType: z.string(),
+}).partial();
+
+const TableFieldCustomIconContentStateSchema = z.object({
+  Icon: z.string(),
+}).partial();
+
+const TableFieldCustomTextContentStateSchema = z.object({
+  Value: z.string(),
+  FontConfiguration: FontConfigurationStateSchema,
+}).partial();
+
+const TableFieldLinkContentConfigurationStateSchema = z.object({
+  CustomIconContent: TableFieldCustomIconContentStateSchema,
+  CustomTextContent: TableFieldCustomTextContentStateSchema,
+}).partial();
+
+const TableFieldLinkConfigurationStateSchema = z.object({
+  Target: z.string(),
+  Content: TableFieldLinkContentConfigurationStateSchema,
+}).partial();
+
+const TableCellImageSizingConfigurationStateSchema = z.object({
+  TableCellImageScalingConfiguration: z.string(),
+}).partial();
+
+const TableFieldImageConfigurationStateSchema = z.object({
+  SizingOptions: TableCellImageSizingConfigurationStateSchema,
+}).partial();
+
+const TableFieldURLConfigurationStateSchema = z.object({
+  LinkConfiguration: TableFieldLinkConfigurationStateSchema,
+  ImageConfiguration: TableFieldImageConfigurationStateSchema,
+}).partial();
+
+const TableFieldOptionStateSchema = z.object({
+  CustomLabel: z.string(),
+  URLStyling: TableFieldURLConfigurationStateSchema,
+  FieldId: z.string(),
+  Visibility: z.string(),
+  Width: z.string(),
+}).partial();
+
+const TableFieldOptionsStateSchema = z.object({
+  Order: z.array(z.string()),
+  PinnedFieldOptions: TablePinnedFieldOptionsStateSchema,
+  TransposedTableOptions: z.array(TransposedTableOptionStateSchema),
+  SelectedFieldOptions: z.array(TableFieldOptionStateSchema),
+}).partial();
+
+const TotalAggregationFunctionStateSchema = z.object({
+  SimpleTotalAggregationFunction: z.string(),
+}).partial();
+
+const TotalAggregationOptionStateSchema = z.object({
+  TotalAggregationFunction: TotalAggregationFunctionStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const TotalOptionsStateSchema = z.object({
+  TotalAggregationOptions: z.array(TotalAggregationOptionStateSchema),
+  CustomLabel: z.string(),
+  ScrollStatus: z.string(),
+  Placement: z.string(),
+  TotalCellStyle: TableCellStyleStateSchema,
+  TotalsVisibility: z.string(),
+}).partial();
+
+const TableConfigurationStateSchema = z.object({
+  SortConfiguration: TableSortConfigurationStateSchema,
+  PaginatedReportOptions: TablePaginatedReportOptionsStateSchema,
+  TableOptions: TableOptionsStateSchema,
+  TableInlineVisualizations: z.array(TableInlineVisualizationStateSchema),
+  FieldWells: TableFieldWellsStateSchema,
+  FieldOptions: TableFieldOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  TotalOptions: TotalOptionsStateSchema,
+}).partial();
+
+const TableVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  ConditionalFormatting: TableConditionalFormattingStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: TableConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+}).partial();
+
+const PivotTableConditionalFormattingScopeStateSchema = z.object({
+  Role: z.string(),
+}).partial();
+
+const PivotTableCellConditionalFormattingStateSchema = z.object({
+  Scope: PivotTableConditionalFormattingScopeStateSchema,
+  Scopes: z.array(PivotTableConditionalFormattingScopeStateSchema),
+  FieldId: z.string(),
+  TextFormat: TextConditionalFormatStateSchema,
+}).partial();
+
+const PivotTableConditionalFormattingOptionStateSchema = z.object({
+  Cell: PivotTableCellConditionalFormattingStateSchema,
+}).partial();
+
+const PivotTableConditionalFormattingStateSchema = z.object({
+  ConditionalFormattingOptions: z.array(
+    PivotTableConditionalFormattingOptionStateSchema,
+  ),
+}).partial();
+
+const DataPathSortStateSchema = z.object({
+  SortPaths: z.array(DataPathValueStateSchema),
+  Direction: z.string(),
+}).partial();
+
+const PivotTableSortByStateSchema = z.object({
+  Field: FieldSortStateSchema,
+  DataPath: DataPathSortStateSchema,
+  Column: ColumnSortStateSchema,
+}).partial();
+
+const PivotFieldSortOptionsStateSchema = z.object({
+  SortBy: PivotTableSortByStateSchema,
+  FieldId: z.string(),
+}).partial();
+
+const PivotTableSortConfigurationStateSchema = z.object({
+  FieldSortOptions: z.array(PivotFieldSortOptionsStateSchema),
+}).partial();
+
+const PivotTablePaginatedReportOptionsStateSchema = z.object({
+  OverflowColumnHeaderVisibility: z.string(),
+  VerticalOverflowVisibility: z.string(),
+}).partial();
+
+const PivotTableRowsLabelOptionsStateSchema = z.object({
+  CustomLabel: z.string(),
+  Visibility: z.string(),
+}).partial();
+
+const PivotTableOptionsStateSchema = z.object({
+  RowFieldNamesStyle: TableCellStyleStateSchema,
+  RowHeaderStyle: TableCellStyleStateSchema,
+  CollapsedRowDimensionsVisibility: z.string(),
+  RowsLayout: z.string(),
+  MetricPlacement: z.string(),
+  DefaultCellWidth: z.string(),
+  ColumnNamesVisibility: z.string(),
+  RowsLabelOptions: PivotTableRowsLabelOptionsStateSchema,
+  SingleMetricVisibility: z.string(),
+  ColumnHeaderStyle: TableCellStyleStateSchema,
+  ToggleButtonsVisibility: z.string(),
+  CellStyle: TableCellStyleStateSchema,
+  RowAlternateColorOptions: RowAlternateColorOptionsStateSchema,
+}).partial();
+
+const PivotTableAggregatedFieldWellsStateSchema = z.object({
+  Values: z.array(MeasureFieldStateSchema),
+  Columns: z.array(DimensionFieldStateSchema),
+  Rows: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const PivotTableFieldWellsStateSchema = z.object({
+  PivotTableAggregatedFieldWells: PivotTableAggregatedFieldWellsStateSchema,
+}).partial();
+
+const PivotTableFieldCollapseStateTargetStateSchema = z.object({
+  FieldId: z.string(),
+  FieldDataPathValues: z.array(DataPathValueStateSchema),
+}).partial();
+
+const PivotTableFieldCollapseStateOptionStateSchema = z.object({
+  Target: PivotTableFieldCollapseStateTargetStateSchema,
+  State: z.string(),
+}).partial();
+
+const PivotTableDataPathOptionStateSchema = z.object({
+  DataPathList: z.array(DataPathValueStateSchema),
+  Width: z.string(),
+}).partial();
+
+const PivotTableFieldOptionStateSchema = z.object({
+  CustomLabel: z.string(),
+  FieldId: z.string(),
+  Visibility: z.string(),
+}).partial();
+
+const PivotTableFieldOptionsStateSchema = z.object({
+  CollapseStateOptions: z.array(PivotTableFieldCollapseStateOptionStateSchema),
+  DataPathOptions: z.array(PivotTableDataPathOptionStateSchema),
+  SelectedFieldOptions: z.array(PivotTableFieldOptionStateSchema),
+}).partial();
+
+const PivotTableFieldSubtotalOptionsStateSchema = z.object({
+  FieldId: z.string(),
+}).partial();
+
+const TableStyleTargetStateSchema = z.object({
+  CellType: z.string(),
+}).partial();
+
+const SubtotalOptionsStateSchema = z.object({
+  CustomLabel: z.string(),
+  FieldLevelOptions: z.array(PivotTableFieldSubtotalOptionsStateSchema),
+  ValueCellStyle: TableCellStyleStateSchema,
+  TotalCellStyle: TableCellStyleStateSchema,
+  TotalsVisibility: z.string(),
+  FieldLevel: z.string(),
+  MetricHeaderCellStyle: TableCellStyleStateSchema,
+  StyleTargets: z.array(TableStyleTargetStateSchema),
+}).partial();
+
+const PivotTotalOptionsStateSchema = z.object({
+  TotalAggregationOptions: z.array(TotalAggregationOptionStateSchema),
+  CustomLabel: z.string(),
+  ValueCellStyle: TableCellStyleStateSchema,
+  ScrollStatus: z.string(),
+  Placement: z.string(),
+  TotalCellStyle: TableCellStyleStateSchema,
+  TotalsVisibility: z.string(),
+  MetricHeaderCellStyle: TableCellStyleStateSchema,
+}).partial();
+
+const PivotTableTotalOptionsStateSchema = z.object({
+  ColumnSubtotalOptions: SubtotalOptionsStateSchema,
+  RowSubtotalOptions: SubtotalOptionsStateSchema,
+  RowTotalOptions: PivotTotalOptionsStateSchema,
+  ColumnTotalOptions: PivotTotalOptionsStateSchema,
+}).partial();
+
+const PivotTableConfigurationStateSchema = z.object({
+  SortConfiguration: PivotTableSortConfigurationStateSchema,
+  PaginatedReportOptions: PivotTablePaginatedReportOptionsStateSchema,
+  TableOptions: PivotTableOptionsStateSchema,
+  FieldWells: PivotTableFieldWellsStateSchema,
+  FieldOptions: PivotTableFieldOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  TotalOptions: PivotTableTotalOptionsStateSchema,
+}).partial();
+
+const PivotTableVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  ConditionalFormatting: PivotTableConditionalFormattingStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: PivotTableConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+}).partial();
+
+const BarChartSortConfigurationStateSchema = z.object({
+  SmallMultiplesSort: z.array(FieldSortOptionsStateSchema),
+  ColorSort: z.array(FieldSortOptionsStateSchema),
+  ColorItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategoryItemsLimit: ItemsLimitConfigurationStateSchema,
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+  SmallMultiplesLimitConfiguration: ItemsLimitConfigurationStateSchema,
+}).partial();
+
+const BarChartDefaultSeriesSettingsStateSchema = z.object({
+  BorderSettings: BorderSettingsStateSchema,
+  DecalSettings: DecalSettingsStateSchema,
+}).partial();
+
+const BarSeriesItemStateSchema = z.object({}).partial();
+
+const BarChartAggregatedFieldWellsStateSchema = z.object({
+  Category: z.array(DimensionFieldStateSchema),
+  Colors: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+  SmallMultiples: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const BarChartFieldWellsStateSchema = z.object({
+  BarChartAggregatedFieldWells: BarChartAggregatedFieldWellsStateSchema,
+}).partial();
+
+const BarChartConfigurationStateSchema = z.object({
+  SortConfiguration: BarChartSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  ReferenceLines: z.array(ReferenceLineStateSchema),
+  DataLabels: DataLabelOptionsStateSchema,
+  ColorLabelOptions: ChartAxisLabelOptionsStateSchema,
+  CategoryLabelOptions: ChartAxisLabelOptionsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  SmallMultiplesOptions: SmallMultiplesOptionsStateSchema,
+  Orientation: z.string(),
+  VisualPalette: VisualPaletteStateSchema,
+  ValueLabelOptions: ChartAxisLabelOptionsStateSchema,
+  BarsArrangement: z.string(),
+  DefaultSeriesSettings: BarChartDefaultSeriesSettingsStateSchema,
+  Series: z.array(BarSeriesItemStateSchema),
+  CategoryAxis: AxisDisplayOptionsStateSchema,
+  ContributionAnalysisDefaults: z.array(ContributionAnalysisDefaultStateSchema),
+  FieldWells: BarChartFieldWellsStateSchema,
+  ValueAxis: AxisDisplayOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+}).partial();
+
+const BarChartVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: BarChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const HeatMapSortConfigurationStateSchema = z.object({
+  HeatMapRowSort: z.array(FieldSortOptionsStateSchema),
+  HeatMapRowItemsLimitConfiguration: ItemsLimitConfigurationStateSchema,
+  HeatMapColumnItemsLimitConfiguration: ItemsLimitConfigurationStateSchema,
+  HeatMapColumnSort: z.array(FieldSortOptionsStateSchema),
+}).partial();
+
+const HeatMapAggregatedFieldWellsStateSchema = z.object({
+  Values: z.array(MeasureFieldStateSchema),
+  Columns: z.array(DimensionFieldStateSchema),
+  Rows: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const HeatMapFieldWellsStateSchema = z.object({
+  HeatMapAggregatedFieldWells: HeatMapAggregatedFieldWellsStateSchema,
+}).partial();
+
+const DataColorStateSchema = z.object({
+  DataValue: z.number(),
+  Color: z.string(),
+}).partial();
+
+const ColorScaleStateSchema = z.object({
+  Colors: z.array(DataColorStateSchema),
+  ColorFillType: z.string(),
+  NullValueColor: DataColorStateSchema,
+}).partial();
+
+const HeatMapConfigurationStateSchema = z.object({
+  SortConfiguration: HeatMapSortConfigurationStateSchema,
+  ColumnLabelOptions: ChartAxisLabelOptionsStateSchema,
+  Legend: LegendOptionsStateSchema,
+  DataLabels: DataLabelOptionsStateSchema,
+  FieldWells: HeatMapFieldWellsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  ColorScale: ColorScaleStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  RowLabelOptions: ChartAxisLabelOptionsStateSchema,
+}).partial();
+
+const HeatMapVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: HeatMapConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const TreeMapSortConfigurationStateSchema = z.object({
+  TreeMapSort: z.array(FieldSortOptionsStateSchema),
+  TreeMapGroupItemsLimitConfiguration: ItemsLimitConfigurationStateSchema,
+}).partial();
+
+const TreeMapAggregatedFieldWellsStateSchema = z.object({
+  Sizes: z.array(MeasureFieldStateSchema),
+  Colors: z.array(MeasureFieldStateSchema),
+  Groups: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const TreeMapFieldWellsStateSchema = z.object({
+  TreeMapAggregatedFieldWells: TreeMapAggregatedFieldWellsStateSchema,
+}).partial();
+
+const TreeMapConfigurationStateSchema = z.object({
+  SortConfiguration: TreeMapSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  DataLabels: DataLabelOptionsStateSchema,
+  ColorLabelOptions: ChartAxisLabelOptionsStateSchema,
+  SizeLabelOptions: ChartAxisLabelOptionsStateSchema,
+  FieldWells: TreeMapFieldWellsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  ColorScale: ColorScaleStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+  GroupLabelOptions: ChartAxisLabelOptionsStateSchema,
+}).partial();
+
+const TreeMapVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: TreeMapConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const PeriodToDateComputationStateSchema = z.object({
+  PeriodTimeGranularity: z.string(),
+  Value: MeasureFieldStateSchema,
+  Time: DimensionFieldStateSchema,
+  ComputationId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const GrowthRateComputationStateSchema = z.object({
+  Value: MeasureFieldStateSchema,
+  Time: DimensionFieldStateSchema,
+  PeriodSize: z.number(),
+  ComputationId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const TopBottomRankedComputationStateSchema = z.object({
+  Type: z.string(),
+  Category: DimensionFieldStateSchema,
+  ResultSize: z.number(),
+  Value: MeasureFieldStateSchema,
+  ComputationId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const TotalAggregationComputationStateSchema = z.object({
+  Value: MeasureFieldStateSchema,
+  ComputationId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const ForecastComputationStateSchema = z.object({
+  PeriodsBackward: z.number(),
+  PeriodsForward: z.number(),
+  PredictionInterval: z.number(),
+  Seasonality: z.string(),
+  CustomSeasonalityValue: z.number(),
+  Value: MeasureFieldStateSchema,
+  Time: DimensionFieldStateSchema,
+  UpperBoundary: z.number(),
+  ComputationId: z.string(),
+  Name: z.string(),
+  LowerBoundary: z.number(),
+}).partial();
+
+const MaximumMinimumComputationStateSchema = z.object({
+  Type: z.string(),
+  Value: MeasureFieldStateSchema,
+  Time: DimensionFieldStateSchema,
+  ComputationId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const PeriodOverPeriodComputationStateSchema = z.object({
+  Value: MeasureFieldStateSchema,
+  Time: DimensionFieldStateSchema,
+  ComputationId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const MetricComparisonComputationStateSchema = z.object({
+  TargetValue: MeasureFieldStateSchema,
+  Time: DimensionFieldStateSchema,
+  ComputationId: z.string(),
+  FromValue: MeasureFieldStateSchema,
+  Name: z.string(),
+}).partial();
+
+const TopBottomMoversComputationStateSchema = z.object({
+  Type: z.string(),
+  Category: DimensionFieldStateSchema,
+  Value: MeasureFieldStateSchema,
+  SortOrder: z.string(),
+  Time: DimensionFieldStateSchema,
+  MoverSize: z.number(),
+  ComputationId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const UniqueValuesComputationStateSchema = z.object({
+  Category: DimensionFieldStateSchema,
+  ComputationId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const ComputationStateSchema = z.object({
+  PeriodToDate: PeriodToDateComputationStateSchema,
+  GrowthRate: GrowthRateComputationStateSchema,
+  TopBottomRanked: TopBottomRankedComputationStateSchema,
+  TotalAggregation: TotalAggregationComputationStateSchema,
+  Forecast: ForecastComputationStateSchema,
+  MaximumMinimum: MaximumMinimumComputationStateSchema,
+  PeriodOverPeriod: PeriodOverPeriodComputationStateSchema,
+  MetricComparison: MetricComparisonComputationStateSchema,
+  TopBottomMovers: TopBottomMoversComputationStateSchema,
+  UniqueValues: UniqueValuesComputationStateSchema,
+}).partial();
+
+const CustomNarrativeOptionsStateSchema = z.object({
+  Narrative: z.string(),
+}).partial();
+
+const InsightConfigurationStateSchema = z.object({
+  Computations: z.array(ComputationStateSchema),
+  CustomNarrative: CustomNarrativeOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+}).partial();
+
+const InsightVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  Actions: z.array(VisualCustomActionStateSchema),
+  DataSetIdentifier: z.string(),
+  InsightConfiguration: InsightConfigurationStateSchema,
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  TopicIdentifier: z.string(),
+}).partial();
+
+const LineChartSortConfigurationStateSchema = z.object({
+  CategoryItemsLimitConfiguration: ItemsLimitConfigurationStateSchema,
+  ColorItemsLimitConfiguration: ItemsLimitConfigurationStateSchema,
+  SmallMultiplesSort: z.array(FieldSortOptionsStateSchema),
+  CategorySort: z.array(FieldSortOptionsStateSchema),
+  SmallMultiplesLimitConfiguration: ItemsLimitConfigurationStateSchema,
+}).partial();
+
+const MissingDataConfigurationStateSchema = z.object({
+  TreatmentOption: z.string(),
+}).partial();
+
+const LineSeriesAxisDisplayOptionsStateSchema = z.object({
+  MissingDataConfigurations: z.array(MissingDataConfigurationStateSchema),
+  AxisOptions: AxisDisplayOptionsStateSchema,
+}).partial();
+
+const LineChartDefaultSeriesSettingsStateSchema = z.object({
+  DecalSettings: DecalSettingsStateSchema,
+  LineStyleSettings: LineChartLineStyleSettingsStateSchema,
+  AxisBinding: z.string(),
+  MarkerStyleSettings: LineChartMarkerStyleSettingsStateSchema,
+}).partial();
+
+const TimeBasedForecastPropertiesStateSchema = z.object({
+  PeriodsBackward: z.number(),
+  PeriodsForward: z.number(),
+  PredictionInterval: z.number(),
+  Seasonality: z.number(),
+  UpperBoundary: z.number(),
+  LowerBoundary: z.number(),
+}).partial();
+
+const WhatIfRangeScenarioStateSchema = z.object({
+  StartDate: z.string(),
+  Value: z.number(),
+  EndDate: z.string(),
+}).partial();
+
+const WhatIfPointScenarioStateSchema = z.object({
+  Value: z.number(),
+  Date: z.string(),
+}).partial();
+
+const ForecastScenarioStateSchema = z.object({
+  WhatIfRangeScenario: WhatIfRangeScenarioStateSchema,
+  WhatIfPointScenario: WhatIfPointScenarioStateSchema,
+}).partial();
+
+const ForecastConfigurationStateSchema = z.object({
+  ForecastProperties: TimeBasedForecastPropertiesStateSchema,
+  Scenario: ForecastScenarioStateSchema,
+}).partial();
+
+const LineChartSeriesSettingsStateSchema = z.object({
+  DecalSettings: DecalSettingsStateSchema,
+  LineStyleSettings: LineChartLineStyleSettingsStateSchema,
+  MarkerStyleSettings: LineChartMarkerStyleSettingsStateSchema,
+}).partial();
+
+const FieldSeriesItemStateSchema = z.object({
+  FieldId: z.string(),
+  AxisBinding: z.string(),
+  Settings: LineChartSeriesSettingsStateSchema,
+}).partial();
+
+const DataFieldSeriesItemStateSchema = z.object({
+  FieldId: z.string(),
+  AxisBinding: z.string(),
+  FieldValue: z.string(),
+  Settings: LineChartSeriesSettingsStateSchema,
+}).partial();
+
+const SeriesItemStateSchema = z.object({
+  FieldSeriesItem: FieldSeriesItemStateSchema,
+  DataFieldSeriesItem: DataFieldSeriesItemStateSchema,
+}).partial();
+
+const LineChartAggregatedFieldWellsStateSchema = z.object({
+  Category: z.array(DimensionFieldStateSchema),
+  Colors: z.array(DimensionFieldStateSchema),
+  Values: z.array(MeasureFieldStateSchema),
+  SmallMultiples: z.array(DimensionFieldStateSchema),
+}).partial();
+
+const LineChartFieldWellsStateSchema = z.object({
+  LineChartAggregatedFieldWells: LineChartAggregatedFieldWellsStateSchema,
+}).partial();
+
+const LineChartConfigurationStateSchema = z.object({
+  SortConfiguration: LineChartSortConfigurationStateSchema,
+  Legend: LegendOptionsStateSchema,
+  ReferenceLines: z.array(ReferenceLineStateSchema),
+  DataLabels: DataLabelOptionsStateSchema,
+  Tooltip: TooltipOptionsStateSchema,
+  SingleAxisOptions: SingleAxisOptionsStateSchema,
+  SmallMultiplesOptions: SmallMultiplesOptionsStateSchema,
+  PrimaryYAxisDisplayOptions: LineSeriesAxisDisplayOptionsStateSchema,
+  VisualPalette: VisualPaletteStateSchema,
+  XAxisDisplayOptions: AxisDisplayOptionsStateSchema,
+  DefaultSeriesSettings: LineChartDefaultSeriesSettingsStateSchema,
+  SecondaryYAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  ForecastConfigurations: z.array(ForecastConfigurationStateSchema),
+  Series: z.array(SeriesItemStateSchema),
+  Type: z.string(),
+  PrimaryYAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  ContributionAnalysisDefaults: z.array(ContributionAnalysisDefaultStateSchema),
+  FieldWells: LineChartFieldWellsStateSchema,
+  SecondaryYAxisDisplayOptions: LineSeriesAxisDisplayOptionsStateSchema,
+  XAxisLabelOptions: ChartAxisLabelOptionsStateSchema,
+  Interactions: VisualInteractionOptionsStateSchema,
+}).partial();
+
+const LineChartVisualStateSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsStateSchema,
+  VisualId: z.string(),
+  ChartConfiguration: LineChartConfigurationStateSchema,
+  Actions: z.array(VisualCustomActionStateSchema),
+  Title: VisualTitleLabelOptionsStateSchema,
+  VisualContentAltText: z.string(),
+  ColumnHierarchies: z.array(ColumnHierarchyStateSchema),
+}).partial();
+
+const EmptyVisualStateSchema = z.object({
+  VisualId: z.string(),
+  Actions: z.array(VisualCustomActionStateSchema),
+  DataSetIdentifier: z.string(),
+  TopicIdentifier: z.string(),
+}).partial();
+
+const VisualStateSchema = z.object({
+  FunnelChartVisual: FunnelChartVisualStateSchema,
+  BoxPlotVisual: BoxPlotVisualStateSchema,
+  LayerMapVisual: LayerMapVisualStateSchema,
+  GeospatialMapVisual: GeospatialMapVisualStateSchema,
+  ScatterPlotVisual: ScatterPlotVisualStateSchema,
+  RadarChartVisual: RadarChartVisualStateSchema,
+  ComboChartVisual: ComboChartVisualStateSchema,
+  WordCloudVisual: WordCloudVisualStateSchema,
+  SankeyDiagramVisual: SankeyDiagramVisualStateSchema,
+  GaugeChartVisual: GaugeChartVisualStateSchema,
+  FilledMapVisual: FilledMapVisualStateSchema,
+  WaterfallVisual: WaterfallVisualStateSchema,
+  CustomContentVisual: CustomContentVisualStateSchema,
+  PieChartVisual: PieChartVisualStateSchema,
+  KPIVisual: KPIVisualStateSchema,
+  HistogramVisual: HistogramVisualStateSchema,
+  PluginVisual: PluginVisualStateSchema,
+  TableVisual: TableVisualStateSchema,
+  PivotTableVisual: PivotTableVisualStateSchema,
+  BarChartVisual: BarChartVisualStateSchema,
+  HeatMapVisual: HeatMapVisualStateSchema,
+  TreeMapVisual: TreeMapVisualStateSchema,
+  InsightVisual: InsightVisualStateSchema,
+  LineChartVisual: LineChartVisualStateSchema,
+  EmptyVisual: EmptyVisualStateSchema,
+}).partial();
+
+const SheetDefinitionStateSchema = z.object({
+  Description: z.string(),
+  ParameterControls: z.array(ParameterControlStateSchema),
+  ContentType: z.string(),
+  SheetId: z.string(),
+  Images: z.array(SheetImageStateSchema),
+  SheetControlLayouts: z.array(SheetControlLayoutStateSchema),
+  Title: z.string(),
+  Name: z.string(),
+  TextBoxes: z.array(SheetTextBoxStateSchema),
+  Layouts: z.array(LayoutStateSchema),
+  FilterControls: z.array(FilterControlStateSchema),
+  Visuals: z.array(VisualStateSchema),
+}).partial();
+
+const MappedDataSetParameterStateSchema = z.object({
+  DataSetParameterName: z.string(),
+  DataSetIdentifier: z.string(),
+}).partial();
+
+const DynamicDefaultValueStateSchema = z.object({
+  GroupNameColumn: ColumnIdentifierStateSchema,
+  DefaultValueColumn: ColumnIdentifierStateSchema,
+  UserNameColumn: ColumnIdentifierStateSchema,
+}).partial();
+
+const StringDefaultValuesStateSchema = z.object({
+  DynamicValue: DynamicDefaultValueStateSchema,
+  StaticValues: z.array(z.string()),
+}).partial();
+
+const StringValueWhenUnsetConfigurationStateSchema = z.object({
+  ValueWhenUnsetOption: z.string(),
+  CustomValue: z.string(),
+}).partial();
+
+const StringParameterDeclarationStateSchema = z.object({
+  MappedDataSetParameters: z.array(MappedDataSetParameterStateSchema),
+  DefaultValues: StringDefaultValuesStateSchema,
+  ParameterValueType: z.string(),
+  ValueWhenUnset: StringValueWhenUnsetConfigurationStateSchema,
+  Name: z.string(),
+}).partial();
+
+const DateTimeDefaultValuesStateSchema = z.object({
+  RollingDate: RollingDateConfigurationStateSchema,
+  DynamicValue: DynamicDefaultValueStateSchema,
+  StaticValues: z.array(z.string()),
+}).partial();
+
+const DateTimeValueWhenUnsetConfigurationStateSchema = z.object({
+  ValueWhenUnsetOption: z.string(),
+  CustomValue: z.string(),
+}).partial();
+
+const DateTimeParameterDeclarationStateSchema = z.object({
+  MappedDataSetParameters: z.array(MappedDataSetParameterStateSchema),
+  DefaultValues: DateTimeDefaultValuesStateSchema,
+  TimeGranularity: z.string(),
+  ValueWhenUnset: DateTimeValueWhenUnsetConfigurationStateSchema,
+  Name: z.string(),
+}).partial();
+
+const DecimalDefaultValuesStateSchema = z.object({
+  DynamicValue: DynamicDefaultValueStateSchema,
+  StaticValues: z.array(z.number()),
+}).partial();
+
+const DecimalValueWhenUnsetConfigurationStateSchema = z.object({
+  ValueWhenUnsetOption: z.string(),
+  CustomValue: z.number(),
+}).partial();
+
+const DecimalParameterDeclarationStateSchema = z.object({
+  MappedDataSetParameters: z.array(MappedDataSetParameterStateSchema),
+  DefaultValues: DecimalDefaultValuesStateSchema,
+  ParameterValueType: z.string(),
+  ValueWhenUnset: DecimalValueWhenUnsetConfigurationStateSchema,
+  Name: z.string(),
+}).partial();
+
+const IntegerDefaultValuesStateSchema = z.object({
+  DynamicValue: DynamicDefaultValueStateSchema,
+  StaticValues: z.array(z.number()),
+}).partial();
+
+const IntegerValueWhenUnsetConfigurationStateSchema = z.object({
+  ValueWhenUnsetOption: z.string(),
+  CustomValue: z.number(),
+}).partial();
+
+const IntegerParameterDeclarationStateSchema = z.object({
+  MappedDataSetParameters: z.array(MappedDataSetParameterStateSchema),
+  DefaultValues: IntegerDefaultValuesStateSchema,
+  ParameterValueType: z.string(),
+  ValueWhenUnset: IntegerValueWhenUnsetConfigurationStateSchema,
+  Name: z.string(),
+}).partial();
+
+const ParameterDeclarationStateSchema = z.object({
+  StringParameterDeclaration: StringParameterDeclarationStateSchema,
+  DateTimeParameterDeclaration: DateTimeParameterDeclarationStateSchema,
+  DecimalParameterDeclaration: DecimalParameterDeclarationStateSchema,
+  IntegerParameterDeclaration: IntegerParameterDeclarationStateSchema,
+}).partial();
+
+const EntityStateSchema = z.object({
+  Path: z.string(),
+}).partial();
+
+const AnalysisErrorStateSchema = z.object({
+  Type: z.string(),
+  Message: z.string(),
+  ViolatedEntities: z.array(EntityStateSchema),
+}).partial();
+
+const ResourcePermissionStateSchema = z.object({
+  Actions: z.array(z.string()),
+  Principal: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const SheetStateSchema = z.object({
+  SheetId: z.string(),
+  Name: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -4225,45 +7845,47 @@ const StateSchema = z.object({
   Status: z.string().optional(),
   CreatedTime: z.string().optional(),
   Parameters: z.object({
-    StringParameters: z.array(StringParameterSchema),
-    DecimalParameters: z.array(DecimalParameterSchema),
-    IntegerParameters: z.array(IntegerParameterSchema),
-    DateTimeParameters: z.array(DateTimeParameterSchema),
-  }).optional(),
+    StringParameters: z.array(StringParameterStateSchema),
+    DecimalParameters: z.array(DecimalParameterStateSchema),
+    IntegerParameters: z.array(IntegerParameterStateSchema),
+    DateTimeParameters: z.array(DateTimeParameterStateSchema),
+  }).partial().optional(),
   DataSetArns: z.array(z.string()).optional(),
   SourceEntity: z.object({
-    SourceTemplate: AnalysisSourceTemplateSchema,
-  }).optional(),
+    SourceTemplate: AnalysisSourceTemplateStateSchema,
+  }).partial().optional(),
   ThemeArn: z.string().optional(),
   Definition: z.object({
-    Options: AssetOptionsSchema,
-    FilterGroups: z.array(FilterGroupSchema),
-    QueryExecutionOptions: QueryExecutionOptionsSchema,
-    StaticFiles: z.array(StaticFileSchema),
-    TopicIdentifierDeclarations: z.array(TopicIdentifierDeclarationSchema),
-    CalculatedFields: z.array(CalculatedFieldSchema),
-    DataSetIdentifierDeclarations: z.array(DataSetIdentifierDeclarationSchema),
-    ColumnConfigurations: z.array(ColumnConfigurationSchema),
-    AnalysisDefaults: AnalysisDefaultsSchema,
-    Sheets: z.array(SheetDefinitionSchema),
-    ParameterDeclarations: z.array(ParameterDeclarationSchema),
-  }).optional(),
+    Options: AssetOptionsStateSchema,
+    FilterGroups: z.array(FilterGroupStateSchema),
+    QueryExecutionOptions: QueryExecutionOptionsStateSchema,
+    StaticFiles: z.array(StaticFileStateSchema),
+    TopicIdentifierDeclarations: z.array(TopicIdentifierDeclarationStateSchema),
+    CalculatedFields: z.array(CalculatedFieldStateSchema),
+    DataSetIdentifierDeclarations: z.array(
+      DataSetIdentifierDeclarationStateSchema,
+    ),
+    ColumnConfigurations: z.array(ColumnConfigurationStateSchema),
+    AnalysisDefaults: AnalysisDefaultsStateSchema,
+    Sheets: z.array(SheetDefinitionStateSchema),
+    ParameterDeclarations: z.array(ParameterDeclarationStateSchema),
+  }).partial().optional(),
   LastUpdatedTime: z.string().optional(),
   ValidationStrategy: z.object({
     Mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   FolderArns: z.array(z.string()).optional(),
   Name: z.string().optional(),
-  Errors: z.array(AnalysisErrorSchema).optional(),
+  Errors: z.array(AnalysisErrorStateSchema).optional(),
   AnalysisId: z.string(),
   AwsAccountId: z.string(),
-  Permissions: z.array(ResourcePermissionSchema).optional(),
+  Permissions: z.array(ResourcePermissionStateSchema).optional(),
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  Sheets: z.array(SheetSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  Sheets: z.array(SheetStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -4362,7 +7984,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Analysis. Registered at `@swamp/aws/quicksight/analysis`. */
 export const model = {
   type: "@swamp/aws/quicksight/analysis",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -4446,6 +8068,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

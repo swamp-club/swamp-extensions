@@ -131,6 +131,92 @@ const TagSchema = z.object({
   Value: z.string().regex(new RegExp("^[ a-zA-Z0-9\\+\\-=._:/@]{1,256}$")),
 });
 
+const SocketAddressStateSchema = z.object({
+  Name: z.string(),
+  Port: z.number(),
+}).partial();
+
+const ConnectionDetailsStateSchema = z.object({
+  SocketAddress: SocketAddressStateSchema,
+  Mtu: z.number(),
+}).partial();
+
+const IntegerRangeStateSchema = z.object({
+  Minimum: z.number(),
+  Maximum: z.number(),
+}).partial();
+
+const RangedSocketAddressStateSchema = z.object({
+  Name: z.string(),
+  PortRange: IntegerRangeStateSchema,
+}).partial();
+
+const RangedConnectionDetailsStateSchema = z.object({
+  SocketAddress: RangedSocketAddressStateSchema,
+  Mtu: z.number(),
+}).partial();
+
+const UplinkConnectionDetailsStateSchema = z.object({
+  IngressAddressAndPort: ConnectionDetailsStateSchema,
+  AgentIpAndPortAddress: RangedConnectionDetailsStateSchema,
+}).partial();
+
+const UplinkDataflowDetailsStateSchema = z.object({
+  AgentConnectionDetails: UplinkConnectionDetailsStateSchema,
+}).partial();
+
+const UplinkAwsGroundStationAgentEndpointDetailsStateSchema = z.object({
+  Name: z.string(),
+  DataflowDetails: UplinkDataflowDetailsStateSchema,
+  AgentStatus: z.string(),
+  AuditResults: z.string(),
+}).partial();
+
+const DownlinkConnectionDetailsStateSchema = z.object({
+  EgressAddressAndPort: ConnectionDetailsStateSchema,
+  AgentIpAndPortAddress: RangedConnectionDetailsStateSchema,
+}).partial();
+
+const DownlinkDataflowDetailsStateSchema = z.object({
+  AgentConnectionDetails: DownlinkConnectionDetailsStateSchema,
+}).partial();
+
+const DownlinkAwsGroundStationAgentEndpointDetailsStateSchema = z.object({
+  Name: z.string(),
+  DataflowDetails: DownlinkDataflowDetailsStateSchema,
+  AgentStatus: z.string(),
+  AuditResults: z.string(),
+}).partial();
+
+const EndpointDetailsStateSchema = z.object({
+  UplinkAwsGroundStationAgentEndpoint:
+    UplinkAwsGroundStationAgentEndpointDetailsStateSchema,
+  DownlinkAwsGroundStationAgentEndpoint:
+    DownlinkAwsGroundStationAgentEndpointDetailsStateSchema,
+}).partial();
+
+const UplinkAwsGroundStationAgentEndpointStateSchema = z.object({
+  Name: z.string(),
+  DataflowDetails: UplinkDataflowDetailsStateSchema,
+}).partial();
+
+const DownlinkAwsGroundStationAgentEndpointStateSchema = z.object({
+  Name: z.string(),
+  DataflowDetails: DownlinkDataflowDetailsStateSchema,
+}).partial();
+
+const CreateEndpointDetailsStateSchema = z.object({
+  UplinkAwsGroundStationAgentEndpoint:
+    UplinkAwsGroundStationAgentEndpointStateSchema,
+  DownlinkAwsGroundStationAgentEndpoint:
+    DownlinkAwsGroundStationAgentEndpointStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -160,27 +246,14 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Id: z.string(),
   Arn: z.string().optional(),
-  EndpointDetails: z.array(z.object({
-    UplinkAwsGroundStationAgentEndpoint: z.object({
-      Name: z.string(),
-      DataflowDetails: UplinkDataflowDetailsSchema,
-      AgentStatus: z.string(),
-      AuditResults: z.string(),
-    }),
-    DownlinkAwsGroundStationAgentEndpoint: z.object({
-      Name: z.string(),
-      DataflowDetails: DownlinkDataflowDetailsSchema,
-      AgentStatus: z.string(),
-      AuditResults: z.string(),
-    }),
-  })).optional(),
-  Endpoints: z.array(CreateEndpointDetailsSchema).optional(),
+  EndpointDetails: z.array(EndpointDetailsStateSchema).optional(),
+  Endpoints: z.array(CreateEndpointDetailsStateSchema).optional(),
   ContactPrePassDurationSeconds: z.number().optional(),
   ContactPostPassDurationSeconds: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -217,7 +290,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GroundStation DataflowEndpointGroupV2. Registered at `@swamp/aws/groundstation/dataflow-endpoint-group-v2`. */
 export const model = {
   type: "@swamp/aws/groundstation/dataflow-endpoint-group-v2",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -276,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

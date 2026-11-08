@@ -77,12 +77,12 @@ const StateSchema = z.object({
   TargetTable: z.object({
     DatabaseName: z.string(),
     TableName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ClientToken: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -129,7 +129,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue DataQualityRuleset. Registered at `@swamp/aws/glue/data-quality-ruleset`. */
 export const model = {
   type: "@swamp/aws/glue/data-quality-ruleset",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -153,6 +153,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

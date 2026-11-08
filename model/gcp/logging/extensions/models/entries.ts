@@ -79,55 +79,57 @@ const StateSchema = z.object({
       container: z.string(),
       id: z.string(),
       location: z.string(),
-    }),
+    }).partial(),
     service: z.object({
       criticalityType: z.string(),
       environmentType: z.string(),
       id: z.string(),
-    }),
+    }).partial(),
     workload: z.object({
       criticalityType: z.string(),
       environmentType: z.string(),
       id: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   apphubDestination: z.object({
     application: z.object({
       container: z.string(),
       id: z.string(),
       location: z.string(),
-    }),
+    }).partial(),
     service: z.object({
       criticalityType: z.string(),
       environmentType: z.string(),
       id: z.string(),
-    }),
+    }).partial(),
     workload: z.object({
       criticalityType: z.string(),
       environmentType: z.string(),
       id: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   apphubSource: z.object({
     application: z.object({
       container: z.string(),
       id: z.string(),
       location: z.string(),
-    }),
+    }).partial(),
     service: z.object({
       criticalityType: z.string(),
       environmentType: z.string(),
       id: z.string(),
-    }),
+    }).partial(),
     workload: z.object({
       criticalityType: z.string(),
       environmentType: z.string(),
       id: z.string(),
-    }),
-  }).optional(),
-  errorGroups: z.array(z.object({
-    id: z.string(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  errorGroups: z.array(
+    z.object({
+      id: z.string(),
+    }).partial(),
+  ).optional(),
   httpRequest: z.object({
     cacheFillBytes: z.string(),
     cacheHit: z.boolean(),
@@ -144,7 +146,7 @@ const StateSchema = z.object({
     serverIp: z.string(),
     status: z.number(),
     userAgent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   insertId: z.string().optional(),
   jsonPayload: z.record(z.string(), z.unknown()).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -152,32 +154,32 @@ const StateSchema = z.object({
   metadata: z.object({
     systemLabels: z.record(z.string(), z.unknown()),
     userLabels: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   operation: z.object({
     first: z.boolean(),
     id: z.string(),
     last: z.boolean(),
     producer: z.string(),
-  }).optional(),
+  }).partial().optional(),
   otel: z.record(z.string(), z.unknown()).optional(),
   protoPayload: z.record(z.string(), z.unknown()).optional(),
   receiveTimestamp: z.string().optional(),
   resource: z.object({
     labels: z.record(z.string(), z.unknown()),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   severity: z.string().optional(),
   sourceLocation: z.object({
     file: z.string(),
     function: z.string(),
     line: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spanId: z.string().optional(),
   split: z.object({
     index: z.number(),
     totalSplits: z.number(),
     uid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   textPayload: z.string().optional(),
   timestamp: z.string().optional(),
   trace: z.string().optional(),
@@ -222,7 +224,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Logging Entries. Registered at `@swamp/gcp/logging/entries`. */
 export const model = {
   type: "@swamp/gcp/logging/entries",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -381,6 +383,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

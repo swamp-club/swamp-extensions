@@ -93,41 +93,47 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  cloudControlReports: z.array(z.object({
-    categories: z.array(z.string()),
-    cloudControl: z.string(),
-    cloudControlAssessmentDetails: z.object({
-      evaluationState: z.string(),
-      findingsCount: z.number(),
-      orgPolicyFindingCount: z.string(),
-      resourceFindingCount: z.string(),
-    }),
-    cloudControlDeployment: z.string(),
-    cloudControlType: z.string(),
-    description: z.string(),
-    displayName: z.string(),
-    enforcementMode: z.string(),
-    findingCategory: z.string(),
-    findingSeverity: z.string(),
-    frameworkMajorRevisionIds: z.array(z.string()),
-    majorRevisionId: z.string(),
-    manualCloudControlAssessmentDetails: z.object({
-      manualCloudControlGuide: z.array(z.string()),
-    }),
-    minorRevisionId: z.string(),
-    rules: z.array(z.object({
-      celExpression: z.object({
-        expression: z.unknown(),
-        resourceTypesValues: z.unknown(),
-      }),
+  cloudControlReports: z.array(
+    z.object({
+      categories: z.array(z.string()),
+      cloudControl: z.string(),
+      cloudControlAssessmentDetails: z.object({
+        evaluationState: z.string(),
+        findingsCount: z.number(),
+        orgPolicyFindingCount: z.string(),
+        resourceFindingCount: z.string(),
+      }).partial(),
+      cloudControlDeployment: z.string(),
+      cloudControlType: z.string(),
       description: z.string(),
-      ruleActionTypes: z.array(z.unknown()),
-    })),
-    similarControls: z.array(z.object({
-      controlId: z.string(),
-      framework: z.string(),
-    })),
-  })).optional(),
+      displayName: z.string(),
+      enforcementMode: z.string(),
+      findingCategory: z.string(),
+      findingSeverity: z.string(),
+      frameworkMajorRevisionIds: z.array(z.string()),
+      majorRevisionId: z.string(),
+      manualCloudControlAssessmentDetails: z.object({
+        manualCloudControlGuide: z.array(z.string()),
+      }).partial(),
+      minorRevisionId: z.string(),
+      rules: z.array(
+        z.object({
+          celExpression: z.object({
+            expression: z.unknown(),
+            resourceTypesValues: z.unknown(),
+          }).partial(),
+          description: z.string(),
+          ruleActionTypes: z.array(z.unknown()),
+        }).partial(),
+      ),
+      similarControls: z.array(
+        z.object({
+          controlId: z.string(),
+          framework: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   complianceFrameworks: z.array(z.string()).optional(),
   control: z.string().optional(),
   controlResponsibilityType: z.string().optional(),
@@ -138,10 +144,12 @@ const StateSchema = z.object({
   orgPolicyFindingCount: z.string().optional(),
   overallEvaluationState: z.string().optional(),
   resourceFindingCount: z.string().optional(),
-  similarControls: z.array(z.object({
-    controlId: z.string(),
-    framework: z.string(),
-  })).optional(),
+  similarControls: z.array(
+    z.object({
+      controlId: z.string(),
+      framework: z.string(),
+    }).partial(),
+  ).optional(),
   totalFindingsCount: z.number().optional(),
 }).passthrough();
 
@@ -187,7 +195,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/assuredworkloads/dbframeworkcompliancereports-dbcontrolcompliancesummaries",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -216,6 +224,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

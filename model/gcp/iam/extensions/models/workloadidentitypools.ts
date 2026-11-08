@@ -247,10 +247,10 @@ const StateSchema = z.object({
     lifetime: z.string(),
     rotationWindowPercentage: z.number(),
     useDefaultSharedCa: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   inlineTrustConfig: z.object({
     additionalTrustBundles: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   mode: z.string().optional(),
   name: z.string(),
   state: z.string().optional(),
@@ -370,7 +370,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) WorkloadIdentityPools. Registered at `@swamp/gcp/iam/workloadidentitypools`. */
 export const model = {
   type: "@swamp/gcp/iam/workloadidentitypools",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -399,6 +399,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

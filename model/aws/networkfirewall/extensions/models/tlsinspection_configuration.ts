@@ -79,6 +79,42 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(255).regex(new RegExp("^.*$")),
 });
 
+const ServerCertificateStateSchema = z.object({
+  ResourceArn: z.string(),
+}).partial();
+
+const AddressStateSchema = z.object({
+  AddressDefinition: z.string(),
+}).partial();
+
+const PortRangeStateSchema = z.object({
+  FromPort: z.number(),
+  ToPort: z.number(),
+}).partial();
+
+const ServerCertificateScopeStateSchema = z.object({
+  Sources: z.array(AddressStateSchema),
+  Destinations: z.array(AddressStateSchema),
+  SourcePorts: z.array(PortRangeStateSchema),
+  DestinationPorts: z.array(PortRangeStateSchema),
+  Protocols: z.array(z.number()),
+}).partial();
+
+const ServerCertificateConfigurationStateSchema = z.object({
+  ServerCertificates: z.array(ServerCertificateStateSchema),
+  Scopes: z.array(ServerCertificateScopeStateSchema),
+  CertificateAuthorityArn: z.string(),
+  CheckCertificateRevocationStatus: z.object({
+    RevokedStatusAction: z.string(),
+    UnknownStatusAction: z.string(),
+  }).partial(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -112,15 +148,15 @@ const StateSchema = z.object({
   TLSInspectionConfigurationArn: z.string(),
   TLSInspectionConfiguration: z.object({
     ServerCertificateConfigurations: z.array(
-      ServerCertificateConfigurationSchema,
+      ServerCertificateConfigurationStateSchema,
     ),
-  }).optional(),
+  }).partial().optional(),
   TLSInspectionConfigurationId: z.string().optional(),
   Description: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -159,7 +195,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkFirewall TLSInspectionConfiguration. Registered at `@swamp/aws/networkfirewall/tlsinspection-configuration`. */
 export const model = {
   type: "@swamp/aws/networkfirewall/tlsinspection-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -223,6 +259,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

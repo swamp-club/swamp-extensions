@@ -244,35 +244,35 @@ const StateSchema = z.object({
   advancedSettings: z.object({
     audioExportGcsDestination: z.object({
       uri: z.string(),
-    }),
+    }).partial(),
     dtmfSettings: z.object({
       enabled: z.boolean(),
       endpointingTimeoutDuration: z.string(),
       finishDigit: z.string(),
       interdigitTimeoutDuration: z.string(),
       maxDigits: z.number(),
-    }),
+    }).partial(),
     loggingSettings: z.object({
       enableConsentBasedRedaction: z.boolean(),
       enableInteractionLogging: z.boolean(),
       enableStackdriverLogging: z.boolean(),
-    }),
+    }).partial(),
     speechSettings: z.object({
       endpointerSensitivity: z.number(),
       models: z.record(z.string(), z.unknown()),
       noSpeechTimeout: z.string(),
       useTimeoutBasedEndpointing: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   answerFeedbackSettings: z.object({
     enableAnswerFeedback: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   avatarUri: z.string().optional(),
   clientCertificateSettings: z.object({
     passphrase: z.string(),
     privateKey: z.string(),
     sslCertificate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   defaultLanguageCode: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -281,7 +281,7 @@ const StateSchema = z.object({
   enableStackdriverLogging: z.boolean().optional(),
   genAppBuilderSettings: z.object({
     engine: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gitIntegrationSettings: z.object({
     githubSettings: z.object({
       accessToken: z.string(),
@@ -289,25 +289,25 @@ const StateSchema = z.object({
       displayName: z.string(),
       repositoryUri: z.string(),
       trackingBranch: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   locked: z.boolean().optional(),
   name: z.string(),
   personalizationSettings: z.object({
     defaultEndUserMetadata: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   securitySettings: z.string().optional(),
   speechToTextSettings: z.object({
     enableSpeechAdaptation: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   startFlow: z.string().optional(),
   startPlaybook: z.string().optional(),
   supportedLanguageCodes: z.array(z.string()).optional(),
   textToSpeechSettings: z.object({
     synthesizeSpeechConfigs: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   timeZone: z.string().optional(),
 }).passthrough();
 
@@ -435,7 +435,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents. Registered at `@swamp/gcp/dialogflow/agents`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -574,6 +574,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

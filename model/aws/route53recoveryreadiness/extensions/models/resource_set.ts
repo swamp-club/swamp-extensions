@@ -96,6 +96,40 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const NLBResourceStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const R53ResourceRecordStateSchema = z.object({
+  DomainName: z.string(),
+  RecordSetId: z.string(),
+}).partial();
+
+const TargetResourceStateSchema = z.object({
+  NLBResource: NLBResourceStateSchema,
+  R53Resource: R53ResourceRecordStateSchema,
+}).partial();
+
+const DNSTargetResourceStateSchema = z.object({
+  DomainName: z.string(),
+  RecordSetId: z.string(),
+  HostedZoneArn: z.string(),
+  RecordType: z.string(),
+  TargetResource: TargetResourceStateSchema,
+}).partial();
+
+const ResourceStateSchema = z.object({
+  ResourceArn: z.string(),
+  ComponentId: z.string(),
+  DnsTargetResource: DNSTargetResourceStateSchema,
+  ReadinessScopes: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -125,13 +159,13 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ResourceSetName: z.string(),
-  Resources: z.array(ResourceSchema).optional(),
+  Resources: z.array(ResourceStateSchema).optional(),
   ResourceSetArn: z.string().optional(),
   ResourceSetType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -171,7 +205,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53RecoveryReadiness ResourceSet. Registered at `@swamp/aws/route53recoveryreadiness/resource-set`. */
 export const model = {
   type: "@swamp/aws/route53recoveryreadiness/resource-set",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +269,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

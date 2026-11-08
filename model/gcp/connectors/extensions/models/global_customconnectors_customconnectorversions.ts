@@ -644,19 +644,21 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   asyncOperationsSupport: z.boolean().optional(),
   authConfig: z.object({
-    additionalVariables: z.array(z.object({
-      boolValue: z.boolean(),
-      encryptionKeyValue: z.object({
-        kmsKeyName: z.string(),
-        type: z.string(),
-      }),
-      intValue: z.string(),
-      key: z.string(),
-      secretValue: z.object({
-        secretVersion: z.string(),
-      }),
-      stringValue: z.string(),
-    })),
+    additionalVariables: z.array(
+      z.object({
+        boolValue: z.boolean(),
+        encryptionKeyValue: z.object({
+          kmsKeyName: z.string(),
+          type: z.string(),
+        }).partial(),
+        intValue: z.string(),
+        key: z.string(),
+        secretValue: z.object({
+          secretVersion: z.string(),
+        }).partial(),
+        stringValue: z.string(),
+      }).partial(),
+    ),
     authKey: z.string(),
     authType: z.string(),
     oauth2AuthCodeFlow: z.object({
@@ -665,160 +667,176 @@ const StateSchema = z.object({
       clientId: z.string(),
       clientSecret: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       enablePkce: z.boolean(),
       pkceVerifier: z.string(),
       redirectUri: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     oauth2AuthCodeFlowGoogleManaged: z.object({
       authCode: z.string(),
       redirectUri: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     oauth2ClientCredentials: z.object({
       clientId: z.string(),
       clientSecret: z.object({
         secretVersion: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     oauth2JwtBearer: z.object({
       clientKey: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       jwtClaims: z.object({
         audience: z.string(),
         issuer: z.string(),
         subject: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sshPublicKey: z.object({
       certType: z.string(),
       sshClientCert: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       sshClientCertPass: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
+    }).partial(),
     userPassword: z.object({
       password: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
-  }).optional(),
-  authConfigTemplates: z.array(z.object({
-    authKey: z.string(),
-    authType: z.string(),
-    configVariableTemplates: z.array(z.object({
-      authorizationCodeLink: z.object({
-        clientId: z.unknown(),
-        clientSecret: z.unknown(),
-        enablePkce: z.unknown(),
-        omitQueryParams: z.unknown(),
-        scopes: z.unknown(),
-        uri: z.unknown(),
-      }),
+    }).partial(),
+  }).partial().optional(),
+  authConfigTemplates: z.array(
+    z.object({
+      authKey: z.string(),
+      authType: z.string(),
+      configVariableTemplates: z.array(
+        z.object({
+          authorizationCodeLink: z.object({
+            clientId: z.unknown(),
+            clientSecret: z.unknown(),
+            enablePkce: z.unknown(),
+            omitQueryParams: z.unknown(),
+            scopes: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+          description: z.string(),
+          displayName: z.string(),
+          enumOptions: z.array(z.unknown()),
+          enumSource: z.string(),
+          isAdvanced: z.boolean(),
+          key: z.string(),
+          locationType: z.string(),
+          multipleSelectConfig: z.object({
+            allowCustomValues: z.unknown(),
+            multipleSelectOptions: z.unknown(),
+            valueSeparator: z.unknown(),
+          }).partial(),
+          required: z.boolean(),
+          requiredCondition: z.object({
+            fieldComparisons: z.unknown(),
+            logicalExpressions: z.unknown(),
+            logicalOperator: z.unknown(),
+          }).partial(),
+          roleGrant: z.object({
+            helperTextTemplate: z.unknown(),
+            principal: z.unknown(),
+            resource: z.unknown(),
+            roles: z.unknown(),
+          }).partial(),
+          state: z.string(),
+          validationRegex: z.string(),
+          valueType: z.string(),
+        }).partial(),
+      ),
       description: z.string(),
       displayName: z.string(),
-      enumOptions: z.array(z.unknown()),
+      isDefault: z.boolean(),
+    }).partial(),
+  ).optional(),
+  authOverrideSupport: z.boolean().optional(),
+  backendVariableTemplates: z.array(
+    z.object({
+      authorizationCodeLink: z.object({
+        clientId: z.string(),
+        clientSecret: z.object({
+          secretVersion: z.string(),
+        }).partial(),
+        enablePkce: z.boolean(),
+        omitQueryParams: z.boolean(),
+        scopes: z.array(z.string()),
+        uri: z.string(),
+      }).partial(),
+      description: z.string(),
+      displayName: z.string(),
+      enumOptions: z.array(
+        z.object({
+          displayName: z.string(),
+          id: z.string(),
+        }).partial(),
+      ),
       enumSource: z.string(),
       isAdvanced: z.boolean(),
       key: z.string(),
       locationType: z.string(),
       multipleSelectConfig: z.object({
-        allowCustomValues: z.unknown(),
-        multipleSelectOptions: z.unknown(),
-        valueSeparator: z.unknown(),
-      }),
+        allowCustomValues: z.boolean(),
+        multipleSelectOptions: z.array(
+          z.object({
+            description: z.unknown(),
+            displayName: z.unknown(),
+            key: z.unknown(),
+            preselected: z.unknown(),
+          }).partial(),
+        ),
+        valueSeparator: z.string(),
+      }).partial(),
       required: z.boolean(),
       requiredCondition: z.object({
-        fieldComparisons: z.unknown(),
-        logicalExpressions: z.unknown(),
-        logicalOperator: z.unknown(),
-      }),
+        fieldComparisons: z.array(
+          z.object({
+            boolValue: z.unknown(),
+            comparator: z.unknown(),
+            intValue: z.unknown(),
+            key: z.unknown(),
+            stringValue: z.unknown(),
+          }).partial(),
+        ),
+        logicalExpressions: z.array(z.record(z.string(), z.unknown())),
+        logicalOperator: z.string(),
+      }).partial(),
       roleGrant: z.object({
-        helperTextTemplate: z.unknown(),
-        principal: z.unknown(),
-        resource: z.unknown(),
-        roles: z.unknown(),
-      }),
+        helperTextTemplate: z.string(),
+        principal: z.string(),
+        resource: z.object({
+          pathTemplate: z.string(),
+          type: z.string(),
+        }).partial(),
+        roles: z.array(z.string()),
+      }).partial(),
       state: z.string(),
       validationRegex: z.string(),
       valueType: z.string(),
-    })),
-    description: z.string(),
-    displayName: z.string(),
-    isDefault: z.boolean(),
-  })).optional(),
-  authOverrideSupport: z.boolean().optional(),
-  backendVariableTemplates: z.array(z.object({
-    authorizationCodeLink: z.object({
-      clientId: z.string(),
-      clientSecret: z.object({
-        secretVersion: z.string(),
-      }),
-      enablePkce: z.boolean(),
-      omitQueryParams: z.boolean(),
-      scopes: z.array(z.string()),
-      uri: z.string(),
-    }),
-    description: z.string(),
-    displayName: z.string(),
-    enumOptions: z.array(z.object({
-      displayName: z.string(),
-      id: z.string(),
-    })),
-    enumSource: z.string(),
-    isAdvanced: z.boolean(),
-    key: z.string(),
-    locationType: z.string(),
-    multipleSelectConfig: z.object({
-      allowCustomValues: z.boolean(),
-      multipleSelectOptions: z.array(z.object({
-        description: z.unknown(),
-        displayName: z.unknown(),
-        key: z.unknown(),
-        preselected: z.unknown(),
-      })),
-      valueSeparator: z.string(),
-    }),
-    required: z.boolean(),
-    requiredCondition: z.object({
-      fieldComparisons: z.array(z.object({
-        boolValue: z.unknown(),
-        comparator: z.unknown(),
-        intValue: z.unknown(),
-        key: z.unknown(),
-        stringValue: z.unknown(),
-      })),
-      logicalExpressions: z.array(z.record(z.string(), z.unknown())),
-      logicalOperator: z.string(),
-    }),
-    roleGrant: z.object({
-      helperTextTemplate: z.string(),
-      principal: z.string(),
-      resource: z.object({
-        pathTemplate: z.string(),
-        type: z.string(),
-      }),
-      roles: z.array(z.string()),
-    }),
-    state: z.string(),
-    validationRegex: z.string(),
-    valueType: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
-  destinationConfigs: z.array(z.object({
-    destinations: z.array(z.object({
-      host: z.string(),
-      port: z.number(),
-      serviceAttachment: z.string(),
-    })),
-    key: z.string(),
-  })).optional(),
+  destinationConfigs: z.array(
+    z.object({
+      destinations: z.array(
+        z.object({
+          host: z.string(),
+          port: z.number(),
+          serviceAttachment: z.string(),
+        }).partial(),
+      ),
+      key: z.string(),
+    }).partial(),
+  ).optional(),
   enableBackendDestinationConfig: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -840,13 +858,13 @@ const StateSchema = z.object({
     targetApplication: z.string(),
     targetCustomerSegment: z.string(),
     useCases: z.string(),
-  }).optional(),
+  }).partial().optional(),
   publishStatus: z.object({
     publishState: z.string(),
     publishTime: z.string(),
     publishedAs: z.string(),
     publishedSource: z.string(),
-  }).optional(),
+  }).partial().optional(),
   serviceAccount: z.string().optional(),
   specLocation: z.string().optional(),
   specServerUrls: z.array(z.string()).optional(),
@@ -1406,7 +1424,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Connectors Global.CustomConnectors.CustomConnectorVersions. Registered at `@swamp/gcp/connectors/global-customconnectors-customconnectorversions`. */
 export const model = {
   type: "@swamp/gcp/connectors/global-customconnectors-customconnectorversions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1425,6 +1443,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -257,6 +257,126 @@ const ComponentMonitoringSettingSchema = z.object({
   ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CustomComponentStateSchema = z.object({
+  ComponentName: z.string(),
+  ResourceList: z.array(z.string()),
+}).partial();
+
+const LogPatternStateSchema = z.object({
+  PatternName: z.string(),
+  Pattern: z.string(),
+  Rank: z.number(),
+}).partial();
+
+const LogPatternSetStateSchema = z.object({
+  PatternSetName: z.string(),
+  LogPatterns: z.array(LogPatternStateSchema),
+}).partial();
+
+const AlarmMetricStateSchema = z.object({
+  AlarmMetricName: z.string(),
+}).partial();
+
+const LogStateSchema = z.object({
+  LogGroupName: z.string(),
+  LogPath: z.string(),
+  LogType: z.string(),
+  Encoding: z.string(),
+  PatternSet: z.string(),
+}).partial();
+
+const WindowsEventStateSchema = z.object({
+  LogGroupName: z.string(),
+  EventName: z.string(),
+  EventLevels: z.array(z.string()),
+  PatternSet: z.string(),
+}).partial();
+
+const ProcessStateSchema = z.object({
+  ProcessName: z.string(),
+  AlarmMetrics: z.array(AlarmMetricStateSchema),
+}).partial();
+
+const AlarmStateSchema = z.object({
+  AlarmName: z.string(),
+  Severity: z.string(),
+}).partial();
+
+const JMXPrometheusExporterStateSchema = z.object({
+  JMXURL: z.string(),
+  HostPort: z.string(),
+  PrometheusPort: z.string(),
+}).partial();
+
+const HANAPrometheusExporterStateSchema = z.object({
+  HANASID: z.string(),
+  HANAPort: z.string(),
+  HANASecretName: z.string(),
+  AgreeToInstallHANADBClient: z.boolean(),
+  PrometheusPort: z.string(),
+}).partial();
+
+const HAClusterPrometheusExporterStateSchema = z.object({
+  PrometheusPort: z.string(),
+}).partial();
+
+const NetWeaverPrometheusExporterStateSchema = z.object({
+  SAPSID: z.string(),
+  InstanceNumbers: z.array(z.string()),
+  PrometheusPort: z.string(),
+}).partial();
+
+const SQLServerPrometheusExporterStateSchema = z.object({
+  PrometheusPort: z.string(),
+  SQLSecretName: z.string(),
+}).partial();
+
+const ConfigurationDetailsStateSchema = z.object({
+  AlarmMetrics: z.array(AlarmMetricStateSchema),
+  Logs: z.array(LogStateSchema),
+  WindowsEvents: z.array(WindowsEventStateSchema),
+  Processes: z.array(ProcessStateSchema),
+  Alarms: z.array(AlarmStateSchema),
+  JMXPrometheusExporter: JMXPrometheusExporterStateSchema,
+  HANAPrometheusExporter: HANAPrometheusExporterStateSchema,
+  HAClusterPrometheusExporter: HAClusterPrometheusExporterStateSchema,
+  NetWeaverPrometheusExporter: NetWeaverPrometheusExporterStateSchema,
+  SQLServerPrometheusExporter: SQLServerPrometheusExporterStateSchema,
+}).partial();
+
+const SubComponentConfigurationDetailsStateSchema = z.object({
+  AlarmMetrics: z.array(AlarmMetricStateSchema),
+  Logs: z.array(LogStateSchema),
+  WindowsEvents: z.array(WindowsEventStateSchema),
+  Processes: z.array(ProcessStateSchema),
+}).partial();
+
+const SubComponentTypeConfigurationStateSchema = z.object({
+  SubComponentType: z.string(),
+  SubComponentConfigurationDetails: SubComponentConfigurationDetailsStateSchema,
+}).partial();
+
+const ComponentConfigurationStateSchema = z.object({
+  ConfigurationDetails: ConfigurationDetailsStateSchema,
+  SubComponentTypeConfigurations: z.array(
+    SubComponentTypeConfigurationStateSchema,
+  ),
+}).partial();
+
+const ComponentMonitoringSettingStateSchema = z.object({
+  ComponentName: z.string(),
+  ComponentARN: z.string(),
+  Tier: z.string(),
+  ComponentConfigurationMode: z.string(),
+  DefaultOverwriteComponentConfiguration: ComponentConfigurationStateSchema,
+  CustomComponentConfiguration: ComponentConfigurationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -324,17 +444,17 @@ const StateSchema = z.object({
   OpsCenterEnabled: z.boolean().optional(),
   OpsItemSNSTopicArn: z.string().optional(),
   SNSNotificationArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  CustomComponents: z.array(CustomComponentSchema).optional(),
-  LogPatternSets: z.array(LogPatternSetSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  CustomComponents: z.array(CustomComponentStateSchema).optional(),
+  LogPatternSets: z.array(LogPatternSetStateSchema).optional(),
   AutoConfigurationEnabled: z.boolean().optional(),
-  ComponentMonitoringSettings: z.array(ComponentMonitoringSettingSchema)
+  ComponentMonitoringSettings: z.array(ComponentMonitoringSettingStateSchema)
     .optional(),
   GroupingType: z.string().optional(),
   AttachMissingPermission: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -405,7 +525,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApplicationInsights Application. Registered at `@swamp/aws/applicationinsights/application`. */
 export const model = {
   type: "@swamp/aws/applicationinsights/application",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -469,6 +589,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

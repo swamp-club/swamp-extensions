@@ -248,11 +248,13 @@ const StateSchema = z.object({
   extensionPolicies: z.record(z.string(), z.unknown()).optional(),
   globalResourceLink: z.string().optional(),
   id: z.string().optional(),
-  instanceSelectors: z.array(z.object({
-    labelSelector: z.object({
-      inclusionLabels: z.record(z.string(), z.unknown()),
-    }),
-  })).optional(),
+  instanceSelectors: z.array(
+    z.object({
+      labelSelector: z.object({
+        inclusionLabels: z.record(z.string(), z.unknown()),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   kind: z.string().optional(),
   managedByGlobal: z.boolean().optional(),
   name: z.string(),
@@ -336,7 +338,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ZoneVmExtensionPolicies. Registered at `@swamp/gcp/compute/zonevmextensionpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/zonevmextensionpolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -375,6 +377,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -302,20 +302,24 @@ const StateSchema = z.object({
     labels: z.record(z.string(), z.unknown()),
     memoryMb: z.string(),
     replicas: z.string(),
-    taints: z.array(z.object({
-      effect: z.string(),
-      key: z.string(),
-      value: z.string(),
-    })),
+    taints: z.array(
+      z.object({
+        effect: z.string(),
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     vsphereConfig: z.object({
       datastore: z.string(),
       hostGroups: z.array(z.string()),
-      tags: z.array(z.object({
-        category: z.string(),
-        tag: z.string(),
-      })),
-    }),
-  }).optional(),
+      tags: z.array(
+        z.object({
+          category: z.string(),
+          tag: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   displayName: z.string().optional(),
@@ -324,42 +328,48 @@ const StateSchema = z.object({
   nodePoolAutoscaling: z.object({
     maxReplicas: z.number(),
     minReplicas: z.number(),
-  }).optional(),
+  }).partial().optional(),
   onPremVersion: z.string().optional(),
   reconciling: z.boolean().optional(),
   state: z.string().optional(),
   status: z.object({
-    conditions: z.array(z.object({
-      lastTransitionTime: z.string(),
-      message: z.string(),
-      reason: z.string(),
-      state: z.string(),
-      type: z.string(),
-    })),
+    conditions: z.array(
+      z.object({
+        lastTransitionTime: z.string(),
+        message: z.string(),
+        reason: z.string(),
+        state: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     errorMessage: z.string(),
     version: z.string(),
     versions: z.object({
-      versions: z.array(z.object({
-        count: z.string(),
-        version: z.string(),
-      })),
-    }),
-  }).optional(),
+      versions: z.array(
+        z.object({
+          count: z.string(),
+          version: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   validationCheck: z.object({
     option: z.string(),
     scenario: z.string(),
     status: z.object({
-      result: z.array(z.object({
-        category: z.string(),
-        description: z.string(),
-        details: z.string(),
-        reason: z.string(),
-        state: z.string(),
-      })),
-    }),
-  }).optional(),
+      result: z.array(
+        z.object({
+          category: z.string(),
+          description: z.string(),
+          details: z.string(),
+          reason: z.string(),
+          state: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -510,7 +520,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE On-Prem VmwareClusters.VmwareNodePools. Registered at `@swamp/gcp/gkeonprem/vmwareclusters-vmwarenodepools`. */
 export const model = {
   type: "@swamp/gcp/gkeonprem/vmwareclusters-vmwarenodepools",
-  version: "2026.11.04.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -694,6 +704,11 @@ export const model = {
     {
       toVersion: "2026.11.04.1",
       description: "Added: validationCheck",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

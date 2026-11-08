@@ -630,14 +630,14 @@ const StateSchema = z.object({
     authToken: z.object({
       token: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     credentialType: z.string(),
     jwt: z.object({
       jwt: z.string(),
       jwtHeader: z.string(),
       jwtPayload: z.string(),
       secret: z.string(),
-    }),
+    }).partial(),
     oauth2AuthorizationCode: z.object({
       accessToken: z.object({
         accessToken: z.string(),
@@ -645,32 +645,36 @@ const StateSchema = z.object({
         refreshToken: z.string(),
         refreshTokenExpireTime: z.string(),
         tokenType: z.string(),
-      }),
+      }).partial(),
       applyReauthPolicy: z.boolean(),
       authCode: z.string(),
       authEndpoint: z.string(),
       authParams: z.object({
-        entries: z.array(z.object({
-          key: z.unknown(),
-          value: z.unknown(),
-        })),
+        entries: z.array(
+          z.object({
+            key: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
         keyType: z.string(),
         valueType: z.string(),
-      }),
+      }).partial(),
       clientId: z.string(),
       clientSecret: z.string(),
       requestType: z.string(),
       scope: z.string(),
       tokenEndpoint: z.string(),
       tokenParams: z.object({
-        entries: z.array(z.object({
-          key: z.unknown(),
-          value: z.unknown(),
-        })),
+        entries: z.array(
+          z.object({
+            key: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
         keyType: z.string(),
         valueType: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     oauth2ClientCredentials: z.object({
       accessToken: z.object({
         accessToken: z.string(),
@@ -678,21 +682,23 @@ const StateSchema = z.object({
         refreshToken: z.string(),
         refreshTokenExpireTime: z.string(),
         tokenType: z.string(),
-      }),
+      }).partial(),
       clientId: z.string(),
       clientSecret: z.string(),
       requestType: z.string(),
       scope: z.string(),
       tokenEndpoint: z.string(),
       tokenParams: z.object({
-        entries: z.array(z.object({
-          key: z.unknown(),
-          value: z.unknown(),
-        })),
+        entries: z.array(
+          z.object({
+            key: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
         keyType: z.string(),
         valueType: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     oauth2ResourceOwnerCredentials: z.object({
       accessToken: z.object({
         accessToken: z.string(),
@@ -700,7 +706,7 @@ const StateSchema = z.object({
         refreshToken: z.string(),
         refreshTokenExpireTime: z.string(),
         tokenType: z.string(),
-      }),
+      }).partial(),
       clientId: z.string(),
       clientSecret: z.string(),
       password: z.string(),
@@ -708,30 +714,32 @@ const StateSchema = z.object({
       scope: z.string(),
       tokenEndpoint: z.string(),
       tokenParams: z.object({
-        entries: z.array(z.object({
-          key: z.unknown(),
-          value: z.unknown(),
-        })),
+        entries: z.array(
+          z.object({
+            key: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
         keyType: z.string(),
         valueType: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
+    }).partial(),
     oidcToken: z.object({
       audience: z.string(),
       serviceAccountEmail: z.string(),
       token: z.string(),
       tokenExpireTime: z.string(),
-    }),
+    }).partial(),
     serviceAccountCredentials: z.object({
       scope: z.string(),
       serviceAccount: z.string(),
-    }),
+    }).partial(),
     usernameAndPassword: z.object({
       password: z.string(),
       username: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   encryptedCredential: z.string().optional(),
@@ -1227,7 +1235,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Products.AuthConfigs. Registered at `@swamp/gcp/integrations/products-authconfigs`. */
 export const model = {
   type: "@swamp/gcp/integrations/products-authconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1312,6 +1320,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

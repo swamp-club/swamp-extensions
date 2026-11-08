@@ -45,6 +45,11 @@ const RegionSchema = z.object({
     .optional(),
 });
 
+const RegionStateSchema = z.object({
+  Bucket: z.string(),
+  BucketAccountId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -89,14 +94,14 @@ const StateSchema = z.object({
     BlockPublicPolicy: z.boolean(),
     BlockPublicAcls: z.boolean(),
     IgnorePublicAcls: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   Alias: z.string().optional(),
   CreatedAt: z.string().optional(),
-  Regions: z.array(RegionSchema).optional(),
+  Regions: z.array(RegionStateSchema).optional(),
   Name: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -147,7 +152,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 MultiRegionAccessPoint. Registered at `@swamp/aws/s3/multi-region-access-point`. */
 export const model = {
   type: "@swamp/aws/s3/multi-region-access-point",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -211,6 +216,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

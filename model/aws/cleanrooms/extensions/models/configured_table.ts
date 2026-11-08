@@ -324,6 +324,134 @@ const DatabricksTableReferenceSchema = z.object({
   }),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const AnalysisRuleListStateSchema = z.object({
+  JoinColumns: z.array(z.string()),
+  AllowedJoinOperators: z.array(z.string()),
+  ListColumns: z.array(z.string()),
+  AdditionalAnalyses: z.string(),
+}).partial();
+
+const AggregateColumnStateSchema = z.object({
+  ColumnNames: z.array(z.string()),
+  Function: z.string(),
+}).partial();
+
+const AggregationConstraintStateSchema = z.object({
+  ColumnName: z.string(),
+  Minimum: z.number(),
+  Type: z.string(),
+}).partial();
+
+const AnalysisRuleAggregationStateSchema = z.object({
+  AggregateColumns: z.array(AggregateColumnStateSchema),
+  JoinColumns: z.array(z.string()),
+  AllowedJoinOperators: z.array(z.string()),
+  JoinRequired: z.string(),
+  DimensionColumns: z.array(z.string()),
+  ScalarFunctions: z.array(z.string()),
+  OutputConstraints: z.array(AggregationConstraintStateSchema),
+  AdditionalAnalyses: z.string(),
+}).partial();
+
+const DifferentialPrivacyColumnStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const DifferentialPrivacyStateSchema = z.object({
+  Columns: z.array(DifferentialPrivacyColumnStateSchema),
+}).partial();
+
+const OutputColumnThresholdStateSchema = z.object({
+  OutputColumnName: z.string(),
+  MinimumIdentityCount: z.number(),
+}).partial();
+
+const AggregationThresholdStateSchema = z.object({
+  IdentityColumns: z.array(z.string()),
+  MinimumIdentityCount: z.number(),
+  Type: z.string(),
+  OutputColumnThresholds: z.array(OutputColumnThresholdStateSchema),
+  AllowedAggregateExpressionType: z.string(),
+}).partial();
+
+const ComparisonControlsStateSchema = z.object({
+  AllowedLiteralComparisonColumns: z.array(z.string()),
+  AllowedColumnComparisonColumns: z.array(z.string()),
+}).partial();
+
+const AnalysisRuleCustomStateSchema = z.object({
+  AllowedAnalyses: z.array(z.string()),
+  AllowedAnalysisProviders: z.array(z.string()),
+  DifferentialPrivacy: DifferentialPrivacyStateSchema,
+  DisallowedOutputColumns: z.array(z.string()),
+  AdditionalAnalyses: z.string(),
+  AggregationThresholds: z.array(AggregationThresholdStateSchema),
+  ComparisonControls: ComparisonControlsStateSchema,
+}).partial();
+
+const V1StateSchema = z.object({
+  V1: z.object({
+    List: AnalysisRuleListStateSchema,
+    Aggregation: AnalysisRuleAggregationStateSchema,
+    Custom: AnalysisRuleCustomStateSchema,
+  }).partial(),
+}).partial();
+
+const AnalysisRuleStateSchema = z.object({
+  Type: z.string(),
+  Policy: V1StateSchema,
+}).partial();
+
+const GlueTableReferenceStateSchema = z.object({
+  TableName: z.string(),
+  DatabaseName: z.string(),
+  Region: z.string(),
+}).partial();
+
+const SnowflakeTableSchemaV1StateSchema = z.object({
+  ColumnName: z.string(),
+  ColumnType: z.string(),
+}).partial();
+
+const SnowflakeTableReferenceStateSchema = z.object({
+  SecretArn: z.string(),
+  AccountIdentifier: z.string(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  SchemaName: z.string(),
+  TableSchema: z.object({
+    V1: z.array(SnowflakeTableSchemaV1StateSchema),
+  }).partial(),
+}).partial();
+
+const AthenaTableReferenceStateSchema = z.object({
+  WorkGroup: z.string(),
+  OutputLocation: z.string(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  Region: z.string(),
+  CatalogName: z.string(),
+}).partial();
+
+const DatabricksDeltaSharingConnectionStateSchema = z.object({
+  DeltaShareEndpoint: z.string(),
+  ShareName: z.string(),
+}).partial();
+
+const DatabricksTableReferenceStateSchema = z.object({
+  SchemaName: z.string(),
+  TableName: z.string(),
+  WorkspaceUrl: z.string(),
+  ConnectionType: z.object({
+    DeltaSharing: DatabricksDeltaSharingConnectionStateSchema,
+  }).partial(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -372,23 +500,23 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   AllowedColumns: z.array(z.string()).optional(),
   AnalysisMethod: z.string().optional(),
   SelectedAnalysisMethods: z.array(z.string()).optional(),
   ConfiguredTableIdentifier: z.string(),
   Description: z.string().optional(),
   Name: z.string().optional(),
-  AnalysisRules: z.array(AnalysisRuleSchema).optional(),
+  AnalysisRules: z.array(AnalysisRuleStateSchema).optional(),
   TableReference: z.object({
-    Glue: GlueTableReferenceSchema,
-    Snowflake: SnowflakeTableReferenceSchema,
-    Athena: AthenaTableReferenceSchema,
-    Databricks: DatabricksTableReferenceSchema,
-  }).optional(),
+    Glue: GlueTableReferenceStateSchema,
+    Snowflake: SnowflakeTableReferenceStateSchema,
+    Athena: AthenaTableReferenceStateSchema,
+    Databricks: DatabricksTableReferenceStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -445,7 +573,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms ConfiguredTable. Registered at `@swamp/aws/cleanrooms/configured-table`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/configured-table",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -519,6 +647,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

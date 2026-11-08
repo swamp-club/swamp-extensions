@@ -296,21 +296,23 @@ const StateSchema = z.object({
     coolDownPeriod: z.string(),
     maxClusterNodeCount: z.number(),
     minClusterNodeCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
-  datastoreMountConfig: z.array(z.object({
-    accessMode: z.string(),
-    datastore: z.string(),
-    datastoreNetwork: z.object({
-      connectionCount: z.number(),
-      mtu: z.number(),
-      networkPeering: z.string(),
-      subnet: z.string(),
-    }),
-    fileShare: z.string(),
-    nfsVersion: z.string(),
-    servers: z.array(z.string()),
-  })).optional(),
+  datastoreMountConfig: z.array(
+    z.object({
+      accessMode: z.string(),
+      datastore: z.string(),
+      datastoreNetwork: z.object({
+        connectionCount: z.number(),
+        mtu: z.number(),
+        networkPeering: z.string(),
+        subnet: z.string(),
+      }).partial(),
+      fileShare: z.string(),
+      nfsVersion: z.string(),
+      servers: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   management: z.boolean().optional(),
   name: z.string(),
   nodeTypeConfigs: z.record(z.string(), z.unknown()).optional(),
@@ -321,7 +323,7 @@ const StateSchema = z.object({
     preferredLocationPlacementGroup: z.string(),
     secondaryLocation: z.string(),
     secondaryLocationPlacementGroup: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -474,7 +476,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VMware Engine PrivateClouds.Clusters. Registered at `@swamp/gcp/vmwareengine/privateclouds-clusters`. */
 export const model = {
   type: "@swamp/gcp/vmwareengine/privateclouds-clusters",
-  version: "2026.10.26.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -666,6 +668,11 @@ export const model = {
     {
       toVersion: "2026.10.26.1",
       description: "Added: placementGroup",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

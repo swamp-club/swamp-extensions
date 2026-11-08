@@ -124,19 +124,21 @@ const StateSchema = z.object({
       allNamespaces: z.boolean(),
       encryptionKey: z.object({
         gcpKmsEncryptionKey: z.string(),
-      }),
+      }).partial(),
       includeSecrets: z.boolean(),
       includeVolumeData: z.boolean(),
       selectedApplications: z.object({
-        namespacedNames: z.array(z.object({
-          name: z.unknown(),
-          namespace: z.unknown(),
-        })),
-      }),
+        namespacedNames: z.array(
+          z.object({
+            name: z.unknown(),
+            namespace: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       selectedNamespaces: z.object({
         namespaces: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     lastSuccessfulBackup: z.string(),
     lastSuccessfulBackupTime: z.string(),
     nextScheduledBackupTime: z.string(),
@@ -144,10 +146,10 @@ const StateSchema = z.object({
     retentionPolicyDetails: z.object({
       backupDeleteLockDays: z.number(),
       backupRetainDays: z.number(),
-    }),
+    }).partial(),
     rpoRiskLevel: z.number(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cluster: z.string().optional(),
   createTime: z.string().optional(),
   etag: z.string().optional(),
@@ -200,7 +202,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup for GKE BackupChannels.BackupPlanBindings. Registered at `@swamp/gcp/gkebackup/backupchannels-backupplanbindings`. */
 export const model = {
   type: "@swamp/gcp/gkebackup/backupchannels-backupplanbindings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -334,6 +336,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

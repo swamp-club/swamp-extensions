@@ -360,31 +360,31 @@ const StateSchema = z.object({
     authorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     readAuthorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     webhookSecretSecretVersion: z.string(),
     workspace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   bitbucketDataCenterConfig: z.object({
     authorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     hostUri: z.string(),
     readAuthorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     serverVersion: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     sslCa: z.string(),
     webhookSecretSecretVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   disabled: z.boolean().optional(),
   etag: z.string().optional(),
@@ -393,8 +393,8 @@ const StateSchema = z.object({
     authorizerCredential: z.object({
       oauthTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   githubEnterpriseConfig: z.object({
     apiKey: z.string(),
     appId: z.string(),
@@ -405,32 +405,32 @@ const StateSchema = z.object({
     serverVersion: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     sslCa: z.string(),
     webhookSecretSecretVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gitlabConfig: z.object({
     authorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     hostUri: z.string(),
     readAuthorizerCredential: z.object({
       userTokenSecretVersion: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     serverVersion: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     sslCa: z.string(),
     webhookSecretSecretVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   installationState: z.object({
     actionUri: z.string(),
     message: z.string(),
     stage: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   reconciling: z.boolean().optional(),
   updateTime: z.string().optional(),
@@ -656,7 +656,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Build Connections. Registered at `@swamp/gcp/cloudbuild/connections`. */
 export const model = {
   type: "@swamp/gcp/cloudbuild/connections",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -831,6 +831,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

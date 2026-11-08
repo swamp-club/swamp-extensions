@@ -173,6 +173,49 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const BranchStateSchema = z.object({
+  FullyQualifiedName: z.string(),
+  Description: z.string(),
+}).partial();
+
+const SensorStateSchema = z.object({
+  FullyQualifiedName: z.string(),
+  DataType: z.string(),
+  Description: z.string(),
+  Unit: z.string(),
+  AllowedValues: z.array(z.string()),
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const ActuatorStateSchema = z.object({
+  FullyQualifiedName: z.string(),
+  DataType: z.string(),
+  Description: z.string(),
+  Unit: z.string(),
+  AllowedValues: z.array(z.string()),
+  Min: z.number(),
+  Max: z.number(),
+  AssignedValue: z.string(),
+}).partial();
+
+const AttributeStateSchema = z.object({
+  FullyQualifiedName: z.string(),
+  DataType: z.string(),
+  Description: z.string(),
+  Unit: z.string(),
+  AllowedValues: z.array(z.string()),
+  Min: z.number(),
+  Max: z.number(),
+  AssignedValue: z.string(),
+  DefaultValue: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -212,17 +255,19 @@ const StateSchema = z.object({
     TotalSensors: z.number(),
     TotalAttributes: z.number(),
     TotalActuators: z.number(),
-  }).optional(),
-  Nodes: z.array(z.object({
-    Branch: BranchSchema,
-    Sensor: SensorSchema,
-    Actuator: ActuatorSchema,
-    Attribute: AttributeSchema,
-  })).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Nodes: z.array(
+    z.object({
+      Branch: BranchStateSchema,
+      Sensor: SensorStateSchema,
+      Actuator: ActuatorStateSchema,
+      Attribute: AttributeStateSchema,
+    }).partial(),
+  ).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -262,7 +307,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTFleetWise SignalCatalog. Registered at `@swamp/aws/iotfleetwise/signal-catalog`. */
 export const model = {
   type: "@swamp/aws/iotfleetwise/signal-catalog",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -321,6 +366,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

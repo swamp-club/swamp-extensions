@@ -64,6 +64,29 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const BasicAuthConfigStateSchema = z.object({
+  EnableBasicAuth: z.boolean(),
+  Username: z.string(),
+  Password: z.string(),
+}).partial();
+
+const EnvironmentVariableStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CustomRuleStateSchema = z.object({
+  Condition: z.string(),
+  Status: z.string(),
+  Target: z.string(),
+  Source: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -138,41 +161,45 @@ const StateSchema = z.object({
   Arn: z.string(),
   AutoBranchCreationConfig: z.object({
     AutoBranchCreationPatterns: z.array(z.string()),
-    BasicAuthConfig: BasicAuthConfigSchema,
+    BasicAuthConfig: BasicAuthConfigStateSchema,
     BuildSpec: z.string(),
     EnableAutoBranchCreation: z.boolean(),
     EnableAutoBuild: z.boolean(),
     EnablePerformanceMode: z.boolean(),
     EnablePullRequestPreview: z.boolean(),
-    EnvironmentVariables: z.array(EnvironmentVariableSchema),
+    EnvironmentVariables: z.array(EnvironmentVariableStateSchema),
     Framework: z.string(),
     PullRequestEnvironmentName: z.string(),
     Stage: z.string(),
-  }).optional(),
-  BasicAuthConfig: BasicAuthConfigSchema.optional(),
+  }).partial().optional(),
+  BasicAuthConfig: z.object({
+    EnableBasicAuth: z.boolean(),
+    Username: z.string(),
+    Password: z.string(),
+  }).partial().optional(),
   BuildSpec: z.string().optional(),
   CacheConfig: z.object({
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ComputeRoleArn: z.string().optional(),
   CustomHeaders: z.string().optional(),
-  CustomRules: z.array(CustomRuleSchema).optional(),
+  CustomRules: z.array(CustomRuleStateSchema).optional(),
   DefaultDomain: z.string().optional(),
   Description: z.string().optional(),
   EnableBranchAutoDeletion: z.boolean().optional(),
-  EnvironmentVariables: z.array(EnvironmentVariableSchema).optional(),
+  EnvironmentVariables: z.array(EnvironmentVariableStateSchema).optional(),
   IAMServiceRole: z.string().optional(),
   Name: z.string().optional(),
   OauthToken: z.string().optional(),
   Platform: z.string().optional(),
   Repository: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   JobConfig: z.object({
     BuildComputeType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -251,7 +278,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Amplify App. Registered at `@swamp/aws/amplify/app`. */
 export const model = {
   type: "@swamp/aws/amplify/app",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -320,6 +347,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

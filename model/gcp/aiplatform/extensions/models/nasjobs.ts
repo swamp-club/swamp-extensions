@@ -359,47 +359,51 @@ const StateSchema = z.object({
   enableRestrictedImageTraining: z.boolean().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endTime: z.string().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   nasJobOutput: z.object({
     multiTrialJobOutput: z.object({
-      searchTrials: z.array(z.object({
-        endTime: z.string(),
-        finalMeasurement: z.object({
-          elapsedDuration: z.unknown(),
-          metrics: z.unknown(),
-          stepCount: z.unknown(),
-        }),
-        id: z.string(),
-        startTime: z.string(),
-        state: z.string(),
-      })),
-      trainTrials: z.array(z.object({
-        endTime: z.string(),
-        finalMeasurement: z.object({
-          elapsedDuration: z.unknown(),
-          metrics: z.unknown(),
-          stepCount: z.unknown(),
-        }),
-        id: z.string(),
-        startTime: z.string(),
-        state: z.string(),
-      })),
-    }),
-  }).optional(),
+      searchTrials: z.array(
+        z.object({
+          endTime: z.string(),
+          finalMeasurement: z.object({
+            elapsedDuration: z.unknown(),
+            metrics: z.unknown(),
+            stepCount: z.unknown(),
+          }).partial(),
+          id: z.string(),
+          startTime: z.string(),
+          state: z.string(),
+        }).partial(),
+      ),
+      trainTrials: z.array(
+        z.object({
+          endTime: z.string(),
+          finalMeasurement: z.object({
+            elapsedDuration: z.unknown(),
+            metrics: z.unknown(),
+            stepCount: z.unknown(),
+          }).partial(),
+          id: z.string(),
+          startTime: z.string(),
+          state: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   nasJobSpec: z.object({
     multiTrialAlgorithmSpec: z.object({
       metric: z.object({
         goal: z.string(),
         metricId: z.string(),
-      }),
+      }).partial(),
       multiTrialAlgorithm: z.string(),
       searchTrialSpec: z.object({
         maxFailedTrialCount: z.number(),
@@ -408,7 +412,7 @@ const StateSchema = z.object({
         searchTrialJobSpec: z.object({
           baseOutputDirectory: z.object({
             outputUriPrefix: z.unknown(),
-          }),
+          }).partial(),
           enableDashboardAccess: z.boolean(),
           enableWebAccess: z.boolean(),
           experiment: z.string(),
@@ -420,7 +424,7 @@ const StateSchema = z.object({
           pscInterfaceConfig: z.object({
             dnsPeeringConfigs: z.unknown(),
             networkAttachment: z.unknown(),
-          }),
+          }).partial(),
           reservedIpRanges: z.array(z.unknown()),
           scheduling: z.object({
             disableRetries: z.unknown(),
@@ -428,19 +432,19 @@ const StateSchema = z.object({
             restartJobOnWorkerRestart: z.unknown(),
             strategy: z.unknown(),
             timeout: z.unknown(),
-          }),
+          }).partial(),
           serviceAccount: z.string(),
           tensorboard: z.string(),
           workerPoolSpecs: z.array(z.unknown()),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       trainTrialSpec: z.object({
         frequency: z.number(),
         maxParallelTrialCount: z.number(),
         trainTrialJobSpec: z.object({
           baseOutputDirectory: z.object({
             outputUriPrefix: z.unknown(),
-          }),
+          }).partial(),
           enableDashboardAccess: z.boolean(),
           enableWebAccess: z.boolean(),
           experiment: z.string(),
@@ -452,7 +456,7 @@ const StateSchema = z.object({
           pscInterfaceConfig: z.object({
             dnsPeeringConfigs: z.unknown(),
             networkAttachment: z.unknown(),
-          }),
+          }).partial(),
           reservedIpRanges: z.array(z.unknown()),
           scheduling: z.object({
             disableRetries: z.unknown(),
@@ -460,16 +464,16 @@ const StateSchema = z.object({
             restartJobOnWorkerRestart: z.unknown(),
             strategy: z.unknown(),
             timeout: z.unknown(),
-          }),
+          }).partial(),
           serviceAccount: z.string(),
           tensorboard: z.string(),
           workerPoolSpecs: z.array(z.unknown()),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     resumeNasJobId: z.string(),
     searchSpaceSpec: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   startTime: z.string().optional(),
@@ -725,7 +729,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform NasJobs. Registered at `@swamp/gcp/aiplatform/nasjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/nasjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -897,6 +901,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -215,37 +215,39 @@ const StateSchema = z.object({
   region: z.string().optional(),
   regionalInventoryAttributes: z.object({
     availability: z.string(),
-    loyaltyPrograms: z.array(z.object({
-      cashbackForFutureUse: z.object({
-        amountMicros: z.string(),
-        currencyCode: z.string(),
-      }),
-      loyaltyPoints: z.string(),
-      memberPriceEffectiveInterval: z.object({
-        endTime: z.string(),
-        startTime: z.string(),
-      }),
-      price: z.object({
-        amountMicros: z.string(),
-        currencyCode: z.string(),
-      }),
-      programLabel: z.string(),
-      shippingLabel: z.string(),
-      tierLabel: z.string(),
-    })),
+    loyaltyPrograms: z.array(
+      z.object({
+        cashbackForFutureUse: z.object({
+          amountMicros: z.string(),
+          currencyCode: z.string(),
+        }).partial(),
+        loyaltyPoints: z.string(),
+        memberPriceEffectiveInterval: z.object({
+          endTime: z.string(),
+          startTime: z.string(),
+        }).partial(),
+        price: z.object({
+          amountMicros: z.string(),
+          currencyCode: z.string(),
+        }).partial(),
+        programLabel: z.string(),
+        shippingLabel: z.string(),
+        tierLabel: z.string(),
+      }).partial(),
+    ),
     price: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     salePrice: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     salePriceEffectiveDate: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -373,7 +375,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Products.RegionalInventories. Registered at `@swamp/gcp/merchantapi/accounts-products-regionalinventories`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-products-regionalinventories",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -392,6 +394,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

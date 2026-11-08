@@ -49,6 +49,15 @@ const CredentialsProviderConfigurationSchema = z.object({
   StripePrivy: PaymentCredentialProviderConfigurationSchema.optional(),
 });
 
+const PaymentCredentialProviderConfigurationStateSchema = z.object({
+  CredentialProviderArn: z.string(),
+}).partial();
+
+const CredentialsProviderConfigurationStateSchema = z.object({
+  CoinbaseCDP: PaymentCredentialProviderConfigurationStateSchema,
+  StripePrivy: PaymentCredentialProviderConfigurationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -93,7 +102,7 @@ const StateSchema = z.object({
   ConnectorType: z.string().optional(),
   ProvisionMode: z.string().optional(),
   CredentialProviderConfigurations: z.array(
-    CredentialsProviderConfigurationSchema,
+    CredentialsProviderConfigurationStateSchema,
   ).optional(),
   ConnectorStatus: z.string().optional(),
   ConnectorCreatedAt: z.string().optional(),
@@ -101,7 +110,7 @@ const StateSchema = z.object({
   AuthorizationUrl: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -147,7 +156,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore PaymentConnector. Registered at `@swamp/aws/bedrockagentcore/payment-connector`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/payment-connector",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -191,6 +200,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

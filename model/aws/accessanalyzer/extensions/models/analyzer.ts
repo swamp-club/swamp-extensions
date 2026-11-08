@@ -102,6 +102,48 @@ const InternalAccessConfigurationSchema = z.object({
   ).optional(),
 });
 
+const FilterStateSchema = z.object({
+  Contains: z.array(z.string()),
+  Eq: z.array(z.string()),
+  Exists: z.boolean(),
+  Property: z.string(),
+  Neq: z.array(z.string()),
+}).partial();
+
+const ArchiveRuleStateSchema = z.object({
+  Filter: z.array(FilterStateSchema),
+  RuleName: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const AnalysisRuleCriteriaStateSchema = z.object({
+  AccountIds: z.array(z.string()),
+  ResourceTags: z.array(z.array(TagStateSchema)),
+}).partial();
+
+const UnusedAccessConfigurationStateSchema = z.object({
+  UnusedAccessAge: z.number(),
+  AnalysisRule: z.object({
+    Exclusions: z.array(AnalysisRuleCriteriaStateSchema),
+  }).partial(),
+}).partial();
+
+const InternalAccessAnalysisRuleCriteriaStateSchema = z.object({
+  AccountIds: z.array(z.string()),
+  ResourceArns: z.array(z.string()),
+  ResourceTypes: z.array(z.string()),
+}).partial();
+
+const InternalAccessConfigurationStateSchema = z.object({
+  InternalAccessAnalysisRule: z.object({
+    Inclusions: z.array(InternalAccessAnalysisRuleCriteriaStateSchema),
+  }).partial(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -139,17 +181,17 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   AnalyzerName: z.string().optional(),
-  ArchiveRules: z.array(ArchiveRuleSchema).optional(),
+  ArchiveRules: z.array(ArchiveRuleStateSchema).optional(),
   Arn: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Type: z.string().optional(),
   AnalyzerConfiguration: z.object({
-    UnusedAccessConfiguration: UnusedAccessConfigurationSchema,
-    InternalAccessConfiguration: InternalAccessConfigurationSchema,
-  }).optional(),
+    UnusedAccessConfiguration: UnusedAccessConfigurationStateSchema,
+    InternalAccessConfiguration: InternalAccessConfigurationStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -195,7 +237,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AccessAnalyzer Analyzer. Registered at `@swamp/aws/accessanalyzer/analyzer`. */
 export const model = {
   type: "@swamp/aws/accessanalyzer/analyzer",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +301,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

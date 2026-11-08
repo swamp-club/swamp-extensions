@@ -367,47 +367,49 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  access: z.array(z.object({
-    condition: z.object({
-      description: z.string(),
-      expression: z.string(),
-      location: z.string(),
-      title: z.string(),
-    }),
-    dataset: z.object({
+  access: z.array(
+    z.object({
+      condition: z.object({
+        description: z.string(),
+        expression: z.string(),
+        location: z.string(),
+        title: z.string(),
+      }).partial(),
       dataset: z.object({
+        dataset: z.object({
+          datasetId: z.string(),
+          projectId: z.string(),
+        }).partial(),
+        targetTypes: z.array(z.string()),
+      }).partial(),
+      domain: z.string(),
+      groupByEmail: z.string(),
+      iamMember: z.string(),
+      role: z.string(),
+      routine: z.object({
         datasetId: z.string(),
         projectId: z.string(),
-      }),
-      targetTypes: z.array(z.string()),
-    }),
-    domain: z.string(),
-    groupByEmail: z.string(),
-    iamMember: z.string(),
-    role: z.string(),
-    routine: z.object({
-      datasetId: z.string(),
-      projectId: z.string(),
-      routineId: z.string(),
-    }),
-    specialGroup: z.string(),
-    userByEmail: z.string(),
-    view: z.object({
-      datasetId: z.string(),
-      projectId: z.string(),
-      tableId: z.string(),
-    }),
-  })).optional(),
+        routineId: z.string(),
+      }).partial(),
+      specialGroup: z.string(),
+      userByEmail: z.string(),
+      view: z.object({
+        datasetId: z.string(),
+        projectId: z.string(),
+        tableId: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   catalogSource: z.string().optional(),
   creationTime: z.string().optional(),
   datasetReference: z.object({
     datasetId: z.string(),
     projectId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   defaultCollation: z.string().optional(),
   defaultEncryptionConfiguration: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   defaultPartitionExpirationMs: z.string().optional(),
   defaultRoundingMode: z.string().optional(),
   defaultTableExpirationMs: z.string().optional(),
@@ -416,11 +418,11 @@ const StateSchema = z.object({
   externalCatalogDatasetOptions: z.object({
     defaultStorageLocationUri: z.string(),
     parameters: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   externalDatasetReference: z.object({
     connection: z.string(),
     externalSource: z.string(),
-  }).optional(),
+  }).partial().optional(),
   friendlyName: z.string().optional(),
   id: z.string().optional(),
   isCaseInsensitive: z.boolean().optional(),
@@ -429,27 +431,29 @@ const StateSchema = z.object({
   lastModifiedTime: z.string().optional(),
   linkedDatasetMetadata: z.object({
     linkState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   linkedDatasetSource: z.object({
     sourceDataset: z.object({
       datasetId: z.string(),
       projectId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   location: z.string().optional(),
   maxTimeTravelHours: z.string().optional(),
   resourceTags: z.record(z.string(), z.unknown()).optional(),
   restrictions: z.object({
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   selfLink: z.string().optional(),
   storageBillingModel: z.string().optional(),
-  tags: z.array(z.object({
-    tagKey: z.string(),
-    tagValue: z.string(),
-  })).optional(),
+  tags: z.array(
+    z.object({
+      tagKey: z.string(),
+      tagValue: z.string(),
+    }).partial(),
+  ).optional(),
   type: z.string().optional(),
 }).passthrough();
 
@@ -670,7 +674,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Datasets. Registered at `@swamp/gcp/bigquery/datasets`. */
 export const model = {
   type: "@swamp/gcp/bigquery/datasets",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -850,6 +854,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

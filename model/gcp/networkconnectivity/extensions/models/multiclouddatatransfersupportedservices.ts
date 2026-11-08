@@ -112,10 +112,12 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   name: z.string(),
-  serviceConfigs: z.array(z.object({
-    eligibilityCriteria: z.string(),
-    supportEndTime: z.string(),
-  })).optional(),
+  serviceConfigs: z.array(
+    z.object({
+      eligibilityCriteria: z.string(),
+      supportEndTime: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -160,7 +162,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/networkconnectivity/multiclouddatatransfersupportedservices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -289,6 +291,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

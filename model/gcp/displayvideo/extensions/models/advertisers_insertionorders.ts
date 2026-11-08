@@ -557,50 +557,52 @@ const StateSchema = z.object({
       effectiveBiddingValueSource: z.string(),
       type: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     fixedBid: z.object({
       bidAmountMicros: z.string(),
-    }),
+    }).partial(),
     maximizeSpendAutoBid: z.object({
       customBiddingAlgorithmId: z.string(),
       maxAverageCpmBidAmountMicros: z.string(),
       performanceGoalType: z.string(),
       raiseBidForDeals: z.boolean(),
-    }),
+    }).partial(),
     performanceGoalAutoBid: z.object({
       customBiddingAlgorithmId: z.string(),
       maxAverageCpmBidAmountMicros: z.string(),
       performanceGoalAmountMicros: z.string(),
       performanceGoalType: z.string(),
-    }),
+    }).partial(),
     youtubeAndPartnersBid: z.object({
       adGroupEffectiveTargetCpaSource: z.string(),
       adGroupEffectiveTargetCpaValue: z.string(),
       type: z.string(),
       value: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   budget: z.object({
     automationType: z.string(),
-    budgetSegments: z.array(z.object({
-      budgetAmountMicros: z.string(),
-      campaignBudgetId: z.string(),
-      dateRange: z.object({
-        endDate: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        startDate: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-      }),
-      description: z.string(),
-    })),
+    budgetSegments: z.array(
+      z.object({
+        budgetAmountMicros: z.string(),
+        campaignBudgetId: z.string(),
+        dateRange: z.object({
+          endDate: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          startDate: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+        }).partial(),
+        description: z.string(),
+      }).partial(),
+    ),
     budgetUnit: z.string(),
-  }).optional(),
+  }).partial().optional(),
   campaignId: z.string().optional(),
   displayName: z.string().optional(),
   entityStatus: z.string().optional(),
@@ -610,20 +612,20 @@ const StateSchema = z.object({
     timeUnit: z.string(),
     timeUnitCount: z.number(),
     unlimited: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   insertionOrderId: z.string().optional(),
   insertionOrderType: z.string().optional(),
   integrationDetails: z.object({
     details: z.string(),
     integrationCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kpi: z.object({
     kpiAlgorithmId: z.string(),
     kpiAmountMicros: z.string(),
     kpiPercentageMicros: z.string(),
     kpiString: z.string(),
     kpiType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   optimizationObjective: z.string().optional(),
   pacing: z.object({
@@ -631,14 +633,16 @@ const StateSchema = z.object({
     dailyMaxMicros: z.string(),
     pacingPeriod: z.string(),
     pacingType: z.string(),
-  }).optional(),
-  partnerCosts: z.array(z.object({
-    costType: z.string(),
-    feeAmount: z.string(),
-    feePercentageMillis: z.string(),
-    feeType: z.string(),
-    invoiceType: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  partnerCosts: z.array(
+    z.object({
+      costType: z.string(),
+      feeAmount: z.string(),
+      feePercentageMillis: z.string(),
+      feeType: z.string(),
+      invoiceType: z.string(),
+    }).partial(),
+  ).optional(),
   reservationType: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -1051,7 +1055,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.InsertionOrders. Registered at `@swamp/gcp/displayvideo/advertisers-insertionorders`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-insertionorders",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1253,6 +1257,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

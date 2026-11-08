@@ -56,6 +56,16 @@ const VPCSchema = z.object({
   ),
 });
 
+const HostedZoneTagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const VPCStateSchema = z.object({
+  VPCRegion: z.string(),
+  VPCId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -105,23 +115,23 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   DelegationSetId: z.string().optional(),
-  HostedZoneTags: z.array(HostedZoneTagSchema).optional(),
-  VPCs: z.array(VPCSchema).optional(),
+  HostedZoneTags: z.array(HostedZoneTagStateSchema).optional(),
+  VPCs: z.array(VPCStateSchema).optional(),
   HostedZoneFeatures: z.object({
     EnableAcceleratedRecovery: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   HostedZoneConfig: z.object({
     Comment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Id: z.string(),
   NameServers: z.array(z.string()).optional(),
   QueryLoggingConfig: z.object({
     CloudWatchLogsLogGroupArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Name: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -179,7 +189,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53 HostedZone. Registered at `@swamp/aws/route53/hosted-zone`. */
 export const model = {
   type: "@swamp/aws/route53/hosted-zone",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -243,6 +253,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

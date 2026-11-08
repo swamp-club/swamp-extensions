@@ -166,14 +166,16 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   creationTime: z.string().optional(),
-  domainAliases: z.array(z.object({
-    creationTime: z.string(),
-    domainAliasName: z.string(),
-    etag: z.string(),
-    kind: z.string(),
-    parentDomainName: z.string(),
-    verified: z.boolean(),
-  })).optional(),
+  domainAliases: z.array(
+    z.object({
+      creationTime: z.string(),
+      domainAliasName: z.string(),
+      etag: z.string(),
+      kind: z.string(),
+      parentDomainName: z.string(),
+      verified: z.boolean(),
+    }).partial(),
+  ).optional(),
   domainName: z.string().optional(),
   etag: z.string().optional(),
   isPrimary: z.boolean().optional(),
@@ -246,7 +248,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Domains. Registered at `@swamp/gcp/admin/domains`. */
 export const model = {
   type: "@swamp/gcp/admin/domains",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -275,6 +277,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

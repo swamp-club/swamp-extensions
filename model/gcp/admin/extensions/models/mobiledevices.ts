@@ -149,13 +149,15 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   adbStatus: z.boolean().optional(),
-  applications: z.array(z.object({
-    displayName: z.string(),
-    packageName: z.string(),
-    permission: z.array(z.string()),
-    versionCode: z.number(),
-    versionName: z.string(),
-  })).optional(),
+  applications: z.array(
+    z.object({
+      displayName: z.string(),
+      packageName: z.string(),
+      permission: z.array(z.string()),
+      versionCode: z.number(),
+      versionName: z.string(),
+    }).partial(),
+  ).optional(),
   basebandVersion: z.string().optional(),
   bootloaderVersion: z.string().optional(),
   brand: z.string().optional(),
@@ -237,7 +239,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Mobiledevices. Registered at `@swamp/gcp/admin/mobiledevices`. */
 export const model = {
   type: "@swamp/gcp/admin/mobiledevices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -261,6 +263,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

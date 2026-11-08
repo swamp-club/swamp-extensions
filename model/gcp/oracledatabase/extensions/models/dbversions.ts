@@ -99,7 +99,7 @@ const StateSchema = z.object({
     isUpgradeSupported: z.boolean(),
     supportsPdb: z.boolean(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -143,7 +143,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud DbVersions. Registered at `@swamp/gcp/oracledatabase/dbversions`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/dbversions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -262,6 +262,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

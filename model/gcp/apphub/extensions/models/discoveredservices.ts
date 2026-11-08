@@ -121,20 +121,20 @@ const StateSchema = z.object({
     extendedMetadata: z.record(z.string(), z.unknown()),
     functionalType: z.object({
       type: z.string(),
-    }),
+    }).partial(),
     gcpProject: z.string(),
     identity: z.object({
       principal: z.string(),
-    }),
+    }).partial(),
     location: z.string(),
     registrationType: z.object({
       type: z.string(),
-    }),
+    }).partial(),
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   serviceReference: z.object({
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -178,7 +178,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Hub DiscoveredServices. Registered at `@swamp/gcp/apphub/discoveredservices`. */
 export const model = {
   type: "@swamp/gcp/apphub/discoveredservices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -312,6 +312,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

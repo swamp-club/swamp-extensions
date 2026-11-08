@@ -42,6 +42,10 @@ const InputWhitelistRuleSchema = z.object({
   Cidr: z.string().describe("The IPv4 CIDR that's whitelisted.").optional(),
 });
 
+const InputWhitelistRuleStateSchema = z.object({
+  Cidr: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -71,10 +75,10 @@ const StateSchema = z.object({
   Id: z.string(),
   Inputs: z.array(z.string()).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
-  WhitelistRules: z.array(InputWhitelistRuleSchema).optional(),
+  WhitelistRules: z.array(InputWhitelistRuleStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -109,10 +113,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive InputSecurityGroup. Registered at `@swamp/aws/medialive/input-security-group`. */
 export const model = {
   type: "@swamp/aws/medialive/input-security-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

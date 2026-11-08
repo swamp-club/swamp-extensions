@@ -108,25 +108,27 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   displayName: z.string().optional(),
-  operators: z.array(z.object({
-    displayName: z.string(),
-    enumValues: z.array(z.string()),
-    greaterThanOperatorName: z.string(),
-    isFacetable: z.boolean(),
-    isRepeatable: z.boolean(),
-    isReturnable: z.boolean(),
-    isSortable: z.boolean(),
-    isSuggestable: z.boolean(),
-    lessThanOperatorName: z.string(),
-    objectType: z.string(),
-    operatorName: z.string(),
-    type: z.string(),
-  })).optional(),
+  operators: z.array(
+    z.object({
+      displayName: z.string(),
+      enumValues: z.array(z.string()),
+      greaterThanOperatorName: z.string(),
+      isFacetable: z.boolean(),
+      isRepeatable: z.boolean(),
+      isReturnable: z.boolean(),
+      isSortable: z.boolean(),
+      isSuggestable: z.boolean(),
+      lessThanOperatorName: z.string(),
+      objectType: z.string(),
+      operatorName: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   shortName: z.string().optional(),
   source: z.object({
     name: z.string(),
     predefinedSource: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -167,7 +169,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Query.Sources. Registered at `@swamp/gcp/cloudsearch/query-sources`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/query-sources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -326,6 +328,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

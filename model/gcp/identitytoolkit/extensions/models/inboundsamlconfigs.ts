@@ -207,22 +207,26 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   enabled: z.boolean().optional(),
   idpConfig: z.object({
-    idpCertificates: z.array(z.object({
-      x509Certificate: z.string(),
-    })),
+    idpCertificates: z.array(
+      z.object({
+        x509Certificate: z.string(),
+      }).partial(),
+    ),
     idpEntityId: z.string(),
     signRequest: z.boolean(),
     ssoUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   spConfig: z.object({
     callbackUri: z.string(),
-    spCertificates: z.array(z.object({
-      expiresAt: z.string(),
-      x509Certificate: z.string(),
-    })),
+    spCertificates: z.array(
+      z.object({
+        expiresAt: z.string(),
+        x509Certificate: z.string(),
+      }).partial(),
+    ),
     spEntityId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -309,7 +313,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity Toolkit InboundSamlConfigs. Registered at `@swamp/gcp/identitytoolkit/inboundsamlconfigs`. */
 export const model = {
   type: "@swamp/gcp/identitytoolkit/inboundsamlconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -373,6 +377,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

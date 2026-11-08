@@ -112,6 +112,49 @@ const ConnectivityParametersSchema = z.object({
   ResourceParameters: ResourceParametersSchema,
 });
 
+const ApiKeyAuthParametersStateSchema = z.object({
+  ApiKeyName: z.string(),
+  ApiKeyValue: z.string(),
+}).partial();
+
+const BasicAuthParametersStateSchema = z.object({
+  Username: z.string(),
+  Password: z.string(),
+}).partial();
+
+const ClientParametersStateSchema = z.object({
+  ClientID: z.string(),
+  ClientSecret: z.string(),
+}).partial();
+
+const ParameterStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+  IsValueSecret: z.boolean(),
+}).partial();
+
+const ConnectionHttpParametersStateSchema = z.object({
+  HeaderParameters: z.array(ParameterStateSchema),
+  QueryStringParameters: z.array(ParameterStateSchema),
+  BodyParameters: z.array(ParameterStateSchema),
+}).partial();
+
+const OAuthParametersStateSchema = z.object({
+  ClientParameters: ClientParametersStateSchema,
+  AuthorizationEndpoint: z.string(),
+  HttpMethod: z.string(),
+  OAuthHttpParameters: ConnectionHttpParametersStateSchema,
+}).partial();
+
+const ResourceParametersStateSchema = z.object({
+  ResourceConfigurationArn: z.string(),
+  ResourceAssociationArn: z.string(),
+}).partial();
+
+const ConnectivityParametersStateSchema = z.object({
+  ResourceParameters: ResourceParametersStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -155,19 +198,19 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   AuthorizationType: z.string().optional(),
   AuthParameters: z.object({
-    ApiKeyAuthParameters: ApiKeyAuthParametersSchema,
-    BasicAuthParameters: BasicAuthParametersSchema,
-    OAuthParameters: OAuthParametersSchema,
-    InvocationHttpParameters: ConnectionHttpParametersSchema,
-    ConnectivityParameters: ConnectivityParametersSchema,
-  }).optional(),
+    ApiKeyAuthParameters: ApiKeyAuthParametersStateSchema,
+    BasicAuthParameters: BasicAuthParametersStateSchema,
+    OAuthParameters: OAuthParametersStateSchema,
+    InvocationHttpParameters: ConnectionHttpParametersStateSchema,
+    ConnectivityParameters: ConnectivityParametersStateSchema,
+  }).partial().optional(),
   InvocationConnectivityParameters: z.object({
-    ResourceParameters: ResourceParametersSchema,
-  }).optional(),
+    ResourceParameters: ResourceParametersStateSchema,
+  }).partial().optional(),
   KmsKeyIdentifier: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -215,7 +258,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events Connection. Registered at `@swamp/aws/events/connection`. */
 export const model = {
   type: "@swamp/aws/events/connection",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -274,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

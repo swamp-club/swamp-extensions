@@ -233,28 +233,32 @@ const StateSchema = z.object({
     description: z.string(),
     displayName: z.string(),
     documentPrompt: z.string(),
-    entityTypes: z.array(z.object({
-      baseTypes: z.array(z.string()),
-      displayName: z.string(),
-      enumValues: z.object({
-        values: z.array(z.unknown()),
-      }),
-      name: z.string(),
-      properties: z.array(z.object({
-        displayName: z.unknown(),
-        method: z.unknown(),
-        name: z.unknown(),
-        occurrenceType: z.unknown(),
-        valueType: z.unknown(),
-      })),
-    })),
+    entityTypes: z.array(
+      z.object({
+        baseTypes: z.array(z.string()),
+        displayName: z.string(),
+        enumValues: z.object({
+          values: z.array(z.unknown()),
+        }).partial(),
+        name: z.string(),
+        properties: z.array(
+          z.object({
+            displayName: z.unknown(),
+            method: z.unknown(),
+            name: z.unknown(),
+            occurrenceType: z.unknown(),
+            valueType: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
     metadata: z.object({
       documentAllowMultipleLabels: z.boolean(),
       documentSplitter: z.boolean(),
       prefixedNamingOnProperties: z.boolean(),
       skipNamingValidation: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -365,7 +369,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Document AI Schemas.SchemaVersions. Registered at `@swamp/gcp/documentai/schemas-schemaversions`. */
 export const model = {
   type: "@swamp/gcp/documentai/schemas-schemaversions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -524,6 +528,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

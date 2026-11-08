@@ -100,7 +100,7 @@ const StateSchema = z.object({
     instanceSchemaUri: z.string(),
     parametersSchemaUri: z.string(),
     predictionSchemaUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   publisherModelTemplate: z.string().optional(),
   supportedActions: z.object({
     createApplication: z.object({
@@ -111,113 +111,121 @@ const StateSchema = z.object({
       resourceUseCase: z.string(),
       supportsWorkbench: z.boolean(),
       title: z.string(),
-    }),
+    }).partial(),
     deploy: z.object({
       artifactUri: z.string(),
       automaticResources: z.object({
         maxReplicaCount: z.number(),
         minReplicaCount: z.number(),
-      }),
+      }).partial(),
       containerSpec: z.object({
         args: z.array(z.string()),
         command: z.array(z.string()),
         deploymentTimeout: z.string(),
-        env: z.array(z.object({
-          name: z.unknown(),
-          value: z.unknown(),
-        })),
-        grpcPorts: z.array(z.object({
-          containerPort: z.unknown(),
-        })),
+        env: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        grpcPorts: z.array(
+          z.object({
+            containerPort: z.unknown(),
+          }).partial(),
+        ),
         healthProbe: z.object({
           exec: z.object({
             command: z.unknown(),
-          }),
+          }).partial(),
           failureThreshold: z.number(),
           grpc: z.object({
             port: z.unknown(),
             service: z.unknown(),
-          }),
+          }).partial(),
           httpGet: z.object({
             host: z.unknown(),
             httpHeaders: z.unknown(),
             path: z.unknown(),
             port: z.unknown(),
             scheme: z.unknown(),
-          }),
+          }).partial(),
           initialDelaySeconds: z.number(),
           periodSeconds: z.number(),
           successThreshold: z.number(),
           tcpSocket: z.object({
             host: z.unknown(),
             port: z.unknown(),
-          }),
+          }).partial(),
           timeoutSeconds: z.number(),
-        }),
+        }).partial(),
         healthRoute: z.string(),
         imageUri: z.string(),
         invokeRoutePrefix: z.string(),
         livenessProbe: z.object({
           exec: z.object({
             command: z.unknown(),
-          }),
+          }).partial(),
           failureThreshold: z.number(),
           grpc: z.object({
             port: z.unknown(),
             service: z.unknown(),
-          }),
+          }).partial(),
           httpGet: z.object({
             host: z.unknown(),
             httpHeaders: z.unknown(),
             path: z.unknown(),
             port: z.unknown(),
             scheme: z.unknown(),
-          }),
+          }).partial(),
           initialDelaySeconds: z.number(),
           periodSeconds: z.number(),
           successThreshold: z.number(),
           tcpSocket: z.object({
             host: z.unknown(),
             port: z.unknown(),
-          }),
+          }).partial(),
           timeoutSeconds: z.number(),
-        }),
-        ports: z.array(z.object({
-          containerPort: z.unknown(),
-        })),
+        }).partial(),
+        ports: z.array(
+          z.object({
+            containerPort: z.unknown(),
+          }).partial(),
+        ),
         predictRoute: z.string(),
         sharedMemorySizeMb: z.string(),
         startupProbe: z.object({
           exec: z.object({
             command: z.unknown(),
-          }),
+          }).partial(),
           failureThreshold: z.number(),
           grpc: z.object({
             port: z.unknown(),
             service: z.unknown(),
-          }),
+          }).partial(),
           httpGet: z.object({
             host: z.unknown(),
             httpHeaders: z.unknown(),
             path: z.unknown(),
             port: z.unknown(),
             scheme: z.unknown(),
-          }),
+          }).partial(),
           initialDelaySeconds: z.number(),
           periodSeconds: z.number(),
           successThreshold: z.number(),
           tcpSocket: z.object({
             host: z.unknown(),
             port: z.unknown(),
-          }),
+          }).partial(),
           timeoutSeconds: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       dedicatedResources: z.object({
-        autoscalingMetricSpecs: z.array(z.object({
-          metricName: z.unknown(),
-          target: z.unknown(),
-        })),
+        autoscalingMetricSpecs: z.array(
+          z.object({
+            metricName: z.unknown(),
+            target: z.unknown(),
+          }).partial(),
+        ),
         machineSpec: z.object({
           acceleratorCount: z.number(),
           acceleratorType: z.string(),
@@ -227,75 +235,77 @@ const StateSchema = z.object({
             key: z.unknown(),
             reservationAffinityType: z.unknown(),
             values: z.unknown(),
-          }),
+          }).partial(),
           tpuTopology: z.string(),
-        }),
+        }).partial(),
         maxReplicaCount: z.number(),
         minReplicaCount: z.number(),
         requiredReplicaCount: z.number(),
         spot: z.boolean(),
-      }),
+      }).partial(),
       deployMetadata: z.object({
         labels: z.record(z.string(), z.unknown()),
         sampleRequest: z.string(),
-      }),
+      }).partial(),
       deployTaskName: z.string(),
       largeModelReference: z.object({
         name: z.string(),
-      }),
+      }).partial(),
       modelDisplayName: z.string(),
       publicArtifactUri: z.string(),
       sharedResources: z.string(),
       title: z.string(),
-    }),
+    }).partial(),
     deployGke: z.object({
       gkeYamlConfigs: z.array(z.string()),
-    }),
+    }).partial(),
     multiDeployVertex: z.object({
-      multiDeployVertex: z.array(z.object({
-        artifactUri: z.string(),
-        automaticResources: z.object({
-          maxReplicaCount: z.unknown(),
-          minReplicaCount: z.unknown(),
-        }),
-        containerSpec: z.object({
-          args: z.unknown(),
-          command: z.unknown(),
-          deploymentTimeout: z.unknown(),
-          env: z.unknown(),
-          grpcPorts: z.unknown(),
-          healthProbe: z.unknown(),
-          healthRoute: z.unknown(),
-          imageUri: z.unknown(),
-          invokeRoutePrefix: z.unknown(),
-          livenessProbe: z.unknown(),
-          ports: z.unknown(),
-          predictRoute: z.unknown(),
-          sharedMemorySizeMb: z.unknown(),
-          startupProbe: z.unknown(),
-        }),
-        dedicatedResources: z.object({
-          autoscalingMetricSpecs: z.unknown(),
-          machineSpec: z.unknown(),
-          maxReplicaCount: z.unknown(),
-          minReplicaCount: z.unknown(),
-          requiredReplicaCount: z.unknown(),
-          spot: z.unknown(),
-        }),
-        deployMetadata: z.object({
-          labels: z.unknown(),
-          sampleRequest: z.unknown(),
-        }),
-        deployTaskName: z.string(),
-        largeModelReference: z.object({
-          name: z.unknown(),
-        }),
-        modelDisplayName: z.string(),
-        publicArtifactUri: z.string(),
-        sharedResources: z.string(),
-        title: z.string(),
-      })),
-    }),
+      multiDeployVertex: z.array(
+        z.object({
+          artifactUri: z.string(),
+          automaticResources: z.object({
+            maxReplicaCount: z.unknown(),
+            minReplicaCount: z.unknown(),
+          }).partial(),
+          containerSpec: z.object({
+            args: z.unknown(),
+            command: z.unknown(),
+            deploymentTimeout: z.unknown(),
+            env: z.unknown(),
+            grpcPorts: z.unknown(),
+            healthProbe: z.unknown(),
+            healthRoute: z.unknown(),
+            imageUri: z.unknown(),
+            invokeRoutePrefix: z.unknown(),
+            livenessProbe: z.unknown(),
+            ports: z.unknown(),
+            predictRoute: z.unknown(),
+            sharedMemorySizeMb: z.unknown(),
+            startupProbe: z.unknown(),
+          }).partial(),
+          dedicatedResources: z.object({
+            autoscalingMetricSpecs: z.unknown(),
+            machineSpec: z.unknown(),
+            maxReplicaCount: z.unknown(),
+            minReplicaCount: z.unknown(),
+            requiredReplicaCount: z.unknown(),
+            spot: z.unknown(),
+          }).partial(),
+          deployMetadata: z.object({
+            labels: z.unknown(),
+            sampleRequest: z.unknown(),
+          }).partial(),
+          deployTaskName: z.string(),
+          largeModelReference: z.object({
+            name: z.unknown(),
+          }).partial(),
+          modelDisplayName: z.string(),
+          publicArtifactUri: z.string(),
+          sharedResources: z.string(),
+          title: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     openEvaluationPipeline: z.object({
       colabNotebookDisabled: z.boolean(),
       references: z.record(z.string(), z.unknown()),
@@ -304,7 +314,7 @@ const StateSchema = z.object({
       resourceUseCase: z.string(),
       supportsWorkbench: z.boolean(),
       title: z.string(),
-    }),
+    }).partial(),
     openFineTuningPipeline: z.object({
       colabNotebookDisabled: z.boolean(),
       references: z.record(z.string(), z.unknown()),
@@ -313,18 +323,20 @@ const StateSchema = z.object({
       resourceUseCase: z.string(),
       supportsWorkbench: z.boolean(),
       title: z.string(),
-    }),
+    }).partial(),
     openFineTuningPipelines: z.object({
-      fineTuningPipelines: z.array(z.object({
-        colabNotebookDisabled: z.boolean(),
-        references: z.record(z.string(), z.unknown()),
-        resourceDescription: z.string(),
-        resourceTitle: z.string(),
-        resourceUseCase: z.string(),
-        supportsWorkbench: z.boolean(),
-        title: z.string(),
-      })),
-    }),
+      fineTuningPipelines: z.array(
+        z.object({
+          colabNotebookDisabled: z.boolean(),
+          references: z.record(z.string(), z.unknown()),
+          resourceDescription: z.string(),
+          resourceTitle: z.string(),
+          resourceUseCase: z.string(),
+          supportsWorkbench: z.boolean(),
+          title: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     openGenerationAiStudio: z.object({
       colabNotebookDisabled: z.boolean(),
       references: z.record(z.string(), z.unknown()),
@@ -333,7 +345,7 @@ const StateSchema = z.object({
       resourceUseCase: z.string(),
       supportsWorkbench: z.boolean(),
       title: z.string(),
-    }),
+    }).partial(),
     openGenie: z.object({
       colabNotebookDisabled: z.boolean(),
       references: z.record(z.string(), z.unknown()),
@@ -342,7 +354,7 @@ const StateSchema = z.object({
       resourceUseCase: z.string(),
       supportsWorkbench: z.boolean(),
       title: z.string(),
-    }),
+    }).partial(),
     openNotebook: z.object({
       colabNotebookDisabled: z.boolean(),
       references: z.record(z.string(), z.unknown()),
@@ -351,18 +363,20 @@ const StateSchema = z.object({
       resourceUseCase: z.string(),
       supportsWorkbench: z.boolean(),
       title: z.string(),
-    }),
+    }).partial(),
     openNotebooks: z.object({
-      notebooks: z.array(z.object({
-        colabNotebookDisabled: z.boolean(),
-        references: z.record(z.string(), z.unknown()),
-        resourceDescription: z.string(),
-        resourceTitle: z.string(),
-        resourceUseCase: z.string(),
-        supportsWorkbench: z.boolean(),
-        title: z.string(),
-      })),
-    }),
+      notebooks: z.array(
+        z.object({
+          colabNotebookDisabled: z.boolean(),
+          references: z.record(z.string(), z.unknown()),
+          resourceDescription: z.string(),
+          resourceTitle: z.string(),
+          resourceUseCase: z.string(),
+          supportsWorkbench: z.boolean(),
+          title: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     openPromptTuningPipeline: z.object({
       colabNotebookDisabled: z.boolean(),
       references: z.record(z.string(), z.unknown()),
@@ -371,7 +385,7 @@ const StateSchema = z.object({
       resourceUseCase: z.string(),
       supportsWorkbench: z.boolean(),
       title: z.string(),
-    }),
+    }).partial(),
     requestAccess: z.object({
       colabNotebookDisabled: z.boolean(),
       references: z.record(z.string(), z.unknown()),
@@ -380,15 +394,17 @@ const StateSchema = z.object({
       resourceUseCase: z.string(),
       supportsWorkbench: z.boolean(),
       title: z.string(),
-    }),
+    }).partial(),
     viewRestApi: z.object({
-      documentations: z.array(z.object({
-        content: z.string(),
-        title: z.string(),
-      })),
+      documentations: z.array(
+        z.object({
+          content: z.string(),
+          title: z.string(),
+        }).partial(),
+      ),
       title: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   versionId: z.string().optional(),
   versionState: z.string().optional(),
 }).passthrough();
@@ -431,7 +447,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Publishers.Models. Registered at `@swamp/gcp/aiplatform/publishers-models`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/publishers-models",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -595,6 +611,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

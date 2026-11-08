@@ -384,75 +384,89 @@ const StateSchema = z.object({
   pendingAsyncAssistOperationId: z.string().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
-  turns: z.array(z.object({
-    answer: z.string(),
-    detailedAnswer: z.object({
-      answerSkippedReasons: z.array(z.string()),
-      answerText: z.string(),
-      citations: z.array(z.object({
-        endIndex: z.unknown(),
-        sources: z.unknown(),
-        startIndex: z.unknown(),
-      })),
-      completeTime: z.string(),
-      createTime: z.string(),
-      groundingScore: z.number(),
-      groundingSupports: z.array(z.object({
-        endIndex: z.unknown(),
-        groundingCheckRequired: z.unknown(),
-        groundingScore: z.unknown(),
-        sources: z.unknown(),
-        startIndex: z.unknown(),
-      })),
-      name: z.string(),
-      queryUnderstandingInfo: z.object({
-        queryClassificationInfo: z.array(z.unknown()),
-      }),
-      references: z.array(z.object({
-        chunkInfo: z.unknown(),
-        structuredDocumentInfo: z.unknown(),
-        unstructuredDocumentInfo: z.unknown(),
-      })),
-      relatedQuestions: z.array(z.string()),
-      safetyRatings: z.array(z.object({
-        blocked: z.unknown(),
-        category: z.unknown(),
-        probability: z.unknown(),
-        probabilityScore: z.unknown(),
-        severity: z.unknown(),
-        severityScore: z.unknown(),
-      })),
-      state: z.string(),
-      steps: z.array(z.object({
-        actions: z.unknown(),
-        description: z.unknown(),
-        state: z.unknown(),
-        thought: z.unknown(),
-      })),
-    }),
-    detailedAssistAnswer: z.object({
-      assistSkippedReasons: z.array(z.string()),
-      connectorDisplayNames: z.record(z.string(), z.unknown()),
-      customerPolicyEnforcementResult: z.object({
-        policyResults: z.array(z.unknown()),
-        verdict: z.string(),
-        violationSource: z.string(),
-      }),
-      name: z.string(),
-      replies: z.array(z.object({
-        createTime: z.unknown(),
-        groundedContent: z.unknown(),
-      })),
-      state: z.string(),
-      toolDisplayNames: z.record(z.string(), z.unknown()),
-    }),
-    live: z.boolean(),
-    query: z.object({
-      queryId: z.string(),
-      text: z.string(),
-    }),
-    queryConfig: z.record(z.string(), z.unknown()),
-  })).optional(),
+  turns: z.array(
+    z.object({
+      answer: z.string(),
+      detailedAnswer: z.object({
+        answerSkippedReasons: z.array(z.string()),
+        answerText: z.string(),
+        citations: z.array(
+          z.object({
+            endIndex: z.unknown(),
+            sources: z.unknown(),
+            startIndex: z.unknown(),
+          }).partial(),
+        ),
+        completeTime: z.string(),
+        createTime: z.string(),
+        groundingScore: z.number(),
+        groundingSupports: z.array(
+          z.object({
+            endIndex: z.unknown(),
+            groundingCheckRequired: z.unknown(),
+            groundingScore: z.unknown(),
+            sources: z.unknown(),
+            startIndex: z.unknown(),
+          }).partial(),
+        ),
+        name: z.string(),
+        queryUnderstandingInfo: z.object({
+          queryClassificationInfo: z.array(z.unknown()),
+        }).partial(),
+        references: z.array(
+          z.object({
+            chunkInfo: z.unknown(),
+            structuredDocumentInfo: z.unknown(),
+            unstructuredDocumentInfo: z.unknown(),
+          }).partial(),
+        ),
+        relatedQuestions: z.array(z.string()),
+        safetyRatings: z.array(
+          z.object({
+            blocked: z.unknown(),
+            category: z.unknown(),
+            probability: z.unknown(),
+            probabilityScore: z.unknown(),
+            severity: z.unknown(),
+            severityScore: z.unknown(),
+          }).partial(),
+        ),
+        state: z.string(),
+        steps: z.array(
+          z.object({
+            actions: z.unknown(),
+            description: z.unknown(),
+            state: z.unknown(),
+            thought: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      detailedAssistAnswer: z.object({
+        assistSkippedReasons: z.array(z.string()),
+        connectorDisplayNames: z.record(z.string(), z.unknown()),
+        customerPolicyEnforcementResult: z.object({
+          policyResults: z.array(z.unknown()),
+          verdict: z.string(),
+          violationSource: z.string(),
+        }).partial(),
+        name: z.string(),
+        replies: z.array(
+          z.object({
+            createTime: z.unknown(),
+            groundedContent: z.unknown(),
+          }).partial(),
+        ),
+        state: z.string(),
+        toolDisplayNames: z.record(z.string(), z.unknown()),
+      }).partial(),
+      live: z.boolean(),
+      query: z.object({
+        queryId: z.string(),
+        text: z.string(),
+      }).partial(),
+      queryConfig: z.record(z.string(), z.unknown()),
+    }).partial(),
+  ).optional(),
   userPseudoId: z.string().optional(),
 }).passthrough();
 
@@ -698,7 +712,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.DataStores.Sessions. Registered at `@swamp/gcp/discoveryengine/collections-datastores-sessions`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-datastores-sessions",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -882,6 +896,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

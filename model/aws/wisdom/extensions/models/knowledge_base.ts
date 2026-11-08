@@ -101,6 +101,61 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const AppIntegrationsConfigurationStateSchema = z.object({
+  ObjectFields: z.array(z.string()),
+  AppIntegrationArn: z.string(),
+}).partial();
+
+const SeedUrlStateSchema = z.object({
+  Url: z.string(),
+}).partial();
+
+const WebCrawlerConfigurationStateSchema = z.object({
+  UrlConfiguration: z.object({
+    SeedUrls: z.array(SeedUrlStateSchema),
+  }).partial(),
+  CrawlerLimits: z.object({
+    RateLimit: z.number(),
+  }).partial(),
+  InclusionFilters: z.array(z.string()),
+  ExclusionFilters: z.array(z.string()),
+  Scope: z.string(),
+}).partial();
+
+const FixedSizeChunkingConfigurationStateSchema = z.object({
+  MaxTokens: z.number(),
+  OverlapPercentage: z.number(),
+}).partial();
+
+const HierarchicalChunkingLevelConfigurationStateSchema = z.object({
+  MaxTokens: z.number(),
+}).partial();
+
+const HierarchicalChunkingConfigurationStateSchema = z.object({
+  LevelConfigurations: z.array(
+    HierarchicalChunkingLevelConfigurationStateSchema,
+  ),
+  OverlapTokens: z.number(),
+}).partial();
+
+const SemanticChunkingConfigurationStateSchema = z.object({
+  MaxTokens: z.number(),
+  BufferSize: z.number(),
+  BreakpointPercentileThreshold: z.number(),
+}).partial();
+
+const BedrockFoundationModelConfigurationStateSchema = z.object({
+  ModelArn: z.string(),
+  ParsingPrompt: z.object({
+    ParsingPromptText: z.string(),
+  }).partial(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -170,34 +225,34 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   RenderingConfiguration: z.object({
     TemplateUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ServerSideEncryptionConfiguration: z.object({
     KmsKeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SourceConfiguration: z.object({
-    AppIntegrations: AppIntegrationsConfigurationSchema,
+    AppIntegrations: AppIntegrationsConfigurationStateSchema,
     ManagedSourceConfiguration: z.object({
-      WebCrawlerConfiguration: WebCrawlerConfigurationSchema,
-    }),
-  }).optional(),
+      WebCrawlerConfiguration: WebCrawlerConfigurationStateSchema,
+    }).partial(),
+  }).partial().optional(),
   VectorIngestionConfiguration: z.object({
     ChunkingConfiguration: z.object({
       ChunkingStrategy: z.string(),
-      FixedSizeChunkingConfiguration: FixedSizeChunkingConfigurationSchema,
+      FixedSizeChunkingConfiguration: FixedSizeChunkingConfigurationStateSchema,
       HierarchicalChunkingConfiguration:
-        HierarchicalChunkingConfigurationSchema,
-      SemanticChunkingConfiguration: SemanticChunkingConfigurationSchema,
-    }),
+        HierarchicalChunkingConfigurationStateSchema,
+      SemanticChunkingConfiguration: SemanticChunkingConfigurationStateSchema,
+    }).partial(),
     ParsingConfiguration: z.object({
       ParsingStrategy: z.string(),
       BedrockFoundationModelConfiguration:
-        BedrockFoundationModelConfigurationSchema,
-    }),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+        BedrockFoundationModelConfigurationStateSchema,
+    }).partial(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -269,7 +324,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom KnowledgeBase. Registered at `@swamp/aws/wisdom/knowledge-base`. */
 export const model = {
   type: "@swamp/aws/wisdom/knowledge-base",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -333,6 +388,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

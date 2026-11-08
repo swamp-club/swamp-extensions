@@ -239,7 +239,7 @@ const StateSchema = z.object({
   attributeMapping: z.record(z.string(), z.unknown()).optional(),
   aws: z.object({
     accountId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   disabled: z.boolean().optional(),
   displayName: z.string().optional(),
@@ -250,22 +250,26 @@ const StateSchema = z.object({
     discoveryUri: z.string(),
     issuerUri: z.string(),
     jwksJson: z.string(),
-  }).optional(),
+  }).partial().optional(),
   saml: z.object({
     idpMetadataXml: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   x509: z.object({
     trustStore: z.object({
-      intermediateCas: z.array(z.object({
-        pemCertificate: z.string(),
-      })),
-      trustAnchors: z.array(z.object({
-        pemCertificate: z.string(),
-      })),
+      intermediateCas: z.array(
+        z.object({
+          pemCertificate: z.string(),
+        }).partial(),
+      ),
+      trustAnchors: z.array(
+        z.object({
+          pemCertificate: z.string(),
+        }).partial(),
+      ),
       trustDefaultSharedCa: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -379,7 +383,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) WorkloadIdentityPools.Providers. Registered at `@swamp/gcp/iam/workloadidentitypools-providers`. */
 export const model = {
   type: "@swamp/gcp/iam/workloadidentitypools-providers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -408,6 +412,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

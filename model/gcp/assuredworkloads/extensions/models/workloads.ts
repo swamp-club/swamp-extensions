@@ -304,7 +304,7 @@ const StateSchema = z.object({
     acknowledgedViolationCount: z.number(),
     activeResourceViolationCount: z.number(),
     activeViolationCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   compliantButDisallowedServices: z.array(z.string()).optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
@@ -312,14 +312,14 @@ const StateSchema = z.object({
     ekmProvisioningErrorDomain: z.string(),
     ekmProvisioningErrorMapping: z.string(),
     ekmProvisioningState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   enableSovereignControls: z.boolean().optional(),
   etag: z.string().optional(),
   kajEnrollmentState: z.string().optional(),
   kmsSettings: z.object({
     nextRotationTime: z.string(),
     rotationPeriod: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   partner: z.string().optional(),
@@ -328,27 +328,31 @@ const StateSchema = z.object({
     assuredWorkloadsMonitoring: z.boolean(),
     dataLogsViewer: z.boolean(),
     serviceAccessApprover: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   partnerServicesBillingAccount: z.string().optional(),
   provisionedResourcesParent: z.string().optional(),
   resourceMonitoringEnabled: z.boolean().optional(),
-  resourceSettings: z.array(z.object({
-    displayName: z.string(),
-    resourceId: z.string(),
-    resourceType: z.string(),
-  })).optional(),
-  resources: z.array(z.object({
-    resourceId: z.string(),
-    resourceType: z.string(),
-  })).optional(),
+  resourceSettings: z.array(
+    z.object({
+      displayName: z.string(),
+      resourceId: z.string(),
+      resourceType: z.string(),
+    }).partial(),
+  ).optional(),
+  resources: z.array(
+    z.object({
+      resourceId: z.string(),
+      resourceType: z.string(),
+    }).partial(),
+  ).optional(),
   saaEnrollmentResponse: z.object({
     setupErrors: z.array(z.string()),
     setupStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   violationNotificationsEnabled: z.boolean().optional(),
   workloadOptions: z.object({
     kajEnrollmentType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -522,7 +526,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads Workloads. Registered at `@swamp/gcp/assuredworkloads/workloads`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/workloads",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -685,6 +689,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

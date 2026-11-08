@@ -88,6 +88,52 @@ const MaintenanceWindowAutomationParametersSchema = z.object({
   DocumentVersion: z.string().optional(),
 });
 
+const TargetStateSchema = z.object({
+  Values: z.array(z.string()),
+  Key: z.string(),
+}).partial();
+
+const MaintenanceWindowStepFunctionsParametersStateSchema = z.object({
+  Input: z.string(),
+  Name: z.string(),
+}).partial();
+
+const CloudWatchOutputConfigStateSchema = z.object({
+  CloudWatchOutputEnabled: z.boolean(),
+  CloudWatchLogGroupName: z.string(),
+}).partial();
+
+const NotificationConfigStateSchema = z.object({
+  NotificationEvents: z.array(z.string()),
+  NotificationArn: z.string(),
+  NotificationType: z.string(),
+}).partial();
+
+const MaintenanceWindowRunCommandParametersStateSchema = z.object({
+  TimeoutSeconds: z.number(),
+  Comment: z.string(),
+  OutputS3KeyPrefix: z.string(),
+  Parameters: z.record(z.string(), z.unknown()),
+  CloudWatchOutputConfig: CloudWatchOutputConfigStateSchema,
+  DocumentHashType: z.string(),
+  ServiceRoleArn: z.string(),
+  NotificationConfig: NotificationConfigStateSchema,
+  DocumentVersion: z.string(),
+  OutputS3BucketName: z.string(),
+  DocumentHash: z.string(),
+}).partial();
+
+const MaintenanceWindowLambdaParametersStateSchema = z.object({
+  Qualifier: z.string(),
+  Payload: z.string(),
+  ClientContext: z.string(),
+}).partial();
+
+const MaintenanceWindowAutomationParametersStateSchema = z.object({
+  Parameters: z.record(z.string(), z.unknown()),
+  DocumentVersion: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -161,18 +207,19 @@ const StateSchema = z.object({
   ServiceRoleArn: z.string().optional(),
   Priority: z.number().optional(),
   MaxConcurrency: z.string().optional(),
-  Targets: z.array(TargetSchema).optional(),
+  Targets: z.array(TargetStateSchema).optional(),
   Name: z.string().optional(),
   TaskArn: z.string().optional(),
   TaskInvocationParameters: z.object({
     MaintenanceWindowStepFunctionsParameters:
-      MaintenanceWindowStepFunctionsParametersSchema,
+      MaintenanceWindowStepFunctionsParametersStateSchema,
     MaintenanceWindowRunCommandParameters:
-      MaintenanceWindowRunCommandParametersSchema,
-    MaintenanceWindowLambdaParameters: MaintenanceWindowLambdaParametersSchema,
+      MaintenanceWindowRunCommandParametersStateSchema,
+    MaintenanceWindowLambdaParameters:
+      MaintenanceWindowLambdaParametersStateSchema,
     MaintenanceWindowAutomationParameters:
-      MaintenanceWindowAutomationParametersSchema,
-  }).optional(),
+      MaintenanceWindowAutomationParametersStateSchema,
+  }).partial().optional(),
   WindowId: z.string(),
   TaskParameters: z.record(z.string(), z.unknown()).optional(),
   TaskType: z.string().optional(),
@@ -182,10 +229,10 @@ const StateSchema = z.object({
     Region: z.string(),
     S3Prefix: z.string(),
     S3Bucket: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -263,7 +310,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSM MaintenanceWindowTask. Registered at `@swamp/aws/ssm/maintenance-window-task`. */
 export const model = {
   type: "@swamp/aws/ssm/maintenance-window-task",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -332,6 +379,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

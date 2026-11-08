@@ -131,6 +131,44 @@ const GuardrailContextualGroundingFilterConfigSchema = z.object({
   Threshold: z.number().min(0).describe("The threshold for this filter."),
 });
 
+const GuardrailTopicConfigStateSchema = z.object({
+  Name: z.string(),
+  Definition: z.string(),
+  Examples: z.array(z.string()),
+  Type: z.string(),
+}).partial();
+
+const GuardrailContentFilterConfigStateSchema = z.object({
+  Type: z.string(),
+  InputStrength: z.string(),
+  OutputStrength: z.string(),
+}).partial();
+
+const GuardrailWordConfigStateSchema = z.object({
+  Text: z.string(),
+}).partial();
+
+const GuardrailManagedWordsConfigStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const GuardrailPiiEntityConfigStateSchema = z.object({
+  Type: z.string(),
+  Action: z.string(),
+}).partial();
+
+const GuardrailRegexConfigStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Pattern: z.string(),
+  Action: z.string(),
+}).partial();
+
+const GuardrailContextualGroundingFilterConfigStateSchema = z.object({
+  Type: z.string(),
+  Threshold: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -207,27 +245,27 @@ const StateSchema = z.object({
   BlockedOutputsMessaging: z.string().optional(),
   Description: z.string().optional(),
   TopicPolicyConfig: z.object({
-    TopicsConfig: z.array(GuardrailTopicConfigSchema),
-  }).optional(),
+    TopicsConfig: z.array(GuardrailTopicConfigStateSchema),
+  }).partial().optional(),
   ContentPolicyConfig: z.object({
-    FiltersConfig: z.array(GuardrailContentFilterConfigSchema),
-  }).optional(),
+    FiltersConfig: z.array(GuardrailContentFilterConfigStateSchema),
+  }).partial().optional(),
   WordPolicyConfig: z.object({
-    WordsConfig: z.array(GuardrailWordConfigSchema),
-    ManagedWordListsConfig: z.array(GuardrailManagedWordsConfigSchema),
-  }).optional(),
+    WordsConfig: z.array(GuardrailWordConfigStateSchema),
+    ManagedWordListsConfig: z.array(GuardrailManagedWordsConfigStateSchema),
+  }).partial().optional(),
   SensitiveInformationPolicyConfig: z.object({
-    PiiEntitiesConfig: z.array(GuardrailPiiEntityConfigSchema),
-    RegexesConfig: z.array(GuardrailRegexConfigSchema),
-  }).optional(),
+    PiiEntitiesConfig: z.array(GuardrailPiiEntityConfigStateSchema),
+    RegexesConfig: z.array(GuardrailRegexConfigStateSchema),
+  }).partial().optional(),
   ContextualGroundingPolicyConfig: z.object({
-    FiltersConfig: z.array(GuardrailContextualGroundingFilterConfigSchema),
-  }).optional(),
+    FiltersConfig: z.array(GuardrailContextualGroundingFilterConfigStateSchema),
+  }).partial().optional(),
   ModifiedTimeSeconds: z.number().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -304,7 +342,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom AIGuardrail. Registered at `@swamp/aws/wisdom/aiguardrail`. */
 export const model = {
   type: "@swamp/aws/wisdom/aiguardrail",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +411,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

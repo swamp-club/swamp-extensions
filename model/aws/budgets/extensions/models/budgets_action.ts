@@ -66,6 +66,34 @@ const ResourceTagSchema = z.object({
   Value: z.string(),
 });
 
+const SubscriberStateSchema = z.object({
+  Type: z.string(),
+  Address: z.string(),
+}).partial();
+
+const IamActionDefinitionStateSchema = z.object({
+  PolicyArn: z.string(),
+  Roles: z.array(z.string()),
+  Groups: z.array(z.string()),
+  Users: z.array(z.string()),
+}).partial();
+
+const ScpActionDefinitionStateSchema = z.object({
+  PolicyId: z.string(),
+  TargetIds: z.array(z.string()),
+}).partial();
+
+const SsmActionDefinitionStateSchema = z.object({
+  Subtype: z.string(),
+  Region: z.string(),
+  InstanceIds: z.array(z.string()),
+}).partial();
+
+const ResourceTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -112,19 +140,19 @@ const StateSchema = z.object({
   ActionThreshold: z.object({
     Value: z.number(),
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ExecutionRoleArn: z.string().optional(),
   ApprovalModel: z.string().optional(),
-  Subscribers: z.array(SubscriberSchema).optional(),
+  Subscribers: z.array(SubscriberStateSchema).optional(),
   Definition: z.object({
-    IamActionDefinition: IamActionDefinitionSchema,
-    ScpActionDefinition: ScpActionDefinitionSchema,
-    SsmActionDefinition: SsmActionDefinitionSchema,
-  }).optional(),
-  ResourceTags: z.array(ResourceTagSchema).optional(),
+    IamActionDefinition: IamActionDefinitionStateSchema,
+    ScpActionDefinition: ScpActionDefinitionStateSchema,
+    SsmActionDefinition: SsmActionDefinitionStateSchema,
+  }).partial().optional(),
+  ResourceTags: z.array(ResourceTagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -173,7 +201,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Budgets BudgetsAction. Registered at `@swamp/aws/budgets/budgets-action`. */
 export const model = {
   type: "@swamp/aws/budgets/budgets-action",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -237,6 +265,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

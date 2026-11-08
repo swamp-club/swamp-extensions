@@ -293,7 +293,7 @@ const StateSchema = z.object({
     maxNodes: z.number(),
     minNodes: z.number(),
     mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
   fingerprint: z.string().optional(),
@@ -306,16 +306,16 @@ const StateSchema = z.object({
     maintenanceDuration: z.object({
       nanos: z.number(),
       seconds: z.string(),
-    }),
+    }).partial(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   nodeTemplate: z.string().optional(),
   selfLink: z.string().optional(),
   shareSettings: z.object({
     projectMap: z.record(z.string(), z.unknown()),
     shareType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   size: z.number().optional(),
   status: z.string().optional(),
   zone: z.string().optional(),
@@ -438,7 +438,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine NodeGroups. Registered at `@swamp/gcp/compute/nodegroups`. */
 export const model = {
   type: "@swamp/gcp/compute/nodegroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -597,6 +597,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

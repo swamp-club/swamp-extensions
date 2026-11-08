@@ -300,42 +300,44 @@ const StateSchema = z.object({
       path: z.string(),
       region: z.string(),
       service: z.string(),
-    }),
+    }).partial(),
     gke: z.object({
       cluster: z.string(),
       location: z.string(),
       namespace: z.string(),
       path: z.string(),
       service: z.string(),
-    }),
+    }).partial(),
     httpEndpoint: z.object({
       uri: z.string(),
-    }),
+    }).partial(),
     networkConfig: z.object({
       networkAttachment: z.string(),
-    }),
+    }).partial(),
     workflow: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   eventDataContentType: z.string().optional(),
-  eventFilters: z.array(z.object({
-    attribute: z.string(),
-    operator: z.string(),
-    value: z.string(),
-  })).optional(),
+  eventFilters: z.array(
+    z.object({
+      attribute: z.string(),
+      operator: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   retryPolicy: z.object({
     maxAttempts: z.number(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzs: z.boolean().optional(),
   serviceAccount: z.string().optional(),
   transport: z.object({
     pubsub: z.object({
       subscription: z.string(),
       topic: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -487,7 +489,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Eventarc Triggers. Registered at `@swamp/gcp/eventarc/triggers`. */
 export const model = {
   type: "@swamp/gcp/eventarc/triggers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -667,6 +669,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

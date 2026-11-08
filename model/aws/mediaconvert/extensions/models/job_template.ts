@@ -50,6 +50,12 @@ const HopDestinationSchema = z.object({
   ).optional(),
 });
 
+const HopDestinationStateSchema = z.object({
+  Priority: z.number(),
+  Queue: z.string(),
+  WaitMinutes: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -104,8 +110,8 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   AccelerationSettings: z.object({
     Mode: z.string(),
-  }).optional(),
-  HopDestinations: z.array(HopDestinationSchema).optional(),
+  }).partial().optional(),
+  HopDestinations: z.array(HopDestinationStateSchema).optional(),
   Name: z.string(),
   Priority: z.number().optional(),
   Queue: z.string().optional(),
@@ -114,7 +120,7 @@ const StateSchema = z.object({
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -175,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConvert JobTemplate. Registered at `@swamp/aws/mediaconvert/job-template`. */
 export const model = {
   type: "@swamp/aws/mediaconvert/job-template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -189,6 +195,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

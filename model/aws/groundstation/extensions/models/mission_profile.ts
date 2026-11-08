@@ -48,6 +48,16 @@ const TagSchema = z.object({
   Value: z.string().regex(new RegExp("^[ a-zA-Z0-9\\+\\-=._:/@]{1,256}$")),
 });
 
+const DataflowEdgeStateSchema = z.object({
+  Source: z.string(),
+  Destination: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -112,18 +122,18 @@ const StateSchema = z.object({
     KmsKeyArn: z.string(),
     KmsAliasArn: z.string(),
     KmsAliasName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   StreamsKmsRole: z.string().optional(),
   TelemetrySinkConfigArn: z.string().optional(),
-  DataflowEdges: z.array(DataflowEdgeSchema).optional(),
+  DataflowEdges: z.array(DataflowEdgeStateSchema).optional(),
   TrackingConfigArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Id: z.string(),
   Arn: z.string(),
   Region: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -189,7 +199,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GroundStation MissionProfile. Registered at `@swamp/aws/groundstation/mission-profile`. */
 export const model = {
   type: "@swamp/aws/groundstation/mission-profile",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -253,6 +263,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

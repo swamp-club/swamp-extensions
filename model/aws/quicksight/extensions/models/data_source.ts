@@ -361,6 +361,217 @@ const TagSchema = z.object({
   Key: z.string().min(1).max(128).describe("Tag key."),
 });
 
+const S3TablesParametersStateSchema = z.object({
+  TableBucketArn: z.string(),
+}).partial();
+
+const AuroraPostgreSqlParametersStateSchema = z.object({
+  Port: z.number(),
+  Database: z.string(),
+  Host: z.string(),
+}).partial();
+
+const TeradataParametersStateSchema = z.object({
+  Port: z.number(),
+  Database: z.string(),
+  Host: z.string(),
+}).partial();
+
+const RdsParametersStateSchema = z.object({
+  InstanceId: z.string(),
+  Database: z.string(),
+}).partial();
+
+const IdentityCenterConfigurationStateSchema = z.object({
+  EnableIdentityPropagation: z.boolean(),
+}).partial();
+
+const AthenaParametersStateSchema = z.object({
+  WorkGroup: z.string(),
+  ConsumerAccountRoleArn: z.string(),
+  IdentityCenterConfiguration: IdentityCenterConfigurationStateSchema,
+  RoleArn: z.string(),
+}).partial();
+
+const SparkParametersStateSchema = z.object({
+  Port: z.number(),
+  Host: z.string(),
+}).partial();
+
+const MariaDbParametersStateSchema = z.object({
+  Port: z.number(),
+  Database: z.string(),
+  Host: z.string(),
+}).partial();
+
+const OracleParametersStateSchema = z.object({
+  UseServiceName: z.boolean(),
+  Port: z.number(),
+  Database: z.string(),
+  Host: z.string(),
+}).partial();
+
+const PrestoParametersStateSchema = z.object({
+  Port: z.number(),
+  Host: z.string(),
+  Catalog: z.string(),
+}).partial();
+
+const VpcConnectionPropertiesStateSchema = z.object({
+  VpcConnectionArn: z.string(),
+}).partial();
+
+const OAuthParametersStateSchema = z.object({
+  TokenProviderUrl: z.string(),
+  OAuthScope: z.string(),
+  IdentityProviderVpcConnectionProperties: VpcConnectionPropertiesStateSchema,
+  IdentityProviderResourceUri: z.string(),
+}).partial();
+
+const StarburstParametersStateSchema = z.object({
+  Port: z.number(),
+  DatabaseAccessControlRole: z.string(),
+  ProductType: z.string(),
+  OAuthParameters: OAuthParametersStateSchema,
+  Host: z.string(),
+  Catalog: z.string(),
+  AuthenticationType: z.string(),
+}).partial();
+
+const RedshiftIAMParametersStateSchema = z.object({
+  AutoCreateDatabaseUser: z.boolean(),
+  DatabaseUser: z.string(),
+  RoleArn: z.string(),
+  DatabaseGroups: z.array(z.string()),
+}).partial();
+
+const RedshiftParametersStateSchema = z.object({
+  IAMParameters: RedshiftIAMParametersStateSchema,
+  ClusterId: z.string(),
+  Port: z.number(),
+  Database: z.string(),
+  Host: z.string(),
+  IdentityCenterConfiguration: IdentityCenterConfigurationStateSchema,
+}).partial();
+
+const MySqlParametersStateSchema = z.object({
+  Port: z.number(),
+  Database: z.string(),
+  Host: z.string(),
+}).partial();
+
+const SqlServerParametersStateSchema = z.object({
+  Port: z.number(),
+  Database: z.string(),
+  Host: z.string(),
+}).partial();
+
+const SnowflakeParametersStateSchema = z.object({
+  Warehouse: z.string(),
+  DatabaseAccessControlRole: z.string(),
+  Database: z.string(),
+  OAuthParameters: OAuthParametersStateSchema,
+  Host: z.string(),
+  AuthenticationType: z.string(),
+}).partial();
+
+const AmazonElasticsearchParametersStateSchema = z.object({
+  Domain: z.string(),
+}).partial();
+
+const AmazonOpenSearchParametersStateSchema = z.object({
+  Domain: z.string(),
+}).partial();
+
+const PostgreSqlParametersStateSchema = z.object({
+  Port: z.number(),
+  Database: z.string(),
+  Host: z.string(),
+}).partial();
+
+const AuroraParametersStateSchema = z.object({
+  Port: z.number(),
+  Database: z.string(),
+  Host: z.string(),
+}).partial();
+
+const ManifestFileLocationStateSchema = z.object({
+  Bucket: z.string(),
+  Key: z.string(),
+}).partial();
+
+const S3ParametersStateSchema = z.object({
+  ManifestFileLocation: ManifestFileLocationStateSchema,
+  RoleArn: z.string(),
+}).partial();
+
+const TrinoParametersStateSchema = z.object({
+  Port: z.number(),
+  Host: z.string(),
+  Catalog: z.string(),
+}).partial();
+
+const DatabricksParametersStateSchema = z.object({
+  Port: z.number(),
+  OAuthParameters: OAuthParametersStateSchema,
+  Host: z.string(),
+  SqlEndpointPath: z.string(),
+  AuthenticationType: z.string(),
+}).partial();
+
+const DataSourceParametersStateSchema = z.object({
+  S3TablesParameters: S3TablesParametersStateSchema,
+  AuroraPostgreSqlParameters: AuroraPostgreSqlParametersStateSchema,
+  TeradataParameters: TeradataParametersStateSchema,
+  RdsParameters: RdsParametersStateSchema,
+  AthenaParameters: AthenaParametersStateSchema,
+  SparkParameters: SparkParametersStateSchema,
+  MariaDbParameters: MariaDbParametersStateSchema,
+  OracleParameters: OracleParametersStateSchema,
+  PrestoParameters: PrestoParametersStateSchema,
+  StarburstParameters: StarburstParametersStateSchema,
+  RedshiftParameters: RedshiftParametersStateSchema,
+  MySqlParameters: MySqlParametersStateSchema,
+  SqlServerParameters: SqlServerParametersStateSchema,
+  SnowflakeParameters: SnowflakeParametersStateSchema,
+  AmazonElasticsearchParameters: AmazonElasticsearchParametersStateSchema,
+  AmazonOpenSearchParameters: AmazonOpenSearchParametersStateSchema,
+  PostgreSqlParameters: PostgreSqlParametersStateSchema,
+  AuroraParameters: AuroraParametersStateSchema,
+  S3Parameters: S3ParametersStateSchema,
+  TrinoParameters: TrinoParametersStateSchema,
+  DatabricksParameters: DatabricksParametersStateSchema,
+}).partial();
+
+const ResourcePermissionStateSchema = z.object({
+  Actions: z.array(z.string()),
+  Resource: z.string(),
+  Principal: z.string(),
+}).partial();
+
+const CredentialPairStateSchema = z.object({
+  AlternateDataSourceParameters: z.array(DataSourceParametersStateSchema),
+  Username: z.string(),
+  Password: z.string(),
+}).partial();
+
+const KeyPairCredentialsStateSchema = z.object({
+  KeyPairUsername: z.string(),
+  PrivateKey: z.string(),
+  PrivateKeyPassphrase: z.string(),
+}).partial();
+
+const OAuthClientCredentialsStateSchema = z.object({
+  Username: z.string(),
+  ClientSecret: z.string(),
+  ClientId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -565,32 +776,57 @@ const StateSchema = z.object({
   ErrorInfo: z.object({
     Type: z.string(),
     Message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LastUpdatedTime: z.string().optional(),
   FolderArns: z.array(z.string()).optional(),
   Name: z.string().optional(),
-  DataSourceParameters: DataSourceParametersSchema.optional(),
+  DataSourceParameters: z.object({
+    S3TablesParameters: S3TablesParametersStateSchema,
+    AuroraPostgreSqlParameters: AuroraPostgreSqlParametersStateSchema,
+    TeradataParameters: TeradataParametersStateSchema,
+    RdsParameters: RdsParametersStateSchema,
+    AthenaParameters: AthenaParametersStateSchema,
+    SparkParameters: SparkParametersStateSchema,
+    MariaDbParameters: MariaDbParametersStateSchema,
+    OracleParameters: OracleParametersStateSchema,
+    PrestoParameters: PrestoParametersStateSchema,
+    StarburstParameters: StarburstParametersStateSchema,
+    RedshiftParameters: RedshiftParametersStateSchema,
+    MySqlParameters: MySqlParametersStateSchema,
+    SqlServerParameters: SqlServerParametersStateSchema,
+    SnowflakeParameters: SnowflakeParametersStateSchema,
+    AmazonElasticsearchParameters: AmazonElasticsearchParametersStateSchema,
+    AmazonOpenSearchParameters: AmazonOpenSearchParametersStateSchema,
+    PostgreSqlParameters: PostgreSqlParametersStateSchema,
+    AuroraParameters: AuroraParametersStateSchema,
+    S3Parameters: S3ParametersStateSchema,
+    TrinoParameters: TrinoParametersStateSchema,
+    DatabricksParameters: DatabricksParametersStateSchema,
+  }).partial().optional(),
   Type: z.string().optional(),
-  VpcConnectionProperties: VpcConnectionPropertiesSchema.optional(),
-  AlternateDataSourceParameters: z.array(DataSourceParametersSchema).optional(),
+  VpcConnectionProperties: z.object({
+    VpcConnectionArn: z.string(),
+  }).partial().optional(),
+  AlternateDataSourceParameters: z.array(DataSourceParametersStateSchema)
+    .optional(),
   AwsAccountId: z.string(),
-  Permissions: z.array(ResourcePermissionSchema).optional(),
+  Permissions: z.array(ResourcePermissionStateSchema).optional(),
   Arn: z.string().optional(),
   SslProperties: z.object({
     DisableSsl: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   Credentials: z.object({
     SecretArn: z.string(),
     CopySourceArn: z.string(),
-    CredentialPair: CredentialPairSchema,
-    KeyPairCredentials: KeyPairCredentialsSchema,
-    OAuthClientCredentials: OAuthClientCredentialsSchema,
-  }).optional(),
+    CredentialPair: CredentialPairStateSchema,
+    KeyPairCredentials: KeyPairCredentialsStateSchema,
+    OAuthClientCredentials: OAuthClientCredentialsStateSchema,
+  }).partial().optional(),
   DataSourceId: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -799,7 +1035,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight DataSource. Registered at `@swamp/aws/quicksight/data-source`. */
 export const model = {
   type: "@swamp/aws/quicksight/data-source",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -883,6 +1119,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

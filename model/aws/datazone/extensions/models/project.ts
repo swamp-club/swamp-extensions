@@ -67,6 +67,32 @@ const ProjectMembershipAssignmentSchema = z.object({
   Designation: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,36}$")),
 });
 
+const EnvironmentParameterStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const EnvironmentConfigurationUserParameterStateSchema = z.object({
+  EnvironmentId: z.string(),
+  EnvironmentConfigurationName: z.string(),
+  EnvironmentParameters: z.array(EnvironmentParameterStateSchema),
+}).partial();
+
+const ResourceTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const MemberStateSchema = z.object({
+  UserIdentifier: z.string(),
+  GroupIdentifier: z.string(),
+}).partial();
+
+const ProjectMembershipAssignmentStateSchema = z.object({
+  Member: MemberStateSchema,
+  Designation: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -134,15 +160,16 @@ const StateSchema = z.object({
   ProjectProfileId: z.string().optional(),
   ProjectProfileVersion: z.string().optional(),
   ProjectStatus: z.string().optional(),
-  UserParameters: z.array(EnvironmentConfigurationUserParameterSchema)
+  UserParameters: z.array(EnvironmentConfigurationUserParameterStateSchema)
     .optional(),
-  ResourceTags: z.array(ResourceTagSchema).optional(),
-  MembershipAssignments: z.array(ProjectMembershipAssignmentSchema).optional(),
+  ResourceTags: z.array(ResourceTagStateSchema).optional(),
+  MembershipAssignments: z.array(ProjectMembershipAssignmentStateSchema)
+    .optional(),
   ProjectCategory: z.string().optional(),
   ProjectExecutionRole: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -206,7 +233,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone Project. Registered at `@swamp/aws/datazone/project`. */
 export const model = {
   type: "@swamp/aws/datazone/project",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -291,6 +318,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

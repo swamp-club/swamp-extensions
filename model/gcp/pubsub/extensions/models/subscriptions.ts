@@ -713,7 +713,7 @@ const StateSchema = z.object({
   analyticsHubSubscriptionInfo: z.object({
     listing: z.string(),
     subscription: z.string(),
-  }).optional(),
+  }).partial().optional(),
   bigqueryConfig: z.object({
     dropUnknownFields: z.boolean(),
     serviceAccountEmail: z.string(),
@@ -722,26 +722,26 @@ const StateSchema = z.object({
     useTableSchema: z.boolean(),
     useTopicSchema: z.boolean(),
     writeMetadata: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   bigtableConfig: z.object({
     appProfileId: z.string(),
     columnFamilyMapping: z.object({
       delimitedKey: z.object({
         delimiter: z.string(),
         keyFields: z.array(z.string()),
-      }),
-      rowKeySchema: z.object({}),
-    }),
+      }).partial(),
+      rowKeySchema: z.object({}).partial(),
+    }).partial(),
     serviceAccountEmail: z.string(),
     state: z.string(),
     table: z.string(),
     writeMetadata: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   cloudStorageConfig: z.object({
     avroConfig: z.object({
       useTopicSchema: z.boolean(),
       writeMetadata: z.boolean(),
-    }),
+    }).partial(),
     bucket: z.string(),
     filenameDatetimeFormat: z.string(),
     filenamePrefix: z.string(),
@@ -751,58 +751,60 @@ const StateSchema = z.object({
     maxMessages: z.string(),
     serviceAccountEmail: z.string(),
     state: z.string(),
-    textConfig: z.object({}),
-  }).optional(),
+    textConfig: z.object({}).partial(),
+  }).partial().optional(),
   deadLetterPolicy: z.object({
     deadLetterTopic: z.string(),
     maxDeliveryAttempts: z.number(),
-  }).optional(),
+  }).partial().optional(),
   detached: z.boolean().optional(),
   enableExactlyOnceDelivery: z.boolean().optional(),
   enableMessageOrdering: z.boolean().optional(),
   expirationPolicy: z.object({
     ttl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   filter: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   messageRetentionDuration: z.string().optional(),
-  messageTransforms: z.array(z.object({
-    aiInference: z.object({
-      endpoint: z.string(),
-      serviceAccountEmail: z.string(),
-      unstructuredInference: z.object({
-        parameters: z.record(z.string(), z.unknown()),
-      }),
-    }),
-    compression: z.object({
-      compressionAlgorithm: z.string(),
-      compressionMode: z.string(),
-    }),
-    disabled: z.boolean(),
-    enabled: z.boolean(),
-    javascriptUdf: z.object({
-      code: z.string(),
-      functionName: z.string(),
-    }),
-  })).optional(),
+  messageTransforms: z.array(
+    z.object({
+      aiInference: z.object({
+        endpoint: z.string(),
+        serviceAccountEmail: z.string(),
+        unstructuredInference: z.object({
+          parameters: z.record(z.string(), z.unknown()),
+        }).partial(),
+      }).partial(),
+      compression: z.object({
+        compressionAlgorithm: z.string(),
+        compressionMode: z.string(),
+      }).partial(),
+      disabled: z.boolean(),
+      enabled: z.boolean(),
+      javascriptUdf: z.object({
+        code: z.string(),
+        functionName: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   pushConfig: z.object({
     attributes: z.record(z.string(), z.unknown()),
     noWrapper: z.object({
       writeMetadata: z.boolean(),
-    }),
+    }).partial(),
     oidcToken: z.object({
       audience: z.string(),
       serviceAccountEmail: z.string(),
-    }),
-    pubsubWrapper: z.object({}),
+    }).partial(),
+    pubsubWrapper: z.object({}).partial(),
     pushEndpoint: z.string(),
-  }).optional(),
+  }).partial().optional(),
   retainAckedMessages: z.boolean().optional(),
   retryPolicy: z.object({
     maximumBackoff: z.string(),
     minimumBackoff: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   tags: z.record(z.string(), z.unknown()).optional(),
   topic: z.string().optional(),
@@ -1409,7 +1411,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Subscriptions. Registered at `@swamp/gcp/pubsub/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/pubsub/subscriptions",
-  version: "2026.10.24.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1703,6 +1705,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

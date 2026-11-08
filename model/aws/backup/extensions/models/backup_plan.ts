@@ -85,6 +85,53 @@ const ScanSettingResourceTypeSchema = z.object({
   ScannerRoleArn: z.string().optional(),
 });
 
+const AdvancedBackupSettingResourceTypeStateSchema = z.object({
+  BackupOptions: z.record(z.string(), z.unknown()),
+  ResourceType: z.string(),
+}).partial();
+
+const IndexActionsResourceTypeStateSchema = z.object({
+  ResourceTypes: z.array(z.string()),
+}).partial();
+
+const ScanActionResourceTypeStateSchema = z.object({
+  MalwareScanner: z.string(),
+  ScanMode: z.string(),
+}).partial();
+
+const LifecycleResourceTypeStateSchema = z.object({
+  MoveToColdStorageAfterDays: z.number(),
+  DeleteAfterDays: z.number(),
+  OptInToArchiveForSupportedResources: z.boolean(),
+}).partial();
+
+const CopyActionResourceTypeStateSchema = z.object({
+  Lifecycle: LifecycleResourceTypeStateSchema,
+  DestinationBackupVaultArn: z.string(),
+}).partial();
+
+const BackupRuleResourceTypeStateSchema = z.object({
+  RuleName: z.string(),
+  TargetBackupVault: z.string(),
+  TargetLogicallyAirGappedBackupVaultArn: z.string(),
+  StartWindowMinutes: z.number(),
+  CompletionWindowMinutes: z.number(),
+  ScheduleExpression: z.string(),
+  ScheduleExpressionTimezone: z.string(),
+  IndexActions: z.array(IndexActionsResourceTypeStateSchema),
+  ScanActions: z.array(ScanActionResourceTypeStateSchema),
+  RecoveryPointTags: z.record(z.string(), z.unknown()),
+  CopyActions: z.array(CopyActionResourceTypeStateSchema),
+  Lifecycle: LifecycleResourceTypeStateSchema,
+  EnableContinuousBackup: z.boolean(),
+}).partial();
+
+const ScanSettingResourceTypeStateSchema = z.object({
+  MalwareScanner: z.string(),
+  ResourceTypes: z.array(z.string()),
+  ScannerRoleArn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -114,17 +161,19 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   BackupPlan: z.object({
     BackupPlanName: z.string(),
-    AdvancedBackupSettings: z.array(AdvancedBackupSettingResourceTypeSchema),
-    BackupPlanRule: z.array(BackupRuleResourceTypeSchema),
-    ScanSettings: z.array(ScanSettingResourceTypeSchema),
-  }).optional(),
+    AdvancedBackupSettings: z.array(
+      AdvancedBackupSettingResourceTypeStateSchema,
+    ),
+    BackupPlanRule: z.array(BackupRuleResourceTypeStateSchema),
+    ScanSettings: z.array(ScanSettingResourceTypeStateSchema),
+  }).partial().optional(),
   BackupPlanTags: z.record(z.string(), z.unknown()).optional(),
   BackupPlanArn: z.string().optional(),
   BackupPlanId: z.string(),
   VersionId: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -161,7 +210,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup BackupPlan. Registered at `@swamp/aws/backup/backup-plan`. */
 export const model = {
   type: "@swamp/aws/backup/backup-plan",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -230,6 +279,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

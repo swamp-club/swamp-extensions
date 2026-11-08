@@ -5155,107 +5155,107 @@ const StateSchema = z.object({
   addonsConfig: z.object({
     agentSandboxConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     cloudRunConfig: z.object({
       disabled: z.boolean(),
       loadBalancerType: z.string(),
-    }),
+    }).partial(),
     configConnectorConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     dnsCacheConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     gcePersistentDiskCsiDriverConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     gcpFilestoreCsiDriverConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     gcsFuseCsiDriverConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     gkeBackupAgentConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     highScaleCheckpointingConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     horizontalPodAutoscaling: z.object({
       disabled: z.boolean(),
-    }),
+    }).partial(),
     httpLoadBalancing: z.object({
       disabled: z.boolean(),
-    }),
+    }).partial(),
     kubernetesDashboard: z.object({
       disabled: z.boolean(),
-    }),
+    }).partial(),
     lustreCsiDriverConfig: z.object({
       disableMultiNic: z.boolean(),
       enableLegacyLustrePort: z.boolean(),
       enabled: z.boolean(),
-    }),
+    }).partial(),
     networkPolicyConfig: z.object({
       disabled: z.boolean(),
-    }),
+    }).partial(),
     nodeReadinessConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     parallelstoreCsiDriverConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     podSnapshotConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     rayOperatorConfig: z.object({
       enabled: z.boolean(),
       rayClusterLoggingConfig: z.object({
         enabled: z.boolean(),
-      }),
+      }).partial(),
       rayClusterMonitoringConfig: z.object({
         enabled: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sliceControllerConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     slurmOperatorConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     statefulHaConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     wizSensorConfig: z.object({
       apiKeySecretUri: z.string(),
       enabled: z.boolean(),
       proxySecretUri: z.string(),
       registrySecretUri: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   alphaClusterFeatureGates: z.array(z.string()).optional(),
   anonymousAuthenticationConfig: z.object({
     mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   authenticatorGroupsConfig: z.object({
     enabled: z.boolean(),
     securityGroup: z.string(),
-  }).optional(),
+  }).partial().optional(),
   autopilot: z.object({
     clusterPolicyConfig: z.object({
       noStandardNodePools: z.boolean(),
       noSystemImpersonation: z.boolean(),
       noSystemMutation: z.boolean(),
       noUnsafeWebhooks: z.boolean(),
-    }),
+    }).partial(),
     enabled: z.boolean(),
     privilegedAdmissionConfig: z.object({
       allowlistPaths: z.array(z.string()),
-    }),
+    }).partial(),
     workloadPolicyConfig: z.object({
       allowNetAdmin: z.boolean(),
       autopilotCompatibilityAuditingEnabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   autoscaling: z.object({
     autopilotGeneralProfile: z.string(),
     autoprovisioningLocations: z.array(z.string()),
@@ -5271,98 +5271,106 @@ const StateSchema = z.object({
         upgradeOptions: z.object({
           autoUpgradeStartTime: z.string(),
           description: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       minCpuPlatform: z.string(),
       oauthScopes: z.array(z.string()),
       serviceAccount: z.string(),
       shieldedInstanceConfig: z.object({
         enableIntegrityMonitoring: z.boolean(),
         enableSecureBoot: z.boolean(),
-      }),
+      }).partial(),
       upgradeSettings: z.object({
         blueGreenSettings: z.object({
           autoscaledRolloutPolicy: z.object({
             waitForDrainDuration: z.unknown(),
-          }),
+          }).partial(),
           nodePoolSoakDuration: z.string(),
           standardRolloutPolicy: z.object({
             batchNodeCount: z.unknown(),
             batchPercentage: z.unknown(),
             batchSoakDuration: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         maxSurge: z.number(),
         maxUnavailable: z.number(),
         strategy: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     autoprovisioningRestrictionConfig: z.object({
       authorizedServiceAccounts: z.array(z.string()),
       serviceAccountPermissionCheck: z.string(),
-    }),
+    }).partial(),
     autoscalingProfile: z.string(),
     defaultComputeClassConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     enableNodeAutoprovisioning: z.boolean(),
-    resourceLimits: z.array(z.object({
-      maximum: z.string(),
-      minimum: z.string(),
-      resourceType: z.string(),
-    })),
-  }).optional(),
+    resourceLimits: z.array(
+      z.object({
+        maximum: z.string(),
+        minimum: z.string(),
+        resourceType: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   binaryAuthorization: z.object({
     enabled: z.boolean(),
     evaluationMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clusterIpv4Cidr: z.string().optional(),
   compliancePostureConfig: z.object({
-    complianceStandards: z.array(z.object({
-      standard: z.string(),
-    })),
+    complianceStandards: z.array(
+      z.object({
+        standard: z.string(),
+      }).partial(),
+    ),
     mode: z.string(),
-  }).optional(),
-  conditions: z.array(z.object({
-    canonicalCode: z.string(),
-    code: z.string(),
-    message: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  conditions: z.array(
+    z.object({
+      canonicalCode: z.string(),
+      code: z.string(),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
   confidentialNodes: z.object({
     confidentialInstanceType: z.string(),
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   controlPlaneEgress: z.object({
     mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   controlPlaneEndpointsConfig: z.object({
     dnsEndpointConfig: z.object({
       allowExternalTraffic: z.boolean(),
       enableK8sCertsViaDns: z.boolean(),
       enableK8sTokensViaDns: z.boolean(),
       endpoint: z.string(),
-    }),
+    }).partial(),
     ipEndpointsConfig: z.object({
       authorizedNetworksConfig: z.object({
-        cidrBlocks: z.array(z.object({
-          cidrBlock: z.unknown(),
-          displayName: z.unknown(),
-        })),
+        cidrBlocks: z.array(
+          z.object({
+            cidrBlock: z.unknown(),
+            displayName: z.unknown(),
+          }).partial(),
+        ),
         enabled: z.boolean(),
         gcpPublicCidrsAccessEnabled: z.boolean(),
         privateEndpointEnforcementEnabled: z.boolean(),
-      }),
+      }).partial(),
       enablePublicEndpoint: z.boolean(),
       enabled: z.boolean(),
       globalAccess: z.boolean(),
       privateEndpoint: z.string(),
       privateEndpointSubnetwork: z.string(),
       publicEndpoint: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   costManagementConfig: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   currentEmulatedVersion: z.string().optional(),
   currentMasterVersion: z.string().optional(),
@@ -5372,27 +5380,29 @@ const StateSchema = z.object({
     currentState: z.string(),
     decryptionKeys: z.array(z.string()),
     keyName: z.string(),
-    lastOperationErrors: z.array(z.object({
-      errorMessage: z.string(),
-      keyName: z.string(),
-      timestamp: z.string(),
-    })),
+    lastOperationErrors: z.array(
+      z.object({
+        errorMessage: z.string(),
+        keyName: z.string(),
+        timestamp: z.string(),
+      }).partial(),
+    ),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   defaultMaxPodsConstraint: z.object({
     maxPodsPerNode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   enableK8sBetaApis: z.object({
     enabledApis: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   enableKubernetesAlpha: z.boolean().optional(),
   enableTpu: z.boolean().optional(),
   endpoint: z.string().optional(),
   enterpriseConfig: z.object({
     clusterTier: z.string(),
     desiredTier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   expireTime: z.string().optional(),
   fleet: z.object({
@@ -5400,33 +5410,37 @@ const StateSchema = z.object({
     membershipType: z.string(),
     preRegistered: z.boolean(),
     project: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gkeAutoUpgradeConfig: z.object({
     patchMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   identityServiceConfig: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   initialClusterVersion: z.string().optional(),
   initialNodeCount: z.number().optional(),
   instanceGroupUrls: z.array(z.string()).optional(),
   ipAllocationPolicy: z.object({
-    additionalIpRangesConfigs: z.array(z.object({
-      podIpv4RangeNames: z.array(z.string()),
-      status: z.string(),
-      subnetwork: z.string(),
-    })),
+    additionalIpRangesConfigs: z.array(
+      z.object({
+        podIpv4RangeNames: z.array(z.string()),
+        status: z.string(),
+        subnetwork: z.string(),
+      }).partial(),
+    ),
     additionalPodRangesConfig: z.object({
-      podRangeInfo: z.array(z.object({
-        rangeName: z.string(),
-        utilization: z.number(),
-      })),
+      podRangeInfo: z.array(
+        z.object({
+          rangeName: z.string(),
+          utilization: z.number(),
+        }).partial(),
+      ),
       podRangeNames: z.array(z.string()),
-    }),
+    }).partial(),
     autoIpamConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     clusterIpv4Cidr: z.string(),
     clusterIpv4CidrBlock: z.string(),
     clusterSecondaryRangeName: z.string(),
@@ -5435,12 +5449,12 @@ const StateSchema = z.object({
     ipv6AccessType: z.string(),
     networkTierConfig: z.object({
       networkTier: z.string(),
-    }),
+    }).partial(),
     nodeIpv4Cidr: z.string(),
     nodeIpv4CidrBlock: z.string(),
     podCidrOverprovisionConfig: z.object({
       disable: z.boolean(),
-    }),
+    }).partial(),
     servicesIpv4Cidr: z.string(),
     servicesIpv4CidrBlock: z.string(),
     servicesIpv6CidrBlock: z.string(),
@@ -5451,18 +5465,18 @@ const StateSchema = z.object({
     tpuIpv4CidrBlock: z.string(),
     useIpAliases: z.boolean(),
     useRoutes: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   labelFingerprint: z.string().optional(),
   legacyAbac: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   location: z.string().optional(),
   locations: z.array(z.string()).optional(),
   loggingConfig: z.object({
     componentConfig: z.object({
       enableComponents: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   loggingService: z.string().optional(),
   maintenancePolicy: z.object({
     disruptionBudget: z.object({
@@ -5470,20 +5484,20 @@ const StateSchema = z.object({
       lastMinorVersionDisruptionTime: z.string(),
       minorVersionDisruptionInterval: z.string(),
       patchVersionDisruptionInterval: z.string(),
-    }),
+    }).partial(),
     resourceVersion: z.string(),
     window: z.object({
       dailyMaintenanceWindow: z.object({
         duration: z.string(),
         startTime: z.string(),
-      }),
+      }).partial(),
       maintenanceExclusions: z.record(z.string(), z.unknown()),
       recurringMaintenanceWindow: z.object({
         delayUntil: z.object({
           day: z.number(),
           month: z.number(),
           year: z.number(),
-        }),
+        }).partial(),
         recurrence: z.string(),
         windowDuration: z.string(),
         windowStartTime: z.object({
@@ -5491,8 +5505,8 @@ const StateSchema = z.object({
           minutes: z.number(),
           nanos: z.number(),
           seconds: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       recurringWindow: z.object({
         recurrence: z.string(),
         window: z.object({
@@ -5500,78 +5514,80 @@ const StateSchema = z.object({
           maintenanceExclusionOptions: z.object({
             endTimeBehavior: z.unknown(),
             scope: z.unknown(),
-          }),
+          }).partial(),
           startTime: z.string(),
-        }),
-      }),
-    }),
-  }).optional(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   managedMachineLearningDiagnosticsConfig: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   managedOpentelemetryConfig: z.object({
     scope: z.string(),
-  }).optional(),
+  }).partial().optional(),
   masterAuth: z.object({
     clientCertificate: z.string(),
     clientCertificateConfig: z.object({
       issueClientCertificate: z.boolean(),
-    }),
+    }).partial(),
     clientKey: z.string(),
     clusterCaCertificate: z.string(),
     password: z.string(),
     username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   masterAuthorizedNetworksConfig: z.object({
-    cidrBlocks: z.array(z.object({
-      cidrBlock: z.string(),
-      displayName: z.string(),
-    })),
+    cidrBlocks: z.array(
+      z.object({
+        cidrBlock: z.string(),
+        displayName: z.string(),
+      }).partial(),
+    ),
     enabled: z.boolean(),
     gcpPublicCidrsAccessEnabled: z.boolean(),
     privateEndpointEnforcementEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   meshCertificates: z.object({
     enableCertificates: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   monitoringConfig: z.object({
     advancedDatapathObservabilityConfig: z.object({
       enableMetrics: z.boolean(),
       enableRelay: z.boolean(),
       relayMode: z.string(),
-    }),
+    }).partial(),
     componentConfig: z.object({
       enableComponents: z.array(z.string()),
-    }),
+    }).partial(),
     managedPrometheusConfig: z.object({
       autoMonitoringConfig: z.object({
         scope: z.string(),
-      }),
+      }).partial(),
       enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   monitoringService: z.string().optional(),
   name: z.string(),
   network: z.string().optional(),
   networkConfig: z.object({
     ambientNetworkingConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     datapathProvider: z.string(),
     dataplaneV2Config: z.object({
       scalabilityMode: z.string(),
-    }),
+    }).partial(),
     defaultEnablePrivateNodes: z.boolean(),
     defaultSnatStatus: z.object({
       disabled: z.boolean(),
-    }),
+    }).partial(),
     disableL4LbFirewallReconciliation: z.boolean(),
     dnsConfig: z.object({
       additiveVpcScopeDnsDomain: z.string(),
       clusterDns: z.string(),
       clusterDnsDomain: z.string(),
       clusterDnsScope: z.string(),
-    }),
+    }).partial(),
     enableCiliumClusterwideNetworkPolicy: z.boolean(),
     enableFqdnNetworkPolicy: z.boolean(),
     enableIntraNodeVisibility: z.boolean(),
@@ -5579,69 +5595,75 @@ const StateSchema = z.object({
     enableMultiNetworking: z.boolean(),
     gatewayApiConfig: z.object({
       channel: z.string(),
-    }),
+    }).partial(),
     inTransitEncryptionConfig: z.string(),
     network: z.string(),
     networkPerformanceConfig: z.object({
       totalEgressBandwidthTier: z.string(),
-    }),
+    }).partial(),
     privateIpv6GoogleAccess: z.string(),
     serviceExternalIpsConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     subnetwork: z.string(),
-  }).optional(),
+  }).partial().optional(),
   networkPolicy: z.object({
     enabled: z.boolean(),
     provider: z.string(),
-  }).optional(),
+  }).partial().optional(),
   nodeConfig: z.object({
-    accelerators: z.array(z.object({
-      acceleratorCount: z.string(),
-      acceleratorType: z.string(),
-      gpuDriverInstallationConfig: z.object({
-        gpuDriverVersion: z.string(),
-        specificVersion: z.string(),
-      }),
-      gpuPartitionSize: z.string(),
-      gpuSharingConfig: z.object({
-        gpuSharingStrategy: z.string(),
-        maxSharedClientsPerGpu: z.string(),
-      }),
-    })),
+    accelerators: z.array(
+      z.object({
+        acceleratorCount: z.string(),
+        acceleratorType: z.string(),
+        gpuDriverInstallationConfig: z.object({
+          gpuDriverVersion: z.string(),
+          specificVersion: z.string(),
+        }).partial(),
+        gpuPartitionSize: z.string(),
+        gpuSharingConfig: z.object({
+          gpuSharingStrategy: z.string(),
+          maxSharedClientsPerGpu: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     advancedMachineFeatures: z.object({
       enableNestedVirtualization: z.boolean(),
       performanceMonitoringUnit: z.string(),
       threadsPerCore: z.string(),
-    }),
+    }).partial(),
     bootDisk: z.object({
       diskType: z.string(),
       provisionedIops: z.string(),
       provisionedThroughput: z.string(),
       sizeGb: z.string(),
-    }),
+    }).partial(),
     bootDiskKmsKey: z.string(),
     confidentialNodes: z.object({
       confidentialInstanceType: z.string(),
       enabled: z.boolean(),
-    }),
+    }).partial(),
     consolidationDelay: z.string(),
     containerdConfig: z.object({
       privateRegistryAccessConfig: z.object({
-        certificateAuthorityDomainConfig: z.array(z.object({
-          fqdns: z.unknown(),
-          gcpSecretManagerCertificateConfig: z.unknown(),
-        })),
+        certificateAuthorityDomainConfig: z.array(
+          z.object({
+            fqdns: z.unknown(),
+            gcpSecretManagerCertificateConfig: z.unknown(),
+          }).partial(),
+        ),
         enabled: z.boolean(),
-      }),
-      registryHosts: z.array(z.object({
-        hosts: z.array(z.unknown()),
-        server: z.string(),
-      })),
+      }).partial(),
+      registryHosts: z.array(
+        z.object({
+          hosts: z.array(z.unknown()),
+          server: z.string(),
+        }).partial(),
+      ),
       writableCgroups: z.object({
         enabled: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     diskSizeGb: z.number(),
     diskType: z.string(),
     effectiveCgroupMode: z.string(),
@@ -5650,20 +5672,20 @@ const StateSchema = z.object({
       dataCacheCount: z.number(),
       ephemeralCapacityGb: z.string(),
       localSsdCount: z.number(),
-    }),
+    }).partial(),
     fastSocket: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     flexStart: z.boolean(),
     gcfsConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     gpuDirectConfig: z.object({
       gpuDirectStrategy: z.string(),
-    }),
+    }).partial(),
     gvnic: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     imageType: z.string(),
     kubeletConfig: z.object({
       allowedUnsafeSysctls: z.array(z.string()),
@@ -5676,7 +5698,7 @@ const StateSchema = z.object({
       cpuManagerPolicy: z.string(),
       crashLoopBackOff: z.object({
         maxContainerRestartPeriod: z.string(),
-      }),
+      }).partial(),
       evictionMaxPodGracePeriodSeconds: z.number(),
       evictionMinimumReclaim: z.object({
         imagefsAvailable: z.string(),
@@ -5685,7 +5707,7 @@ const StateSchema = z.object({
         nodefsAvailable: z.string(),
         nodefsInodesFree: z.string(),
         pidAvailable: z.string(),
-      }),
+      }).partial(),
       evictionSoft: z.object({
         imagefsAvailable: z.string(),
         imagefsInodesFree: z.string(),
@@ -5693,7 +5715,7 @@ const StateSchema = z.object({
         nodefsAvailable: z.string(),
         nodefsInodesFree: z.string(),
         pidAvailable: z.string(),
-      }),
+      }).partial(),
       evictionSoftGracePeriod: z.object({
         imagefsAvailable: z.string(),
         imagefsInodesFree: z.string(),
@@ -5701,7 +5723,7 @@ const StateSchema = z.object({
         nodefsAvailable: z.string(),
         nodefsInodesFree: z.string(),
         pidAvailable: z.string(),
-      }),
+      }).partial(),
       imageGcHighThresholdPercent: z.number(),
       imageGcLowThresholdPercent: z.number(),
       imageMaximumGcAge: z.string(),
@@ -5710,14 +5732,14 @@ const StateSchema = z.object({
       maxParallelImagePulls: z.number(),
       memoryManager: z.object({
         policy: z.string(),
-      }),
+      }).partial(),
       podPidsLimit: z.string(),
       reservedResourcesConfig: z.object({
         cpuReservedMillicore: z.string(),
         effectiveCpuReservedMillicore: z.string(),
         effectiveMemoryReservedMib: z.string(),
         memoryReservedMib: z.string(),
-      }),
+      }).partial(),
       reservedSystemCpus: z.string(),
       shutdownGracePeriodCriticalPodsSeconds: z.number(),
       shutdownGracePeriodSeconds: z.number(),
@@ -5725,25 +5747,31 @@ const StateSchema = z.object({
       topologyManager: z.object({
         policy: z.string(),
         scope: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     labels: z.record(z.string(), z.unknown()),
     linuxNodeConfig: z.object({
       accurateTimeConfig: z.object({
         enablePtpKvmTimeSync: z.boolean(),
-      }),
-      additionalEtcHosts: z.array(z.object({
-        host: z.string(),
-        ip: z.string(),
-      })),
-      additionalEtcResolvConf: z.array(z.object({
-        key: z.string(),
-        value: z.array(z.unknown()),
-      })),
-      additionalEtcSystemdResolvedConf: z.array(z.object({
-        key: z.string(),
-        value: z.array(z.unknown()),
-      })),
+      }).partial(),
+      additionalEtcHosts: z.array(
+        z.object({
+          host: z.string(),
+          ip: z.string(),
+        }).partial(),
+      ),
+      additionalEtcResolvConf: z.array(
+        z.object({
+          key: z.string(),
+          value: z.array(z.unknown()),
+        }).partial(),
+      ),
+      additionalEtcSystemdResolvedConf: z.array(
+        z.object({
+          key: z.string(),
+          value: z.array(z.unknown()),
+        }).partial(),
+      ),
       cgroupMode: z.string(),
       customNodeInit: z.object({
         initScript: z.object({
@@ -5751,64 +5779,64 @@ const StateSchema = z.object({
           gcpSecretManagerSecretUri: z.string(),
           gcsGeneration: z.string(),
           gcsUri: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       diskIoScheduler: z.object({
         nodeAttachedDiskIoScheduler: z.string(),
         nodeSystemIoScheduler: z.string(),
-      }),
+      }).partial(),
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
-      }),
+      }).partial(),
       kernelOverrides: z.object({
         kernelCommandlineOverrides: z.object({
           initOnAlloc: z.string(),
           specRstackOverflow: z.string(),
-        }),
+        }).partial(),
         lruGen: z.object({
           enabled: z.boolean(),
           minTtlMs: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       nodeKernelModuleLoading: z.object({
         policy: z.string(),
-      }),
+      }).partial(),
       nodeVfioConfig: z.object({
         dmaEntryLimit: z.number(),
-      }),
+      }).partial(),
       swapConfig: z.object({
         bootDiskProfile: z.object({
           swapSizeGib: z.string(),
           swapSizePercent: z.number(),
-        }),
+        }).partial(),
         dedicatedLocalSsdProfile: z.object({
           diskCount: z.string(),
-        }),
+        }).partial(),
         enabled: z.boolean(),
         encryptionConfig: z.object({
           disabled: z.boolean(),
-        }),
+        }).partial(),
         ephemeralLocalSsdProfile: z.object({
           swapSizeGib: z.string(),
           swapSizePercent: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       sysctls: z.record(z.string(), z.unknown()),
       timeZone: z.string(),
       transparentHugepageDefrag: z.string(),
       transparentHugepageEnabled: z.string(),
-    }),
+    }).partial(),
     localNvmeSsdBlockConfig: z.object({
       localSsdCount: z.number(),
-    }),
+    }).partial(),
     localSsdCount: z.number(),
     localSsdEncryptionMode: z.string(),
     loggingConfig: z.object({
       variantConfig: z.object({
         variant: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     machineType: z.string(),
     maxRunDuration: z.string(),
     metadata: z.record(z.string(), z.unknown()),
@@ -5817,78 +5845,90 @@ const StateSchema = z.object({
     nodeImageConfig: z.object({
       image: z.string(),
       imageProject: z.string(),
-    }),
+    }).partial(),
     oauthScopes: z.array(z.string()),
     preemptible: z.boolean(),
     reservationAffinity: z.object({
       consumeReservationType: z.string(),
       key: z.string(),
       values: z.array(z.string()),
-    }),
+    }).partial(),
     resourceLabels: z.record(z.string(), z.unknown()),
     resourceManagerTags: z.object({
       tags: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     sandboxConfig: z.object({
       type: z.string(),
-    }),
-    secondaryBootDiskUpdateStrategy: z.object({}),
-    secondaryBootDisks: z.array(z.object({
-      diskImage: z.string(),
-      mode: z.string(),
-    })),
+    }).partial(),
+    secondaryBootDiskUpdateStrategy: z.object({}).partial(),
+    secondaryBootDisks: z.array(
+      z.object({
+        diskImage: z.string(),
+        mode: z.string(),
+      }).partial(),
+    ),
     serviceAccount: z.string(),
     shieldedInstanceConfig: z.object({
       enableIntegrityMonitoring: z.boolean(),
       enableSecureBoot: z.boolean(),
-    }),
+    }).partial(),
     soleTenantConfig: z.object({
       minNodeCpus: z.number(),
-      nodeAffinities: z.array(z.object({
-        key: z.string(),
-        operator: z.string(),
-        values: z.array(z.unknown()),
-      })),
-    }),
+      nodeAffinities: z.array(
+        z.object({
+          key: z.string(),
+          operator: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     spot: z.boolean(),
     storagePools: z.array(z.string()),
     tags: z.array(z.string()),
     taintConfig: z.object({
       architectureTaintBehavior: z.string(),
-    }),
-    taints: z.array(z.object({
-      effect: z.string(),
-      key: z.string(),
-      value: z.string(),
-    })),
+    }).partial(),
+    taints: z.array(
+      z.object({
+        effect: z.string(),
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     windowsNodeConfig: z.object({
       osVersion: z.string(),
-    }),
+    }).partial(),
     workloadMetadataConfig: z.object({
       mode: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   nodeCreationConfig: z.object({
     nodeCreationMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   nodeIpv4CidrSize: z.number().optional(),
   nodePoolAutoConfig: z.object({
     linuxNodeConfig: z.object({
       accurateTimeConfig: z.object({
         enablePtpKvmTimeSync: z.boolean(),
-      }),
-      additionalEtcHosts: z.array(z.object({
-        host: z.string(),
-        ip: z.string(),
-      })),
-      additionalEtcResolvConf: z.array(z.object({
-        key: z.string(),
-        value: z.array(z.unknown()),
-      })),
-      additionalEtcSystemdResolvedConf: z.array(z.object({
-        key: z.string(),
-        value: z.array(z.unknown()),
-      })),
+      }).partial(),
+      additionalEtcHosts: z.array(
+        z.object({
+          host: z.string(),
+          ip: z.string(),
+        }).partial(),
+      ),
+      additionalEtcResolvConf: z.array(
+        z.object({
+          key: z.string(),
+          value: z.array(z.unknown()),
+        }).partial(),
+      ),
+      additionalEtcSystemdResolvedConf: z.array(
+        z.object({
+          key: z.string(),
+          value: z.array(z.unknown()),
+        }).partial(),
+      ),
       cgroupMode: z.string(),
       customNodeInit: z.object({
         initScript: z.object({
@@ -5896,57 +5936,57 @@ const StateSchema = z.object({
           gcpSecretManagerSecretUri: z.string(),
           gcsGeneration: z.string(),
           gcsUri: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       diskIoScheduler: z.object({
         nodeAttachedDiskIoScheduler: z.string(),
         nodeSystemIoScheduler: z.string(),
-      }),
+      }).partial(),
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
-      }),
+      }).partial(),
       kernelOverrides: z.object({
         kernelCommandlineOverrides: z.object({
           initOnAlloc: z.string(),
           specRstackOverflow: z.string(),
-        }),
+        }).partial(),
         lruGen: z.object({
           enabled: z.boolean(),
           minTtlMs: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       nodeKernelModuleLoading: z.object({
         policy: z.string(),
-      }),
+      }).partial(),
       nodeVfioConfig: z.object({
         dmaEntryLimit: z.number(),
-      }),
+      }).partial(),
       swapConfig: z.object({
         bootDiskProfile: z.object({
           swapSizeGib: z.string(),
           swapSizePercent: z.number(),
-        }),
+        }).partial(),
         dedicatedLocalSsdProfile: z.object({
           diskCount: z.string(),
-        }),
+        }).partial(),
         enabled: z.boolean(),
         encryptionConfig: z.object({
           disabled: z.boolean(),
-        }),
+        }).partial(),
         ephemeralLocalSsdProfile: z.object({
           swapSizeGib: z.string(),
           swapSizePercent: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       sysctls: z.record(z.string(), z.unknown()),
       timeZone: z.string(),
       transparentHugepageDefrag: z.string(),
       transparentHugepageEnabled: z.string(),
-    }),
+    }).partial(),
     networkTags: z.object({
       tags: z.array(z.string()),
-    }),
+    }).partial(),
     nodeKubeletConfig: z.object({
       allowedUnsafeSysctls: z.array(z.string()),
       containerLogMaxFiles: z.number(),
@@ -5958,7 +5998,7 @@ const StateSchema = z.object({
       cpuManagerPolicy: z.string(),
       crashLoopBackOff: z.object({
         maxContainerRestartPeriod: z.string(),
-      }),
+      }).partial(),
       evictionMaxPodGracePeriodSeconds: z.number(),
       evictionMinimumReclaim: z.object({
         imagefsAvailable: z.string(),
@@ -5967,7 +6007,7 @@ const StateSchema = z.object({
         nodefsAvailable: z.string(),
         nodefsInodesFree: z.string(),
         pidAvailable: z.string(),
-      }),
+      }).partial(),
       evictionSoft: z.object({
         imagefsAvailable: z.string(),
         imagefsInodesFree: z.string(),
@@ -5975,7 +6015,7 @@ const StateSchema = z.object({
         nodefsAvailable: z.string(),
         nodefsInodesFree: z.string(),
         pidAvailable: z.string(),
-      }),
+      }).partial(),
       evictionSoftGracePeriod: z.object({
         imagefsAvailable: z.string(),
         imagefsInodesFree: z.string(),
@@ -5983,7 +6023,7 @@ const StateSchema = z.object({
         nodefsAvailable: z.string(),
         nodefsInodesFree: z.string(),
         pidAvailable: z.string(),
-      }),
+      }).partial(),
       imageGcHighThresholdPercent: z.number(),
       imageGcLowThresholdPercent: z.number(),
       imageMaximumGcAge: z.string(),
@@ -5992,14 +6032,14 @@ const StateSchema = z.object({
       maxParallelImagePulls: z.number(),
       memoryManager: z.object({
         policy: z.string(),
-      }),
+      }).partial(),
       podPidsLimit: z.string(),
       reservedResourcesConfig: z.object({
         cpuReservedMillicore: z.string(),
         effectiveCpuReservedMillicore: z.string(),
         effectiveMemoryReservedMib: z.string(),
         memoryReservedMib: z.string(),
-      }),
+      }).partial(),
       reservedSystemCpus: z.string(),
       shutdownGracePeriodCriticalPodsSeconds: z.number(),
       shutdownGracePeriodSeconds: z.number(),
@@ -6007,35 +6047,37 @@ const StateSchema = z.object({
       topologyManager: z.object({
         policy: z.string(),
         scope: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     resourceManagerTags: z.object({
       tags: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   nodePoolDefaults: z.object({
     nodeConfigDefaults: z.object({
       containerdConfig: z.object({
         privateRegistryAccessConfig: z.object({
           certificateAuthorityDomainConfig: z.array(z.unknown()),
           enabled: z.boolean(),
-        }),
-        registryHosts: z.array(z.object({
-          hosts: z.unknown(),
-          server: z.unknown(),
-        })),
+        }).partial(),
+        registryHosts: z.array(
+          z.object({
+            hosts: z.unknown(),
+            server: z.unknown(),
+          }).partial(),
+        ),
         writableCgroups: z.object({
           enabled: z.boolean(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       gcfsConfig: z.object({
         enabled: z.boolean(),
-      }),
+      }).partial(),
       loggingConfig: z.object({
         variantConfig: z.object({
           variant: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       nodeKubeletConfig: z.object({
         allowedUnsafeSysctls: z.array(z.string()),
         containerLogMaxFiles: z.number(),
@@ -6047,7 +6089,7 @@ const StateSchema = z.object({
         cpuManagerPolicy: z.string(),
         crashLoopBackOff: z.object({
           maxContainerRestartPeriod: z.string(),
-        }),
+        }).partial(),
         evictionMaxPodGracePeriodSeconds: z.number(),
         evictionMinimumReclaim: z.object({
           imagefsAvailable: z.string(),
@@ -6056,7 +6098,7 @@ const StateSchema = z.object({
           nodefsAvailable: z.string(),
           nodefsInodesFree: z.string(),
           pidAvailable: z.string(),
-        }),
+        }).partial(),
         evictionSoft: z.object({
           imagefsAvailable: z.string(),
           imagefsInodesFree: z.string(),
@@ -6064,7 +6106,7 @@ const StateSchema = z.object({
           nodefsAvailable: z.string(),
           nodefsInodesFree: z.string(),
           pidAvailable: z.string(),
-        }),
+        }).partial(),
         evictionSoftGracePeriod: z.object({
           imagefsAvailable: z.string(),
           imagefsInodesFree: z.string(),
@@ -6072,7 +6114,7 @@ const StateSchema = z.object({
           nodefsAvailable: z.string(),
           nodefsInodesFree: z.string(),
           pidAvailable: z.string(),
-        }),
+        }).partial(),
         imageGcHighThresholdPercent: z.number(),
         imageGcLowThresholdPercent: z.number(),
         imageMaximumGcAge: z.string(),
@@ -6081,14 +6123,14 @@ const StateSchema = z.object({
         maxParallelImagePulls: z.number(),
         memoryManager: z.object({
           policy: z.string(),
-        }),
+        }).partial(),
         podPidsLimit: z.string(),
         reservedResourcesConfig: z.object({
           cpuReservedMillicore: z.string(),
           effectiveCpuReservedMillicore: z.string(),
           effectiveMemoryReservedMib: z.string(),
           memoryReservedMib: z.string(),
-        }),
+        }).partial(),
         reservedSystemCpus: z.string(),
         shutdownGracePeriodCriticalPodsSeconds: z.number(),
         shutdownGracePeriodSeconds: z.number(),
@@ -6096,436 +6138,450 @@ const StateSchema = z.object({
         topologyManager: z.object({
           policy: z.string(),
           scope: z.string(),
-        }),
-      }),
-    }),
-  }).optional(),
-  nodePools: z.array(z.object({
-    autopilotConfig: z.object({
-      enabled: z.boolean(),
-    }),
-    autoscaling: z.object({
-      autoprovisioned: z.boolean(),
-      enabled: z.boolean(),
-      locationPolicy: z.string(),
-      maxNodeCount: z.number(),
-      minNodeCount: z.number(),
-      totalMaxNodeCount: z.number(),
-      totalMinNodeCount: z.number(),
-    }),
-    bestEffortProvisioning: z.object({
-      enabled: z.boolean(),
-      minProvisionNodes: z.number(),
-    }),
-    conditions: z.array(z.object({
-      canonicalCode: z.string(),
-      code: z.string(),
-      message: z.string(),
-    })),
-    config: z.object({
-      accelerators: z.array(z.object({
-        acceleratorCount: z.unknown(),
-        acceleratorType: z.unknown(),
-        gpuDriverInstallationConfig: z.unknown(),
-        gpuPartitionSize: z.unknown(),
-        gpuSharingConfig: z.unknown(),
-      })),
-      advancedMachineFeatures: z.object({
-        enableNestedVirtualization: z.boolean(),
-        performanceMonitoringUnit: z.string(),
-        threadsPerCore: z.string(),
-      }),
-      bootDisk: z.object({
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
+  nodePools: z.array(
+    z.object({
+      autopilotConfig: z.object({
+        enabled: z.boolean(),
+      }).partial(),
+      autoscaling: z.object({
+        autoprovisioned: z.boolean(),
+        enabled: z.boolean(),
+        locationPolicy: z.string(),
+        maxNodeCount: z.number(),
+        minNodeCount: z.number(),
+        totalMaxNodeCount: z.number(),
+        totalMinNodeCount: z.number(),
+      }).partial(),
+      bestEffortProvisioning: z.object({
+        enabled: z.boolean(),
+        minProvisionNodes: z.number(),
+      }).partial(),
+      conditions: z.array(
+        z.object({
+          canonicalCode: z.string(),
+          code: z.string(),
+          message: z.string(),
+        }).partial(),
+      ),
+      config: z.object({
+        accelerators: z.array(
+          z.object({
+            acceleratorCount: z.unknown(),
+            acceleratorType: z.unknown(),
+            gpuDriverInstallationConfig: z.unknown(),
+            gpuPartitionSize: z.unknown(),
+            gpuSharingConfig: z.unknown(),
+          }).partial(),
+        ),
+        advancedMachineFeatures: z.object({
+          enableNestedVirtualization: z.boolean(),
+          performanceMonitoringUnit: z.string(),
+          threadsPerCore: z.string(),
+        }).partial(),
+        bootDisk: z.object({
+          diskType: z.string(),
+          provisionedIops: z.string(),
+          provisionedThroughput: z.string(),
+          sizeGb: z.string(),
+        }).partial(),
+        bootDiskKmsKey: z.string(),
+        confidentialNodes: z.object({
+          confidentialInstanceType: z.string(),
+          enabled: z.boolean(),
+        }).partial(),
+        consolidationDelay: z.string(),
+        containerdConfig: z.object({
+          privateRegistryAccessConfig: z.object({
+            certificateAuthorityDomainConfig: z.unknown(),
+            enabled: z.unknown(),
+          }).partial(),
+          registryHosts: z.array(z.unknown()),
+          writableCgroups: z.object({
+            enabled: z.unknown(),
+          }).partial(),
+        }).partial(),
+        diskSizeGb: z.number(),
         diskType: z.string(),
-        provisionedIops: z.string(),
-        provisionedThroughput: z.string(),
-        sizeGb: z.string(),
-      }),
-      bootDiskKmsKey: z.string(),
-      confidentialNodes: z.object({
-        confidentialInstanceType: z.string(),
-        enabled: z.boolean(),
-      }),
-      consolidationDelay: z.string(),
-      containerdConfig: z.object({
-        privateRegistryAccessConfig: z.object({
-          certificateAuthorityDomainConfig: z.unknown(),
-          enabled: z.unknown(),
-        }),
-        registryHosts: z.array(z.unknown()),
-        writableCgroups: z.object({
-          enabled: z.unknown(),
-        }),
-      }),
-      diskSizeGb: z.number(),
-      diskType: z.string(),
-      effectiveCgroupMode: z.string(),
-      enableConfidentialStorage: z.boolean(),
-      ephemeralStorageLocalSsdConfig: z.object({
-        dataCacheCount: z.number(),
-        ephemeralCapacityGb: z.string(),
+        effectiveCgroupMode: z.string(),
+        enableConfidentialStorage: z.boolean(),
+        ephemeralStorageLocalSsdConfig: z.object({
+          dataCacheCount: z.number(),
+          ephemeralCapacityGb: z.string(),
+          localSsdCount: z.number(),
+        }).partial(),
+        fastSocket: z.object({
+          enabled: z.boolean(),
+        }).partial(),
+        flexStart: z.boolean(),
+        gcfsConfig: z.object({
+          enabled: z.boolean(),
+        }).partial(),
+        gpuDirectConfig: z.object({
+          gpuDirectStrategy: z.string(),
+        }).partial(),
+        gvnic: z.object({
+          enabled: z.boolean(),
+        }).partial(),
+        imageType: z.string(),
+        kubeletConfig: z.object({
+          allowedUnsafeSysctls: z.array(z.unknown()),
+          containerLogMaxFiles: z.number(),
+          containerLogMaxSize: z.string(),
+          containerLogMaxWorkers: z.number(),
+          containerLogMonitorInterval: z.string(),
+          cpuCfsQuota: z.boolean(),
+          cpuCfsQuotaPeriod: z.string(),
+          cpuManagerPolicy: z.string(),
+          crashLoopBackOff: z.object({
+            maxContainerRestartPeriod: z.unknown(),
+          }).partial(),
+          evictionMaxPodGracePeriodSeconds: z.number(),
+          evictionMinimumReclaim: z.object({
+            imagefsAvailable: z.unknown(),
+            imagefsInodesFree: z.unknown(),
+            memoryAvailable: z.unknown(),
+            nodefsAvailable: z.unknown(),
+            nodefsInodesFree: z.unknown(),
+            pidAvailable: z.unknown(),
+          }).partial(),
+          evictionSoft: z.object({
+            imagefsAvailable: z.unknown(),
+            imagefsInodesFree: z.unknown(),
+            memoryAvailable: z.unknown(),
+            nodefsAvailable: z.unknown(),
+            nodefsInodesFree: z.unknown(),
+            pidAvailable: z.unknown(),
+          }).partial(),
+          evictionSoftGracePeriod: z.object({
+            imagefsAvailable: z.unknown(),
+            imagefsInodesFree: z.unknown(),
+            memoryAvailable: z.unknown(),
+            nodefsAvailable: z.unknown(),
+            nodefsInodesFree: z.unknown(),
+            pidAvailable: z.unknown(),
+          }).partial(),
+          imageGcHighThresholdPercent: z.number(),
+          imageGcLowThresholdPercent: z.number(),
+          imageMaximumGcAge: z.string(),
+          imageMinimumGcAge: z.string(),
+          insecureKubeletReadonlyPortEnabled: z.boolean(),
+          maxParallelImagePulls: z.number(),
+          memoryManager: z.object({
+            policy: z.unknown(),
+          }).partial(),
+          podPidsLimit: z.string(),
+          reservedResourcesConfig: z.object({
+            cpuReservedMillicore: z.unknown(),
+            effectiveCpuReservedMillicore: z.unknown(),
+            effectiveMemoryReservedMib: z.unknown(),
+            memoryReservedMib: z.unknown(),
+          }).partial(),
+          reservedSystemCpus: z.string(),
+          shutdownGracePeriodCriticalPodsSeconds: z.number(),
+          shutdownGracePeriodSeconds: z.number(),
+          singleProcessOomKill: z.boolean(),
+          topologyManager: z.object({
+            policy: z.unknown(),
+            scope: z.unknown(),
+          }).partial(),
+        }).partial(),
+        labels: z.record(z.string(), z.unknown()),
+        linuxNodeConfig: z.object({
+          accurateTimeConfig: z.object({
+            enablePtpKvmTimeSync: z.unknown(),
+          }).partial(),
+          additionalEtcHosts: z.array(z.unknown()),
+          additionalEtcResolvConf: z.array(z.unknown()),
+          additionalEtcSystemdResolvedConf: z.array(z.unknown()),
+          cgroupMode: z.string(),
+          customNodeInit: z.object({
+            initScript: z.unknown(),
+          }).partial(),
+          diskIoScheduler: z.object({
+            nodeAttachedDiskIoScheduler: z.unknown(),
+            nodeSystemIoScheduler: z.unknown(),
+          }).partial(),
+          hugepages: z.object({
+            hugepageSize1g: z.unknown(),
+            hugepageSize2m: z.unknown(),
+          }).partial(),
+          kernelOverrides: z.object({
+            kernelCommandlineOverrides: z.unknown(),
+            lruGen: z.unknown(),
+          }).partial(),
+          nodeKernelModuleLoading: z.object({
+            policy: z.unknown(),
+          }).partial(),
+          nodeVfioConfig: z.object({
+            dmaEntryLimit: z.unknown(),
+          }).partial(),
+          swapConfig: z.object({
+            bootDiskProfile: z.unknown(),
+            dedicatedLocalSsdProfile: z.unknown(),
+            enabled: z.unknown(),
+            encryptionConfig: z.unknown(),
+            ephemeralLocalSsdProfile: z.unknown(),
+          }).partial(),
+          sysctls: z.record(z.string(), z.unknown()),
+          timeZone: z.string(),
+          transparentHugepageDefrag: z.string(),
+          transparentHugepageEnabled: z.string(),
+        }).partial(),
+        localNvmeSsdBlockConfig: z.object({
+          localSsdCount: z.number(),
+        }).partial(),
         localSsdCount: z.number(),
-      }),
-      fastSocket: z.object({
-        enabled: z.boolean(),
-      }),
-      flexStart: z.boolean(),
-      gcfsConfig: z.object({
-        enabled: z.boolean(),
-      }),
-      gpuDirectConfig: z.object({
-        gpuDirectStrategy: z.string(),
-      }),
-      gvnic: z.object({
-        enabled: z.boolean(),
-      }),
-      imageType: z.string(),
-      kubeletConfig: z.object({
-        allowedUnsafeSysctls: z.array(z.unknown()),
-        containerLogMaxFiles: z.number(),
-        containerLogMaxSize: z.string(),
-        containerLogMaxWorkers: z.number(),
-        containerLogMonitorInterval: z.string(),
-        cpuCfsQuota: z.boolean(),
-        cpuCfsQuotaPeriod: z.string(),
-        cpuManagerPolicy: z.string(),
-        crashLoopBackOff: z.object({
-          maxContainerRestartPeriod: z.unknown(),
-        }),
-        evictionMaxPodGracePeriodSeconds: z.number(),
-        evictionMinimumReclaim: z.object({
-          imagefsAvailable: z.unknown(),
-          imagefsInodesFree: z.unknown(),
-          memoryAvailable: z.unknown(),
-          nodefsAvailable: z.unknown(),
-          nodefsInodesFree: z.unknown(),
-          pidAvailable: z.unknown(),
-        }),
-        evictionSoft: z.object({
-          imagefsAvailable: z.unknown(),
-          imagefsInodesFree: z.unknown(),
-          memoryAvailable: z.unknown(),
-          nodefsAvailable: z.unknown(),
-          nodefsInodesFree: z.unknown(),
-          pidAvailable: z.unknown(),
-        }),
-        evictionSoftGracePeriod: z.object({
-          imagefsAvailable: z.unknown(),
-          imagefsInodesFree: z.unknown(),
-          memoryAvailable: z.unknown(),
-          nodefsAvailable: z.unknown(),
-          nodefsInodesFree: z.unknown(),
-          pidAvailable: z.unknown(),
-        }),
-        imageGcHighThresholdPercent: z.number(),
-        imageGcLowThresholdPercent: z.number(),
-        imageMaximumGcAge: z.string(),
-        imageMinimumGcAge: z.string(),
-        insecureKubeletReadonlyPortEnabled: z.boolean(),
-        maxParallelImagePulls: z.number(),
-        memoryManager: z.object({
-          policy: z.unknown(),
-        }),
-        podPidsLimit: z.string(),
-        reservedResourcesConfig: z.object({
-          cpuReservedMillicore: z.unknown(),
-          effectiveCpuReservedMillicore: z.unknown(),
-          effectiveMemoryReservedMib: z.unknown(),
-          memoryReservedMib: z.unknown(),
-        }),
-        reservedSystemCpus: z.string(),
-        shutdownGracePeriodCriticalPodsSeconds: z.number(),
-        shutdownGracePeriodSeconds: z.number(),
-        singleProcessOomKill: z.boolean(),
-        topologyManager: z.object({
-          policy: z.unknown(),
-          scope: z.unknown(),
-        }),
-      }),
-      labels: z.record(z.string(), z.unknown()),
-      linuxNodeConfig: z.object({
-        accurateTimeConfig: z.object({
-          enablePtpKvmTimeSync: z.unknown(),
-        }),
-        additionalEtcHosts: z.array(z.unknown()),
-        additionalEtcResolvConf: z.array(z.unknown()),
-        additionalEtcSystemdResolvedConf: z.array(z.unknown()),
-        cgroupMode: z.string(),
-        customNodeInit: z.object({
-          initScript: z.unknown(),
-        }),
-        diskIoScheduler: z.object({
-          nodeAttachedDiskIoScheduler: z.unknown(),
-          nodeSystemIoScheduler: z.unknown(),
-        }),
-        hugepages: z.object({
-          hugepageSize1g: z.unknown(),
-          hugepageSize2m: z.unknown(),
-        }),
-        kernelOverrides: z.object({
-          kernelCommandlineOverrides: z.unknown(),
-          lruGen: z.unknown(),
-        }),
-        nodeKernelModuleLoading: z.object({
-          policy: z.unknown(),
-        }),
-        nodeVfioConfig: z.object({
-          dmaEntryLimit: z.unknown(),
-        }),
-        swapConfig: z.object({
-          bootDiskProfile: z.unknown(),
-          dedicatedLocalSsdProfile: z.unknown(),
-          enabled: z.unknown(),
-          encryptionConfig: z.unknown(),
-          ephemeralLocalSsdProfile: z.unknown(),
-        }),
-        sysctls: z.record(z.string(), z.unknown()),
-        timeZone: z.string(),
-        transparentHugepageDefrag: z.string(),
-        transparentHugepageEnabled: z.string(),
-      }),
-      localNvmeSsdBlockConfig: z.object({
-        localSsdCount: z.number(),
-      }),
-      localSsdCount: z.number(),
-      localSsdEncryptionMode: z.string(),
-      loggingConfig: z.object({
-        variantConfig: z.object({
-          variant: z.unknown(),
-        }),
-      }),
-      machineType: z.string(),
-      maxRunDuration: z.string(),
-      metadata: z.record(z.string(), z.unknown()),
-      minCpuPlatform: z.string(),
-      nodeGroup: z.string(),
-      nodeImageConfig: z.object({
-        image: z.string(),
-        imageProject: z.string(),
-      }),
-      oauthScopes: z.array(z.string()),
-      preemptible: z.boolean(),
-      reservationAffinity: z.object({
-        consumeReservationType: z.string(),
-        key: z.string(),
-        values: z.array(z.unknown()),
-      }),
-      resourceLabels: z.record(z.string(), z.unknown()),
-      resourceManagerTags: z.object({
-        tags: z.record(z.string(), z.unknown()),
-      }),
-      sandboxConfig: z.object({
+        localSsdEncryptionMode: z.string(),
+        loggingConfig: z.object({
+          variantConfig: z.object({
+            variant: z.unknown(),
+          }).partial(),
+        }).partial(),
+        machineType: z.string(),
+        maxRunDuration: z.string(),
+        metadata: z.record(z.string(), z.unknown()),
+        minCpuPlatform: z.string(),
+        nodeGroup: z.string(),
+        nodeImageConfig: z.object({
+          image: z.string(),
+          imageProject: z.string(),
+        }).partial(),
+        oauthScopes: z.array(z.string()),
+        preemptible: z.boolean(),
+        reservationAffinity: z.object({
+          consumeReservationType: z.string(),
+          key: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+        resourceLabels: z.record(z.string(), z.unknown()),
+        resourceManagerTags: z.object({
+          tags: z.record(z.string(), z.unknown()),
+        }).partial(),
+        sandboxConfig: z.object({
+          type: z.string(),
+        }).partial(),
+        secondaryBootDiskUpdateStrategy: z.object({}).partial(),
+        secondaryBootDisks: z.array(
+          z.object({
+            diskImage: z.unknown(),
+            mode: z.unknown(),
+          }).partial(),
+        ),
+        serviceAccount: z.string(),
+        shieldedInstanceConfig: z.object({
+          enableIntegrityMonitoring: z.boolean(),
+          enableSecureBoot: z.boolean(),
+        }).partial(),
+        soleTenantConfig: z.object({
+          minNodeCpus: z.number(),
+          nodeAffinities: z.array(z.unknown()),
+        }).partial(),
+        spot: z.boolean(),
+        storagePools: z.array(z.string()),
+        tags: z.array(z.string()),
+        taintConfig: z.object({
+          architectureTaintBehavior: z.string(),
+        }).partial(),
+        taints: z.array(
+          z.object({
+            effect: z.unknown(),
+            key: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        windowsNodeConfig: z.object({
+          osVersion: z.string(),
+        }).partial(),
+        workloadMetadataConfig: z.object({
+          mode: z.string(),
+        }).partial(),
+      }).partial(),
+      etag: z.string(),
+      initialNodeCount: z.number(),
+      instanceGroupUrls: z.array(z.string()),
+      kubeletCertInfo: z.object({
+        nonTpmBootstrapCertExpireTime: z.string(),
+        tpmBootstrapCertExpireTime: z.string(),
+      }).partial(),
+      locations: z.array(z.string()),
+      maintenancePolicy: z.object({
+        exclusionUntilEndOfSupport: z.object({
+          enabled: z.boolean(),
+          endTime: z.string(),
+          startTime: z.string(),
+        }).partial(),
+      }).partial(),
+      management: z.object({
+        autoRepair: z.boolean(),
+        autoUpgrade: z.boolean(),
+        upgradeOptions: z.object({
+          autoUpgradeStartTime: z.string(),
+          description: z.string(),
+        }).partial(),
+      }).partial(),
+      maxPodsConstraint: z.object({
+        maxPodsPerNode: z.string(),
+      }).partial(),
+      name: z.string(),
+      networkConfig: z.object({
+        acceleratorNetworkProfile: z.string(),
+        additionalNodeNetworkConfigs: z.array(
+          z.object({
+            network: z.unknown(),
+            subnetwork: z.unknown(),
+          }).partial(),
+        ),
+        additionalPodNetworkConfigs: z.array(
+          z.object({
+            maxPodsPerNode: z.unknown(),
+            networkAttachment: z.unknown(),
+            secondaryPodRange: z.unknown(),
+            subnetwork: z.unknown(),
+          }).partial(),
+        ),
+        createPodRange: z.boolean(),
+        datapathProvider: z.string(),
+        enablePrivateNodes: z.boolean(),
+        network: z.string(),
+        networkPerformanceConfig: z.object({
+          totalEgressBandwidthTier: z.string(),
+        }).partial(),
+        networkTierConfig: z.object({
+          networkTier: z.string(),
+        }).partial(),
+        podCidrOverprovisionConfig: z.object({
+          disable: z.boolean(),
+        }).partial(),
+        podIpv4CidrBlock: z.string(),
+        podIpv4RangeUtilization: z.number(),
+        podRange: z.string(),
+        subnetwork: z.string(),
+      }).partial(),
+      nodeDrainConfig: z.object({
+        graceTerminationDuration: z.string(),
+        pdbTimeoutDuration: z.string(),
+        respectPdbDuringNodePoolDeletion: z.boolean(),
+      }).partial(),
+      placementPolicy: z.object({
+        policyName: z.string(),
+        tpuTopology: z.string(),
         type: z.string(),
-      }),
-      secondaryBootDiskUpdateStrategy: z.object({}),
-      secondaryBootDisks: z.array(z.object({
-        diskImage: z.unknown(),
-        mode: z.unknown(),
-      })),
-      serviceAccount: z.string(),
-      shieldedInstanceConfig: z.object({
-        enableIntegrityMonitoring: z.boolean(),
-        enableSecureBoot: z.boolean(),
-      }),
-      soleTenantConfig: z.object({
-        minNodeCpus: z.number(),
-        nodeAffinities: z.array(z.unknown()),
-      }),
-      spot: z.boolean(),
-      storagePools: z.array(z.string()),
-      tags: z.array(z.string()),
-      taintConfig: z.object({
-        architectureTaintBehavior: z.string(),
-      }),
-      taints: z.array(z.object({
-        effect: z.unknown(),
-        key: z.unknown(),
-        value: z.unknown(),
-      })),
-      windowsNodeConfig: z.object({
-        osVersion: z.string(),
-      }),
-      workloadMetadataConfig: z.object({
-        mode: z.string(),
-      }),
-    }),
-    etag: z.string(),
-    initialNodeCount: z.number(),
-    instanceGroupUrls: z.array(z.string()),
-    kubeletCertInfo: z.object({
-      nonTpmBootstrapCertExpireTime: z.string(),
-      tpmBootstrapCertExpireTime: z.string(),
-    }),
-    locations: z.array(z.string()),
-    maintenancePolicy: z.object({
-      exclusionUntilEndOfSupport: z.object({
+      }).partial(),
+      podIpv4CidrSize: z.number(),
+      queuedProvisioning: z.object({
         enabled: z.boolean(),
-        endTime: z.string(),
-        startTime: z.string(),
-      }),
-    }),
-    management: z.object({
-      autoRepair: z.boolean(),
-      autoUpgrade: z.boolean(),
-      upgradeOptions: z.object({
-        autoUpgradeStartTime: z.string(),
-        description: z.string(),
-      }),
-    }),
-    maxPodsConstraint: z.object({
-      maxPodsPerNode: z.string(),
-    }),
-    name: z.string(),
-    networkConfig: z.object({
-      acceleratorNetworkProfile: z.string(),
-      additionalNodeNetworkConfigs: z.array(z.object({
-        network: z.unknown(),
-        subnetwork: z.unknown(),
-      })),
-      additionalPodNetworkConfigs: z.array(z.object({
-        maxPodsPerNode: z.unknown(),
-        networkAttachment: z.unknown(),
-        secondaryPodRange: z.unknown(),
-        subnetwork: z.unknown(),
-      })),
-      createPodRange: z.boolean(),
-      datapathProvider: z.string(),
-      enablePrivateNodes: z.boolean(),
-      network: z.string(),
-      networkPerformanceConfig: z.object({
-        totalEgressBandwidthTier: z.string(),
-      }),
-      networkTierConfig: z.object({
-        networkTier: z.string(),
-      }),
-      podCidrOverprovisionConfig: z.object({
-        disable: z.boolean(),
-      }),
-      podIpv4CidrBlock: z.string(),
-      podIpv4RangeUtilization: z.number(),
-      podRange: z.string(),
-      subnetwork: z.string(),
-    }),
-    nodeDrainConfig: z.object({
-      graceTerminationDuration: z.string(),
-      pdbTimeoutDuration: z.string(),
-      respectPdbDuringNodePoolDeletion: z.boolean(),
-    }),
-    placementPolicy: z.object({
-      policyName: z.string(),
-      tpuTopology: z.string(),
-      type: z.string(),
-    }),
-    podIpv4CidrSize: z.number(),
-    queuedProvisioning: z.object({
-      enabled: z.boolean(),
-    }),
-    selfLink: z.string(),
-    status: z.string(),
-    statusMessage: z.string(),
-    updateInfo: z.object({
-      blueGreenInfo: z.object({
-        blueInstanceGroupUrls: z.array(z.unknown()),
-        bluePoolDeletionStartTime: z.string(),
-        greenInstanceGroupUrls: z.array(z.unknown()),
-        greenPoolVersion: z.string(),
-        phase: z.string(),
-      }),
-    }),
-    upgradeSettings: z.object({
-      blueGreenSettings: z.object({
-        autoscaledRolloutPolicy: z.object({
-          waitForDrainDuration: z.unknown(),
-        }),
-        nodePoolSoakDuration: z.string(),
-        standardRolloutPolicy: z.object({
-          batchNodeCount: z.unknown(),
-          batchPercentage: z.unknown(),
-          batchSoakDuration: z.unknown(),
-        }),
-      }),
-      maxSurge: z.number(),
-      maxUnavailable: z.number(),
-      strategy: z.string(),
-    }),
-    version: z.string(),
-  })).optional(),
+      }).partial(),
+      selfLink: z.string(),
+      status: z.string(),
+      statusMessage: z.string(),
+      updateInfo: z.object({
+        blueGreenInfo: z.object({
+          blueInstanceGroupUrls: z.array(z.unknown()),
+          bluePoolDeletionStartTime: z.string(),
+          greenInstanceGroupUrls: z.array(z.unknown()),
+          greenPoolVersion: z.string(),
+          phase: z.string(),
+        }).partial(),
+      }).partial(),
+      upgradeSettings: z.object({
+        blueGreenSettings: z.object({
+          autoscaledRolloutPolicy: z.object({
+            waitForDrainDuration: z.unknown(),
+          }).partial(),
+          nodePoolSoakDuration: z.string(),
+          standardRolloutPolicy: z.object({
+            batchNodeCount: z.unknown(),
+            batchPercentage: z.unknown(),
+            batchSoakDuration: z.unknown(),
+          }).partial(),
+        }).partial(),
+        maxSurge: z.number(),
+        maxUnavailable: z.number(),
+        strategy: z.string(),
+      }).partial(),
+      version: z.string(),
+    }).partial(),
+  ).optional(),
   notificationConfig: z.object({
     pubsub: z.object({
       enabled: z.boolean(),
       filter: z.object({
         eventType: z.array(z.string()),
-      }),
+      }).partial(),
       topic: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   parentProductConfig: z.object({
     labels: z.record(z.string(), z.unknown()),
     productName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   podAutoscaling: z.object({
     hpaProfile: z.string(),
-  }).optional(),
+  }).partial().optional(),
   privateClusterConfig: z.object({
     enablePrivateEndpoint: z.boolean(),
     enablePrivateNodes: z.boolean(),
     masterGlobalAccessConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     masterIpv4CidrBlock: z.string(),
     peeringName: z.string(),
     privateEndpoint: z.string(),
     privateEndpointSubnetwork: z.string(),
     publicEndpoint: z.string(),
-  }).optional(),
+  }).partial().optional(),
   rbacBindingConfig: z.object({
     enableInsecureBindingSystemAuthenticated: z.boolean(),
     enableInsecureBindingSystemUnauthenticated: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   releaseChannel: z.object({
     channel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resourceLabels: z.record(z.string(), z.unknown()).optional(),
   resourceUsageExportConfig: z.object({
     bigqueryDestination: z.object({
       datasetId: z.string(),
-    }),
+    }).partial(),
     consumptionMeteringConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     enableNetworkEgressMetering: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   rollbackSafeUpgrade: z.object({
     controlPlaneSoakDuration: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   scheduleUpgradeConfig: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   secretManagerConfig: z.object({
     enabled: z.boolean(),
     rotationConfig: z.object({
       enabled: z.boolean(),
       rotationInterval: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   secretSyncConfig: z.object({
     enabled: z.boolean(),
     rotationConfig: z.object({
       enabled: z.boolean(),
       rotationInterval: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   securityPostureConfig: z.object({
     mode: z.string(),
     vulnerabilityMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   servicesIpv4Cidr: z.string().optional(),
   shieldedNodes: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   status: z.string().optional(),
   statusMessage: z.string().optional(),
   subnetwork: z.string().optional(),
@@ -6540,13 +6596,13 @@ const StateSchema = z.object({
     gkeopsEtcdBackupEncryptionKey: z.string(),
     serviceAccountSigningKeys: z.array(z.string()),
     serviceAccountVerificationKeys: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   verticalPodAutoscaling: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   workloadIdentityConfig: z.object({
     workloadPool: z.string(),
-  }).optional(),
+  }).partial().optional(),
   zone: z.string().optional(),
 }).passthrough();
 
@@ -11570,7 +11626,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters. Registered at `@swamp/gcp/container/clusters`. */
 export const model = {
   type: "@swamp/gcp/container/clusters",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -11854,6 +11910,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -476,7 +476,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   buildConfig: z.object({
-    automaticUpdatePolicy: z.object({}),
+    automaticUpdatePolicy: z.object({}).partial(),
     build: z.string(),
     dockerRegistry: z.string(),
     dockerRepository: z.string(),
@@ -484,7 +484,7 @@ const StateSchema = z.object({
     environmentVariables: z.record(z.string(), z.unknown()),
     onDeployUpdatePolicy: z.object({
       runtimeVersion: z.string(),
-    }),
+    }).partial(),
     runtime: z.string(),
     serviceAccount: z.string(),
     source: z.object({
@@ -496,14 +496,14 @@ const StateSchema = z.object({
         projectId: z.string(),
         repoName: z.string(),
         tagName: z.string(),
-      }),
+      }).partial(),
       storageSource: z.object({
         bucket: z.string(),
         generation: z.string(),
         object: z.string(),
         sourceUploadUrl: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sourceProvenance: z.object({
       gitUri: z.string(),
       resolvedRepoSource: z.object({
@@ -513,27 +513,29 @@ const StateSchema = z.object({
         projectId: z.string(),
         repoName: z.string(),
         tagName: z.string(),
-      }),
+      }).partial(),
       resolvedStorageSource: z.object({
         bucket: z.string(),
         generation: z.string(),
         object: z.string(),
         sourceUploadUrl: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sourceToken: z.string(),
     workerPool: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   environment: z.string().optional(),
   eventTrigger: z.object({
     channel: z.string(),
-    eventFilters: z.array(z.object({
-      attribute: z.string(),
-      operator: z.string(),
-      value: z.string(),
-    })),
+    eventFilters: z.array(
+      z.object({
+        attribute: z.string(),
+        operator: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     eventType: z.string(),
     pubsubTopic: z.string(),
     retryPolicy: z.string(),
@@ -541,7 +543,7 @@ const StateSchema = z.object({
     serviceAccountEmail: z.string(),
     trigger: z.string(),
     triggerRegion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kmsKeyName: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -553,32 +555,40 @@ const StateSchema = z.object({
     availableMemory: z.string(),
     binaryAuthorizationPolicy: z.string(),
     directVpcEgress: z.string(),
-    directVpcNetworkInterface: z.array(z.object({
-      network: z.string(),
-      subnetwork: z.string(),
-      tags: z.array(z.string()),
-    })),
+    directVpcNetworkInterface: z.array(
+      z.object({
+        network: z.string(),
+        subnetwork: z.string(),
+        tags: z.array(z.string()),
+      }).partial(),
+    ),
     environmentVariables: z.record(z.string(), z.unknown()),
     ingressSettings: z.string(),
     maxInstanceCount: z.number(),
     maxInstanceRequestConcurrency: z.number(),
     minInstanceCount: z.number(),
     revision: z.string(),
-    secretEnvironmentVariables: z.array(z.object({
-      key: z.string(),
-      projectId: z.string(),
-      secret: z.string(),
-      version: z.string(),
-    })),
-    secretVolumes: z.array(z.object({
-      mountPath: z.string(),
-      projectId: z.string(),
-      secret: z.string(),
-      versions: z.array(z.object({
-        path: z.unknown(),
-        version: z.unknown(),
-      })),
-    })),
+    secretEnvironmentVariables: z.array(
+      z.object({
+        key: z.string(),
+        projectId: z.string(),
+        secret: z.string(),
+        version: z.string(),
+      }).partial(),
+    ),
+    secretVolumes: z.array(
+      z.object({
+        mountPath: z.string(),
+        projectId: z.string(),
+        secret: z.string(),
+        versions: z.array(
+          z.object({
+            path: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
     securityLevel: z.string(),
     service: z.string(),
     serviceAccountEmail: z.string(),
@@ -586,17 +596,19 @@ const StateSchema = z.object({
     uri: z.string(),
     vpcConnector: z.string(),
     vpcConnectorEgressSettings: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
-  stateMessages: z.array(z.object({
-    message: z.string(),
-    severity: z.string(),
-    type: z.string(),
-  })).optional(),
+  stateMessages: z.array(
+    z.object({
+      message: z.string(),
+      severity: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
   upgradeInfo: z.object({
     buildConfig: z.object({
-      automaticUpdatePolicy: z.object({}),
+      automaticUpdatePolicy: z.object({}).partial(),
       build: z.string(),
       dockerRegistry: z.string(),
       dockerRepository: z.string(),
@@ -604,7 +616,7 @@ const StateSchema = z.object({
       environmentVariables: z.record(z.string(), z.unknown()),
       onDeployUpdatePolicy: z.object({
         runtimeVersion: z.string(),
-      }),
+      }).partial(),
       runtime: z.string(),
       serviceAccount: z.string(),
       source: z.object({
@@ -616,14 +628,14 @@ const StateSchema = z.object({
           projectId: z.string(),
           repoName: z.string(),
           tagName: z.string(),
-        }),
+        }).partial(),
         storageSource: z.object({
           bucket: z.string(),
           generation: z.string(),
           object: z.string(),
           sourceUploadUrl: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       sourceProvenance: z.object({
         gitUri: z.string(),
         resolvedRepoSource: z.object({
@@ -633,24 +645,26 @@ const StateSchema = z.object({
           projectId: z.string(),
           repoName: z.string(),
           tagName: z.string(),
-        }),
+        }).partial(),
         resolvedStorageSource: z.object({
           bucket: z.string(),
           generation: z.string(),
           object: z.string(),
           sourceUploadUrl: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       sourceToken: z.string(),
       workerPool: z.string(),
-    }),
+    }).partial(),
     eventTrigger: z.object({
       channel: z.string(),
-      eventFilters: z.array(z.object({
-        attribute: z.string(),
-        operator: z.string(),
-        value: z.string(),
-      })),
+      eventFilters: z.array(
+        z.object({
+          attribute: z.string(),
+          operator: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       eventType: z.string(),
       pubsubTopic: z.string(),
       retryPolicy: z.string(),
@@ -658,36 +672,42 @@ const StateSchema = z.object({
       serviceAccountEmail: z.string(),
       trigger: z.string(),
       triggerRegion: z.string(),
-    }),
+    }).partial(),
     serviceConfig: z.object({
       allTrafficOnLatestRevision: z.boolean(),
       availableCpu: z.string(),
       availableMemory: z.string(),
       binaryAuthorizationPolicy: z.string(),
       directVpcEgress: z.string(),
-      directVpcNetworkInterface: z.array(z.object({
-        network: z.string(),
-        subnetwork: z.string(),
-        tags: z.array(z.unknown()),
-      })),
+      directVpcNetworkInterface: z.array(
+        z.object({
+          network: z.string(),
+          subnetwork: z.string(),
+          tags: z.array(z.unknown()),
+        }).partial(),
+      ),
       environmentVariables: z.record(z.string(), z.unknown()),
       ingressSettings: z.string(),
       maxInstanceCount: z.number(),
       maxInstanceRequestConcurrency: z.number(),
       minInstanceCount: z.number(),
       revision: z.string(),
-      secretEnvironmentVariables: z.array(z.object({
-        key: z.string(),
-        projectId: z.string(),
-        secret: z.string(),
-        version: z.string(),
-      })),
-      secretVolumes: z.array(z.object({
-        mountPath: z.string(),
-        projectId: z.string(),
-        secret: z.string(),
-        versions: z.array(z.unknown()),
-      })),
+      secretEnvironmentVariables: z.array(
+        z.object({
+          key: z.string(),
+          projectId: z.string(),
+          secret: z.string(),
+          version: z.string(),
+        }).partial(),
+      ),
+      secretVolumes: z.array(
+        z.object({
+          mountPath: z.string(),
+          projectId: z.string(),
+          secret: z.string(),
+          versions: z.array(z.unknown()),
+        }).partial(),
+      ),
       securityLevel: z.string(),
       service: z.string(),
       serviceAccountEmail: z.string(),
@@ -695,9 +715,9 @@ const StateSchema = z.object({
       uri: z.string(),
       vpcConnector: z.string(),
       vpcConnectorEgressSettings: z.string(),
-    }),
+    }).partial(),
     upgradeState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   url: z.string().optional(),
 }).passthrough();
 
@@ -1047,7 +1067,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Functions Functions. Registered at `@swamp/gcp/cloudfunctions/functions`. */
 export const model = {
   type: "@swamp/gcp/cloudfunctions/functions",
-  version: "2026.11.04.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1283,6 +1303,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

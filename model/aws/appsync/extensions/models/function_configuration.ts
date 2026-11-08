@@ -44,6 +44,10 @@ const LambdaConflictHandlerConfigSchema = z.object({
   ).optional(),
 });
 
+const LambdaConflictHandlerConfigStateSchema = z.object({
+  LambdaConflictHandlerArn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -135,15 +139,15 @@ const StateSchema = z.object({
   Runtime: z.object({
     Name: z.string(),
     RuntimeVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SyncConfig: z.object({
     ConflictDetection: z.string(),
     ConflictHandler: z.string(),
-    LambdaConflictHandlerConfig: LambdaConflictHandlerConfigSchema,
-  }).optional(),
+    LambdaConflictHandlerConfig: LambdaConflictHandlerConfigStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -227,7 +231,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync FunctionConfiguration. Registered at `@swamp/aws/appsync/function-configuration`. */
 export const model = {
   type: "@swamp/aws/appsync/function-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -291,6 +295,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

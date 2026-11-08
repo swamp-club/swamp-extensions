@@ -75,6 +75,23 @@ const TagSchema = z.object({
   ).optional(),
 });
 
+const IpamCidrConfigResultStateSchema = z.object({
+  Cidr: z.string(),
+  IpamPoolArn: z.string(),
+  AnycastIp: z.string(),
+  Status: z.string(),
+}).partial();
+
+const IpamCidrConfigStateSchema = z.object({
+  Cidr: z.string(),
+  IpamPoolArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -143,24 +160,24 @@ const StateSchema = z.object({
     Id: z.string(),
     IpCount: z.number(),
     IpAddressType: z.string(),
-    IpamCidrConfigResults: z.array(IpamCidrConfigResultSchema),
+    IpamCidrConfigResults: z.array(IpamCidrConfigResultStateSchema),
     LastModifiedTime: z.string(),
     Name: z.string(),
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ETag: z.string().optional(),
   Id: z.string(),
   IpCount: z.number().optional(),
   IpAddressType: z.string().optional(),
-  IpamCidrConfigs: z.array(IpamCidrConfigSchema).optional(),
-  IpamCidrConfigResults: z.array(IpamCidrConfigResultSchema).optional(),
+  IpamCidrConfigs: z.array(IpamCidrConfigStateSchema).optional(),
+  IpamCidrConfigResults: z.array(IpamCidrConfigResultStateSchema).optional(),
   Name: z.string().optional(),
   Tags: z.object({
-    Items: z.array(TagSchema),
-  }).optional(),
+    Items: z.array(TagStateSchema),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -232,7 +249,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront AnycastIpList. Registered at `@swamp/aws/cloudfront/anycast-ip-list`. */
 export const model = {
   type: "@swamp/aws/cloudfront/anycast-ip-list",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -301,6 +318,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

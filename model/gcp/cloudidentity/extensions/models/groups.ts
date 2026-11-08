@@ -206,31 +206,37 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  additionalGroupKeys: z.array(z.object({
-    id: z.string(),
-    namespace: z.string(),
-  })).optional(),
+  additionalGroupKeys: z.array(
+    z.object({
+      id: z.string(),
+      namespace: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   dynamicGroupMetadata: z.object({
-    queries: z.array(z.object({
-      query: z.string(),
-      resourceType: z.string(),
-    })),
+    queries: z.array(
+      z.object({
+        query: z.string(),
+        resourceType: z.string(),
+      }).partial(),
+    ),
     status: z.object({
       status: z.string(),
       statusTime: z.string(),
-    }),
-  }).optional(),
-  externalIds: z.array(z.object({
-    id: z.string(),
-    namespace: z.string(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  externalIds: z.array(
+    z.object({
+      id: z.string(),
+      namespace: z.string(),
+    }).partial(),
+  ).optional(),
   groupKey: z.object({
     id: z.string(),
     namespace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   parent: z.string().optional(),
@@ -331,7 +337,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity Groups. Registered at `@swamp/gcp/cloudidentity/groups`. */
 export const model = {
   type: "@swamp/gcp/cloudidentity/groups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -513,6 +519,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

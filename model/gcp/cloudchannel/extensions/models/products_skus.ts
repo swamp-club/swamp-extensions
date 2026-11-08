@@ -105,10 +105,10 @@ const StateSchema = z.object({
       content: z.string(),
       title: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   product: z.object({
     marketingInfo: z.object({
@@ -116,12 +116,12 @@ const StateSchema = z.object({
         content: z.string(),
         title: z.string(),
         type: z.string(),
-      }),
+      }).partial(),
       description: z.string(),
       displayName: z.string(),
-    }),
+    }).partial(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -165,7 +165,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Channel Products.Skus. Registered at `@swamp/gcp/cloudchannel/products-skus`. */
 export const model = {
   type: "@swamp/gcp/cloudchannel/products-skus",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -279,6 +279,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

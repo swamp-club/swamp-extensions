@@ -435,7 +435,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   campaignId: z.string().optional(),
   campaignIdDimensionValue: z.object({
     dimensionName: z.string(),
@@ -444,13 +444,13 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   childPlacementIds: z.array(z.string()).optional(),
   comment: z.string().optional(),
   contentCategoryId: z.string().optional(),
   createInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   directorySiteId: z.string().optional(),
   directorySiteIdDimensionValue: z.object({
     dimensionName: z.string(),
@@ -459,7 +459,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   externalId: z.string().optional(),
   id: z.string(),
   idDimensionValue: z.object({
@@ -469,11 +469,11 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   lastModifiedInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string().optional(),
   placementGroupType: z.string().optional(),
   placementStrategyId: z.string().optional(),
@@ -482,17 +482,19 @@ const StateSchema = z.object({
     endDate: z.string(),
     flighted: z.boolean(),
     floodlightActivityId: z.string(),
-    pricingPeriods: z.array(z.object({
-      endDate: z.string(),
-      pricingComment: z.string(),
-      rateOrCostNanos: z.string(),
-      startDate: z.string(),
-      units: z.string(),
-    })),
+    pricingPeriods: z.array(
+      z.object({
+        endDate: z.string(),
+        pricingComment: z.string(),
+        rateOrCostNanos: z.string(),
+        startDate: z.string(),
+        units: z.string(),
+      }).partial(),
+    ),
     pricingType: z.string(),
     startDate: z.string(),
     testingStartDate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   primaryPlacementId: z.string().optional(),
   primaryPlacementIdDimensionValue: z.object({
     dimensionName: z.string(),
@@ -501,7 +503,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   siteId: z.string().optional(),
   siteIdDimensionValue: z.object({
     dimensionName: z.string(),
@@ -510,7 +512,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   subaccountId: z.string().optional(),
 }).passthrough();
 
@@ -784,7 +786,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 PlacementGroups. Registered at `@swamp/gcp/dfareporting/placementgroups`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/placementgroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -918,6 +920,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -193,21 +193,27 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  connectedEndpointGroups: z.array(z.object({
-    name: z.string(),
-  })).optional(),
+  connectedEndpointGroups: z.array(
+    z.object({
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
-  locations: z.array(z.object({
-    location: z.string(),
-    state: z.string(),
-  })).optional(),
+  locations: z.array(
+    z.object({
+      location: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
-  nestedDeployments: z.array(z.object({
-    name: z.string(),
-    state: z.string(),
-  })).optional(),
+  nestedDeployments: z.array(
+    z.object({
+      name: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   network: z.string().optional(),
   reconciling: z.boolean().optional(),
   state: z.string().optional(),
@@ -272,7 +278,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security MirroringDeploymentGroups. Registered at `@swamp/gcp/networksecurity/mirroringdeploymentgroups`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/mirroringdeploymentgroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -406,6 +412,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

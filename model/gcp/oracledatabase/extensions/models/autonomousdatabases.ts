@@ -773,7 +773,7 @@ const StateSchema = z.object({
     apexDetails: z.object({
       apexVersion: z.string(),
       ordsVersion: z.string(),
-    }),
+    }).partial(),
     arePrimaryAllowlistedIpsUsed: z.boolean(),
     autonomousContainerDatabaseId: z.string(),
     availableUpgradeVersions: z.array(z.string()),
@@ -785,23 +785,25 @@ const StateSchema = z.object({
         high: z.string(),
         low: z.string(),
         medium: z.string(),
-      }),
+      }).partial(),
       dedicated: z.string(),
       high: z.string(),
       low: z.string(),
       medium: z.string(),
-      profiles: z.array(z.object({
-        consumerGroup: z.string(),
-        displayName: z.string(),
-        hostFormat: z.string(),
-        isRegional: z.boolean(),
-        protocol: z.string(),
-        sessionMode: z.string(),
-        syntaxFormat: z.string(),
-        tlsAuthentication: z.string(),
-        value: z.string(),
-      })),
-    }),
+      profiles: z.array(
+        z.object({
+          consumerGroup: z.string(),
+          displayName: z.string(),
+          hostFormat: z.string(),
+          isRegional: z.boolean(),
+          protocol: z.string(),
+          sessionMode: z.string(),
+          syntaxFormat: z.string(),
+          tlsAuthentication: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     connectionUrls: z.object({
       apexUri: z.string(),
       databaseTransformsUri: z.string(),
@@ -811,11 +813,13 @@ const StateSchema = z.object({
       mongoDbUri: z.string(),
       ordsUri: z.string(),
       sqlDevWebUri: z.string(),
-    }),
+    }).partial(),
     cpuCoreCount: z.number(),
-    customerContacts: z.array(z.object({
-      email: z.string(),
-    })),
+    customerContacts: z.array(
+      z.object({
+        email: z.string(),
+      }).partial(),
+    ),
     dataGuardRoleChangedTime: z.string(),
     dataSafeState: z.string(),
     dataStorageSizeGb: z.number(),
@@ -828,14 +832,16 @@ const StateSchema = z.object({
     encryptionKey: z.object({
       kmsKey: z.string(),
       provider: z.string(),
-    }),
-    encryptionKeyHistoryEntries: z.array(z.object({
-      activationTime: z.string(),
-      encryptionKey: z.object({
-        kmsKey: z.string(),
-        provider: z.string(),
-      }),
-    })),
+    }).partial(),
+    encryptionKeyHistoryEntries: z.array(
+      z.object({
+        activationTime: z.string(),
+        encryptionKey: z.object({
+          kmsKey: z.string(),
+          provider: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     failedDataRecoveryDuration: z.string(),
     isAutoScalingEnabled: z.boolean(),
     isLocalDataGuardEnabled: z.boolean(),
@@ -852,7 +858,7 @@ const StateSchema = z.object({
       lagTimeDuration: z.string(),
       lifecycleDetails: z.string(),
       state: z.string(),
-    }),
+    }).partial(),
     maintenanceBeginTime: z.string(),
     maintenanceEndTime: z.string(),
     maintenanceScheduleType: z.string(),
@@ -874,21 +880,23 @@ const StateSchema = z.object({
     refreshableMode: z.string(),
     refreshableState: z.string(),
     role: z.string(),
-    scheduledOperationDetails: z.array(z.object({
-      dayOfWeek: z.string(),
-      startTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-      stopTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
+    scheduledOperationDetails: z.array(
+      z.object({
+        dayOfWeek: z.string(),
+        startTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+        stopTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     secretId: z.string(),
     serviceAgentEmail: z.string(),
     sqlWebDeveloperUrl: z.string(),
@@ -897,7 +905,7 @@ const StateSchema = z.object({
     totalAutoBackupStorageSizeGbs: z.number(),
     usedDataStorageSizeTbs: z.number(),
     vaultId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceConfig: z.object({
     autoRefreshFrequencySeconds: z.number(),
     autoRefreshPointLagSeconds: z.number(),
@@ -910,7 +918,7 @@ const StateSchema = z.object({
     refreshableMode: z.string(),
     sourceType: z.string(),
     useLatestAvailableBackup: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1530,7 +1538,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud AutonomousDatabases. Registered at `@swamp/gcp/oracledatabase/autonomousdatabases`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/autonomousdatabases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1694,6 +1702,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

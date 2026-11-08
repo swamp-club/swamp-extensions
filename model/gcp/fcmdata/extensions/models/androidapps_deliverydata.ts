@@ -103,10 +103,10 @@ const StateSchema = z.object({
       delayedMessageThrottled: z.number(),
       delayedUserStopped: z.number(),
       deliveredNoDelay: z.number(),
-    }),
+    }).partial(),
     messageInsightPercents: z.object({
       priorityLowered: z.number(),
-    }),
+    }).partial(),
     messageOutcomePercents: z.object({
       collapsed: z.number(),
       delivered: z.number(),
@@ -115,7 +115,7 @@ const StateSchema = z.object({
       droppedTooManyPendingMessages: z.number(),
       droppedTtlExpired: z.number(),
       pending: z.number(),
-    }),
+    }).partial(),
     proxyNotificationInsightPercents: z.object({
       failed: z.number(),
       proxied: z.number(),
@@ -123,13 +123,13 @@ const StateSchema = z.object({
       skippedOptedOut: z.number(),
       skippedUnconfigured: z.number(),
       skippedUnsupported: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   date: z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -176,7 +176,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase Cloud Messaging Data AndroidApps.DeliveryData. Registered at `@swamp/gcp/fcmdata/androidapps-deliverydata`. */
 export const model = {
   type: "@swamp/gcp/fcmdata/androidapps-deliverydata",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -300,6 +300,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

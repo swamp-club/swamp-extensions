@@ -217,7 +217,7 @@ const StateSchema = z.object({
   exportResult: z.object({
     errorMessage: z.string(),
     exportedEntries: z.string(),
-  }).optional(),
+  }).partial().optional(),
   exportSpec: z.object({
     outputPath: z.string(),
     scope: z.object({
@@ -226,8 +226,8 @@ const StateSchema = z.object({
       entryTypes: z.array(z.string()),
       organizationLevel: z.boolean(),
       projects: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   importResult: z.object({
     createdEntries: z.string(),
     createdEntryLinks: z.string(),
@@ -238,7 +238,7 @@ const StateSchema = z.object({
     unchangedEntryLinks: z.string(),
     updateTime: z.string(),
     updatedEntries: z.string(),
-  }).optional(),
+  }).partial().optional(),
   importSpec: z.object({
     aspectSyncMode: z.string(),
     entrySyncMode: z.string(),
@@ -250,10 +250,10 @@ const StateSchema = z.object({
       entryTypes: z.array(z.string()),
       glossaries: z.array(z.string()),
       referencedEntryScopes: z.array(z.string()),
-    }),
+    }).partial(),
     sourceCreateTime: z.string(),
     sourceStorageUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   status: z.object({
@@ -261,7 +261,7 @@ const StateSchema = z.object({
     message: z.string(),
     state: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   type: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -384,7 +384,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex MetadataJobs. Registered at `@swamp/gcp/dataplex/metadatajobs`. */
 export const model = {
   type: "@swamp/gcp/dataplex/metadatajobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -526,6 +526,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

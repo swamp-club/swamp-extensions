@@ -81,6 +81,42 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("Tag value."),
 });
 
+const PaletteStateSchema = z.object({
+  Foreground: z.string(),
+  Background: z.string(),
+}).partial();
+
+const BrandColorPaletteStateSchema = z.object({
+  Primary: PaletteStateSchema,
+  Secondary: PaletteStateSchema,
+  Accent: PaletteStateSchema,
+  Measure: PaletteStateSchema,
+  Dimension: PaletteStateSchema,
+  Success: PaletteStateSchema,
+  Info: PaletteStateSchema,
+  Warning: PaletteStateSchema,
+  Danger: PaletteStateSchema,
+}).partial();
+
+const NavbarStyleStateSchema = z.object({
+  GlobalNavbar: PaletteStateSchema,
+  ContextualNavbar: PaletteStateSchema,
+}).partial();
+
+const BrandElementStyleStateSchema = z.object({
+  NavbarStyle: NavbarStyleStateSchema,
+}).partial();
+
+const ApplicationThemeStateSchema = z.object({
+  BrandColorPalette: BrandColorPaletteStateSchema,
+  BrandElementStyle: BrandElementStyleStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -119,17 +155,17 @@ const StateSchema = z.object({
   BrandDefinition: z.object({
     BrandName: z.string(),
     Description: z.string(),
-    ApplicationTheme: ApplicationThemeSchema,
-  }).optional(),
+    ApplicationTheme: ApplicationThemeStateSchema,
+  }).partial().optional(),
   BrandStatus: z.string().optional(),
   CreatedTime: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
   VersionId: z.string().optional(),
   VersionStatus: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -171,7 +207,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Brand. Registered at `@swamp/aws/quicksight/brand`. */
 export const model = {
   type: "@swamp/aws/quicksight/brand",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -180,6 +216,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

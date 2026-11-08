@@ -103,6 +103,48 @@ const TagSchema = z.object({
   ).optional(),
 });
 
+const DiskStateSchema = z.object({
+  DiskName: z.string(),
+  SizeInGb: z.string(),
+  IsSystemDisk: z.boolean(),
+  IOPS: z.number(),
+  Path: z.string(),
+  AttachedTo: z.string(),
+  AttachmentState: z.string(),
+}).partial();
+
+const PortStateSchema = z.object({
+  FromPort: z.number(),
+  ToPort: z.number(),
+  Protocol: z.string(),
+  AccessFrom: z.string(),
+  AccessType: z.string(),
+  CommonName: z.string(),
+  AccessDirection: z.string(),
+  Ipv6Cidrs: z.array(z.string()),
+  CidrListAliases: z.array(z.string()),
+  Cidrs: z.array(z.string()),
+}).partial();
+
+const MonthlyTransferStateSchema = z.object({
+  GbPerMonthAllocated: z.string(),
+}).partial();
+
+const AutoSnapshotAddOnStateSchema = z.object({
+  SnapshotTimeOfDay: z.string(),
+}).partial();
+
+const AddOnStateSchema = z.object({
+  AddOnType: z.string(),
+  Status: z.string(),
+  AutoSnapshotAddOnRequest: AutoSnapshotAddOnStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -157,36 +199,34 @@ const StateSchema = z.object({
   Location: z.object({
     AvailabilityZone: z.string(),
     RegionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Hardware: z.object({
     CpuCount: z.number(),
     RamSizeInGb: z.number(),
-    Disks: z.array(DiskSchema),
-  }).optional(),
+    Disks: z.array(DiskStateSchema),
+  }).partial().optional(),
   State: z.object({
     Code: z.number(),
     Name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Networking: z.object({
-    Ports: z.array(PortSchema),
-    MonthlyTransfer: z.object({
-      GbPerMonthAllocated: z.string(),
-    }),
-  }).optional(),
+    Ports: z.array(PortStateSchema),
+    MonthlyTransfer: MonthlyTransferStateSchema,
+  }).partial().optional(),
   UserName: z.string().optional(),
   SshKeyName: z.string().optional(),
   InstanceName: z.string(),
   AvailabilityZone: z.string().optional(),
   BundleId: z.string().optional(),
   BlueprintId: z.string().optional(),
-  AddOns: z.array(AddOnSchema).optional(),
+  AddOns: z.array(AddOnStateSchema).optional(),
   UserData: z.string().optional(),
   KeyPairName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   InstanceArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -243,7 +283,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail Instance. Registered at `@swamp/aws/lightsail/instance`. */
 export const model = {
   type: "@swamp/aws/lightsail/instance",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -312,6 +352,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

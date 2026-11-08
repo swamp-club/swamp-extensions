@@ -185,10 +185,10 @@ const StateSchema = z.object({
     deviceOrgUnitId: z.string(),
     telemetryEventNotificationFilter: z.object({
       eventTypes: z.array(z.string()),
-    }),
+    }).partial(),
     userEmail: z.string(),
     userOrgUnitId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   googleCloudPubsubTopic: z.string().optional(),
   name: z.string(),
 }).passthrough();
@@ -278,7 +278,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.Telemetry.NotificationConfigs. Registered at `@swamp/gcp/chromemanagement/customers-telemetry-notificationconfigs`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-telemetry-notificationconfigs",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -407,6 +407,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

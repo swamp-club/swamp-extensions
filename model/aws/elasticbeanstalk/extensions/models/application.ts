@@ -71,6 +71,23 @@ const ApplicationVersionLifecycleConfigSchema = z.object({
   ).optional(),
 });
 
+const MaxAgeRuleStateSchema = z.object({
+  DeleteSourceFromS3: z.boolean(),
+  Enabled: z.boolean(),
+  MaxAgeInDays: z.number(),
+}).partial();
+
+const MaxCountRuleStateSchema = z.object({
+  DeleteSourceFromS3: z.boolean(),
+  Enabled: z.boolean(),
+  MaxCount: z.number(),
+}).partial();
+
+const ApplicationVersionLifecycleConfigStateSchema = z.object({
+  MaxAgeRule: MaxAgeRuleStateSchema,
+  MaxCountRule: MaxCountRuleStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -106,11 +123,11 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   ResourceLifecycleConfig: z.object({
     ServiceRole: z.string(),
-    VersionLifecycleConfig: ApplicationVersionLifecycleConfigSchema,
-  }).optional(),
+    VersionLifecycleConfig: ApplicationVersionLifecycleConfigStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -153,7 +170,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticBeanstalk Application. Registered at `@swamp/aws/elasticbeanstalk/application`. */
 export const model = {
   type: "@swamp/aws/elasticbeanstalk/application",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -212,6 +229,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

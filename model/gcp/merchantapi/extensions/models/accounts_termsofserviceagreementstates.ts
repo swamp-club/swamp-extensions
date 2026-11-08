@@ -91,14 +91,14 @@ const StateSchema = z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   regionCode: z.string().optional(),
   required: z.object({
     termsOfService: z.string(),
     tosFileUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   termsOfServiceKind: z.string().optional(),
 }).passthrough();
 
@@ -140,7 +140,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.TermsOfServiceAgreementStates. Registered at `@swamp/gcp/merchantapi/accounts-termsofserviceagreementstates`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-termsofserviceagreementstates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -159,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

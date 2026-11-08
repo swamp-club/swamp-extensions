@@ -254,28 +254,28 @@ const StateSchema = z.object({
   addonsConfig: z.object({
     advancedApiOpsConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     analyticsConfig: z.object({
       enabled: z.boolean(),
       expireTimeMillis: z.string(),
       state: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     apiSecurityConfig: z.object({
       enabled: z.boolean(),
       expiresAt: z.string(),
-    }),
+    }).partial(),
     connectorsPlatformConfig: z.object({
       enabled: z.boolean(),
       expiresAt: z.string(),
-    }),
+    }).partial(),
     integrationConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     monetizationConfig: z.object({
       enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   analyticsRegion: z.string().optional(),
   apiConsumerDataEncryptionKeyName: z.string().optional(),
   apiConsumerDataLocation: z.string().optional(),
@@ -299,11 +299,13 @@ const StateSchema = z.object({
   portalDisabled: z.boolean().optional(),
   projectId: z.string().optional(),
   properties: z.object({
-    property: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
+    property: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   runtimeDatabaseEncryptionKeyName: z.string().optional(),
   runtimeType: z.string().optional(),
   state: z.string().optional(),
@@ -458,7 +460,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Organizations. Registered at `@swamp/gcp/apigee/organizations`. */
 export const model = {
   type: "@swamp/gcp/apigee/organizations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -617,6 +619,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -326,27 +326,33 @@ const StateSchema = z.object({
   acceleratorConfig: z.object({
     count: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   autoScaling: z.object({
     maxNodes: z.number(),
-    metrics: z.array(z.object({
-      name: z.string(),
-      target: z.number(),
-    })),
+    metrics: z.array(
+      z.object({
+        name: z.string(),
+        target: z.number(),
+      }).partial(),
+    ),
     minNodes: z.number(),
-  }).optional(),
+  }).partial().optional(),
   container: z.object({
     args: z.array(z.string()),
     command: z.array(z.string()),
-    env: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
+    env: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     image: z.string(),
-    ports: z.array(z.object({
-      containerPort: z.number(),
-    })),
-  }).optional(),
+    ports: z.array(
+      z.object({
+        containerPort: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deploymentUri: z.string().optional(),
   description: z.string().optional(),
@@ -355,14 +361,14 @@ const StateSchema = z.object({
   explanationConfig: z.object({
     integratedGradientsAttribution: z.object({
       numIntegralSteps: z.number(),
-    }),
+    }).partial(),
     sampledShapleyAttribution: z.object({
       numPaths: z.number(),
-    }),
+    }).partial(),
     xraiAttribution: z.object({
       numIntegralSteps: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   framework: z.string().optional(),
   isDefault: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -372,7 +378,7 @@ const StateSchema = z.object({
   machineType: z.string().optional(),
   manualScaling: z.object({
     nodes: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   packageUris: z.array(z.string()).optional(),
   predictionClass: z.string().optional(),
@@ -380,11 +386,11 @@ const StateSchema = z.object({
   requestLoggingConfig: z.object({
     bigqueryTableName: z.string(),
     samplingPercentage: z.number(),
-  }).optional(),
+  }).partial().optional(),
   routes: z.object({
     health: z.string(),
     predict: z.string(),
-  }).optional(),
+  }).partial().optional(),
   runtimeVersion: z.string().optional(),
   serviceAccount: z.string().optional(),
   state: z.string().optional(),
@@ -593,7 +599,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AI Platform Training & Prediction Models.Versions. Registered at `@swamp/gcp/ml/models-versions`. */
 export const model = {
   type: "@swamp/gcp/ml/models-versions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -732,6 +738,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

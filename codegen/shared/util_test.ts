@@ -1,5 +1,5 @@
-import { assertEquals } from "@std/assert";
-import { pcreToRegexp } from "./util.ts";
+import { assertEquals, assertThrows } from "@std/assert";
+import { assertUniqueTopLevelDeclarations, pcreToRegexp } from "./util.ts";
 
 // Patterns copied verbatim from the CloudFormation schemas whose generated
 // models failed to import (swamp-club #3367).
@@ -86,4 +86,33 @@ Deno.test("pcreToRegexp - a BROKEN_REGEXES entry with \\p classes keeps the u fl
 
 Deno.test("pcreToRegexp - unsupported subpatterns are still skipped", () => {
   assertEquals(pcreToRegexp("^(?P<name>[a-z]+)$"), undefined);
+});
+
+Deno.test("assertUniqueTopLevelDeclarations - accepts distinct names, ignores nested scopes", () => {
+  assertUniqueTopLevelDeclarations(
+    [
+      "const FooSchema = z.object({});",
+      "const FooStateSchema = z.object({});",
+      "export async function enrich() {",
+      "  const FooSchema = 1;",
+      "}",
+    ].join("\n"),
+    "AWS::Test::Resource",
+  );
+});
+
+Deno.test("assertUniqueTopLevelDeclarations - throws on a duplicate top-level name", () => {
+  assertThrows(
+    () =>
+      assertUniqueTopLevelDeclarations(
+        [
+          "const DBClusterMemberSchema = z.object({});",
+          "function f() {}",
+          "const DBClusterMemberSchema = z.object({});",
+        ].join("\n"),
+        "AWS::RDS::DBCluster",
+      ),
+    Error,
+    'AWS::RDS::DBCluster: generated code declares top-level "DBClusterMemberSchema" more than once',
+  );
 });

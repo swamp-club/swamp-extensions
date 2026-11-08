@@ -499,124 +499,144 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
-  errors: z.array(z.object({
-    details: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    extraInfo: z.string(),
-    timestamps: z.array(z.string()),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      details: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      extraInfo: z.string(),
+      timestamps: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   inspectJob: z.object({
-    actions: z.array(z.object({
-      deidentify: z.object({
-        cloudStorageOutput: z.string(),
-        fileTypesToTransform: z.array(z.unknown()),
-        transformationConfig: z.object({
-          deidentifyTemplate: z.unknown(),
-          imageRedactTemplate: z.unknown(),
-          structuredDeidentifyTemplate: z.unknown(),
-        }),
-        transformationDetailsStorageConfig: z.object({
-          table: z.unknown(),
-        }),
-      }),
-      jobNotificationEmails: z.object({}),
-      pubSub: z.object({
-        topic: z.string(),
-      }),
-      publishFindingsToCloudDataCatalog: z.object({}),
-      publishFindingsToDataplexCatalog: z.object({}),
-      publishSummaryToCscc: z.object({}),
-      publishToStackdriver: z.object({}),
-      saveFindings: z.object({
-        outputConfig: z.object({
-          outputSchema: z.unknown(),
-          storagePath: z.unknown(),
-          table: z.unknown(),
-        }),
-      }),
-    })),
+    actions: z.array(
+      z.object({
+        deidentify: z.object({
+          cloudStorageOutput: z.string(),
+          fileTypesToTransform: z.array(z.unknown()),
+          transformationConfig: z.object({
+            deidentifyTemplate: z.unknown(),
+            imageRedactTemplate: z.unknown(),
+            structuredDeidentifyTemplate: z.unknown(),
+          }).partial(),
+          transformationDetailsStorageConfig: z.object({
+            table: z.unknown(),
+          }).partial(),
+        }).partial(),
+        jobNotificationEmails: z.object({}).partial(),
+        pubSub: z.object({
+          topic: z.string(),
+        }).partial(),
+        publishFindingsToCloudDataCatalog: z.object({}).partial(),
+        publishFindingsToDataplexCatalog: z.object({}).partial(),
+        publishSummaryToCscc: z.object({}).partial(),
+        publishToStackdriver: z.object({}).partial(),
+        saveFindings: z.object({
+          outputConfig: z.object({
+            outputSchema: z.unknown(),
+            storagePath: z.unknown(),
+            table: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
     inspectConfig: z.object({
       contentOptions: z.array(z.string()),
-      customInfoTypes: z.array(z.object({
-        detectionRules: z.array(z.unknown()),
-        dictionary: z.object({
-          cloudStoragePath: z.unknown(),
-          wordList: z.unknown(),
-        }),
-        exclusionType: z.string(),
-        fileLabelInfoType: z.object({
-          googleDriveLabel: z.unknown(),
-          sensitivityLabel: z.unknown(),
-        }),
-        infoType: z.object({
-          name: z.unknown(),
-          sensitivityScore: z.unknown(),
-          version: z.unknown(),
-        }),
-        likelihood: z.string(),
-        metadataKeyValueExpression: z.object({
-          keyRegex: z.unknown(),
-          valueRegex: z.unknown(),
-        }),
-        regex: z.object({
-          groupIndexes: z.unknown(),
-          pattern: z.unknown(),
-        }),
-        sensitivityScore: z.object({
-          score: z.unknown(),
-        }),
-        storedType: z.object({
-          createTime: z.unknown(),
-          name: z.unknown(),
-        }),
-        surrogateType: z.object({}),
-      })),
+      customInfoTypes: z.array(
+        z.object({
+          detectionRules: z.array(z.unknown()),
+          dictionary: z.object({
+            cloudStoragePath: z.unknown(),
+            wordList: z.unknown(),
+          }).partial(),
+          exclusionType: z.string(),
+          fileLabelInfoType: z.object({
+            googleDriveLabel: z.unknown(),
+            sensitivityLabel: z.unknown(),
+          }).partial(),
+          infoType: z.object({
+            name: z.unknown(),
+            sensitivityScore: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+          likelihood: z.string(),
+          metadataKeyValueExpression: z.object({
+            keyRegex: z.unknown(),
+            valueRegex: z.unknown(),
+          }).partial(),
+          regex: z.object({
+            groupIndexes: z.unknown(),
+            pattern: z.unknown(),
+          }).partial(),
+          sensitivityScore: z.object({
+            score: z.unknown(),
+          }).partial(),
+          storedType: z.object({
+            createTime: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+          surrogateType: z.object({}).partial(),
+        }).partial(),
+      ),
       excludeInfoTypes: z.boolean(),
       includeQuote: z.boolean(),
-      infoTypes: z.array(z.object({
-        name: z.string(),
-        sensitivityScore: z.object({
-          score: z.unknown(),
-        }),
-        version: z.string(),
-      })),
+      infoTypes: z.array(
+        z.object({
+          name: z.string(),
+          sensitivityScore: z.object({
+            score: z.unknown(),
+          }).partial(),
+          version: z.string(),
+        }).partial(),
+      ),
       limits: z.object({
-        maxFindingsPerInfoType: z.array(z.object({
-          infoType: z.unknown(),
-          maxFindings: z.unknown(),
-        })),
+        maxFindingsPerInfoType: z.array(
+          z.object({
+            infoType: z.unknown(),
+            maxFindings: z.unknown(),
+          }).partial(),
+        ),
         maxFindingsPerItem: z.number(),
         maxFindingsPerRequest: z.number(),
-      }),
+      }).partial(),
       minLikelihood: z.string(),
-      minLikelihoodPerInfoType: z.array(z.object({
-        infoType: z.object({
-          name: z.unknown(),
-          sensitivityScore: z.unknown(),
-          version: z.unknown(),
-        }),
-        minLikelihood: z.string(),
-      })),
-      ruleSet: z.array(z.object({
-        infoTypes: z.array(z.unknown()),
-        rules: z.array(z.unknown()),
-      })),
-    }),
+      minLikelihoodPerInfoType: z.array(
+        z.object({
+          infoType: z.object({
+            name: z.unknown(),
+            sensitivityScore: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+          minLikelihood: z.string(),
+        }).partial(),
+      ),
+      ruleSet: z.array(
+        z.object({
+          infoTypes: z.array(z.unknown()),
+          rules: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     inspectTemplateName: z.string(),
     storageConfig: z.object({
       bigQueryOptions: z.object({
-        excludedFields: z.array(z.object({
-          name: z.unknown(),
-        })),
-        identifyingFields: z.array(z.object({
-          name: z.unknown(),
-        })),
-        includedFields: z.array(z.object({
-          name: z.unknown(),
-        })),
+        excludedFields: z.array(
+          z.object({
+            name: z.unknown(),
+          }).partial(),
+        ),
+        identifyingFields: z.array(
+          z.object({
+            name: z.unknown(),
+          }).partial(),
+        ),
+        includedFields: z.array(
+          z.object({
+            name: z.unknown(),
+          }).partial(),
+        ),
         rowsLimit: z.string(),
         rowsLimitPercent: z.number(),
         sampleMethod: z.string(),
@@ -624,8 +644,8 @@ const StateSchema = z.object({
           datasetId: z.string(),
           projectId: z.string(),
           tableId: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       cloudStorageOptions: z.object({
         bytesLimitPerFile: z.string(),
         bytesLimitPerFilePercent: z.number(),
@@ -634,49 +654,51 @@ const StateSchema = z.object({
             bucketName: z.unknown(),
             excludeRegex: z.unknown(),
             includeRegex: z.unknown(),
-          }),
+          }).partial(),
           url: z.string(),
-        }),
+        }).partial(),
         fileTypes: z.array(z.string()),
         filesLimitPercent: z.number(),
         sampleMethod: z.string(),
-      }),
+      }).partial(),
       datastoreOptions: z.object({
         kind: z.object({
           name: z.string(),
-        }),
+        }).partial(),
         partitionId: z.object({
           namespaceId: z.string(),
           projectId: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       hybridOptions: z.object({
         description: z.string(),
         labels: z.record(z.string(), z.unknown()),
         requiredFindingLabelKeys: z.array(z.string()),
         tableOptions: z.object({
           identifyingFields: z.array(z.unknown()),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       timespanConfig: z.object({
         enableAutoPopulationOfTimespanConfig: z.boolean(),
         endTime: z.string(),
         startTime: z.string(),
         timestampField: z.object({
           name: z.string(),
-        }),
-      }),
-    }),
-  }).optional(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   lastRunTime: z.string().optional(),
   name: z.string(),
   status: z.string().optional(),
-  triggers: z.array(z.object({
-    manual: z.object({}),
-    schedule: z.object({
-      recurrencePeriodDuration: z.string(),
-    }),
-  })).optional(),
+  triggers: z.array(
+    z.object({
+      manual: z.object({}).partial(),
+      schedule: z.object({
+        recurrencePeriodDuration: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -1048,7 +1070,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) JobTriggers. Registered at `@swamp/gcp/dlp/jobtriggers`. */
 export const model = {
   type: "@swamp/gcp/dlp/jobtriggers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1197,6 +1219,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

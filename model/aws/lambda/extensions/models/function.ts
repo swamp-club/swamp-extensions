@@ -83,6 +83,27 @@ const LambdaManagedInstancesCapacityProviderConfigSchema = z.object({
     ).optional(),
 });
 
+const S3FilesConfigStateSchema = z.object({
+  DirectS3Read: z.string(),
+}).partial();
+
+const FileSystemConfigStateSchema = z.object({
+  S3FilesConfig: S3FilesConfigStateSchema,
+  Arn: z.string(),
+  LocalMountPath: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const LambdaManagedInstancesCapacityProviderConfigStateSchema = z.object({
+  ExecutionEnvironmentMemoryGiBPerVCpu: z.number(),
+  CapacityProviderArn: z.string(),
+  PerExecutionEnvironmentMaxConcurrency: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -323,30 +344,30 @@ const StateSchema = z.object({
   FunctionScalingConfig: z.object({
     MinExecutionEnvironments: z.number(),
     MaxExecutionEnvironments: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Description: z.string().optional(),
   TracingConfig: z.object({
     Mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   VpcConfig: z.object({
     Ipv6AllowedForDualStack: z.boolean(),
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   RuntimeManagementConfig: z.object({
     UpdateRuntimeOn: z.string(),
     RuntimeVersionArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DurableConfig: z.object({
     KMSKeyArn: z.string(),
     ExecutionTimeout: z.number(),
     RetentionPeriodInDays: z.number(),
-  }).optional(),
+  }).partial().optional(),
   ReservedConcurrentExecutions: z.number().optional(),
   SnapStart: z.object({
     ApplyOn: z.string(),
-  }).optional(),
-  FileSystemConfigs: z.array(FileSystemConfigSchema).optional(),
+  }).partial().optional(),
+  FileSystemConfigs: z.array(FileSystemConfigStateSchema).optional(),
   FunctionName: z.string(),
   Runtime: z.string().optional(),
   KmsKeyArn: z.string().optional(),
@@ -356,27 +377,27 @@ const StateSchema = z.object({
   Layers: z.array(z.string()).optional(),
   TenancyConfig: z.object({
     TenantIsolationMode: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ImageConfig: z.object({
     WorkingDirectory: z.string(),
     Command: z.array(z.string()),
     EntryPoint: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   MemorySize: z.number().optional(),
   DeadLetterConfig: z.object({
     TargetArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Timeout: z.number().optional(),
   CapacityProviderConfig: z.object({
     LambdaManagedInstancesCapacityProviderConfig:
-      LambdaManagedInstancesCapacityProviderConfigSchema,
-  }).optional(),
+      LambdaManagedInstancesCapacityProviderConfigStateSchema,
+  }).partial().optional(),
   Handler: z.string().optional(),
   SnapStartResponse: z.object({
     OptimizationStatus: z.string(),
     ApplyOn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Code: z.object({
     SourceKMSKeyArn: z.string(),
     S3ObjectVersion: z.string(),
@@ -385,26 +406,26 @@ const StateSchema = z.object({
     S3Key: z.string(),
     S3ObjectStorageMode: z.string(),
     ImageUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Role: z.string().optional(),
   LoggingConfig: z.object({
     LogFormat: z.string(),
     ApplicationLogLevel: z.string(),
     LogGroup: z.string(),
     SystemLogLevel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RecursiveLoop: z.string().optional(),
   Environment: z.object({
     Variables: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string().optional(),
   EphemeralStorage: z.object({
     Size: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Architectures: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -653,7 +674,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda Function. Registered at `@swamp/aws/lambda/function`. */
 export const model = {
   type: "@swamp/aws/lambda/function",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -772,6 +793,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

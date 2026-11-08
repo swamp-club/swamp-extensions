@@ -223,35 +223,39 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   indexConfig: z.object({
     ancestorField: z.string(),
-    indexes: z.array(z.object({
-      apiScope: z.string(),
-      density: z.string(),
-      fields: z.array(z.object({
-        arrayConfig: z.unknown(),
-        fieldPath: z.unknown(),
-        order: z.unknown(),
-        searchConfig: z.unknown(),
-        vectorConfig: z.unknown(),
-      })),
-      multikey: z.boolean(),
-      name: z.string(),
-      queryScope: z.string(),
-      searchIndexOptions: z.object({
-        textLanguage: z.string(),
-        textLanguageOverrideFieldPath: z.string(),
-      }),
-      shardCount: z.number(),
-      state: z.string(),
-      unique: z.boolean(),
-    })),
+    indexes: z.array(
+      z.object({
+        apiScope: z.string(),
+        density: z.string(),
+        fields: z.array(
+          z.object({
+            arrayConfig: z.unknown(),
+            fieldPath: z.unknown(),
+            order: z.unknown(),
+            searchConfig: z.unknown(),
+            vectorConfig: z.unknown(),
+          }).partial(),
+        ),
+        multikey: z.boolean(),
+        name: z.string(),
+        queryScope: z.string(),
+        searchIndexOptions: z.object({
+          textLanguage: z.string(),
+          textLanguageOverrideFieldPath: z.string(),
+        }).partial(),
+        shardCount: z.number(),
+        state: z.string(),
+        unique: z.boolean(),
+      }).partial(),
+    ),
     reverting: z.boolean(),
     usesAncestorConfig: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   ttlConfig: z.object({
     expirationOffset: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -387,7 +391,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firestore Databases.CollectionGroups.Fields. Registered at `@swamp/gcp/firestore/databases-collectiongroups-fields`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-collectiongroups-fields",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -581,6 +585,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

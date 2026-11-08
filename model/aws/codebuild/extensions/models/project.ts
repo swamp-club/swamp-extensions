@@ -168,6 +168,118 @@ const BatchRestrictionsSchema = z.object({
   MaximumBuildsAllowed: z.number().int().optional(),
 });
 
+const SourceAuthStateSchema = z.object({
+  Resource: z.string(),
+  Type: z.string(),
+}).partial();
+
+const BuildStatusConfigStateSchema = z.object({
+  Context: z.string(),
+  TargetUrl: z.string(),
+}).partial();
+
+const GitSubmodulesConfigStateSchema = z.object({
+  FetchSubmodules: z.boolean(),
+}).partial();
+
+const SourceStateSchema = z.object({
+  Auth: SourceAuthStateSchema,
+  BuildSpec: z.string(),
+  BuildStatusConfig: BuildStatusConfigStateSchema,
+  GitCloneDepth: z.number(),
+  GitSubmodulesConfig: GitSubmodulesConfigStateSchema,
+  InsecureSsl: z.boolean(),
+  Location: z.string(),
+  ReportBuildStatus: z.boolean(),
+  SourceIdentifier: z.string(),
+  Type: z.string(),
+}).partial();
+
+const ArtifactsStateSchema = z.object({
+  ArtifactIdentifier: z.string(),
+  EncryptionDisabled: z.boolean(),
+  Location: z.string(),
+  Name: z.string(),
+  NamespaceType: z.string(),
+  OverrideArtifactName: z.boolean(),
+  Packaging: z.string(),
+  Path: z.string(),
+  Type: z.string(),
+}).partial();
+
+const CloudWatchLogsConfigStateSchema = z.object({
+  GroupName: z.string(),
+  Status: z.string(),
+  StreamName: z.string(),
+}).partial();
+
+const S3LogsConfigStateSchema = z.object({
+  EncryptionDisabled: z.boolean(),
+  Location: z.string(),
+  Status: z.string(),
+}).partial();
+
+const ProjectSourceVersionStateSchema = z.object({
+  SourceIdentifier: z.string(),
+  SourceVersion: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const WebhookFilterStateSchema = z.object({
+  Type: z.string(),
+  Pattern: z.string(),
+  ExcludeMatchedPattern: z.boolean(),
+}).partial();
+
+const ScopeConfigurationStateSchema = z.object({
+  Domain: z.string(),
+  Name: z.string(),
+  Scope: z.string(),
+}).partial();
+
+const PullRequestBuildPolicyStateSchema = z.object({
+  RequiresCommentApproval: z.string(),
+  ApproverRoles: z.array(z.string()),
+}).partial();
+
+const ProjectFileSystemLocationStateSchema = z.object({
+  Identifier: z.string(),
+  MountOptions: z.string(),
+  MountPoint: z.string(),
+  Location: z.string(),
+  Type: z.string(),
+}).partial();
+
+const EnvironmentVariableStateSchema = z.object({
+  Value: z.string(),
+  Type: z.string(),
+  Name: z.string(),
+}).partial();
+
+const ProjectFleetStateSchema = z.object({
+  FleetArn: z.string(),
+}).partial();
+
+const RegistryCredentialStateSchema = z.object({
+  Credential: z.string(),
+  CredentialProvider: z.string(),
+}).partial();
+
+const DockerServerStateSchema = z.object({
+  ComputeType: z.string(),
+  SecurityGroupIds: z.array(z.string()),
+}).partial();
+
+const BatchRestrictionsStateSchema = z.object({
+  ComputeTypesAllowed: z.array(z.string()),
+  FleetsAllowed: z.array(z.string()),
+  MaximumBuildsAllowed: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -298,44 +410,65 @@ const StateSchema = z.object({
     SecurityGroupIds: z.array(z.string()),
     Subnets: z.array(z.string()),
     VpcId: z.string(),
-  }).optional(),
-  SecondarySources: z.array(SourceSchema).optional(),
+  }).partial().optional(),
+  SecondarySources: z.array(SourceStateSchema).optional(),
   EncryptionKey: z.string().optional(),
-  SecondaryArtifacts: z.array(ArtifactsSchema).optional(),
-  Source: SourceSchema.optional(),
+  SecondaryArtifacts: z.array(ArtifactsStateSchema).optional(),
+  Source: z.object({
+    Auth: SourceAuthStateSchema,
+    BuildSpec: z.string(),
+    BuildStatusConfig: BuildStatusConfigStateSchema,
+    GitCloneDepth: z.number(),
+    GitSubmodulesConfig: GitSubmodulesConfigStateSchema,
+    InsecureSsl: z.boolean(),
+    Location: z.string(),
+    ReportBuildStatus: z.boolean(),
+    SourceIdentifier: z.string(),
+    Type: z.string(),
+  }).partial().optional(),
   Name: z.string(),
   LogsConfig: z.object({
-    CloudWatchLogs: CloudWatchLogsConfigSchema,
-    S3Logs: S3LogsConfigSchema,
-  }).optional(),
+    CloudWatchLogs: CloudWatchLogsConfigStateSchema,
+    S3Logs: S3LogsConfigStateSchema,
+  }).partial().optional(),
   ServiceRole: z.string().optional(),
   QueuedTimeoutInMinutes: z.number().optional(),
-  SecondarySourceVersions: z.array(ProjectSourceVersionSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  SecondarySourceVersions: z.array(ProjectSourceVersionStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   SourceVersion: z.string().optional(),
   Triggers: z.object({
     BuildType: z.string(),
-    FilterGroups: z.array(z.array(WebhookFilterSchema)),
+    FilterGroups: z.array(z.array(WebhookFilterStateSchema)),
     Webhook: z.boolean(),
-    ScopeConfiguration: ScopeConfigurationSchema,
-    PullRequestBuildPolicy: PullRequestBuildPolicySchema,
-  }).optional(),
-  Artifacts: ArtifactsSchema.optional(),
+    ScopeConfiguration: ScopeConfigurationStateSchema,
+    PullRequestBuildPolicy: PullRequestBuildPolicyStateSchema,
+  }).partial().optional(),
+  Artifacts: z.object({
+    ArtifactIdentifier: z.string(),
+    EncryptionDisabled: z.boolean(),
+    Location: z.string(),
+    Name: z.string(),
+    NamespaceType: z.string(),
+    OverrideArtifactName: z.boolean(),
+    Packaging: z.string(),
+    Path: z.string(),
+    Type: z.string(),
+  }).partial().optional(),
   BadgeEnabled: z.boolean().optional(),
-  FileSystemLocations: z.array(ProjectFileSystemLocationSchema).optional(),
+  FileSystemLocations: z.array(ProjectFileSystemLocationStateSchema).optional(),
   Environment: z.object({
     Type: z.string(),
-    EnvironmentVariables: z.array(EnvironmentVariableSchema),
-    Fleet: ProjectFleetSchema,
+    EnvironmentVariables: z.array(EnvironmentVariableStateSchema),
+    Fleet: ProjectFleetStateSchema,
     PrivilegedMode: z.boolean(),
     ImagePullCredentialsType: z.string(),
     Image: z.string(),
-    RegistryCredential: RegistryCredentialSchema,
+    RegistryCredential: RegistryCredentialStateSchema,
     ComputeType: z.string(),
     Certificate: z.string(),
-    DockerServer: DockerServerSchema,
+    DockerServer: DockerServerStateSchema,
     HostKernel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ConcurrentBuildLimit: z.number().optional(),
   Visibility: z.string().optional(),
   Arn: z.string().optional(),
@@ -344,19 +477,19 @@ const StateSchema = z.object({
     ServiceRole: z.string(),
     BatchReportMode: z.string(),
     TimeoutInMins: z.number(),
-    Restrictions: BatchRestrictionsSchema,
-  }).optional(),
+    Restrictions: BatchRestrictionsStateSchema,
+  }).partial().optional(),
   TimeoutInMinutes: z.number().optional(),
   Cache: z.object({
     Modes: z.array(z.string()),
     Type: z.string(),
     Location: z.string(),
     CacheNamespace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AutoRetryLimit: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -492,7 +625,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeBuild Project. Registered at `@swamp/aws/codebuild/project`. */
 export const model = {
   type: "@swamp/aws/codebuild/project",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.23.2",
@@ -501,6 +634,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

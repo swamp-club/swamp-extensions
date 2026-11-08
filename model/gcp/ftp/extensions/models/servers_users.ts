@@ -226,18 +226,22 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   state: z.string().optional(),
-  storageDirectoryMappings: z.array(z.object({
-    bucket: z.string(),
-    bucketPrefix: z.string(),
-    directory: z.string(),
-    permission: z.string(),
-  })).optional(),
+  storageDirectoryMappings: z.array(
+    z.object({
+      bucket: z.string(),
+      bucketPrefix: z.string(),
+      directory: z.string(),
+      permission: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
-  userCredentials: z.array(z.object({
-    credentialName: z.string(),
-    credentialType: z.string(),
-    sshPublicKeyBody: z.string(),
-  })).optional(),
+  userCredentials: z.array(
+    z.object({
+      credentialName: z.string(),
+      credentialType: z.string(),
+      sshPublicKeyBody: z.string(),
+    }).partial(),
+  ).optional(),
   username: z.string().optional(),
 }).passthrough();
 
@@ -324,7 +328,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud FTP Servers.Users. Registered at `@swamp/gcp/ftp/servers-users`. */
 export const model = {
   type: "@swamp/gcp/ftp/servers-users",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.13.1",
@@ -338,6 +342,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

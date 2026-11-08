@@ -183,11 +183,13 @@ const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
   current: z.object({
-    splits: z.array(z.object({
-      build: z.string(),
-      percent: z.number(),
-    })),
-  }).optional(),
+    splits: z.array(
+      z.object({
+        build: z.string(),
+        percent: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -196,21 +198,27 @@ const StateSchema = z.object({
     codebaseBranch: z.string(),
     disabled: z.boolean(),
     disabledTime: z.string(),
-    ignoredPaths: z.array(z.object({
-      pattern: z.string(),
-      type: z.string(),
-    })),
-    requiredPaths: z.array(z.object({
-      pattern: z.string(),
-      type: z.string(),
-    })),
-  }).optional(),
+    ignoredPaths: z.array(
+      z.object({
+        pattern: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+    requiredPaths: z.array(
+      z.object({
+        pattern: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   target: z.object({
-    splits: z.array(z.object({
-      build: z.string(),
-      percent: z.number(),
-    })),
-  }).optional(),
+    splits: z.array(
+      z.object({
+        build: z.string(),
+        percent: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -331,7 +339,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase App Hosting Backends.Traffic. Registered at `@swamp/gcp/firebaseapphosting/backends-traffic`. */
 export const model = {
   type: "@swamp/gcp/firebaseapphosting/backends-traffic",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -505,6 +513,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

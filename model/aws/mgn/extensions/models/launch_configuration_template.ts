@@ -80,6 +80,20 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
+const SsmDocumentStateSchema = z.object({
+  ActionName: z.string(),
+  SsmDocumentName: z.string(),
+  TimeoutSeconds: z.number(),
+  MustSucceedForCutover: z.boolean(),
+  Parameters: z.record(z.string(), z.unknown()),
+  ExternalParameters: z.record(z.string(), z.unknown()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -191,8 +205,8 @@ const StateSchema = z.object({
     S3LogBucket: z.string(),
     S3OutputKeyPrefix: z.string(),
     CloudWatchLogGroupName: z.string(),
-    SsmDocuments: z.array(SsmDocumentSchema),
-  }).optional(),
+    SsmDocuments: z.array(SsmDocumentStateSchema),
+  }).partial().optional(),
   EnableMapAutoTagging: z.boolean().optional(),
   MapAutoTaggingMpeID: z.string().optional(),
   LaunchDisposition: z.string().optional(),
@@ -202,25 +216,25 @@ const StateSchema = z.object({
   CopyTags: z.boolean().optional(),
   Licensing: z.object({
     OsByol: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   BootMode: z.string().optional(),
   SmallVolumeMaxSize: z.number().optional(),
   SmallVolumeConf: z.object({
     VolumeType: z.string(),
     Iops: z.number(),
     Throughput: z.number(),
-  }).optional(),
+  }).partial().optional(),
   LargeVolumeConf: z.object({
     VolumeType: z.string(),
     Iops: z.number(),
     Throughput: z.number(),
-  }).optional(),
+  }).partial().optional(),
   EnableParametersEncryption: z.boolean().optional(),
   ParametersEncryptionKey: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -333,7 +347,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MGN LaunchConfigurationTemplate. Registered at `@swamp/aws/mgn/launch-configuration-template`. */
 export const model = {
   type: "@swamp/aws/mgn/launch-configuration-template",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -342,6 +356,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

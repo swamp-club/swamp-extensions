@@ -510,6 +510,280 @@ const ConnectorProfileCredentialsSchema = z.object({
   CustomConnector: CustomConnectorProfileCredentialsSchema.optional(),
 });
 
+const DatadogConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+}).partial();
+
+const DynatraceConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+}).partial();
+
+const InforNexusConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+}).partial();
+
+const MarketoConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+}).partial();
+
+const RedshiftConnectorProfilePropertiesStateSchema = z.object({
+  DatabaseUrl: z.string(),
+  BucketName: z.string(),
+  BucketPrefix: z.string(),
+  RoleArn: z.string(),
+  IsRedshiftServerless: z.boolean(),
+  DataApiRoleArn: z.string(),
+  ClusterIdentifier: z.string(),
+  WorkgroupName: z.string(),
+  DatabaseName: z.string(),
+}).partial();
+
+const OAuthPropertiesStateSchema = z.object({
+  AuthCodeUrl: z.string(),
+  TokenUrl: z.string(),
+  OAuthScopes: z.array(z.string()),
+}).partial();
+
+const SAPODataConnectorProfilePropertiesStateSchema = z.object({
+  ApplicationHostUrl: z.string(),
+  ApplicationServicePath: z.string(),
+  PortNumber: z.number(),
+  ClientNumber: z.string(),
+  LogonLanguage: z.string(),
+  PrivateLinkServiceName: z.string(),
+  OAuthProperties: OAuthPropertiesStateSchema,
+  DisableSSO: z.boolean(),
+}).partial();
+
+const SalesforceConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+  isSandboxEnvironment: z.boolean(),
+  usePrivateLinkForMetadataAndAuthorization: z.boolean(),
+}).partial();
+
+const PardotConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+  IsSandboxEnvironment: z.boolean(),
+  BusinessUnitId: z.string(),
+}).partial();
+
+const ServiceNowConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+}).partial();
+
+const SlackConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+}).partial();
+
+const SnowflakeConnectorProfilePropertiesStateSchema = z.object({
+  Warehouse: z.string(),
+  Stage: z.string(),
+  BucketName: z.string(),
+  BucketPrefix: z.string(),
+  PrivateLinkServiceName: z.string(),
+  AccountName: z.string(),
+  Region: z.string(),
+}).partial();
+
+const VeevaConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+}).partial();
+
+const ZendeskConnectorProfilePropertiesStateSchema = z.object({
+  InstanceUrl: z.string(),
+}).partial();
+
+const OAuth2PropertiesStateSchema = z.object({
+  TokenUrl: z.string(),
+  OAuth2GrantType: z.string(),
+  TokenUrlCustomProperties: z.record(z.string(), z.unknown()),
+}).partial();
+
+const CustomConnectorProfilePropertiesStateSchema = z.object({
+  ProfileProperties: z.record(z.string(), z.unknown()),
+  OAuth2Properties: OAuth2PropertiesStateSchema,
+}).partial();
+
+const ConnectorProfilePropertiesStateSchema = z.object({
+  Datadog: DatadogConnectorProfilePropertiesStateSchema,
+  Dynatrace: DynatraceConnectorProfilePropertiesStateSchema,
+  InforNexus: InforNexusConnectorProfilePropertiesStateSchema,
+  Marketo: MarketoConnectorProfilePropertiesStateSchema,
+  Redshift: RedshiftConnectorProfilePropertiesStateSchema,
+  SAPOData: SAPODataConnectorProfilePropertiesStateSchema,
+  Salesforce: SalesforceConnectorProfilePropertiesStateSchema,
+  Pardot: PardotConnectorProfilePropertiesStateSchema,
+  ServiceNow: ServiceNowConnectorProfilePropertiesStateSchema,
+  Slack: SlackConnectorProfilePropertiesStateSchema,
+  Snowflake: SnowflakeConnectorProfilePropertiesStateSchema,
+  Veeva: VeevaConnectorProfilePropertiesStateSchema,
+  Zendesk: ZendeskConnectorProfilePropertiesStateSchema,
+  CustomConnector: CustomConnectorProfilePropertiesStateSchema,
+}).partial();
+
+const AmplitudeConnectorProfileCredentialsStateSchema = z.object({
+  ApiKey: z.string(),
+  SecretKey: z.string(),
+}).partial();
+
+const DatadogConnectorProfileCredentialsStateSchema = z.object({
+  ApiKey: z.string(),
+  ApplicationKey: z.string(),
+}).partial();
+
+const DynatraceConnectorProfileCredentialsStateSchema = z.object({
+  ApiToken: z.string(),
+}).partial();
+
+const ConnectorOAuthRequestStateSchema = z.object({
+  AuthCode: z.string(),
+  RedirectUri: z.string(),
+}).partial();
+
+const GoogleAnalyticsConnectorProfileCredentialsStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  AccessToken: z.string(),
+  RefreshToken: z.string(),
+  ConnectorOAuthRequest: ConnectorOAuthRequestStateSchema,
+}).partial();
+
+const InforNexusConnectorProfileCredentialsStateSchema = z.object({
+  AccessKeyId: z.string(),
+  UserId: z.string(),
+  SecretAccessKey: z.string(),
+  Datakey: z.string(),
+}).partial();
+
+const MarketoConnectorProfileCredentialsStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  AccessToken: z.string(),
+  ConnectorOAuthRequest: ConnectorOAuthRequestStateSchema,
+}).partial();
+
+const RedshiftConnectorProfileCredentialsStateSchema = z.object({
+  Username: z.string(),
+  Password: z.string(),
+}).partial();
+
+const BasicAuthCredentialsStateSchema = z.object({
+  Username: z.string(),
+  Password: z.string(),
+}).partial();
+
+const SAPODataConnectorProfileCredentialsStateSchema = z.object({
+  BasicAuthCredentials: BasicAuthCredentialsStateSchema,
+  OAuthCredentials: z.object({
+    AccessToken: z.string(),
+    RefreshToken: z.string(),
+    ConnectorOAuthRequest: ConnectorOAuthRequestStateSchema,
+    ClientId: z.string(),
+    ClientSecret: z.string(),
+  }).partial(),
+}).partial();
+
+const SalesforceConnectorProfileCredentialsStateSchema = z.object({
+  AccessToken: z.string(),
+  RefreshToken: z.string(),
+  ConnectorOAuthRequest: ConnectorOAuthRequestStateSchema,
+  ClientCredentialsArn: z.string(),
+  OAuth2GrantType: z.string(),
+  JwtToken: z.string(),
+}).partial();
+
+const PardotConnectorProfileCredentialsStateSchema = z.object({
+  AccessToken: z.string(),
+  RefreshToken: z.string(),
+  ConnectorOAuthRequest: ConnectorOAuthRequestStateSchema,
+  ClientCredentialsArn: z.string(),
+}).partial();
+
+const OAuth2CredentialsStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  AccessToken: z.string(),
+  RefreshToken: z.string(),
+  OAuthRequest: ConnectorOAuthRequestStateSchema,
+}).partial();
+
+const ServiceNowConnectorProfileCredentialsStateSchema = z.object({
+  Username: z.string(),
+  Password: z.string(),
+  OAuth2Credentials: OAuth2CredentialsStateSchema,
+}).partial();
+
+const SingularConnectorProfileCredentialsStateSchema = z.object({
+  ApiKey: z.string(),
+}).partial();
+
+const SlackConnectorProfileCredentialsStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  AccessToken: z.string(),
+  ConnectorOAuthRequest: ConnectorOAuthRequestStateSchema,
+}).partial();
+
+const SnowflakeConnectorProfileCredentialsStateSchema = z.object({
+  Username: z.string(),
+  Password: z.string(),
+}).partial();
+
+const TrendmicroConnectorProfileCredentialsStateSchema = z.object({
+  ApiSecretKey: z.string(),
+}).partial();
+
+const VeevaConnectorProfileCredentialsStateSchema = z.object({
+  Username: z.string(),
+  Password: z.string(),
+}).partial();
+
+const ZendeskConnectorProfileCredentialsStateSchema = z.object({
+  ClientId: z.string(),
+  ClientSecret: z.string(),
+  AccessToken: z.string(),
+  ConnectorOAuthRequest: ConnectorOAuthRequestStateSchema,
+}).partial();
+
+const ApiKeyCredentialsStateSchema = z.object({
+  ApiKey: z.string(),
+  ApiSecretKey: z.string(),
+}).partial();
+
+const CustomAuthCredentialsStateSchema = z.object({
+  CustomAuthenticationType: z.string(),
+  CredentialsMap: z.record(z.string(), z.unknown()),
+}).partial();
+
+const CustomConnectorProfileCredentialsStateSchema = z.object({
+  AuthenticationType: z.string(),
+  Basic: BasicAuthCredentialsStateSchema,
+  Oauth2: OAuth2CredentialsStateSchema,
+  ApiKey: ApiKeyCredentialsStateSchema,
+  Custom: CustomAuthCredentialsStateSchema,
+}).partial();
+
+const ConnectorProfileCredentialsStateSchema = z.object({
+  Amplitude: AmplitudeConnectorProfileCredentialsStateSchema,
+  Datadog: DatadogConnectorProfileCredentialsStateSchema,
+  Dynatrace: DynatraceConnectorProfileCredentialsStateSchema,
+  GoogleAnalytics: GoogleAnalyticsConnectorProfileCredentialsStateSchema,
+  InforNexus: InforNexusConnectorProfileCredentialsStateSchema,
+  Marketo: MarketoConnectorProfileCredentialsStateSchema,
+  Redshift: RedshiftConnectorProfileCredentialsStateSchema,
+  SAPOData: SAPODataConnectorProfileCredentialsStateSchema,
+  Salesforce: SalesforceConnectorProfileCredentialsStateSchema,
+  Pardot: PardotConnectorProfileCredentialsStateSchema,
+  ServiceNow: ServiceNowConnectorProfileCredentialsStateSchema,
+  Singular: SingularConnectorProfileCredentialsStateSchema,
+  Slack: SlackConnectorProfileCredentialsStateSchema,
+  Snowflake: SnowflakeConnectorProfileCredentialsStateSchema,
+  Trendmicro: TrendmicroConnectorProfileCredentialsStateSchema,
+  Veeva: VeevaConnectorProfileCredentialsStateSchema,
+  Zendesk: ZendeskConnectorProfileCredentialsStateSchema,
+  CustomConnector: CustomConnectorProfileCredentialsStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -578,13 +852,13 @@ const StateSchema = z.object({
   ConnectorType: z.string().optional(),
   ConnectionMode: z.string().optional(),
   ConnectorProfileConfig: z.object({
-    ConnectorProfileProperties: ConnectorProfilePropertiesSchema,
-    ConnectorProfileCredentials: ConnectorProfileCredentialsSchema,
-  }).optional(),
+    ConnectorProfileProperties: ConnectorProfilePropertiesStateSchema,
+    ConnectorProfileCredentials: ConnectorProfileCredentialsStateSchema,
+  }).partial().optional(),
   CredentialsArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -658,7 +932,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppFlow ConnectorProfile. Registered at `@swamp/aws/appflow/connector-profile`. */
 export const model = {
   type: "@swamp/aws/appflow/connector-profile",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -722,6 +996,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

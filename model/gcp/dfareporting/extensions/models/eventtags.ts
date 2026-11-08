@@ -289,7 +289,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   campaignId: z.string().optional(),
   campaignIdDimensionValue: z.object({
     dimensionName: z.string(),
@@ -298,7 +298,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   enabledByDefault: z.boolean().optional(),
   excludeFromAdxRequests: z.boolean().optional(),
   id: z.string(),
@@ -445,7 +445,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 EventTags. Registered at `@swamp/gcp/dfareporting/eventtags`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/eventtags",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -579,6 +579,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

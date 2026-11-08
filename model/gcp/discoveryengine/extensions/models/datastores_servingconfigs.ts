@@ -372,8 +372,8 @@ const StateSchema = z.object({
       temperature: z.number(),
       topK: z.string(),
       topP: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   boostControlIds: z.array(z.string()).optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
@@ -385,20 +385,20 @@ const StateSchema = z.object({
       chunkSpec: z.object({
         numNextChunks: z.number(),
         numPreviousChunks: z.number(),
-      }),
+      }).partial(),
       extractiveContentSpec: z.object({
         maxExtractiveAnswerCount: z.number(),
         maxExtractiveSegmentCount: z.number(),
         numNextSegments: z.number(),
         numPreviousSegments: z.number(),
         returnExtractiveSegmentScore: z.boolean(),
-      }),
+      }).partial(),
       searchResultMode: z.string(),
       snippetSpec: z.object({
         maxSnippetCount: z.number(),
         referenceOnly: z.boolean(),
         returnSnippet: z.boolean(),
-      }),
+      }).partial(),
       summarySpec: z.object({
         ignoreAdversarialQuery: z.boolean(),
         ignoreJailBreakingQuery: z.boolean(),
@@ -408,15 +408,15 @@ const StateSchema = z.object({
         languageCode: z.string(),
         modelPromptSpec: z.object({
           preamble: z.string(),
-        }),
+        }).partial(),
         modelSpec: z.object({
           version: z.string(),
-        }),
+        }).partial(),
         summaryResultCount: z.number(),
         useSemanticChunks: z.boolean(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   ignoreControlIds: z.array(z.string()).optional(),
   mediaConfig: z.object({
     contentFreshnessCutoffDays: z.number(),
@@ -424,7 +424,7 @@ const StateSchema = z.object({
     contentWatchedSecondsThreshold: z.number(),
     demoteContentWatchedPastDays: z.number(),
     demotionEventType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   modelId: z.string().optional(),
   name: z.string(),
   onewaySynonymsControlIds: z.array(z.string()).optional(),
@@ -679,7 +679,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine DataStores.ServingConfigs. Registered at `@swamp/gcp/discoveryengine/datastores-servingconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/datastores-servingconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -858,6 +858,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

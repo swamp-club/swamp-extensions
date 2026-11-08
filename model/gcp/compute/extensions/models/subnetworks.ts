@@ -371,12 +371,12 @@ const StateSchema = z.object({
     flowSampling: z.number(),
     metadata: z.string(),
     metadataFields: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   network: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   privateIpGoogleAccess: z.boolean().optional(),
   privateIpv6GoogleAccess: z.string().optional(),
   purpose: z.string().optional(),
@@ -384,13 +384,15 @@ const StateSchema = z.object({
   reservedInternalRange: z.string().optional(),
   resolveSubnetMask: z.string().optional(),
   role: z.string().optional(),
-  secondaryIpRanges: z.array(z.object({
-    ipCidrRange: z.string(),
-    ipCollection: z.string(),
-    ipVersion: z.string(),
-    rangeName: z.string(),
-    reservedInternalRange: z.string(),
-  })).optional(),
+  secondaryIpRanges: z.array(
+    z.object({
+      ipCidrRange: z.string(),
+      ipCollection: z.string(),
+      ipVersion: z.string(),
+      rangeName: z.string(),
+      reservedInternalRange: z.string(),
+    }).partial(),
+  ).optional(),
   selfLink: z.string().optional(),
   stackType: z.string().optional(),
   state: z.string().optional(),
@@ -401,38 +403,40 @@ const StateSchema = z.object({
       totalAllocatedIp: z.object({
         high: z.string(),
         low: z.string(),
-      }),
+      }).partial(),
       totalFreeIp: z.object({
         high: z.string(),
         low: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     externalIpv6LbUtilization: z.object({
       totalAllocatedIp: z.object({
         high: z.string(),
         low: z.string(),
-      }),
+      }).partial(),
       totalFreeIp: z.object({
         high: z.string(),
         low: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     internalIpv6Utilization: z.object({
       totalAllocatedIp: z.object({
         high: z.string(),
         low: z.string(),
-      }),
+      }).partial(),
       totalFreeIp: z.object({
         high: z.string(),
         low: z.string(),
-      }),
-    }),
-    ipv4Utilizations: z.array(z.object({
-      rangeName: z.string(),
-      totalAllocatedIp: z.string(),
-      totalFreeIp: z.string(),
-    })),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+    ipv4Utilizations: z.array(
+      z.object({
+        rangeName: z.string(),
+        totalAllocatedIp: z.string(),
+        totalFreeIp: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -608,7 +612,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Subnetworks. Registered at `@swamp/gcp/compute/subnetworks`. */
 export const model = {
   type: "@swamp/gcp/compute/subnetworks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -785,6 +789,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -501,16 +501,18 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   contextSpec: z.object({
     memoryBankConfig: z.object({
-      customizationConfigs: z.array(z.object({
-        consolidationConfig: z.object({
-          revisionsPerCandidateCount: z.unknown(),
-        }),
-        disableNaturalLanguageMemories: z.boolean(),
-        enableThirdPersonMemories: z.boolean(),
-        generateMemoriesExamples: z.array(z.unknown()),
-        memoryTopics: z.array(z.unknown()),
-        scopeKeys: z.array(z.unknown()),
-      })),
+      customizationConfigs: z.array(
+        z.object({
+          consolidationConfig: z.object({
+            revisionsPerCandidateCount: z.unknown(),
+          }).partial(),
+          disableNaturalLanguageMemories: z.boolean(),
+          enableThirdPersonMemories: z.boolean(),
+          generateMemoriesExamples: z.array(z.unknown()),
+          memoryTopics: z.array(z.unknown()),
+          scopeKeys: z.array(z.unknown()),
+        }).partial(),
+      ),
       disableMemoryRevisions: z.boolean(),
       generationConfig: z.object({
         generationTriggerConfig: z.object({
@@ -519,30 +521,30 @@ const StateSchema = z.object({
             fixedInterval: z.unknown(),
             idleDuration: z.unknown(),
             overlapEventCount: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         model: z.string(),
-      }),
+      }).partial(),
       similaritySearchConfig: z.object({
         embeddingModel: z.string(),
-      }),
+      }).partial(),
       ttlConfig: z.object({
         defaultTtl: z.string(),
         granularTtlConfig: z.object({
           createTtl: z.string(),
           generateCreatedTtl: z.string(),
           generateUpdatedTtl: z.string(),
-        }),
+        }).partial(),
         memoryRevisionDefaultTtl: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -551,52 +553,58 @@ const StateSchema = z.object({
     buildSpec: z.object({
       serviceAccount: z.string(),
       workerPool: z.string(),
-    }),
+    }).partial(),
     classMethods: z.array(z.record(z.string(), z.unknown())),
     containerSpec: z.object({
       imageUri: z.string(),
       port: z.number(),
-    }),
+    }).partial(),
     deploymentSpec: z.object({
       agentGatewayConfig: z.object({
         agentToAnywhereConfig: z.object({
           agentGateway: z.string(),
-        }),
+        }).partial(),
         clientToAgentConfig: z.object({
           agentGateway: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       containerConcurrency: z.number(),
-      env: z.array(z.object({
-        name: z.string(),
-        value: z.string(),
-      })),
+      env: z.array(
+        z.object({
+          name: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       keepAliveProbe: z.object({
         httpGet: z.object({
           path: z.string(),
           port: z.number(),
-        }),
+        }).partial(),
         maxSeconds: z.number(),
-      }),
+      }).partial(),
       maxInstances: z.number(),
       minInstances: z.number(),
       pscInterfaceConfig: z.object({
-        dnsPeeringConfigs: z.array(z.object({
-          domain: z.unknown(),
-          targetNetwork: z.unknown(),
-          targetProject: z.unknown(),
-        })),
+        dnsPeeringConfigs: z.array(
+          z.object({
+            domain: z.unknown(),
+            targetNetwork: z.unknown(),
+            targetProject: z.unknown(),
+          }).partial(),
+        ),
         networkAttachment: z.string(),
-      }),
+      }).partial(),
       resourceLimits: z.record(z.string(), z.unknown()),
-      secretEnv: z.array(z.object({
-        name: z.string(),
-        secretRef: z.object({
-          secret: z.unknown(),
-          version: z.unknown(),
-        }),
-      })),
-    }),
+      secretEnv: z.array(
+        z.object({
+          name: z.string(),
+          secretRef: z.object({
+            secret: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     effectiveIdentity: z.string(),
     identityType: z.string(),
     packageSpec: z.object({
@@ -604,43 +612,43 @@ const StateSchema = z.object({
       pickleObjectGcsUri: z.string(),
       pythonVersion: z.string(),
       requirementsGcsUri: z.string(),
-    }),
+    }).partial(),
     serviceAccount: z.string(),
     sourceCodeSpec: z.object({
       agentConfigSource: z.object({
         adkConfig: z.object({
           jsonConfig: z.record(z.string(), z.unknown()),
-        }),
+        }).partial(),
         inlineSource: z.object({
           sourceArchive: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       developerConnectSource: z.object({
         config: z.object({
           dir: z.string(),
           gitRepositoryLink: z.string(),
           revision: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       gitSource: z.object({
         dir: z.string(),
         revision: z.string(),
         url: z.string(),
-      }),
+      }).partial(),
       imageSpec: z.object({
         buildArgs: z.record(z.string(), z.unknown()),
-      }),
+      }).partial(),
       inlineSource: z.object({
         sourceArchive: z.string(),
-      }),
+      }).partial(),
       pythonSpec: z.object({
         entrypointModule: z.string(),
         entrypointObject: z.string(),
         requirementsFile: z.string(),
         version: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -1020,7 +1028,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines. Registered at `@swamp/gcp/aiplatform/reasoningengines`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1340,6 +1348,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

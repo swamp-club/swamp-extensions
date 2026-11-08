@@ -395,7 +395,7 @@ const StateSchema = z.object({
   deletionProtection: z.boolean().optional(),
   encryptionConfig: z.object({
     kmsKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endpointUri: z.string().optional(),
   hiveMetastoreConfig: z.object({
     auxiliaryVersions: z.record(z.string(), z.unknown()),
@@ -404,53 +404,59 @@ const StateSchema = z.object({
     kerberosConfig: z.object({
       keytab: z.object({
         cloudSecret: z.string(),
-      }),
+      }).partial(),
       krb5ConfigGcsUri: z.string(),
       principal: z.string(),
-    }),
+    }).partial(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   lakehouseProxyConfig: z.object({
     catalog: z.string(),
     namespaces: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   maintenanceWindow: z.object({
     dayOfWeek: z.string(),
     hourOfDay: z.number(),
-  }).optional(),
+  }).partial().optional(),
   metadataIntegration: z.object({
     dataCatalogConfig: z.object({
       enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   metadataManagementActivity: z.object({
-    metadataExports: z.array(z.object({
-      databaseDumpType: z.string(),
-      destinationGcsUri: z.string(),
-      endTime: z.string(),
-      startTime: z.string(),
-      state: z.string(),
-    })),
-    restores: z.array(z.object({
-      backup: z.string(),
-      backupLocation: z.string(),
-      details: z.string(),
-      endTime: z.string(),
-      startTime: z.string(),
-      state: z.string(),
-      type: z.string(),
-    })),
-  }).optional(),
+    metadataExports: z.array(
+      z.object({
+        databaseDumpType: z.string(),
+        destinationGcsUri: z.string(),
+        endTime: z.string(),
+        startTime: z.string(),
+        state: z.string(),
+      }).partial(),
+    ),
+    restores: z.array(
+      z.object({
+        backup: z.string(),
+        backupLocation: z.string(),
+        details: z.string(),
+        endTime: z.string(),
+        startTime: z.string(),
+        state: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   network: z.string().optional(),
   networkConfig: z.object({
-    consumers: z.array(z.object({
-      endpointLocation: z.string(),
-      endpointUri: z.string(),
-      subnetwork: z.string(),
-    })),
-  }).optional(),
+    consumers: z.array(
+      z.object({
+        endpointLocation: z.string(),
+        endpointUri: z.string(),
+        subnetwork: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   port: z.number().optional(),
   releaseChannel: z.string().optional(),
   scalingConfig: z.object({
@@ -460,11 +466,11 @@ const StateSchema = z.object({
       limitConfig: z.object({
         maxScalingFactor: z.number(),
         minScalingFactor: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     instanceSize: z.string(),
     scalingFactor: z.number(),
-  }).optional(),
+  }).partial().optional(),
   scheduledBackup: z.object({
     backupLocation: z.string(),
     cronSchedule: z.string(),
@@ -474,16 +480,16 @@ const StateSchema = z.object({
       duration: z.string(),
       startTime: z.string(),
       state: z.string(),
-    }),
+    }).partial(),
     nextScheduledTime: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   stateMessage: z.string().optional(),
   tags: z.record(z.string(), z.unknown()).optional(),
   telemetryConfig: z.object({
     logFormat: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tier: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -743,7 +749,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Metastore Services. Registered at `@swamp/gcp/metastore/services`. */
 export const model = {
   type: "@swamp/gcp/metastore/services",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -955,6 +961,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -94,16 +94,20 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   displayName: z.string().optional(),
-  moreHoursTypes: z.array(z.object({
-    displayName: z.string(),
-    hoursTypeId: z.string(),
-    localizedDisplayName: z.string(),
-  })).optional(),
+  moreHoursTypes: z.array(
+    z.object({
+      displayName: z.string(),
+      hoursTypeId: z.string(),
+      localizedDisplayName: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
-  serviceTypes: z.array(z.object({
-    displayName: z.string(),
-    serviceTypeId: z.string(),
-  })).optional(),
+  serviceTypes: z.array(
+    z.object({
+      displayName: z.string(),
+      serviceTypeId: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -144,7 +148,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud My Business Business Information Categories. Registered at `@swamp/gcp/mybusinessbusinessinformation/categories`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/categories",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -273,6 +277,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

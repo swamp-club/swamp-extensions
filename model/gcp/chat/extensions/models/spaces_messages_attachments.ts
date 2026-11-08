@@ -126,13 +126,13 @@ const StateSchema = z.object({
   attachmentDataRef: z.object({
     attachmentUploadToken: z.string(),
     resourceName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentName: z.string().optional(),
   contentType: z.string().optional(),
   downloadUri: z.string().optional(),
   driveDataRef: z.object({
     driveFileId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   source: z.string().optional(),
   thumbnailUri: z.string().optional(),
@@ -176,7 +176,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages.Attachments. Registered at `@swamp/gcp/chat/spaces-messages-attachments`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages-attachments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -305,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

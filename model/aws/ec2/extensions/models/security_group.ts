@@ -67,6 +67,35 @@ const TagSchema = z.object({
   Key: z.string(),
 });
 
+const IngressStateSchema = z.object({
+  CidrIp: z.string(),
+  CidrIpv6: z.string(),
+  Description: z.string(),
+  FromPort: z.number(),
+  SourceSecurityGroupName: z.string(),
+  ToPort: z.number(),
+  SourceSecurityGroupOwnerId: z.string(),
+  IpProtocol: z.string(),
+  SourceSecurityGroupId: z.string(),
+  SourcePrefixListId: z.string(),
+}).partial();
+
+const EgressStateSchema = z.object({
+  CidrIp: z.string(),
+  CidrIpv6: z.string(),
+  Description: z.string(),
+  FromPort: z.number(),
+  ToPort: z.number(),
+  IpProtocol: z.string(),
+  DestinationSecurityGroupId: z.string(),
+  DestinationPrefixListId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -103,13 +132,13 @@ const StateSchema = z.object({
   GroupName: z.string().optional(),
   VpcId: z.string().optional(),
   Id: z.string(),
-  SecurityGroupIngress: z.array(IngressSchema).optional(),
-  SecurityGroupEgress: z.array(EgressSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  SecurityGroupIngress: z.array(IngressStateSchema).optional(),
+  SecurityGroupEgress: z.array(EgressStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   GroupId: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -151,7 +180,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 SecurityGroup. Registered at `@swamp/aws/ec2/security-group`. */
 export const model = {
   type: "@swamp/aws/ec2/security-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -215,6 +244,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

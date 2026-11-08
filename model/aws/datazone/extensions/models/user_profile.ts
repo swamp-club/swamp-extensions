@@ -38,6 +38,18 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const IamUserProfileDetailsStateSchema = z.object({
+  Arn: z.string(),
+  SessionName: z.string(),
+  GroupProfileId: z.string(),
+}).partial();
+
+const SsoUserProfileDetailsStateSchema = z.object({
+  Username: z.string(),
+  FirstName: z.string(),
+  LastName: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -74,17 +86,9 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Details: z.object({
-    Iam: z.object({
-      Arn: z.string(),
-      SessionName: z.string(),
-      GroupProfileId: z.string(),
-    }),
-    Sso: z.object({
-      Username: z.string(),
-      FirstName: z.string(),
-      LastName: z.string(),
-    }),
-  }).optional(),
+    Iam: IamUserProfileDetailsStateSchema,
+    Sso: SsoUserProfileDetailsStateSchema,
+  }).partial().optional(),
   DomainId: z.string(),
   DomainIdentifier: z.string().optional(),
   Id: z.string(),
@@ -95,7 +99,7 @@ const StateSchema = z.object({
   SessionName: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -140,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone UserProfile. Registered at `@swamp/aws/datazone/user-profile`. */
 export const model = {
   type: "@swamp/aws/datazone/user-profile",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -209,6 +213,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

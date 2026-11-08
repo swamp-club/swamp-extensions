@@ -162,6 +162,58 @@ const TagSchema = z.object({
   ),
 });
 
+const DeadLetterQueueS3ConfigurationStateSchema = z.object({
+  ErrorOutputPrefix: z.string(),
+  BucketARN: z.string(),
+  ExpectedBucketOwner: z.string(),
+}).partial();
+
+const S3StorageConfigurationStateSchema = z.object({
+  BucketARN: z.string(),
+  StorageClass: z.string(),
+  OutputKeyTemplate: z.string(),
+  CompressionType: z.string(),
+  ExpectedBucketOwner: z.string(),
+}).partial();
+
+const CloudWatchLogsConfigurationStateSchema = z.object({
+  LogStreamName: z.string(),
+  Enabled: z.boolean(),
+  LogGroupName: z.string(),
+}).partial();
+
+const RecordConfigurationStateSchema = z.object({
+  GSRSchemaARN: z.string(),
+  RecordFormatType: z.string(),
+}).partial();
+
+const StreamConfigurationStateSchema = z.object({
+  RecordConfiguration: RecordConfigurationStateSchema,
+  StreamARN: z.string(),
+}).partial();
+
+const PartitionFieldStateSchema = z.object({
+  SourceName: z.string(),
+  Transform: z.string(),
+}).partial();
+
+const PartitionSpecStateSchema = z.object({
+  PartitionFields: z.array(PartitionFieldStateSchema),
+}).partial();
+
+const S3TableConfigurationStateSchema = z.object({
+  TableBucketARN: z.string(),
+  TableName: z.string(),
+  CompressionType: z.string(),
+  PartitionSpec: PartitionSpecStateSchema,
+  Namespace: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -246,28 +298,28 @@ const StateSchema = z.object({
   EncryptionConfiguration: z.object({
     EncryptionType: z.string(),
     KeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   S3DestinationConfiguration: z.object({
-    DeadLetterQueueS3Configuration: DeadLetterQueueS3ConfigurationSchema,
+    DeadLetterQueueS3Configuration: DeadLetterQueueS3ConfigurationStateSchema,
     DataFreshnessInSeconds: z.number(),
-    StorageConfiguration: S3StorageConfigurationSchema,
-  }).optional(),
+    StorageConfiguration: S3StorageConfigurationStateSchema,
+  }).partial().optional(),
   LoggingConfiguration: z.object({
-    CloudWatchLogs: CloudWatchLogsConfigurationSchema,
-  }).optional(),
-  StreamConfigurationList: z.array(StreamConfigurationSchema).optional(),
+    CloudWatchLogs: CloudWatchLogsConfigurationStateSchema,
+  }).partial().optional(),
+  StreamConfigurationList: z.array(StreamConfigurationStateSchema).optional(),
   ServiceExecutionRoleARN: z.string().optional(),
   S3TablesDestinationConfiguration: z.object({
-    S3TablesConfigurationList: z.array(S3TableConfigurationSchema),
-    DeadLetterQueueS3Configuration: DeadLetterQueueS3ConfigurationSchema,
+    S3TablesConfigurationList: z.array(S3TableConfigurationStateSchema),
+    DeadLetterQueueS3Configuration: DeadLetterQueueS3ConfigurationStateSchema,
     DataFreshnessInSeconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
   ChannelStatus: z.string().optional(),
   ChannelId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -355,7 +407,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kinesis Channel. Registered at `@swamp/aws/kinesis/channel`. */
 export const model = {
   type: "@swamp/aws/kinesis/channel",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -374,6 +426,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

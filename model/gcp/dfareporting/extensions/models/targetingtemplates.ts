@@ -481,129 +481,155 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contextualKeywordTargeting: z.object({
-    keywords: z.array(z.object({
-      keyword: z.string(),
-    })),
-  }).optional(),
+    keywords: z.array(
+      z.object({
+        keyword: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   dayPartTargeting: z.object({
     daysOfWeek: z.array(z.string()),
     hoursOfDay: z.array(z.number()),
     userLocalTime: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   geoTargeting: z.object({
-    cities: z.array(z.object({
-      countryCode: z.string(),
-      countryDartId: z.string(),
-      dartId: z.string(),
-      kind: z.string(),
-      metroCode: z.string(),
-      metroDmaId: z.string(),
-      name: z.string(),
-      regionCode: z.string(),
-      regionDartId: z.string(),
-    })),
-    countries: z.array(z.object({
-      countryCode: z.string(),
-      dartId: z.string(),
-      kind: z.string(),
-      name: z.string(),
-      sslEnabled: z.boolean(),
-      tvDataProviders: z.array(z.string()),
-    })),
+    cities: z.array(
+      z.object({
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        dartId: z.string(),
+        kind: z.string(),
+        metroCode: z.string(),
+        metroDmaId: z.string(),
+        name: z.string(),
+        regionCode: z.string(),
+        regionDartId: z.string(),
+      }).partial(),
+    ),
+    countries: z.array(
+      z.object({
+        countryCode: z.string(),
+        dartId: z.string(),
+        kind: z.string(),
+        name: z.string(),
+        sslEnabled: z.boolean(),
+        tvDataProviders: z.array(z.string()),
+      }).partial(),
+    ),
     excludeCountries: z.boolean(),
-    metros: z.array(z.object({
-      countryCode: z.string(),
-      countryDartId: z.string(),
-      dartId: z.string(),
-      dmaId: z.string(),
-      kind: z.string(),
-      metroCode: z.string(),
-      name: z.string(),
-    })),
-    postalCodes: z.array(z.object({
-      code: z.string(),
-      countryCode: z.string(),
-      countryDartId: z.string(),
-      id: z.string(),
-      kind: z.string(),
-    })),
-    regions: z.array(z.object({
-      countryCode: z.string(),
-      countryDartId: z.string(),
-      dartId: z.string(),
-      kind: z.string(),
-      name: z.string(),
-      regionCode: z.string(),
-    })),
-  }).optional(),
+    metros: z.array(
+      z.object({
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        dartId: z.string(),
+        dmaId: z.string(),
+        kind: z.string(),
+        metroCode: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    postalCodes: z.array(
+      z.object({
+        code: z.string(),
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        id: z.string(),
+        kind: z.string(),
+      }).partial(),
+    ),
+    regions: z.array(
+      z.object({
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        dartId: z.string(),
+        kind: z.string(),
+        name: z.string(),
+        regionCode: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   id: z.string(),
   keyValueTargetingExpression: z.object({
     expression: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   languageTargeting: z.object({
-    languages: z.array(z.object({
-      id: z.string(),
-      kind: z.string(),
-      languageCode: z.string(),
-      name: z.string(),
-    })),
-  }).optional(),
+    languages: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        languageCode: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   listTargetingExpression: z.object({
     expression: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string().optional(),
   subaccountId: z.string().optional(),
   technologyTargeting: z.object({
-    browsers: z.array(z.object({
-      browserVersionId: z.string(),
-      dartId: z.string(),
-      kind: z.string(),
-      majorVersion: z.string(),
-      minorVersion: z.string(),
-      name: z.string(),
-    })),
-    connectionTypes: z.array(z.object({
-      id: z.string(),
-      kind: z.string(),
-      name: z.string(),
-    })),
-    mobileCarriers: z.array(z.object({
-      countryCode: z.string(),
-      countryDartId: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      name: z.string(),
-    })),
-    operatingSystemVersions: z.array(z.object({
-      id: z.string(),
-      kind: z.string(),
-      majorVersion: z.string(),
-      minorVersion: z.string(),
-      name: z.string(),
-      operatingSystem: z.object({
+    browsers: z.array(
+      z.object({
+        browserVersionId: z.string(),
+        dartId: z.string(),
+        kind: z.string(),
+        majorVersion: z.string(),
+        minorVersion: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    connectionTypes: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    mobileCarriers: z.array(
+      z.object({
+        countryCode: z.string(),
+        countryDartId: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    operatingSystemVersions: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        majorVersion: z.string(),
+        minorVersion: z.string(),
+        name: z.string(),
+        operatingSystem: z.object({
+          dartId: z.string(),
+          desktop: z.boolean(),
+          kind: z.string(),
+          mobile: z.boolean(),
+          name: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+    operatingSystems: z.array(
+      z.object({
         dartId: z.string(),
         desktop: z.boolean(),
         kind: z.string(),
         mobile: z.boolean(),
         name: z.string(),
-      }),
-    })),
-    operatingSystems: z.array(z.object({
-      dartId: z.string(),
-      desktop: z.boolean(),
-      kind: z.string(),
-      mobile: z.boolean(),
-      name: z.string(),
-    })),
-    platformTypes: z.array(z.object({
-      id: z.string(),
-      kind: z.string(),
-      name: z.string(),
-    })),
-  }).optional(),
+      }).partial(),
+    ),
+    platformTypes: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -959,7 +985,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 TargetingTemplates. Registered at `@swamp/gcp/dfareporting/targetingtemplates`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/targetingtemplates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1093,6 +1119,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

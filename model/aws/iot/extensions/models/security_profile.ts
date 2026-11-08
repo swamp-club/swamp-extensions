@@ -164,6 +164,58 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256).describe("The tag's value."),
 });
 
+const MetricDimensionStateSchema = z.object({
+  DimensionName: z.string(),
+  Operator: z.string(),
+}).partial();
+
+const MetricValueStateSchema = z.object({
+  Count: z.string(),
+  Cidrs: z.array(z.string()),
+  Ports: z.array(z.number()),
+  Number: z.number(),
+  Numbers: z.array(z.number()),
+  Strings: z.array(z.string()),
+}).partial();
+
+const StatisticalThresholdStateSchema = z.object({
+  Statistic: z.string(),
+}).partial();
+
+const MachineLearningDetectionConfigStateSchema = z.object({
+  ConfidenceLevel: z.string(),
+}).partial();
+
+const BehaviorCriteriaStateSchema = z.object({
+  ComparisonOperator: z.string(),
+  Value: MetricValueStateSchema,
+  DurationSeconds: z.number(),
+  ConsecutiveDatapointsToAlarm: z.number(),
+  ConsecutiveDatapointsToClear: z.number(),
+  StatisticalThreshold: StatisticalThresholdStateSchema,
+  MlDetectionConfig: MachineLearningDetectionConfigStateSchema,
+}).partial();
+
+const BehaviorStateSchema = z.object({
+  Name: z.string(),
+  Metric: z.string(),
+  MetricDimension: MetricDimensionStateSchema,
+  Criteria: BehaviorCriteriaStateSchema,
+  SuppressAlerts: z.boolean(),
+  ExportMetric: z.boolean(),
+}).partial();
+
+const MetricToRetainStateSchema = z.object({
+  Metric: z.string(),
+  MetricDimension: MetricDimensionStateSchema,
+  ExportMetric: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -212,19 +264,19 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   SecurityProfileName: z.string(),
   SecurityProfileDescription: z.string().optional(),
-  Behaviors: z.array(BehaviorSchema).optional(),
+  Behaviors: z.array(BehaviorStateSchema).optional(),
   AlertTargets: z.record(z.string(), z.unknown()).optional(),
-  AdditionalMetricsToRetainV2: z.array(MetricToRetainSchema).optional(),
+  AdditionalMetricsToRetainV2: z.array(MetricToRetainStateSchema).optional(),
   MetricsExportConfig: z.object({
     MqttTopic: z.string(),
     RoleArn: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TargetArns: z.array(z.string()).optional(),
   SecurityProfileArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -282,7 +334,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT SecurityProfile. Registered at `@swamp/aws/iot/security-profile`. */
 export const model = {
   type: "@swamp/aws/iot/security-profile",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -341,6 +393,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

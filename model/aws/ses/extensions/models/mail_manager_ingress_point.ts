@@ -66,6 +66,29 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const TrustStoreStateSchema = z.object({
+  CAContent: z.string(),
+  CrlContent: z.string(),
+  KmsKeyArn: z.string(),
+}).partial();
+
+const TlsAuthConfigurationStateSchema = z.object({
+  TrustStore: TrustStoreStateSchema,
+}).partial();
+
+const PublicNetworkConfigurationStateSchema = z.object({
+  IpType: z.string(),
+}).partial();
+
+const PrivateNetworkConfigurationStateSchema = z.object({
+  VpcEndpointId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -114,24 +137,24 @@ const StateSchema = z.object({
   IngressPointConfiguration: z.object({
     SmtpPassword: z.string(),
     SecretArn: z.string(),
-    TlsAuthConfiguration: TlsAuthConfigurationSchema,
-  }).optional(),
+    TlsAuthConfiguration: TlsAuthConfigurationStateSchema,
+  }).partial().optional(),
   IngressPointArn: z.string().optional(),
   IngressPointId: z.string(),
   IngressPointName: z.string().optional(),
   NetworkConfiguration: z.object({
-    PublicNetworkConfiguration: PublicNetworkConfigurationSchema,
-    PrivateNetworkConfiguration: PrivateNetworkConfigurationSchema,
-  }).optional(),
+    PublicNetworkConfiguration: PublicNetworkConfigurationStateSchema,
+    PrivateNetworkConfiguration: PrivateNetworkConfigurationStateSchema,
+  }).partial().optional(),
   RuleSetId: z.string().optional(),
   Status: z.string().optional(),
   StatusToUpdate: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TlsPolicy: z.string().optional(),
   Type: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -184,7 +207,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES MailManagerIngressPoint. Registered at `@swamp/aws/ses/mail-manager-ingress-point`. */
 export const model = {
   type: "@swamp/aws/ses/mail-manager-ingress-point",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -268,6 +291,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -55,6 +55,17 @@ const AvailabilityZoneAddressSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const AvailabilityZoneAddressStateSchema = z.object({
+  AvailabilityZone: z.string(),
+  AvailabilityZoneId: z.string(),
+  AllocationIds: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -112,7 +123,7 @@ const StateSchema = z.object({
   NatGatewayId: z.string(),
   ConnectivityType: z.string().optional(),
   PrivateIpAddress: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   AllocationId: z.string().optional(),
   SecondaryAllocationIds: z.array(z.string()).optional(),
   SecondaryPrivateIpAddresses: z.array(z.string()).optional(),
@@ -122,12 +133,13 @@ const StateSchema = z.object({
   EniId: z.string().optional(),
   RouteTableId: z.string().optional(),
   AvailabilityMode: z.string().optional(),
-  AvailabilityZoneAddresses: z.array(AvailabilityZoneAddressSchema).optional(),
+  AvailabilityZoneAddresses: z.array(AvailabilityZoneAddressStateSchema)
+    .optional(),
   AutoProvisionZones: z.string().optional(),
   AutoScalingIps: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -190,7 +202,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 NatGateway. Registered at `@swamp/aws/ec2/nat-gateway`. */
 export const model = {
   type: "@swamp/aws/ec2/nat-gateway",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -249,6 +261,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

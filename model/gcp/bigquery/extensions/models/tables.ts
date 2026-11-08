@@ -976,25 +976,25 @@ const StateSchema = z.object({
     fileFormat: z.string(),
     storageUri: z.string(),
     tableFormat: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cloneDefinition: z.object({
     baseTableReference: z.object({
       datasetId: z.string(),
       projectId: z.string(),
       tableId: z.string(),
-    }),
+    }).partial(),
     cloneTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clustering: z.object({
     fields: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   creationTime: z.string().optional(),
   defaultCollation: z.string().optional(),
   defaultRoundingMode: z.string().optional(),
   description: z.string().optional(),
   encryptionConfiguration: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   expirationTime: z.string().optional(),
   externalCatalogTableOptions: z.object({
@@ -1008,30 +1008,32 @@ const StateSchema = z.object({
         name: z.string(),
         parameters: z.record(z.string(), z.unknown()),
         serializationLibrary: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   externalDataConfiguration: z.object({
     autodetect: z.boolean(),
     avroOptions: z.object({
       useAvroLogicalTypes: z.boolean(),
-    }),
+    }).partial(),
     bigtableOptions: z.object({
-      columnFamilies: z.array(z.object({
-        columns: z.array(z.unknown()),
-        encoding: z.string(),
-        familyId: z.string(),
-        onlyReadLatest: z.boolean(),
-        protoConfig: z.object({
-          protoMessageName: z.unknown(),
-          schemaBundleId: z.unknown(),
-        }),
-        type: z.string(),
-      })),
+      columnFamilies: z.array(
+        z.object({
+          columns: z.array(z.unknown()),
+          encoding: z.string(),
+          familyId: z.string(),
+          onlyReadLatest: z.boolean(),
+          protoConfig: z.object({
+            protoMessageName: z.unknown(),
+            schemaBundleId: z.unknown(),
+          }).partial(),
+          type: z.string(),
+        }).partial(),
+      ),
       ignoreUnspecifiedColumnFamilies: z.boolean(),
       outputColumnFamiliesAsJson: z.boolean(),
       readRowkeyAsString: z.boolean(),
-    }),
+    }).partial(),
     compression: z.string(),
     connectionId: z.string(),
     csvOptions: z.object({
@@ -1045,7 +1047,7 @@ const StateSchema = z.object({
       quote: z.string(),
       skipLeadingRows: z.string(),
       sourceColumnMatch: z.string(),
-    }),
+    }).partial(),
     dateFormat: z.string(),
     datetimeFormat: z.string(),
     decimalTargetTypes: z.array(z.string()),
@@ -1053,18 +1055,18 @@ const StateSchema = z.object({
     googleSheetsOptions: z.object({
       range: z.string(),
       skipLeadingRows: z.string(),
-    }),
+    }).partial(),
     hivePartitioningOptions: z.object({
       fields: z.array(z.string()),
       mode: z.string(),
       requirePartitionFilter: z.boolean(),
       sourceUriPrefix: z.string(),
-    }),
+    }).partial(),
     ignoreUnknownValues: z.boolean(),
     jsonExtension: z.string(),
     jsonOptions: z.object({
       encoding: z.string(),
-    }),
+    }).partial(),
     maxBadRecords: z.number(),
     metadataCacheMode: z.string(),
     objectMetadata: z.string(),
@@ -1072,55 +1074,57 @@ const StateSchema = z.object({
       enableListInference: z.boolean(),
       enumAsString: z.boolean(),
       mapTargetType: z.string(),
-    }),
+    }).partial(),
     referenceFileSchemaUri: z.string(),
     schema: z.object({
-      fields: z.array(z.object({
-        categories: z.object({
-          names: z.unknown(),
-        }),
-        collation: z.string(),
-        dataGovernanceTagsInfo: z.object({
-          dataGovernanceTags: z.unknown(),
-        }),
-        dataPolicies: z.array(z.unknown()),
-        dataPolicyList: z.object({
-          dataPolicies: z.unknown(),
-        }),
-        defaultValueExpression: z.string(),
-        description: z.string(),
-        fields: z.array(z.unknown()),
-        foreignTypeDefinition: z.string(),
-        generatedColumn: z.object({
-          generatedExpressionInfo: z.unknown(),
-          generatedMode: z.unknown(),
-        }),
-        maxLength: z.string(),
-        mode: z.string(),
-        name: z.string(),
-        policyTags: z.object({
-          names: z.unknown(),
-        }),
-        precision: z.string(),
-        rangeElementType: z.object({
-          type: z.unknown(),
-        }),
-        roundingMode: z.string(),
-        scale: z.string(),
-        timestampPrecision: z.string(),
-        type: z.string(),
-      })),
+      fields: z.array(
+        z.object({
+          categories: z.object({
+            names: z.unknown(),
+          }).partial(),
+          collation: z.string(),
+          dataGovernanceTagsInfo: z.object({
+            dataGovernanceTags: z.unknown(),
+          }).partial(),
+          dataPolicies: z.array(z.unknown()),
+          dataPolicyList: z.object({
+            dataPolicies: z.unknown(),
+          }).partial(),
+          defaultValueExpression: z.string(),
+          description: z.string(),
+          fields: z.array(z.unknown()),
+          foreignTypeDefinition: z.string(),
+          generatedColumn: z.object({
+            generatedExpressionInfo: z.unknown(),
+            generatedMode: z.unknown(),
+          }).partial(),
+          maxLength: z.string(),
+          mode: z.string(),
+          name: z.string(),
+          policyTags: z.object({
+            names: z.unknown(),
+          }).partial(),
+          precision: z.string(),
+          rangeElementType: z.object({
+            type: z.unknown(),
+          }).partial(),
+          roundingMode: z.string(),
+          scale: z.string(),
+          timestampPrecision: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
       foreignTypeInfo: z.object({
         typeSystem: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     sourceFormat: z.string(),
     sourceUris: z.array(z.string()),
     timeFormat: z.string(),
     timeZone: z.string(),
     timestampFormat: z.string(),
     timestampTargetPrecision: z.array(z.number()),
-  }).optional(),
+  }).partial().optional(),
   friendlyName: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -1135,46 +1139,50 @@ const StateSchema = z.object({
     maxStaleness: z.string(),
     query: z.string(),
     refreshIntervalMs: z.string(),
-  }).optional(),
+  }).partial().optional(),
   materializedViewStatus: z.object({
     lastRefreshStatus: z.object({
       debugInfo: z.string(),
       location: z.string(),
       message: z.string(),
       reason: z.string(),
-    }),
+    }).partial(),
     refreshWatermark: z.string(),
-  }).optional(),
+  }).partial().optional(),
   maxStaleness: z.string().optional(),
   model: z.object({
     modelOptions: z.object({
       labels: z.array(z.string()),
       lossType: z.string(),
       modelType: z.string(),
-    }),
-    trainingRuns: z.array(z.object({
-      iterationResults: z.array(z.object({
-        durationMs: z.unknown(),
-        evalLoss: z.unknown(),
-        index: z.unknown(),
-        learnRate: z.unknown(),
-        trainingLoss: z.unknown(),
-      })),
-      startTime: z.string(),
-      state: z.string(),
-      trainingOptions: z.object({
-        earlyStop: z.boolean(),
-        l1Reg: z.number(),
-        l2Reg: z.number(),
-        learnRate: z.number(),
-        learnRateStrategy: z.string(),
-        lineSearchInitLearnRate: z.number(),
-        maxIteration: z.string(),
-        minRelProgress: z.number(),
-        warmStart: z.boolean(),
-      }),
-    })),
-  }).optional(),
+    }).partial(),
+    trainingRuns: z.array(
+      z.object({
+        iterationResults: z.array(
+          z.object({
+            durationMs: z.unknown(),
+            evalLoss: z.unknown(),
+            index: z.unknown(),
+            learnRate: z.unknown(),
+            trainingLoss: z.unknown(),
+          }).partial(),
+        ),
+        startTime: z.string(),
+        state: z.string(),
+        trainingOptions: z.object({
+          earlyStop: z.boolean(),
+          l1Reg: z.number(),
+          l2Reg: z.number(),
+          learnRate: z.number(),
+          learnRateStrategy: z.string(),
+          lineSearchInitLearnRate: z.number(),
+          maxIteration: z.string(),
+          minRelProgress: z.number(),
+          warmStart: z.boolean(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   numActiveLogicalBytes: z.string().optional(),
   numActivePhysicalBytes: z.string().optional(),
   numBytes: z.string().optional(),
@@ -1189,110 +1197,122 @@ const StateSchema = z.object({
   numTotalLogicalBytes: z.string().optional(),
   numTotalPhysicalBytes: z.string().optional(),
   partitionDefinition: z.object({
-    partitionedColumn: z.array(z.object({
-      field: z.string(),
-    })),
-  }).optional(),
+    partitionedColumn: z.array(
+      z.object({
+        field: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   rangePartitioning: z.object({
     field: z.string(),
     range: z.object({
       end: z.string(),
       interval: z.string(),
       start: z.string(),
-    }),
-  }).optional(),
-  replicas: z.array(z.object({
-    datasetId: z.string(),
-    projectId: z.string(),
-    tableId: z.string(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  replicas: z.array(
+    z.object({
+      datasetId: z.string(),
+      projectId: z.string(),
+      tableId: z.string(),
+    }).partial(),
+  ).optional(),
   requirePartitionFilter: z.boolean().optional(),
   resourceTags: z.record(z.string(), z.unknown()).optional(),
   restrictions: z.object({
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   schema: z.object({
-    fields: z.array(z.object({
-      categories: z.object({
-        names: z.array(z.unknown()),
-      }),
-      collation: z.string(),
-      dataGovernanceTagsInfo: z.object({
-        dataGovernanceTags: z.record(z.string(), z.unknown()),
-      }),
-      dataPolicies: z.array(z.object({
-        name: z.unknown(),
-      })),
-      dataPolicyList: z.object({
-        dataPolicies: z.array(z.unknown()),
-      }),
-      defaultValueExpression: z.string(),
-      description: z.string(),
-      fields: z.array(z.record(z.string(), z.unknown())),
-      foreignTypeDefinition: z.string(),
-      generatedColumn: z.object({
-        generatedExpressionInfo: z.object({
-          asynchronous: z.unknown(),
-          generationExpression: z.unknown(),
-          stored: z.unknown(),
-        }),
-        generatedMode: z.string(),
-      }),
-      maxLength: z.string(),
-      mode: z.string(),
-      name: z.string(),
-      policyTags: z.object({
-        names: z.array(z.unknown()),
-      }),
-      precision: z.string(),
-      rangeElementType: z.object({
+    fields: z.array(
+      z.object({
+        categories: z.object({
+          names: z.array(z.unknown()),
+        }).partial(),
+        collation: z.string(),
+        dataGovernanceTagsInfo: z.object({
+          dataGovernanceTags: z.record(z.string(), z.unknown()),
+        }).partial(),
+        dataPolicies: z.array(
+          z.object({
+            name: z.unknown(),
+          }).partial(),
+        ),
+        dataPolicyList: z.object({
+          dataPolicies: z.array(z.unknown()),
+        }).partial(),
+        defaultValueExpression: z.string(),
+        description: z.string(),
+        fields: z.array(z.record(z.string(), z.unknown())),
+        foreignTypeDefinition: z.string(),
+        generatedColumn: z.object({
+          generatedExpressionInfo: z.object({
+            asynchronous: z.unknown(),
+            generationExpression: z.unknown(),
+            stored: z.unknown(),
+          }).partial(),
+          generatedMode: z.string(),
+        }).partial(),
+        maxLength: z.string(),
+        mode: z.string(),
+        name: z.string(),
+        policyTags: z.object({
+          names: z.array(z.unknown()),
+        }).partial(),
+        precision: z.string(),
+        rangeElementType: z.object({
+          type: z.string(),
+        }).partial(),
+        roundingMode: z.string(),
+        scale: z.string(),
+        timestampPrecision: z.string(),
         type: z.string(),
-      }),
-      roundingMode: z.string(),
-      scale: z.string(),
-      timestampPrecision: z.string(),
-      type: z.string(),
-    })),
+      }).partial(),
+    ),
     foreignTypeInfo: z.object({
       typeSystem: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   snapshotDefinition: z.object({
     baseTableReference: z.object({
       datasetId: z.string(),
       projectId: z.string(),
       tableId: z.string(),
-    }),
+    }).partial(),
     snapshotTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   streamingBuffer: z.object({
     estimatedBytes: z.string(),
     estimatedRows: z.string(),
     oldestEntryTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tableConstraints: z.object({
-    foreignKeys: z.array(z.object({
-      columnReferences: z.array(z.object({
-        referencedColumn: z.unknown(),
-        referencingColumn: z.unknown(),
-      })),
-      name: z.string(),
-      referencedTable: z.object({
-        datasetId: z.string(),
-        projectId: z.string(),
-        tableId: z.string(),
-      }),
-    })),
+    foreignKeys: z.array(
+      z.object({
+        columnReferences: z.array(
+          z.object({
+            referencedColumn: z.unknown(),
+            referencingColumn: z.unknown(),
+          }).partial(),
+        ),
+        name: z.string(),
+        referencedTable: z.object({
+          datasetId: z.string(),
+          projectId: z.string(),
+          tableId: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     primaryKey: z.object({
       columns: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   tableReference: z.object({
     datasetId: z.string(),
     projectId: z.string(),
     tableId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tableReplicationInfo: z.object({
     replicatedSourceLastRefreshTime: z.string(),
     replicationError: z.object({
@@ -1300,32 +1320,34 @@ const StateSchema = z.object({
       location: z.string(),
       message: z.string(),
       reason: z.string(),
-    }),
+    }).partial(),
     replicationIntervalMs: z.string(),
     replicationStatus: z.string(),
     sourceTable: z.object({
       datasetId: z.string(),
       projectId: z.string(),
       tableId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   timePartitioning: z.object({
     expirationMs: z.string(),
     field: z.string(),
     requirePartitionFilter: z.boolean(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   type: z.string().optional(),
   view: z.object({
-    foreignDefinitions: z.array(z.object({
-      dialect: z.string(),
-      query: z.string(),
-    })),
+    foreignDefinitions: z.array(
+      z.object({
+        dialect: z.string(),
+        query: z.string(),
+      }).partial(),
+    ),
     privacyPolicy: z.object({
       aggregationThresholdPolicy: z.object({
         privacyUnitColumns: z.array(z.string()),
         threshold: z.string(),
-      }),
+      }).partial(),
       differentialPrivacyPolicy: z.object({
         deltaBudget: z.number(),
         deltaBudgetRemaining: z.number(),
@@ -1335,20 +1357,22 @@ const StateSchema = z.object({
         maxEpsilonPerQuery: z.number(),
         maxGroupsContributed: z.string(),
         privacyUnitColumn: z.string(),
-      }),
+      }).partial(),
       joinRestrictionPolicy: z.object({
         joinAllowedColumns: z.array(z.string()),
         joinCondition: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     query: z.string(),
     useExplicitColumnNames: z.boolean(),
     useLegacySql: z.boolean(),
-    userDefinedFunctionResources: z.array(z.object({
-      inlineCode: z.string(),
-      resourceUri: z.string(),
-    })),
-  }).optional(),
+    userDefinedFunctionResources: z.array(
+      z.object({
+        inlineCode: z.string(),
+        resourceUri: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2163,7 +2187,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Tables. Registered at `@swamp/gcp/bigquery/tables`. */
 export const model = {
   type: "@swamp/gcp/bigquery/tables",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2369,6 +2393,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -221,7 +221,7 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   metadata: z.string().optional(),
@@ -231,18 +231,20 @@ const StateSchema = z.object({
   name: z.string(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
-  savedQueries: z.array(z.object({
-    annotationFilter: z.string(),
-    annotationSpecCount: z.number(),
-    createTime: z.string(),
-    displayName: z.string(),
-    etag: z.string(),
-    metadata: z.string(),
-    name: z.string(),
-    problemType: z.string(),
-    supportAutomlTraining: z.boolean(),
-    updateTime: z.string(),
-  })).optional(),
+  savedQueries: z.array(
+    z.object({
+      annotationFilter: z.string(),
+      annotationSpecCount: z.number(),
+      createTime: z.string(),
+      displayName: z.string(),
+      etag: z.string(),
+      metadata: z.string(),
+      name: z.string(),
+      problemType: z.string(),
+      supportAutomlTraining: z.boolean(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -341,7 +343,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Datasets. Registered at `@swamp/gcp/aiplatform/datasets`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/datasets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -520,6 +522,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

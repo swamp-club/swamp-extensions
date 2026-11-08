@@ -86,6 +86,45 @@ const TagSchema = z.object({
   ),
 });
 
+const MetricFilterNumberConditionStateSchema = z.object({
+  Comparison: z.string(),
+  Values: z.array(z.number()),
+}).partial();
+
+const MetricFilterStringConditionStateSchema = z.object({
+  Comparison: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const MetricFilterBooleanConditionStateSchema = z.object({
+  Comparison: z.string(),
+}).partial();
+
+const MetricFilterStateSchema = z.object({
+  MetricFilterKey: z.string(),
+  Negate: z.boolean(),
+  NumberCondition: MetricFilterNumberConditionStateSchema,
+  StringCondition: MetricFilterStringConditionStateSchema,
+  BooleanCondition: MetricFilterBooleanConditionStateSchema,
+}).partial();
+
+const CalculationComponentStateSchema = z.object({
+  Alias: z.string(),
+  MetricName: z.string(),
+  MetricId: z.string(),
+  MetricFilters: z.array(MetricFilterStateSchema),
+}).partial();
+
+const AvailableFilterStateSchema = z.object({
+  Id: z.string(),
+  Type: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -138,18 +177,15 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   MetricCalculation: z.object({
-    CalculationComponents: z.array(CalculationComponentSchema),
+    CalculationComponents: z.array(CalculationComponentStateSchema),
     Calculation: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CreationMethod: z.string().optional(),
   Status: z.string().optional(),
   Unit: z.string().optional(),
   PositiveTrendIndicator: z.string().optional(),
   Groupings: z.array(z.string()).optional(),
-  Filters: z.array(z.object({
-    Id: z.string(),
-    Type: z.string(),
-  })).optional(),
+  Filters: z.array(AvailableFilterStateSchema).optional(),
   EffectiveTime: z.number().optional(),
   RefreshRate: z.number().optional(),
   Category: z.string().optional(),
@@ -164,10 +200,10 @@ const StateSchema = z.object({
   LastModifiedRegion: z.string().optional(),
   LastModifiedTime: z.number().optional(),
   LastModifiedUser: z.record(z.string(), z.unknown()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -223,7 +259,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Metric. Registered at `@swamp/aws/connect/metric`. */
 export const model = {
   type: "@swamp/aws/connect/metric",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.09.12.1",
@@ -242,6 +278,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

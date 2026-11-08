@@ -94,214 +94,240 @@ const StateSchema = z.object({
     wheelchairAccessibleParking: z.boolean(),
     wheelchairAccessibleRestroom: z.boolean(),
     wheelchairAccessibleSeating: z.boolean(),
-  }).optional(),
-  addressComponents: z.array(z.object({
-    languageCode: z.string(),
-    longText: z.string(),
-    shortText: z.string(),
-    types: z.array(z.string()),
-  })).optional(),
-  addressDescriptor: z.object({
-    areas: z.array(z.object({
-      containment: z.string(),
-      displayName: z.object({
-        languageCode: z.string(),
-        text: z.string(),
-      }),
-      name: z.string(),
-      placeId: z.string(),
-    })),
-    landmarks: z.array(z.object({
-      displayName: z.object({
-        languageCode: z.string(),
-        text: z.string(),
-      }),
-      name: z.string(),
-      placeId: z.string(),
-      spatialRelationship: z.string(),
-      straightLineDistanceMeters: z.number(),
-      travelDistanceMeters: z.number(),
+  }).partial().optional(),
+  addressComponents: z.array(
+    z.object({
+      languageCode: z.string(),
+      longText: z.string(),
+      shortText: z.string(),
       types: z.array(z.string()),
-    })),
-  }).optional(),
+    }).partial(),
+  ).optional(),
+  addressDescriptor: z.object({
+    areas: z.array(
+      z.object({
+        containment: z.string(),
+        displayName: z.object({
+          languageCode: z.string(),
+          text: z.string(),
+        }).partial(),
+        name: z.string(),
+        placeId: z.string(),
+      }).partial(),
+    ),
+    landmarks: z.array(
+      z.object({
+        displayName: z.object({
+          languageCode: z.string(),
+          text: z.string(),
+        }).partial(),
+        name: z.string(),
+        placeId: z.string(),
+        spatialRelationship: z.string(),
+        straightLineDistanceMeters: z.number(),
+        travelDistanceMeters: z.number(),
+        types: z.array(z.string()),
+      }).partial(),
+    ),
+  }).partial().optional(),
   adrFormatAddress: z.string().optional(),
   allowsDogs: z.boolean().optional(),
-  attributions: z.array(z.object({
-    provider: z.string(),
-    providerUri: z.string(),
-  })).optional(),
+  attributions: z.array(
+    z.object({
+      provider: z.string(),
+      providerUri: z.string(),
+    }).partial(),
+  ).optional(),
   businessStatus: z.string().optional(),
   consumerAlert: z.object({
     details: z.object({
       aboutLink: z.object({
         title: z.string(),
         uri: z.string(),
-      }),
+      }).partial(),
       description: z.string(),
       title: z.string(),
-    }),
+    }).partial(),
     languageCode: z.string(),
     overview: z.string(),
-  }).optional(),
-  containingPlaces: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  containingPlaces: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   curbsidePickup: z.boolean().optional(),
   currentOpeningHours: z.object({
     nextCloseTime: z.string(),
     nextOpenTime: z.string(),
     openNow: z.boolean(),
-    periods: z.array(z.object({
-      close: z.object({
-        date: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        day: z.number(),
-        hour: z.number(),
-        minute: z.number(),
-        truncated: z.boolean(),
-      }),
-      open: z.object({
-        date: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        day: z.number(),
-        hour: z.number(),
-        minute: z.number(),
-        truncated: z.boolean(),
-      }),
-    })),
+    periods: z.array(
+      z.object({
+        close: z.object({
+          date: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          day: z.number(),
+          hour: z.number(),
+          minute: z.number(),
+          truncated: z.boolean(),
+        }).partial(),
+        open: z.object({
+          date: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          day: z.number(),
+          hour: z.number(),
+          minute: z.number(),
+          truncated: z.boolean(),
+        }).partial(),
+      }).partial(),
+    ),
     secondaryHoursType: z.string(),
-    specialDays: z.array(z.object({
-      date: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-    })),
+    specialDays: z.array(
+      z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     weekdayDescriptions: z.array(z.string()),
-  }).optional(),
-  currentSecondaryOpeningHours: z.array(z.object({
-    nextCloseTime: z.string(),
-    nextOpenTime: z.string(),
-    openNow: z.boolean(),
-    periods: z.array(z.object({
-      close: z.object({
-        date: z.unknown(),
-        day: z.unknown(),
-        hour: z.unknown(),
-        minute: z.unknown(),
-        truncated: z.unknown(),
-      }),
-      open: z.object({
-        date: z.unknown(),
-        day: z.unknown(),
-        hour: z.unknown(),
-        minute: z.unknown(),
-        truncated: z.unknown(),
-      }),
-    })),
-    secondaryHoursType: z.string(),
-    specialDays: z.array(z.object({
-      date: z.object({
-        day: z.unknown(),
-        month: z.unknown(),
-        year: z.unknown(),
-      }),
-    })),
-    weekdayDescriptions: z.array(z.string()),
-  })).optional(),
+  }).partial().optional(),
+  currentSecondaryOpeningHours: z.array(
+    z.object({
+      nextCloseTime: z.string(),
+      nextOpenTime: z.string(),
+      openNow: z.boolean(),
+      periods: z.array(
+        z.object({
+          close: z.object({
+            date: z.unknown(),
+            day: z.unknown(),
+            hour: z.unknown(),
+            minute: z.unknown(),
+            truncated: z.unknown(),
+          }).partial(),
+          open: z.object({
+            date: z.unknown(),
+            day: z.unknown(),
+            hour: z.unknown(),
+            minute: z.unknown(),
+            truncated: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      secondaryHoursType: z.string(),
+      specialDays: z.array(
+        z.object({
+          date: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      weekdayDescriptions: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   delivery: z.boolean().optional(),
   dineIn: z.boolean().optional(),
   displayName: z.object({
     languageCode: z.string(),
     text: z.string(),
-  }).optional(),
+  }).partial().optional(),
   editorialSummary: z.object({
     languageCode: z.string(),
     text: z.string(),
-  }).optional(),
-  entrances: z.array(z.object({
-    location: z.object({
-      latitude: z.number(),
-      longitude: z.number(),
-    }),
-    tags: z.array(z.string()),
-  })).optional(),
+  }).partial().optional(),
+  entrances: z.array(
+    z.object({
+      location: z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+      }).partial(),
+      tags: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   evChargeAmenitySummary: z.object({
     coffee: z.object({
       content: z.object({
         languageCode: z.string(),
         text: z.string(),
-      }),
+      }).partial(),
       referencedPlaces: z.array(z.string()),
-    }),
+    }).partial(),
     disclosureText: z.object({
       languageCode: z.string(),
       text: z.string(),
-    }),
+    }).partial(),
     flagContentUri: z.string(),
     overview: z.object({
       content: z.object({
         languageCode: z.string(),
         text: z.string(),
-      }),
+      }).partial(),
       referencedPlaces: z.array(z.string()),
-    }),
+    }).partial(),
     restaurant: z.object({
       content: z.object({
         languageCode: z.string(),
         text: z.string(),
-      }),
+      }).partial(),
       referencedPlaces: z.array(z.string()),
-    }),
+    }).partial(),
     store: z.object({
       content: z.object({
         languageCode: z.string(),
         text: z.string(),
-      }),
+      }).partial(),
       referencedPlaces: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   evChargeOptions: z.object({
-    connectorAggregation: z.array(z.object({
-      availabilityLastUpdateTime: z.string(),
-      availableCount: z.number(),
-      count: z.number(),
-      maxChargeRateKw: z.number(),
-      outOfServiceCount: z.number(),
-      type: z.string(),
-    })),
+    connectorAggregation: z.array(
+      z.object({
+        availabilityLastUpdateTime: z.string(),
+        availableCount: z.number(),
+        count: z.number(),
+        maxChargeRateKw: z.number(),
+        outOfServiceCount: z.number(),
+        type: z.string(),
+      }).partial(),
+    ),
     connectorCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   formattedAddress: z.string().optional(),
   fuelOptions: z.object({
-    fuelPrices: z.array(z.object({
-      price: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-      type: z.string(),
-      updateTime: z.string(),
-    })),
-  }).optional(),
+    fuelPrices: z.array(
+      z.object({
+        price: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+        type: z.string(),
+        updateTime: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   generativeSummary: z.object({
     disclosureText: z.object({
       languageCode: z.string(),
       text: z.string(),
-    }),
+    }).partial(),
     overview: z.object({
       languageCode: z.string(),
       text: z.string(),
-    }),
+    }).partial(),
     overviewFlagContentUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   goodForChildren: z.boolean().optional(),
   goodForGroups: z.boolean().optional(),
   goodForWatchingSports: z.boolean().optional(),
@@ -311,11 +337,11 @@ const StateSchema = z.object({
     placeUri: z.string(),
     reviewsUri: z.string(),
     writeAReviewUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   googleMapsTypeLabel: z.object({
     languageCode: z.string(),
     text: z.string(),
-  }).optional(),
+  }).partial().optional(),
   googleMapsUri: z.string().optional(),
   iconBackgroundColor: z.string().optional(),
   iconMaskBaseUri: z.string().optional(),
@@ -325,51 +351,53 @@ const StateSchema = z.object({
   location: z.object({
     latitude: z.number(),
     longitude: z.number(),
-  }).optional(),
+  }).partial().optional(),
   menuForChildren: z.boolean().optional(),
   movedPlace: z.string().optional(),
   movedPlaceId: z.string().optional(),
   name: z.string(),
   nationalPhoneNumber: z.string().optional(),
-  navigationPoints: z.array(z.object({
-    displayName: z.object({
-      languageCode: z.string(),
-      text: z.string(),
-    }),
-    location: z.object({
-      latitude: z.number(),
-      longitude: z.number(),
-    }),
-    navigationPointToken: z.string(),
-    travelModes: z.array(z.string()),
-    usages: z.array(z.string()),
-  })).optional(),
+  navigationPoints: z.array(
+    z.object({
+      displayName: z.object({
+        languageCode: z.string(),
+        text: z.string(),
+      }).partial(),
+      location: z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+      }).partial(),
+      navigationPointToken: z.string(),
+      travelModes: z.array(z.string()),
+      usages: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   neighborhoodSummary: z.object({
     description: z.object({
       content: z.object({
         languageCode: z.string(),
         text: z.string(),
-      }),
+      }).partial(),
       referencedPlaces: z.array(z.string()),
-    }),
+    }).partial(),
     disclosureText: z.object({
       languageCode: z.string(),
       text: z.string(),
-    }),
+    }).partial(),
     flagContentUri: z.string(),
     overview: z.object({
       content: z.object({
         languageCode: z.string(),
         text: z.string(),
-      }),
+      }).partial(),
       referencedPlaces: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   openingDate: z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   outdoorSeating: z.boolean().optional(),
   parkingOptions: z.object({
     freeGarageParking: z.boolean(),
@@ -379,29 +407,33 @@ const StateSchema = z.object({
     paidParkingLot: z.boolean(),
     paidStreetParking: z.boolean(),
     valetParking: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   paymentOptions: z.object({
     acceptsCashOnly: z.boolean(),
     acceptsCreditCards: z.boolean(),
     acceptsDebitCards: z.boolean(),
     acceptsNfc: z.boolean(),
-  }).optional(),
-  photos: z.array(z.object({
-    authorAttributions: z.array(z.object({
-      displayName: z.string(),
-      photoUri: z.string(),
-      uri: z.string(),
-    })),
-    flagContentUri: z.string(),
-    googleMapsUri: z.string(),
-    heightPx: z.number(),
-    name: z.string(),
-    widthPx: z.number(),
-  })).optional(),
+  }).partial().optional(),
+  photos: z.array(
+    z.object({
+      authorAttributions: z.array(
+        z.object({
+          displayName: z.string(),
+          photoUri: z.string(),
+          uri: z.string(),
+        }).partial(),
+      ),
+      flagContentUri: z.string(),
+      googleMapsUri: z.string(),
+      heightPx: z.number(),
+      name: z.string(),
+      widthPx: z.number(),
+    }).partial(),
+  ).optional(),
   plusCode: z.object({
     compoundCode: z.string(),
     globalCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   postalAddress: z.object({
     addressLines: z.array(z.string()),
     administrativeArea: z.string(),
@@ -414,135 +446,147 @@ const StateSchema = z.object({
     revision: z.number(),
     sortingCode: z.string(),
     sublocality: z.string(),
-  }).optional(),
+  }).partial().optional(),
   priceLevel: z.string().optional(),
   priceRange: z.object({
     endPrice: z.object({
       currencyCode: z.string(),
       nanos: z.number(),
       units: z.string(),
-    }),
+    }).partial(),
     startPrice: z.object({
       currencyCode: z.string(),
       nanos: z.number(),
       units: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   primaryType: z.string().optional(),
   primaryTypeDisplayName: z.object({
     languageCode: z.string(),
     text: z.string(),
-  }).optional(),
+  }).partial().optional(),
   pureServiceAreaBusiness: z.boolean().optional(),
   rating: z.number().optional(),
   regularOpeningHours: z.object({
     nextCloseTime: z.string(),
     nextOpenTime: z.string(),
     openNow: z.boolean(),
-    periods: z.array(z.object({
-      close: z.object({
-        date: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        day: z.number(),
-        hour: z.number(),
-        minute: z.number(),
-        truncated: z.boolean(),
-      }),
-      open: z.object({
-        date: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        day: z.number(),
-        hour: z.number(),
-        minute: z.number(),
-        truncated: z.boolean(),
-      }),
-    })),
+    periods: z.array(
+      z.object({
+        close: z.object({
+          date: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          day: z.number(),
+          hour: z.number(),
+          minute: z.number(),
+          truncated: z.boolean(),
+        }).partial(),
+        open: z.object({
+          date: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          day: z.number(),
+          hour: z.number(),
+          minute: z.number(),
+          truncated: z.boolean(),
+        }).partial(),
+      }).partial(),
+    ),
     secondaryHoursType: z.string(),
-    specialDays: z.array(z.object({
-      date: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-    })),
+    specialDays: z.array(
+      z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     weekdayDescriptions: z.array(z.string()),
-  }).optional(),
-  regularSecondaryOpeningHours: z.array(z.object({
-    nextCloseTime: z.string(),
-    nextOpenTime: z.string(),
-    openNow: z.boolean(),
-    periods: z.array(z.object({
-      close: z.object({
-        date: z.unknown(),
-        day: z.unknown(),
-        hour: z.unknown(),
-        minute: z.unknown(),
-        truncated: z.unknown(),
-      }),
-      open: z.object({
-        date: z.unknown(),
-        day: z.unknown(),
-        hour: z.unknown(),
-        minute: z.unknown(),
-        truncated: z.unknown(),
-      }),
-    })),
-    secondaryHoursType: z.string(),
-    specialDays: z.array(z.object({
-      date: z.object({
-        day: z.unknown(),
-        month: z.unknown(),
-        year: z.unknown(),
-      }),
-    })),
-    weekdayDescriptions: z.array(z.string()),
-  })).optional(),
+  }).partial().optional(),
+  regularSecondaryOpeningHours: z.array(
+    z.object({
+      nextCloseTime: z.string(),
+      nextOpenTime: z.string(),
+      openNow: z.boolean(),
+      periods: z.array(
+        z.object({
+          close: z.object({
+            date: z.unknown(),
+            day: z.unknown(),
+            hour: z.unknown(),
+            minute: z.unknown(),
+            truncated: z.unknown(),
+          }).partial(),
+          open: z.object({
+            date: z.unknown(),
+            day: z.unknown(),
+            hour: z.unknown(),
+            minute: z.unknown(),
+            truncated: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      secondaryHoursType: z.string(),
+      specialDays: z.array(
+        z.object({
+          date: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      weekdayDescriptions: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   reservable: z.boolean().optional(),
   restroom: z.boolean().optional(),
   reviewSummary: z.object({
     disclosureText: z.object({
       languageCode: z.string(),
       text: z.string(),
-    }),
+    }).partial(),
     flagContentUri: z.string(),
     reviewsUri: z.string(),
     text: z.object({
       languageCode: z.string(),
       text: z.string(),
-    }),
-  }).optional(),
-  reviews: z.array(z.object({
-    authorAttribution: z.object({
-      displayName: z.string(),
-      photoUri: z.string(),
-      uri: z.string(),
-    }),
-    flagContentUri: z.string(),
-    googleMapsUri: z.string(),
-    name: z.string(),
-    originalText: z.object({
-      languageCode: z.string(),
-      text: z.string(),
-    }),
-    publishTime: z.string(),
-    rating: z.number(),
-    relativePublishTimeDescription: z.string(),
-    text: z.object({
-      languageCode: z.string(),
-      text: z.string(),
-    }),
-    visitDate: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  reviews: z.array(
+    z.object({
+      authorAttribution: z.object({
+        displayName: z.string(),
+        photoUri: z.string(),
+        uri: z.string(),
+      }).partial(),
+      flagContentUri: z.string(),
+      googleMapsUri: z.string(),
+      name: z.string(),
+      originalText: z.object({
+        languageCode: z.string(),
+        text: z.string(),
+      }).partial(),
+      publishTime: z.string(),
+      rating: z.number(),
+      relativePublishTimeDescription: z.string(),
+      text: z.object({
+        languageCode: z.string(),
+        text: z.string(),
+      }).partial(),
+      visitDate: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   servesBeer: z.boolean().optional(),
   servesBreakfast: z.boolean().optional(),
   servesBrunch: z.boolean().optional(),
@@ -554,68 +598,76 @@ const StateSchema = z.object({
   servesVegetarianFood: z.boolean().optional(),
   servesWine: z.boolean().optional(),
   shortFormattedAddress: z.string().optional(),
-  subDestinations: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-  })).optional(),
+  subDestinations: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   takeout: z.boolean().optional(),
   timeZone: z.object({
     id: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   transitStation: z.object({
-    agencies: z.array(z.object({
-      displayName: z.object({
-        languageCode: z.string(),
-        text: z.string(),
-      }),
-      fareUrl: z.string(),
-      icon: z.object({
-        nameIncluded: z.boolean(),
+    agencies: z.array(
+      z.object({
+        displayName: z.object({
+          languageCode: z.string(),
+          text: z.string(),
+        }).partial(),
+        fareUrl: z.string(),
+        icon: z.object({
+          nameIncluded: z.boolean(),
+          url: z.string(),
+        }).partial(),
+        lines: z.array(
+          z.object({
+            backgroundColor: z.unknown(),
+            displayName: z.unknown(),
+            icon: z.unknown(),
+            id: z.unknown(),
+            shortDisplayName: z.unknown(),
+            textColor: z.unknown(),
+            url: z.unknown(),
+            vehicleIcon: z.unknown(),
+            vehicleType: z.unknown(),
+          }).partial(),
+        ),
         url: z.string(),
-      }),
-      lines: z.array(z.object({
-        backgroundColor: z.unknown(),
-        displayName: z.unknown(),
-        icon: z.unknown(),
-        id: z.unknown(),
-        shortDisplayName: z.unknown(),
-        textColor: z.unknown(),
-        url: z.unknown(),
-        vehicleIcon: z.unknown(),
-        vehicleType: z.unknown(),
-      })),
-      url: z.string(),
-    })),
+      }).partial(),
+    ),
     displayName: z.object({
       languageCode: z.string(),
       text: z.string(),
-    }),
-    stops: z.array(z.object({
-      displayName: z.object({
-        languageCode: z.string(),
-        text: z.string(),
-      }),
-      id: z.string(),
-      location: z.object({
-        latitude: z.number(),
-        longitude: z.number(),
-      }),
-      platformCode: z.object({
-        languageCode: z.string(),
-        text: z.string(),
-      }),
-      signageText: z.object({
-        languageCode: z.string(),
-        text: z.string(),
-      }),
-      stopCode: z.object({
-        languageCode: z.string(),
-        text: z.string(),
-      }),
-      wheelchairAccessibleEntrance: z.boolean(),
-    })),
-  }).optional(),
+    }).partial(),
+    stops: z.array(
+      z.object({
+        displayName: z.object({
+          languageCode: z.string(),
+          text: z.string(),
+        }).partial(),
+        id: z.string(),
+        location: z.object({
+          latitude: z.number(),
+          longitude: z.number(),
+        }).partial(),
+        platformCode: z.object({
+          languageCode: z.string(),
+          text: z.string(),
+        }).partial(),
+        signageText: z.object({
+          languageCode: z.string(),
+          text: z.string(),
+        }).partial(),
+        stopCode: z.object({
+          languageCode: z.string(),
+          text: z.string(),
+        }).partial(),
+        wheelchairAccessibleEntrance: z.boolean(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   types: z.array(z.string()).optional(),
   userRatingCount: z.number().optional(),
   utcOffsetMinutes: z.number().optional(),
@@ -623,12 +675,12 @@ const StateSchema = z.object({
     high: z.object({
       latitude: z.number(),
       longitude: z.number(),
-    }),
+    }).partial(),
     low: z.object({
       latitude: z.number(),
       longitude: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   websiteUri: z.string().optional(),
 }).passthrough();
 
@@ -670,7 +722,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Places (New) Places. Registered at `@swamp/gcp/places/places`. */
 export const model = {
   type: "@swamp/gcp/places/places",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -819,6 +871,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

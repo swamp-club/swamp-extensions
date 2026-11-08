@@ -447,78 +447,88 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   archived: z.boolean().optional(),
-  basePlans: z.array(z.object({
-    autoRenewingBasePlanType: z.object({
-      accountHoldDuration: z.string(),
-      billingPeriodDuration: z.string(),
-      gracePeriodDuration: z.string(),
-      legacyCompatible: z.boolean(),
-      legacyCompatibleSubscriptionOfferId: z.string(),
-      prorationMode: z.string(),
-      resubscribeState: z.string(),
-    }),
-    basePlanId: z.string(),
-    installmentsBasePlanType: z.object({
-      accountHoldDuration: z.string(),
-      billingPeriodDuration: z.string(),
-      committedPaymentsCount: z.number(),
-      gracePeriodDuration: z.string(),
-      prorationMode: z.string(),
-      renewalType: z.string(),
-      resubscribeState: z.string(),
-    }),
-    offerTags: z.array(z.object({
-      tag: z.string(),
-    })),
-    otherRegionsConfig: z.object({
-      eurPrice: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-      newSubscriberAvailability: z.boolean(),
-      usdPrice: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-    }),
-    prepaidBasePlanType: z.object({
-      billingPeriodDuration: z.string(),
-      timeExtension: z.string(),
-    }),
-    regionalConfigs: z.array(z.object({
-      newSubscriberAvailability: z.boolean(),
-      price: z.object({
-        currencyCode: z.unknown(),
-        nanos: z.unknown(),
-        units: z.unknown(),
-      }),
-      regionCode: z.string(),
-    })),
-    state: z.string(),
-  })).optional(),
-  listings: z.array(z.object({
-    benefits: z.array(z.string()),
-    description: z.string(),
-    languageCode: z.string(),
-    title: z.string(),
-  })).optional(),
+  basePlans: z.array(
+    z.object({
+      autoRenewingBasePlanType: z.object({
+        accountHoldDuration: z.string(),
+        billingPeriodDuration: z.string(),
+        gracePeriodDuration: z.string(),
+        legacyCompatible: z.boolean(),
+        legacyCompatibleSubscriptionOfferId: z.string(),
+        prorationMode: z.string(),
+        resubscribeState: z.string(),
+      }).partial(),
+      basePlanId: z.string(),
+      installmentsBasePlanType: z.object({
+        accountHoldDuration: z.string(),
+        billingPeriodDuration: z.string(),
+        committedPaymentsCount: z.number(),
+        gracePeriodDuration: z.string(),
+        prorationMode: z.string(),
+        renewalType: z.string(),
+        resubscribeState: z.string(),
+      }).partial(),
+      offerTags: z.array(
+        z.object({
+          tag: z.string(),
+        }).partial(),
+      ),
+      otherRegionsConfig: z.object({
+        eurPrice: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+        newSubscriberAvailability: z.boolean(),
+        usdPrice: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+      }).partial(),
+      prepaidBasePlanType: z.object({
+        billingPeriodDuration: z.string(),
+        timeExtension: z.string(),
+      }).partial(),
+      regionalConfigs: z.array(
+        z.object({
+          newSubscriberAvailability: z.boolean(),
+          price: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          regionCode: z.string(),
+        }).partial(),
+      ),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
+  listings: z.array(
+    z.object({
+      benefits: z.array(z.string()),
+      description: z.string(),
+      languageCode: z.string(),
+      title: z.string(),
+    }).partial(),
+  ).optional(),
   packageName: z.string().optional(),
   productId: z.string().optional(),
   restrictedPaymentCountries: z.object({
     regionCodes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   taxAndComplianceSettings: z.object({
     eeaWithdrawalRightType: z.string(),
     isTokenizedDigitalAsset: z.boolean(),
     productTaxCategoryCode: z.string(),
-    regionalProductAgeRatingInfos: z.array(z.object({
-      productAgeRatingTier: z.string(),
-      regionCode: z.string(),
-    })),
+    regionalProductAgeRatingInfos: z.array(
+      z.object({
+        productAgeRatingTier: z.string(),
+        regionCode: z.string(),
+      }).partial(),
+    ),
     taxRateInfoByRegionCode: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -813,7 +823,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Monetization.Subscriptions. Registered at `@swamp/gcp/androidpublisher/monetization-subscriptions`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/monetization-subscriptions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -997,6 +1007,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

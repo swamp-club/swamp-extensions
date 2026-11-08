@@ -145,15 +145,15 @@ const StateSchema = z.object({
   principalInfo: z.object({
     serviceAccount: z.object({
       email: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   resourceInfo: z.object({
     id: z.string(),
     resource: z.record(z.string(), z.unknown()),
     status: z.string(),
     sub: z.array(z.record(z.string(), z.unknown())),
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -200,7 +200,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BeyondCorp AppConnectors. Registered at `@swamp/gcp/beyondcorp/appconnectors`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/appconnectors",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -409,6 +409,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

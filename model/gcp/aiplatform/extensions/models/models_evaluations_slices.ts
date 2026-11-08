@@ -123,24 +123,26 @@ const StateSchema = z.object({
   metrics: z.string().optional(),
   metricsSchemaUri: z.string().optional(),
   modelExplanation: z.object({
-    meanAttributions: z.array(z.object({
-      approximationError: z.number(),
-      baselineOutputValue: z.number(),
-      featureAttributions: z.string(),
-      instanceOutputValue: z.number(),
-      outputDisplayName: z.string(),
-      outputIndex: z.array(z.number()),
-      outputName: z.string(),
-    })),
-  }).optional(),
+    meanAttributions: z.array(
+      z.object({
+        approximationError: z.number(),
+        baselineOutputValue: z.number(),
+        featureAttributions: z.string(),
+        instanceOutputValue: z.number(),
+        outputDisplayName: z.string(),
+        outputIndex: z.array(z.number()),
+        outputName: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   slice: z.object({
     dimension: z.string(),
     sliceSpec: z.object({
       configs: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -187,7 +189,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Models.Evaluations.Slices. Registered at `@swamp/gcp/aiplatform/models-evaluations-slices`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/models-evaluations-slices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -346,6 +348,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

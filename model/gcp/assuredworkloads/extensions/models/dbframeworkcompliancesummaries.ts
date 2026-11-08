@@ -105,11 +105,11 @@ const StateSchema = z.object({
     notAssessedControls: z.number(),
     passingControlIds: z.array(z.string()),
     passingControls: z.number(),
-  }).optional(),
+  }).partial().optional(),
   controlsPassingTrend: z.object({
     duration: z.string(),
     valuePercent: z.number(),
-  }).optional(),
+  }).partial().optional(),
   findingCount: z.string().optional(),
   framework: z.string().optional(),
   frameworkCategories: z.array(z.string()).optional(),
@@ -119,15 +119,17 @@ const StateSchema = z.object({
   minorRevisionId: z.string().optional(),
   name: z.string(),
   supportedCloudProviders: z.array(z.string()).optional(),
-  targetResourceDetails: z.array(z.object({
-    createTime: z.string(),
-    frameworkDeployment: z.string(),
-    majorRevisionId: z.string(),
-    minorRevisionId: z.string(),
-    targetResource: z.string(),
-    targetResourceDisplayName: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  targetResourceDetails: z.array(
+    z.object({
+      createTime: z.string(),
+      frameworkDeployment: z.string(),
+      majorRevisionId: z.string(),
+      minorRevisionId: z.string(),
+      targetResource: z.string(),
+      targetResourceDisplayName: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -171,7 +173,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads DbFrameworkComplianceSummaries. Registered at `@swamp/gcp/assuredworkloads/dbframeworkcompliancesummaries`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/dbframeworkcompliancesummaries",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -195,6 +197,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

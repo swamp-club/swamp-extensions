@@ -91,6 +91,27 @@ const MetricDestinationSchema = z.object({
   ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const MetricDefinitionStateSchema = z.object({
+  Name: z.string(),
+  Namespace: z.string(),
+  ValueKey: z.string(),
+  UnitLabel: z.string(),
+  DimensionKeys: z.record(z.string(), z.unknown()),
+  EventPattern: z.string(),
+}).partial();
+
+const MetricDestinationStateSchema = z.object({
+  Destination: z.string(),
+  DestinationArn: z.string(),
+  IamRoleArn: z.string(),
+  MetricDefinitions: z.array(MetricDefinitionStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -217,7 +238,7 @@ const StateSchema = z.object({
   Domain: z.string().optional(),
   DomainList: z.array(z.string()).optional(),
   CwLogEnabled: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   AppMonitorConfiguration: z.object({
     IdentityPoolId: z.string(),
     ExcludedPages: z.array(z.string()),
@@ -228,25 +249,25 @@ const StateSchema = z.object({
     AllowCookies: z.boolean(),
     Telemetries: z.array(z.string()),
     EnableXRay: z.boolean(),
-    MetricDestinations: z.array(MetricDestinationSchema),
-  }).optional(),
+    MetricDestinations: z.array(MetricDestinationStateSchema),
+  }).partial().optional(),
   CustomEvents: z.object({
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ResourcePolicy: z.object({
     PolicyDocument: z.string(),
     PolicyRevisionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DeobfuscationConfiguration: z.object({
     JavaScriptSourceMaps: z.object({
       Status: z.string(),
       S3Uri: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   Platform: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -379,7 +400,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RUM AppMonitor. Registered at `@swamp/aws/rum/app-monitor`. */
 export const model = {
   type: "@swamp/aws/rum/app-monitor",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -443,6 +464,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -75,6 +75,28 @@ const WorkflowConfigurationSchema = z.object({
   ).optional(),
 });
 
+const EcrConfigurationStateSchema = z.object({
+  ContainerTags: z.array(z.string()),
+  RepositoryName: z.string(),
+}).partial();
+
+const ScanResultConditionStateSchema = z.object({
+  FixAvailable: z.boolean(),
+  MaximumSeverityLabel: z.string(),
+}).partial();
+
+const WorkflowParameterStateSchema = z.object({
+  Value: z.array(z.string()),
+  Name: z.string(),
+}).partial();
+
+const WorkflowConfigurationStateSchema = z.object({
+  ParallelGroup: z.string(),
+  Parameters: z.array(WorkflowParameterStateSchema),
+  WorkflowArn: z.string(),
+  OnFailure: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -164,20 +186,20 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ImageScanningConfiguration: z.object({
-    EcrConfiguration: EcrConfigurationSchema,
-    ScanResultCondition: ScanResultConditionSchema,
+    EcrConfiguration: EcrConfigurationStateSchema,
+    ScanResultCondition: ScanResultConditionStateSchema,
     ImageScanningTypes: z.array(z.string()),
     ImageScanningEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ContainerRecipeArn: z.string().optional(),
-  Workflows: z.array(WorkflowConfigurationSchema).optional(),
+  Workflows: z.array(WorkflowConfigurationStateSchema).optional(),
   ImagePipelineExecutionSettings: z.object({
     DeploymentId: z.string(),
     OnUpdate: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   DeletionSettings: z.object({
     ExecutionRole: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ImageUri: z.string().optional(),
   Name: z.string().optional(),
   InfrastructureConfigurationArn: z.string().optional(),
@@ -188,22 +210,22 @@ const StateSchema = z.object({
     Minor: z.string(),
     Arn: z.string(),
     Patch: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LoggingConfiguration: z.object({
     LogGroupName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ImageId: z.string().optional(),
   ImageTestsConfiguration: z.object({
     TimeoutMinutes: z.number(),
     ImageTestsEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string(),
   EnhancedImageMetadataEnabled: z.boolean().optional(),
   ExecutionRole: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -301,7 +323,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder Image. Registered at `@swamp/aws/imagebuilder/image`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/image",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -370,6 +392,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

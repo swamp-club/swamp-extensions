@@ -354,19 +354,21 @@ const StateSchema = z.object({
     id: z.string(),
     image: z.object({
       url: z.string(),
-    }),
+    }).partial(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   blog: z.object({
     id: z.string(),
-  }).optional(),
+  }).partial().optional(),
   content: z.string().optional(),
   customMetaData: z.string().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
-  images: z.array(z.object({
-    url: z.string(),
-  })).optional(),
+  images: z.array(
+    z.object({
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   kind: z.string().optional(),
   labels: z.array(z.string()).optional(),
   location: z.object({
@@ -374,39 +376,41 @@ const StateSchema = z.object({
     lng: z.number(),
     name: z.string(),
     span: z.string(),
-  }).optional(),
+  }).partial().optional(),
   published: z.string().optional(),
   readerComments: z.string().optional(),
   replies: z.object({
-    items: z.array(z.object({
-      author: z.object({
-        displayName: z.string(),
+    items: z.array(
+      z.object({
+        author: z.object({
+          displayName: z.string(),
+          id: z.string(),
+          image: z.object({
+            url: z.unknown(),
+          }).partial(),
+          url: z.string(),
+        }).partial(),
+        blog: z.object({
+          id: z.string(),
+        }).partial(),
+        content: z.string(),
         id: z.string(),
-        image: z.object({
-          url: z.unknown(),
-        }),
-        url: z.string(),
-      }),
-      blog: z.object({
-        id: z.string(),
-      }),
-      content: z.string(),
-      id: z.string(),
-      inReplyTo: z.object({
-        id: z.string(),
-      }),
-      kind: z.string(),
-      post: z.object({
-        id: z.string(),
-      }),
-      published: z.string(),
-      selfLink: z.string(),
-      status: z.string(),
-      updated: z.string(),
-    })),
+        inReplyTo: z.object({
+          id: z.string(),
+        }).partial(),
+        kind: z.string(),
+        post: z.object({
+          id: z.string(),
+        }).partial(),
+        published: z.string(),
+        selfLink: z.string(),
+        status: z.string(),
+        updated: z.string(),
+      }).partial(),
+    ),
     selfLink: z.string(),
     totalItems: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   status: z.string().optional(),
   title: z.string().optional(),
@@ -568,7 +572,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Blogger Posts. Registered at `@swamp/gcp/blogger/posts`. */
 export const model = {
   type: "@swamp/gcp/blogger/posts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -722,6 +726,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

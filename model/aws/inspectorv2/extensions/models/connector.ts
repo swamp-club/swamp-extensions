@@ -83,6 +83,31 @@ const TagSchema = z.object({
   ),
 });
 
+const ScopeConfigurationStateSchema = z.object({
+  ScopeType: z.string(),
+  ScopeValues: z.array(z.string()),
+  State: z.string(),
+  StateReason: z.string(),
+}).partial();
+
+const AzureScopeConfigurationMapStateSchema = z.object({
+  VmScanning: ScopeConfigurationStateSchema,
+  ContainerImageScanning: ScopeConfigurationStateSchema,
+  ServerlessScanning: ScopeConfigurationStateSchema,
+}).partial();
+
+const AzureProviderConfigurationStateSchema = z.object({
+  AwsConfigConnectorArn: z.string(),
+  AzureRegions: z.array(z.string()),
+  ScopeConfiguration: AzureScopeConfigurationMapStateSchema,
+  AutoInstallVMScanner: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -132,21 +157,21 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   Provider: z.string().optional(),
   ProviderConfiguration: z.object({
-    Azure: AzureProviderConfigurationSchema,
-  }).optional(),
+    Azure: AzureProviderConfigurationStateSchema,
+  }).partial().optional(),
   Health: z.object({
     ConnectorStatus: z.string(),
     LastCheckedAt: z.string(),
     Message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   LastUpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   EnablementStatus: z.string().optional(),
   EnablementStatusReason: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -200,7 +225,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for InspectorV2 Connector. Registered at `@swamp/aws/inspectorv2/connector`. */
 export const model = {
   type: "@swamp/aws/inspectorv2/connector",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -229,6 +254,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

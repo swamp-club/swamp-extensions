@@ -53,6 +53,20 @@ const TagsSchema = z.object({
   Value: z.string().optional(),
 });
 
+const IpPoolStateSchema = z.object({
+  Cidr: z.string(),
+}).partial();
+
+const RouteStateSchema = z.object({
+  Cidr: z.string(),
+  Gateway: z.string(),
+}).partial();
+
+const TagsStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -85,14 +99,14 @@ const StateSchema = z.object({
   Arn: z.string().optional(),
   AssociatedClusterIds: z.array(z.string()).optional(),
   Id: z.string(),
-  IpPools: z.array(IpPoolSchema).optional(),
+  IpPools: z.array(IpPoolStateSchema).optional(),
   Name: z.string().optional(),
-  Routes: z.array(RouteSchema).optional(),
+  Routes: z.array(RouteStateSchema).optional(),
   State: z.string().optional(),
-  Tags: z.array(TagsSchema).optional(),
+  Tags: z.array(TagsStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -131,7 +145,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive Network. Registered at `@swamp/aws/medialive/network`. */
 export const model = {
   type: "@swamp/aws/medialive/network",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +209,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -232,13 +232,13 @@ const StateSchema = z.object({
     driveResourceInfo: z.object({
       driveFileId: z.string(),
       resourceKey: z.string(),
-    }),
+    }).partial(),
     linkToTask: z.string(),
     spaceInfo: z.object({
       space: z.string(),
-    }),
+    }).partial(),
     surfaceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   completed: z.string().optional(),
   deleted: z.boolean().optional(),
   due: z.string().optional(),
@@ -246,11 +246,13 @@ const StateSchema = z.object({
   hidden: z.boolean().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
-  links: z.array(z.object({
-    description: z.string(),
-    link: z.string(),
-    type: z.string(),
-  })).optional(),
+  links: z.array(
+    z.object({
+      description: z.string(),
+      link: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   notes: z.string().optional(),
   parent: z.string().optional(),
   position: z.string().optional(),
@@ -325,7 +327,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Tasks Tasks. Registered at `@swamp/gcp/tasks/tasks`. */
 export const model = {
   type: "@swamp/gcp/tasks/tasks",
-  version: "2026.11.03.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -477,6 +479,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

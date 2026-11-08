@@ -897,46 +897,54 @@ const StateSchema = z.object({
   adPolicy: z.object({
     adPolicyApprovalStatus: z.string(),
     adPolicyReviewStatus: z.string(),
-    adPolicyTopicEntry: z.array(z.object({
-      appealInfo: z.object({
-        appealFormLink: z.string(),
-        appealType: z.string(),
-      }),
-      helpCenterLink: z.string(),
-      policyDecisionType: z.string(),
-      policyEnforcementMeans: z.string(),
-      policyLabel: z.string(),
-      policyTopic: z.string(),
-      policyTopicConstraints: z.array(z.object({
-        certificateDomainMismatchCountryList: z.unknown(),
-        certificateMissingCountryList: z.unknown(),
-        countryConstraint: z.unknown(),
-        globalCertificateDomainMismatch: z.unknown(),
-        globalCertificateMissing: z.unknown(),
-        requestCertificateFormLink: z.unknown(),
-        resellerConstraint: z.unknown(),
-      })),
-      policyTopicDescription: z.string(),
-      policyTopicEvidences: z.array(z.object({
-        counterfeit: z.unknown(),
-        destinationMismatch: z.unknown(),
-        destinationNotWorking: z.unknown(),
-        destinationTextList: z.unknown(),
-        httpCode: z.unknown(),
-        languageCode: z.unknown(),
-        legalRemoval: z.unknown(),
-        regionalRequirements: z.unknown(),
-        textList: z.unknown(),
-        trademark: z.unknown(),
-        websiteList: z.unknown(),
-      })),
-      policyTopicType: z.string(),
-    })),
-  }).optional(),
-  adUrls: z.array(z.object({
-    type: z.string(),
-    url: z.string(),
-  })).optional(),
+    adPolicyTopicEntry: z.array(
+      z.object({
+        appealInfo: z.object({
+          appealFormLink: z.string(),
+          appealType: z.string(),
+        }).partial(),
+        helpCenterLink: z.string(),
+        policyDecisionType: z.string(),
+        policyEnforcementMeans: z.string(),
+        policyLabel: z.string(),
+        policyTopic: z.string(),
+        policyTopicConstraints: z.array(
+          z.object({
+            certificateDomainMismatchCountryList: z.unknown(),
+            certificateMissingCountryList: z.unknown(),
+            countryConstraint: z.unknown(),
+            globalCertificateDomainMismatch: z.unknown(),
+            globalCertificateMissing: z.unknown(),
+            requestCertificateFormLink: z.unknown(),
+            resellerConstraint: z.unknown(),
+          }).partial(),
+        ),
+        policyTopicDescription: z.string(),
+        policyTopicEvidences: z.array(
+          z.object({
+            counterfeit: z.unknown(),
+            destinationMismatch: z.unknown(),
+            destinationNotWorking: z.unknown(),
+            destinationTextList: z.unknown(),
+            httpCode: z.unknown(),
+            languageCode: z.unknown(),
+            legalRemoval: z.unknown(),
+            regionalRequirements: z.unknown(),
+            textList: z.unknown(),
+            trademark: z.unknown(),
+            websiteList: z.unknown(),
+          }).partial(),
+        ),
+        policyTopicType: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  adUrls: z.array(
+    z.object({
+      type: z.string(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   advertiserId: z.string().optional(),
   audioAd: z.object({
     displayUrl: z.string(),
@@ -947,8 +955,8 @@ const StateSchema = z.object({
       id: z.string(),
       unavailableReason: z.string(),
       videoAssetId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   bumperAd: z.object({
     commonInStreamAttribute: z.object({
       actionButtonLabel: z.string(),
@@ -959,9 +967,9 @@ const StateSchema = z.object({
         fullSize: z.object({
           heightPixels: z.number(),
           widthPixels: z.number(),
-        }),
+        }).partial(),
         mimeType: z.string(),
-      }),
+      }).partial(),
       displayUrl: z.string(),
       finalUrl: z.string(),
       trackingUrl: z.string(),
@@ -970,50 +978,52 @@ const StateSchema = z.object({
         id: z.string(),
         unavailableReason: z.string(),
         videoAssetId: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   containsSyntheticMedia: z.boolean().optional(),
   dcmTrackingInfo: z.object({
     creativeId: z.string(),
     placementId: z.string(),
     trackingAdId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   demandGenCarouselAd: z.object({
     businessName: z.string(),
-    cards: z.array(z.object({
-      callToAction: z.string(),
-      finalMobileUrl: z.string(),
-      finalUrl: z.string(),
-      headline: z.string(),
-      marketingImage: z.object({
-        assetId: z.string(),
-        fileSize: z.string(),
-        fullSize: z.object({
-          heightPixels: z.unknown(),
-          widthPixels: z.unknown(),
-        }),
-        mimeType: z.string(),
-      }),
-      portraitMarketingImage: z.object({
-        assetId: z.string(),
-        fileSize: z.string(),
-        fullSize: z.object({
-          heightPixels: z.unknown(),
-          widthPixels: z.unknown(),
-        }),
-        mimeType: z.string(),
-      }),
-      squareMarketingImage: z.object({
-        assetId: z.string(),
-        fileSize: z.string(),
-        fullSize: z.object({
-          heightPixels: z.unknown(),
-          widthPixels: z.unknown(),
-        }),
-        mimeType: z.string(),
-      }),
-    })),
+    cards: z.array(
+      z.object({
+        callToAction: z.string(),
+        finalMobileUrl: z.string(),
+        finalUrl: z.string(),
+        headline: z.string(),
+        marketingImage: z.object({
+          assetId: z.string(),
+          fileSize: z.string(),
+          fullSize: z.object({
+            heightPixels: z.unknown(),
+            widthPixels: z.unknown(),
+          }).partial(),
+          mimeType: z.string(),
+        }).partial(),
+        portraitMarketingImage: z.object({
+          assetId: z.string(),
+          fileSize: z.string(),
+          fullSize: z.object({
+            heightPixels: z.unknown(),
+            widthPixels: z.unknown(),
+          }).partial(),
+          mimeType: z.string(),
+        }).partial(),
+        squareMarketingImage: z.object({
+          assetId: z.string(),
+          fileSize: z.string(),
+          fullSize: z.object({
+            heightPixels: z.unknown(),
+            widthPixels: z.unknown(),
+          }).partial(),
+          mimeType: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     customParameters: z.record(z.string(), z.unknown()),
     description: z.string(),
     finalUrl: z.string(),
@@ -1025,12 +1035,12 @@ const StateSchema = z.object({
       fullSize: z.object({
         heightPixels: z.number(),
         widthPixels: z.number(),
-      }),
+      }).partial(),
       mimeType: z.string(),
-    }),
+    }).partial(),
     trackingUrl: z.string(),
     userSpecifiedTrackingUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   demandGenImageAd: z.object({
     businessName: z.string(),
     callToAction: z.string(),
@@ -1040,45 +1050,53 @@ const StateSchema = z.object({
     finalUrl: z.string(),
     finalUrlSuffix: z.string(),
     headlines: z.array(z.string()),
-    logoImages: z.array(z.object({
-      assetId: z.string(),
-      fileSize: z.string(),
-      fullSize: z.object({
-        heightPixels: z.number(),
-        widthPixels: z.number(),
-      }),
-      mimeType: z.string(),
-    })),
-    marketingImages: z.array(z.object({
-      assetId: z.string(),
-      fileSize: z.string(),
-      fullSize: z.object({
-        heightPixels: z.number(),
-        widthPixels: z.number(),
-      }),
-      mimeType: z.string(),
-    })),
-    portraitMarketingImages: z.array(z.object({
-      assetId: z.string(),
-      fileSize: z.string(),
-      fullSize: z.object({
-        heightPixels: z.number(),
-        widthPixels: z.number(),
-      }),
-      mimeType: z.string(),
-    })),
-    squareMarketingImages: z.array(z.object({
-      assetId: z.string(),
-      fileSize: z.string(),
-      fullSize: z.object({
-        heightPixels: z.number(),
-        widthPixels: z.number(),
-      }),
-      mimeType: z.string(),
-    })),
+    logoImages: z.array(
+      z.object({
+        assetId: z.string(),
+        fileSize: z.string(),
+        fullSize: z.object({
+          heightPixels: z.number(),
+          widthPixels: z.number(),
+        }).partial(),
+        mimeType: z.string(),
+      }).partial(),
+    ),
+    marketingImages: z.array(
+      z.object({
+        assetId: z.string(),
+        fileSize: z.string(),
+        fullSize: z.object({
+          heightPixels: z.number(),
+          widthPixels: z.number(),
+        }).partial(),
+        mimeType: z.string(),
+      }).partial(),
+    ),
+    portraitMarketingImages: z.array(
+      z.object({
+        assetId: z.string(),
+        fileSize: z.string(),
+        fullSize: z.object({
+          heightPixels: z.number(),
+          widthPixels: z.number(),
+        }).partial(),
+        mimeType: z.string(),
+      }).partial(),
+    ),
+    squareMarketingImages: z.array(
+      z.object({
+        assetId: z.string(),
+        fileSize: z.string(),
+        fullSize: z.object({
+          heightPixels: z.number(),
+          widthPixels: z.number(),
+        }).partial(),
+        mimeType: z.string(),
+      }).partial(),
+    ),
     trackingUrl: z.string(),
     userSpecifiedTrackingUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   demandGenProductAd: z.object({
     businessName: z.string(),
     callToAction: z.string(),
@@ -1095,12 +1113,12 @@ const StateSchema = z.object({
       fullSize: z.object({
         heightPixels: z.number(),
         widthPixels: z.number(),
-      }),
+      }).partial(),
       mimeType: z.string(),
-    }),
+    }).partial(),
     trackingUrl: z.string(),
     userSpecifiedTrackingUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   demandGenVideoAd: z.object({
     businessName: z.string(),
     callToAction: z.string(),
@@ -1110,9 +1128,9 @@ const StateSchema = z.object({
       fullSize: z.object({
         heightPixels: z.number(),
         widthPixels: z.number(),
-      }),
+      }).partial(),
       mimeType: z.string(),
-    }),
+    }).partial(),
     customParameters: z.record(z.string(), z.unknown()),
     descriptions: z.array(z.string()),
     displayUrlBreadcrumb1: z.string(),
@@ -1127,22 +1145,24 @@ const StateSchema = z.object({
       fullSize: z.object({
         heightPixels: z.number(),
         widthPixels: z.number(),
-      }),
+      }).partial(),
       mimeType: z.string(),
-    }),
+    }).partial(),
     longHeadlines: z.array(z.string()),
     trackingUrl: z.string(),
     userSpecifiedTrackingUrl: z.string(),
-    videos: z.array(z.object({
-      id: z.string(),
-      unavailableReason: z.string(),
-      videoAssetId: z.string(),
-    })),
-  }).optional(),
+    videos: z.array(
+      z.object({
+        id: z.string(),
+        unavailableReason: z.string(),
+        videoAssetId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   displayName: z.string().optional(),
   displayVideoSourceAd: z.object({
     creativeId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   entityStatus: z.string().optional(),
   inStreamAd: z.object({
     commonInStreamAttribute: z.object({
@@ -1154,9 +1174,9 @@ const StateSchema = z.object({
         fullSize: z.object({
           heightPixels: z.number(),
           widthPixels: z.number(),
-        }),
+        }).partial(),
         mimeType: z.string(),
-      }),
+      }).partial(),
       displayUrl: z.string(),
       finalUrl: z.string(),
       trackingUrl: z.string(),
@@ -1165,21 +1185,23 @@ const StateSchema = z.object({
         id: z.string(),
         unavailableReason: z.string(),
         videoAssetId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     customParameters: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   mastheadAd: z.object({
     autoplayVideoDuration: z.string(),
     autoplayVideoStartMillisecond: z.string(),
     callToActionButtonLabel: z.string(),
     callToActionFinalUrl: z.string(),
     callToActionTrackingUrl: z.string(),
-    companionYoutubeVideos: z.array(z.object({
-      id: z.string(),
-      unavailableReason: z.string(),
-      videoAssetId: z.string(),
-    })),
+    companionYoutubeVideos: z.array(
+      z.object({
+        id: z.string(),
+        unavailableReason: z.string(),
+        videoAssetId: z.string(),
+      }).partial(),
+    ),
     description: z.string(),
     headline: z.string(),
     showChannelArt: z.boolean(),
@@ -1187,9 +1209,9 @@ const StateSchema = z.object({
       id: z.string(),
       unavailableReason: z.string(),
       videoAssetId: z.string(),
-    }),
+    }).partial(),
     videoAspectRatio: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   nonSkippableAd: z.object({
     commonInStreamAttribute: z.object({
@@ -1201,9 +1223,9 @@ const StateSchema = z.object({
         fullSize: z.object({
           heightPixels: z.number(),
           widthPixels: z.number(),
-        }),
+        }).partial(),
         mimeType: z.string(),
-      }),
+      }).partial(),
       displayUrl: z.string(),
       finalUrl: z.string(),
       trackingUrl: z.string(),
@@ -1212,10 +1234,10 @@ const StateSchema = z.object({
         id: z.string(),
         unavailableReason: z.string(),
         videoAssetId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     customParameters: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   parentCreativeId: z.string().optional(),
   videoDiscoverAd: z.object({
     description1: z.string(),
@@ -1226,20 +1248,22 @@ const StateSchema = z.object({
       id: z.string(),
       unavailableReason: z.string(),
       videoAssetId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   videoPerformanceAd: z.object({
     actionButtonLabels: z.array(z.string()),
     businessName: z.string(),
-    companionBanners: z.array(z.object({
-      assetId: z.string(),
-      fileSize: z.string(),
-      fullSize: z.object({
-        heightPixels: z.number(),
-        widthPixels: z.number(),
-      }),
-      mimeType: z.string(),
-    })),
+    companionBanners: z.array(
+      z.object({
+        assetId: z.string(),
+        fileSize: z.string(),
+        fullSize: z.object({
+          heightPixels: z.number(),
+          widthPixels: z.number(),
+        }).partial(),
+        mimeType: z.string(),
+      }).partial(),
+    ),
     customParameters: z.record(z.string(), z.unknown()),
     descriptions: z.array(z.string()),
     displayUrlBreadcrumb1: z.string(),
@@ -1253,18 +1277,20 @@ const StateSchema = z.object({
       fullSize: z.object({
         heightPixels: z.number(),
         widthPixels: z.number(),
-      }),
+      }).partial(),
       mimeType: z.string(),
-    }),
+    }).partial(),
     longHeadlines: z.array(z.string()),
     trackingUrl: z.string(),
     userSpecifiedTrackingUrl: z.string(),
-    videos: z.array(z.object({
-      id: z.string(),
-      unavailableReason: z.string(),
-      videoAssetId: z.string(),
-    })),
-  }).optional(),
+    videos: z.array(
+      z.object({
+        id: z.string(),
+        unavailableReason: z.string(),
+        videoAssetId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2017,7 +2043,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroupAds. Registered at `@swamp/gcp/displayvideo/advertisers-adgroupads`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroupads",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2223,6 +2249,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

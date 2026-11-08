@@ -121,31 +121,31 @@ const StateSchema = z.object({
   dataSourceBackupConfigInfo: z.object({
     lastBackupState: z.string(),
     lastSuccessfulBackupConsistencyTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataSourceBackupConfigState: z.string().optional(),
   dataSourceBackupCount: z.string().optional(),
   dataSourceGcpResourceInfo: z.object({
     alloyDbClusterProperties: z.object({
       name: z.string(),
-    }),
+    }).partial(),
     cloudSqlInstanceProperties: z.object({
       databaseInstalledVersion: z.string(),
       instanceCreateTime: z.string(),
       instanceTier: z.string(),
       name: z.string(),
-    }),
+    }).partial(),
     filestoreInstanceProperties: z.object({
       instanceCreateTime: z.string(),
       name: z.string(),
-    }),
+    }).partial(),
     gcpResourcename: z.string(),
     location: z.string(),
     netappVolumeProperties: z.object({
       sourceResource: z.string(),
       sourceResourceCreateTime: z.string(),
-    }),
+    }).partial(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   totalStoredBytes: z.string().optional(),
 }).passthrough();
@@ -191,7 +191,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service DataSourceReferences. Registered at `@swamp/gcp/backupdr/datasourcereferences`. */
 export const model = {
   type: "@swamp/gcp/backupdr/datasourcereferences",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -330,6 +330,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

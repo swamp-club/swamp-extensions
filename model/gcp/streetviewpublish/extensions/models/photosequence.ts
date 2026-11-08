@@ -221,7 +221,7 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   response: z.record(z.string(), z.unknown()).optional(),
@@ -363,7 +363,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Street View Publish PhotoSequence. Registered at `@swamp/gcp/streetviewpublish/photosequence`. */
 export const model = {
   type: "@swamp/gcp/streetviewpublish/photosequence",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -494,6 +494,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

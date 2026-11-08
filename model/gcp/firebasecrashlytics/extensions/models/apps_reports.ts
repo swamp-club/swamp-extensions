@@ -170,89 +170,99 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   displayName: z.string().optional(),
-  groups: z.array(z.object({
-    browser: z.object({
-      browser: z.string(),
-      displayName: z.string(),
-      displayVersion: z.string(),
-    }),
-    customAttribute: z.object({
-      key: z.string(),
-      value: z.string(),
-    }),
-    device: z.object({
-      architecture: z.string(),
-      companyName: z.string(),
-      displayName: z.string(),
-      formFactor: z.string(),
-      manufacturer: z.string(),
-      marketingName: z.string(),
-      model: z.string(),
-    }),
-    issue: z.object({
-      errorType: z.string(),
-      firstSeenTime: z.string(),
-      firstSeenVersion: z.string(),
-      id: z.string(),
-      lastSeenTime: z.string(),
-      lastSeenVersion: z.string(),
-      name: z.string(),
-      notesCount: z.string(),
-      sampleEvent: z.string(),
-      signals: z.array(z.object({
-        description: z.unknown(),
-        signal: z.unknown(),
-      })),
-      state: z.string(),
-      stateUpdateTime: z.string(),
-      subtitle: z.string(),
-      title: z.string(),
-      uri: z.string(),
-      variants: z.array(z.object({
-        id: z.unknown(),
-        sampleEvent: z.unknown(),
-        uri: z.unknown(),
-      })),
-    }),
-    metrics: z.array(z.object({
-      crashFreeSessionsPercentage: z.number(),
-      crashFreeUsersPercentage: z.number(),
-      endTime: z.string(),
-      eventsCount: z.string(),
-      impactedSessionsCount: z.string(),
-      impactedUsersCount: z.string(),
-      sessionsCount: z.string(),
-      startTime: z.string(),
-      totalSessionsCount: z.string(),
-      totalUsersCount: z.string(),
-    })),
-    operatingSystem: z.object({
-      deviceType: z.string(),
-      displayName: z.string(),
-      displayVersion: z.string(),
-      modificationState: z.string(),
-      os: z.string(),
-      type: z.string(),
-    }),
-    subgroups: z.array(z.record(z.string(), z.unknown())),
-    variant: z.object({
-      id: z.string(),
-      sampleEvent: z.string(),
-      uri: z.string(),
-    }),
-    version: z.object({
-      buildVersion: z.string(),
-      displayName: z.string(),
-      displayVersion: z.string(),
-      tracks: z.array(z.object({
-        title: z.unknown(),
-        type: z.unknown(),
-      })),
-    }),
-    webMetricsGroup: z.object({
-      id: z.string(),
-    }),
-  })).optional(),
+  groups: z.array(
+    z.object({
+      browser: z.object({
+        browser: z.string(),
+        displayName: z.string(),
+        displayVersion: z.string(),
+      }).partial(),
+      customAttribute: z.object({
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+      device: z.object({
+        architecture: z.string(),
+        companyName: z.string(),
+        displayName: z.string(),
+        formFactor: z.string(),
+        manufacturer: z.string(),
+        marketingName: z.string(),
+        model: z.string(),
+      }).partial(),
+      issue: z.object({
+        errorType: z.string(),
+        firstSeenTime: z.string(),
+        firstSeenVersion: z.string(),
+        id: z.string(),
+        lastSeenTime: z.string(),
+        lastSeenVersion: z.string(),
+        name: z.string(),
+        notesCount: z.string(),
+        sampleEvent: z.string(),
+        signals: z.array(
+          z.object({
+            description: z.unknown(),
+            signal: z.unknown(),
+          }).partial(),
+        ),
+        state: z.string(),
+        stateUpdateTime: z.string(),
+        subtitle: z.string(),
+        title: z.string(),
+        uri: z.string(),
+        variants: z.array(
+          z.object({
+            id: z.unknown(),
+            sampleEvent: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      metrics: z.array(
+        z.object({
+          crashFreeSessionsPercentage: z.number(),
+          crashFreeUsersPercentage: z.number(),
+          endTime: z.string(),
+          eventsCount: z.string(),
+          impactedSessionsCount: z.string(),
+          impactedUsersCount: z.string(),
+          sessionsCount: z.string(),
+          startTime: z.string(),
+          totalSessionsCount: z.string(),
+          totalUsersCount: z.string(),
+        }).partial(),
+      ),
+      operatingSystem: z.object({
+        deviceType: z.string(),
+        displayName: z.string(),
+        displayVersion: z.string(),
+        modificationState: z.string(),
+        os: z.string(),
+        type: z.string(),
+      }).partial(),
+      subgroups: z.array(z.record(z.string(), z.unknown())),
+      variant: z.object({
+        id: z.string(),
+        sampleEvent: z.string(),
+        uri: z.string(),
+      }).partial(),
+      version: z.object({
+        buildVersion: z.string(),
+        displayName: z.string(),
+        displayVersion: z.string(),
+        tracks: z.array(
+          z.object({
+            title: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      webMetricsGroup: z.object({
+        id: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   nextPageToken: z.string().optional(),
   totalSize: z.number().optional(),
@@ -303,7 +313,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase Crashlytics Apps.Reports. Registered at `@swamp/gcp/firebasecrashlytics/apps-reports`. */
 export const model = {
   type: "@swamp/gcp/firebasecrashlytics/apps-reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -372,6 +382,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

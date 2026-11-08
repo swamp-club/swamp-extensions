@@ -127,18 +127,20 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   commitment: z.string().optional(),
-  creativeConfigs: z.array(z.object({
-    creativeType: z.string(),
-    displayCreativeConfig: z.object({
-      creativeSize: z.object({
-        heightPixels: z.number(),
-        widthPixels: z.number(),
-      }),
-    }),
-    videoCreativeConfig: z.object({
-      duration: z.string(),
-    }),
-  })).optional(),
+  creativeConfigs: z.array(
+    z.object({
+      creativeType: z.string(),
+      displayCreativeConfig: z.object({
+        creativeSize: z.object({
+          heightPixels: z.number(),
+          widthPixels: z.number(),
+        }).partial(),
+      }).partial(),
+      videoCreativeConfig: z.object({
+        duration: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   dealId: z.string().optional(),
   deliveryMethod: z.string().optional(),
   displayName: z.string().optional(),
@@ -155,35 +157,35 @@ const StateSchema = z.object({
       currencyCode: z.string(),
       nanos: z.number(),
       units: z.string(),
-    }),
+    }).partial(),
     rate: z.object({
       currencyCode: z.string(),
       nanos: z.number(),
       units: z.string(),
-    }),
+    }).partial(),
     unitsPurchased: z.string(),
-  }).optional(),
+  }).partial().optional(),
   readAdvertiserIds: z.array(z.string()).optional(),
   readPartnerIds: z.array(z.string()).optional(),
   readWriteAccessors: z.object({
     advertisers: z.object({
       advertiserIds: z.array(z.string()),
-    }),
+    }).partial(),
     partner: z.object({
       partnerId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   status: z.object({
     configStatus: z.string(),
     entityPauseReason: z.string(),
     entityStatus: z.string(),
     sellerPauseReason: z.string(),
     sellerStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   timeRange: z.object({
     endTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -226,10 +228,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Partners.InventorySources. Registered at `@swamp/gcp/displayvideo/partners-inventorysources`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/partners-inventorysources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

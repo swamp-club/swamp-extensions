@@ -279,57 +279,63 @@ const StateSchema = z.object({
   discoveryEndpoint: z.string().optional(),
   displayName: z.string().optional(),
   effectiveMaintenanceVersion: z.string().optional(),
-  instanceMessages: z.array(z.object({
-    code: z.string(),
-    message: z.string(),
-  })).optional(),
+  instanceMessages: z.array(
+    z.object({
+      code: z.string(),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   maintenancePolicy: z.object({
     createTime: z.string(),
     description: z.string(),
     updateTime: z.string(),
-    weeklyMaintenanceWindow: z.array(z.object({
-      day: z.string(),
-      duration: z.string(),
-      startTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
-  }).optional(),
+    weeklyMaintenanceWindow: z.array(
+      z.object({
+        day: z.string(),
+        duration: z.string(),
+        startTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   maintenanceSchedule: z.object({
     endTime: z.string(),
     scheduleDeadlineTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   maintenanceVersion: z.string().optional(),
   memcacheFullVersion: z.string().optional(),
-  memcacheNodes: z.array(z.object({
-    host: z.string(),
-    memcacheFullVersion: z.string(),
-    memcacheVersion: z.string(),
-    nodeId: z.string(),
-    parameters: z.object({
-      id: z.string(),
-      params: z.record(z.string(), z.unknown()),
-    }),
-    port: z.number(),
-    state: z.string(),
-    zone: z.string(),
-  })).optional(),
+  memcacheNodes: z.array(
+    z.object({
+      host: z.string(),
+      memcacheFullVersion: z.string(),
+      memcacheVersion: z.string(),
+      nodeId: z.string(),
+      parameters: z.object({
+        id: z.string(),
+        params: z.record(z.string(), z.unknown()),
+      }).partial(),
+      port: z.number(),
+      state: z.string(),
+      zone: z.string(),
+    }).partial(),
+  ).optional(),
   memcacheVersion: z.string().optional(),
   name: z.string(),
   nodeConfig: z.object({
     cpuCount: z.number(),
     memorySizeMb: z.number(),
-  }).optional(),
+  }).partial().optional(),
   nodeCount: z.number().optional(),
   parameters: z.object({
     id: z.string(),
     params: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   reservedIpRangeId: z.array(z.string()).optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -485,7 +491,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Memorystore for Memcached Instances. Registered at `@swamp/gcp/memcache/instances`. */
 export const model = {
   type: "@swamp/gcp/memcache/instances",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -627,6 +633,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

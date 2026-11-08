@@ -83,6 +83,41 @@ const OpenIdConnectConfigurationSchema = z.object({
   }),
 });
 
+const CognitoGroupConfigurationStateSchema = z.object({
+  GroupEntityType: z.string(),
+}).partial();
+
+const CognitoUserPoolConfigurationStateSchema = z.object({
+  UserPoolArn: z.string(),
+  ClientIds: z.array(z.string()),
+  GroupConfiguration: CognitoGroupConfigurationStateSchema,
+}).partial();
+
+const OpenIdConnectGroupConfigurationStateSchema = z.object({
+  GroupClaim: z.string(),
+  GroupEntityType: z.string(),
+}).partial();
+
+const OpenIdConnectAccessTokenConfigurationStateSchema = z.object({
+  PrincipalIdClaim: z.string(),
+  Audiences: z.array(z.string()),
+}).partial();
+
+const OpenIdConnectIdentityTokenConfigurationStateSchema = z.object({
+  PrincipalIdClaim: z.string(),
+  ClientIds: z.array(z.string()),
+}).partial();
+
+const OpenIdConnectConfigurationStateSchema = z.object({
+  Issuer: z.string(),
+  EntityIdPrefix: z.string(),
+  GroupConfiguration: OpenIdConnectGroupConfigurationStateSchema,
+  TokenSelection: z.object({
+    AccessTokenOnly: OpenIdConnectAccessTokenConfigurationStateSchema,
+    IdentityTokenOnly: OpenIdConnectIdentityTokenConfigurationStateSchema,
+  }).partial(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -123,21 +158,21 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Configuration: z.object({
-    CognitoUserPoolConfiguration: CognitoUserPoolConfigurationSchema,
-    OpenIdConnectConfiguration: OpenIdConnectConfigurationSchema,
-  }).optional(),
+    CognitoUserPoolConfiguration: CognitoUserPoolConfigurationStateSchema,
+    OpenIdConnectConfiguration: OpenIdConnectConfigurationStateSchema,
+  }).partial().optional(),
   Details: z.object({
     ClientIds: z.array(z.string()),
     UserPoolArn: z.string(),
     DiscoveryUrl: z.string(),
     OpenIdIssuer: z.string(),
-  }).optional(),
+  }).partial().optional(),
   IdentitySourceId: z.string(),
   PolicyStoreId: z.string(),
   PrincipalEntityType: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -186,7 +221,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for VerifiedPermissions IdentitySource. Registered at `@swamp/aws/verifiedpermissions/identity-source`. */
 export const model = {
   type: "@swamp/aws/verifiedpermissions/identity-source",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -250,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

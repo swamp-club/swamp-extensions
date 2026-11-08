@@ -146,6 +146,71 @@ const TagSchema = z.object({
   ),
 });
 
+const InputSourceStateSchema = z.object({
+  InputSourceARN: z.string(),
+  SchemaArn: z.string(),
+  ApplyNormalization: z.boolean(),
+}).partial();
+
+const OutputAttributeStateSchema = z.object({
+  Name: z.string(),
+  Hashed: z.boolean(),
+}).partial();
+
+const CustomerProfilesIntegrationConfigStateSchema = z.object({
+  DomainArn: z.string(),
+  ObjectTypeArn: z.string(),
+}).partial();
+
+const OutputSourceStateSchema = z.object({
+  OutputS3Path: z.string(),
+  Output: z.array(OutputAttributeStateSchema),
+  KMSArn: z.string(),
+  ApplyNormalization: z.boolean(),
+  CustomerProfilesIntegrationConfig:
+    CustomerProfilesIntegrationConfigStateSchema,
+}).partial();
+
+const RuleStateSchema = z.object({
+  RuleName: z.string(),
+  MatchingKeys: z.array(z.string()),
+}).partial();
+
+const RuleBasedPropertiesStateSchema = z.object({
+  Rules: z.array(RuleStateSchema),
+  AttributeMatchingModel: z.string(),
+  MatchPurpose: z.string(),
+}).partial();
+
+const RuleConditionStateSchema = z.object({
+  RuleName: z.string(),
+  Condition: z.string(),
+}).partial();
+
+const MatchingConfigStateSchema = z.object({
+  EnableTransitiveMatching: z.boolean(),
+}).partial();
+
+const RuleConditionPropertiesStateSchema = z.object({
+  Rules: z.array(RuleConditionStateSchema),
+  MatchingConfig: MatchingConfigStateSchema,
+}).partial();
+
+const IntermediateSourceConfigurationStateSchema = z.object({
+  IntermediateS3Path: z.string(),
+}).partial();
+
+const ProviderPropertiesStateSchema = z.object({
+  ProviderServiceArn: z.string(),
+  ProviderConfiguration: z.record(z.string(), z.unknown()),
+  IntermediateSourceConfiguration: IntermediateSourceConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -190,26 +255,26 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   WorkflowName: z.string(),
   Description: z.string().optional(),
-  InputSourceConfig: z.array(InputSourceSchema).optional(),
-  OutputSourceConfig: z.array(OutputSourceSchema).optional(),
+  InputSourceConfig: z.array(InputSourceStateSchema).optional(),
+  OutputSourceConfig: z.array(OutputSourceStateSchema).optional(),
   ResolutionTechniques: z.object({
     ResolutionType: z.string(),
-    RuleBasedProperties: RuleBasedPropertiesSchema,
-    RuleConditionProperties: RuleConditionPropertiesSchema,
-    ProviderProperties: ProviderPropertiesSchema,
+    RuleBasedProperties: RuleBasedPropertiesStateSchema,
+    RuleConditionProperties: RuleConditionPropertiesStateSchema,
+    ProviderProperties: ProviderPropertiesStateSchema,
     EnableRealTimeMatching: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   RoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   WorkflowArn: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   IncrementalRunConfig: z.object({
     IncrementalRunType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -263,7 +328,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EntityResolution MatchingWorkflow. Registered at `@swamp/aws/entityresolution/matching-workflow`. */
 export const model = {
   type: "@swamp/aws/entityresolution/matching-workflow",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -342,6 +407,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

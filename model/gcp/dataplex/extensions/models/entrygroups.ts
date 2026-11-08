@@ -199,7 +199,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   changeRequestConfig: z.object({
     approverEmails: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -272,7 +272,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex EntryGroups. Registered at `@swamp/gcp/dataplex/entrygroups`. */
 export const model = {
   type: "@swamp/gcp/dataplex/entrygroups",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -431,6 +431,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

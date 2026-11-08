@@ -329,51 +329,57 @@ const StateSchema = z.object({
       minStepCount: z.string(),
       updateAllStoppedTrials: z.boolean(),
       useElapsedDuration: z.boolean(),
-    }),
+    }).partial(),
     decayCurveStoppingSpec: z.object({
       useElapsedDuration: z.boolean(),
-    }),
+    }).partial(),
     measurementSelectionType: z.string(),
     medianAutomatedStoppingSpec: z.object({
       useElapsedDuration: z.boolean(),
-    }),
-    metrics: z.array(z.object({
-      goal: z.string(),
-      metricId: z.string(),
-      safetyConfig: z.object({
-        desiredMinSafeTrialsFraction: z.number(),
-        safetyThreshold: z.number(),
-      }),
-    })),
+    }).partial(),
+    metrics: z.array(
+      z.object({
+        goal: z.string(),
+        metricId: z.string(),
+        safetyConfig: z.object({
+          desiredMinSafeTrialsFraction: z.number(),
+          safetyThreshold: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     observationNoise: z.string(),
-    parameters: z.array(z.object({
-      categoricalValueSpec: z.object({
-        defaultValue: z.string(),
-        values: z.array(z.unknown()),
-      }),
-      conditionalParameterSpecs: z.array(z.object({
-        parameterSpec: z.unknown(),
-        parentCategoricalValues: z.unknown(),
-        parentDiscreteValues: z.unknown(),
-        parentIntValues: z.unknown(),
-      })),
-      discreteValueSpec: z.object({
-        defaultValue: z.number(),
-        values: z.array(z.unknown()),
-      }),
-      doubleValueSpec: z.object({
-        defaultValue: z.number(),
-        maxValue: z.number(),
-        minValue: z.number(),
-      }),
-      integerValueSpec: z.object({
-        defaultValue: z.string(),
-        maxValue: z.string(),
-        minValue: z.string(),
-      }),
-      parameterId: z.string(),
-      scaleType: z.string(),
-    })),
+    parameters: z.array(
+      z.object({
+        categoricalValueSpec: z.object({
+          defaultValue: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+        conditionalParameterSpecs: z.array(
+          z.object({
+            parameterSpec: z.unknown(),
+            parentCategoricalValues: z.unknown(),
+            parentDiscreteValues: z.unknown(),
+            parentIntValues: z.unknown(),
+          }).partial(),
+        ),
+        discreteValueSpec: z.object({
+          defaultValue: z.number(),
+          values: z.array(z.unknown()),
+        }).partial(),
+        doubleValueSpec: z.object({
+          defaultValue: z.number(),
+          maxValue: z.number(),
+          minValue: z.number(),
+        }).partial(),
+        integerValueSpec: z.object({
+          defaultValue: z.string(),
+          maxValue: z.string(),
+          minValue: z.string(),
+        }).partial(),
+        parameterId: z.string(),
+        scaleType: z.string(),
+      }).partial(),
+    ),
     studyStoppingConfig: z.object({
       maxDurationNoProgress: z.string(),
       maxNumTrials: z.number(),
@@ -381,15 +387,15 @@ const StateSchema = z.object({
       maximumRuntimeConstraint: z.object({
         endTime: z.string(),
         maxDuration: z.string(),
-      }),
+      }).partial(),
       minNumTrials: z.number(),
       minimumRuntimeConstraint: z.object({
         endTime: z.string(),
         maxDuration: z.string(),
-      }),
+      }).partial(),
       shouldStopAsap: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -607,7 +613,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Studies. Registered at `@swamp/gcp/aiplatform/studies`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/studies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -776,6 +782,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

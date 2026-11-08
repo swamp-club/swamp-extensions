@@ -256,19 +256,19 @@ const StateSchema = z.object({
   minimumRetention: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   multiTenantOnly: z.boolean().optional(),
   name: z.string(),
   osLicense: z.boolean().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   removableFromDisk: z.boolean().optional(),
   requiredCoattachedLicenses: z.array(z.string()).optional(),
   resourceRequirements: z.object({
     minGuestCpuCount: z.number(),
     minMemoryMb: z.number(),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
   soleTenantOnly: z.boolean().optional(),
@@ -375,7 +375,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Licenses. Registered at `@swamp/gcp/compute/licenses`. */
 export const model = {
   type: "@swamp/gcp/compute/licenses",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -579,6 +579,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

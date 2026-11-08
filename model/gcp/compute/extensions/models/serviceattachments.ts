@@ -275,22 +275,26 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  connectedEndpoints: z.array(z.object({
-    consumerNetwork: z.string(),
-    endpoint: z.string(),
-    endpointWithId: z.string(),
-    natIps: z.array(z.string()),
-    propagatedConnectionCount: z.number(),
-    pscConnectionId: z.string(),
-    status: z.string(),
-  })).optional(),
+  connectedEndpoints: z.array(
+    z.object({
+      consumerNetwork: z.string(),
+      endpoint: z.string(),
+      endpointWithId: z.string(),
+      natIps: z.array(z.string()),
+      propagatedConnectionCount: z.number(),
+      pscConnectionId: z.string(),
+      status: z.string(),
+    }).partial(),
+  ).optional(),
   connectionPreference: z.string().optional(),
-  consumerAcceptLists: z.array(z.object({
-    connectionLimit: z.number(),
-    endpointUrl: z.string(),
-    networkUrl: z.string(),
-    projectIdOrNum: z.string(),
-  })).optional(),
+  consumerAcceptLists: z.array(
+    z.object({
+      connectionLimit: z.number(),
+      endpointUrl: z.string(),
+      networkUrl: z.string(),
+      projectIdOrNum: z.string(),
+    }).partial(),
+  ).optional(),
   consumerRejectLists: z.array(z.string()).optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
@@ -308,7 +312,7 @@ const StateSchema = z.object({
   pscServiceAttachmentId: z.object({
     high: z.string(),
     low: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reconcileConnections: z.boolean().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
@@ -417,7 +421,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ServiceAttachments. Registered at `@swamp/gcp/compute/serviceattachments`. */
 export const model = {
   type: "@swamp/gcp/compute/serviceattachments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -585,6 +589,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

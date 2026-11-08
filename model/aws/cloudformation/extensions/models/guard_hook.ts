@@ -119,7 +119,7 @@ const StateSchema = z.object({
   RuleLocation: z.object({
     Uri: z.string(),
     VersionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LogBucket: z.string().optional(),
   HookStatus: z.string().optional(),
   TargetOperations: z.array(z.string()).optional(),
@@ -130,19 +130,19 @@ const StateSchema = z.object({
     StackNames: z.object({
       Include: z.array(z.string()),
       Exclude: z.array(z.string()),
-    }),
+    }).partial(),
     StackRoles: z.object({
       Include: z.array(z.string()),
       Exclude: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   Alias: z.string().optional(),
   HookArn: z.string(),
   ExecutionRole: z.string().optional(),
-  Options: z.object({}).optional(),
+  Options: z.object({}).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -230,7 +230,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation GuardHook. Registered at `@swamp/aws/cloudformation/guard-hook`. */
 export const model = {
   type: "@swamp/aws/cloudformation/guard-hook",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -249,6 +249,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

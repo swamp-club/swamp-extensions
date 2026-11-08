@@ -231,34 +231,40 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   alternativeNameServerConfig: z.object({
     kind: z.string(),
-    outboundEndpoints: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-    })),
-    targetNameServers: z.array(z.object({
-      forwardingPath: z.string(),
-      ipv4Address: z.string(),
-      ipv6Address: z.string(),
-      kind: z.string(),
-    })),
-  }).optional(),
+    outboundEndpoints: z.array(
+      z.object({
+        kind: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+    targetNameServers: z.array(
+      z.object({
+        forwardingPath: z.string(),
+        ipv4Address: z.string(),
+        ipv6Address: z.string(),
+        kind: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   description: z.string().optional(),
   dns64Config: z.object({
     kind: z.string(),
     scope: z.object({
       allQueries: z.boolean(),
       kind: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   enableInboundForwarding: z.boolean().optional(),
   enableLogging: z.boolean().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
-  networks: z.array(z.object({
-    kind: z.string(),
-    networkUrl: z.string(),
-  })).optional(),
+  networks: z.array(
+    z.object({
+      kind: z.string(),
+      networkUrl: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -354,7 +360,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS Policies. Registered at `@swamp/gcp/dns/policies`. */
 export const model = {
   type: "@swamp/gcp/dns/policies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -508,6 +514,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

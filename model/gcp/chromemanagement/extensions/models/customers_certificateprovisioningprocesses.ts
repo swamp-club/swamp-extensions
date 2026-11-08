@@ -97,28 +97,28 @@ const StateSchema = z.object({
   chromeOsDevice: z.object({
     deviceDirectoryApiId: z.string(),
     serialNumber: z.string(),
-  }).optional(),
+  }).partial().optional(),
   chromeOsUserSession: z.object({
     chromeOsDevice: z.object({
       deviceDirectoryApiId: z.string(),
       serialNumber: z.string(),
-    }),
+    }).partial(),
     userDirectoryApiId: z.string(),
     userPrimaryEmail: z.string(),
-  }).optional(),
+  }).partial().optional(),
   failureMessage: z.string().optional(),
   genericCaConnection: z.object({
     caConnectionAdapterConfigReference: z.string(),
-  }).optional(),
+  }).partial().optional(),
   genericProfile: z.object({
     profileAdapterConfigReference: z.string(),
-  }).optional(),
+  }).partial().optional(),
   issuedCertificate: z.string().optional(),
   name: z.string(),
   provisioningProfileId: z.string().optional(),
   scepCaConnection: z.object({
     caConnectionAdapterConfigReference: z.string(),
-  }).optional(),
+  }).partial().optional(),
   scepProfile: z.object({
     certificateTemplateName: z.string(),
     country: z.string(),
@@ -127,12 +127,14 @@ const StateSchema = z.object({
     organization: z.string(),
     organizationalUnits: z.array(z.string()),
     state: z.string(),
-    subjectAltNames: z.array(z.object({
-      type: z.string(),
-      value: z.string(),
-    })),
+    subjectAltNames: z.array(
+      z.object({
+        type: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     subjectCommonName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   signData: z.string().optional(),
   signature: z.string().optional(),
   signatureAlgorithm: z.string().optional(),
@@ -179,7 +181,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/chromemanagement/customers-certificateprovisioningprocesses",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -303,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

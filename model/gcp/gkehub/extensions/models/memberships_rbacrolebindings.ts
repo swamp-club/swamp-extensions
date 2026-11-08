@@ -199,10 +199,10 @@ const StateSchema = z.object({
   role: z.object({
     customRole: z.string(),
     predefinedRole: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.object({
     code: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   user: z.string().optional(),
@@ -279,7 +279,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Memberships.Rbacrolebindings. Registered at `@swamp/gcp/gkehub/memberships-rbacrolebindings`. */
 export const model = {
   type: "@swamp/gcp/gkehub/memberships-rbacrolebindings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -303,6 +303,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -83,6 +83,44 @@ const ResourceTagParameterSchema = z.object({
   IsValueEditable: z.boolean(),
 });
 
+const EnvironmentConfigurationParameterStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+  IsEditable: z.boolean(),
+}).partial();
+
+const EnvironmentConfigurationParametersDetailsStateSchema = z.object({
+  SsmPath: z.string(),
+  ParameterOverrides: z.array(EnvironmentConfigurationParameterStateSchema),
+  ResolvedParameters: z.array(EnvironmentConfigurationParameterStateSchema),
+}).partial();
+
+const AwsAccountStateSchema = z.object({
+  AwsAccountId: z.string(),
+}).partial();
+
+const RegionStateSchema = z.object({
+  RegionName: z.string(),
+}).partial();
+
+const EnvironmentConfigurationStateSchema = z.object({
+  Name: z.string(),
+  EnvironmentConfigurationId: z.string(),
+  EnvironmentBlueprintId: z.string(),
+  Description: z.string(),
+  DeploymentMode: z.string(),
+  ConfigurationParameters: EnvironmentConfigurationParametersDetailsStateSchema,
+  AwsAccount: AwsAccountStateSchema,
+  AwsRegion: RegionStateSchema,
+  DeploymentOrder: z.number(),
+}).partial();
+
+const ResourceTagParameterStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+  IsValueEditable: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -122,19 +160,20 @@ const StateSchema = z.object({
   DomainIdentifier: z.string(),
   DomainUnitId: z.string().optional(),
   DomainUnitIdentifier: z.string().optional(),
-  EnvironmentConfigurations: z.array(EnvironmentConfigurationSchema).optional(),
+  EnvironmentConfigurations: z.array(EnvironmentConfigurationStateSchema)
+    .optional(),
   Id: z.string().optional(),
   Identifier: z.string(),
   LastUpdatedAt: z.string().optional(),
   Name: z.string().optional(),
   Status: z.string().optional(),
   UseDefaultConfigurations: z.boolean().optional(),
-  ProjectResourceTags: z.array(ResourceTagParameterSchema).optional(),
+  ProjectResourceTags: z.array(ResourceTagParameterStateSchema).optional(),
   AllowCustomProjectResourceTags: z.boolean().optional(),
   ProjectResourceTagsDescription: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -176,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone ProjectProfile. Registered at `@swamp/aws/datazone/project-profile`. */
 export const model = {
   type: "@swamp/aws/datazone/project-profile",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -251,6 +290,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -140,32 +140,34 @@ const StateSchema = z.object({
   biglakeMetastoreMigrationConfig: z.object({
     backfillStatus: z.object({
       migrationSummary: z.object({
-        catalogSummaries: z.array(z.object({
-          catalog: z.unknown(),
-          catalogType: z.unknown(),
-          databaseSummaries: z.unknown(),
-        })),
+        catalogSummaries: z.array(
+          z.object({
+            catalog: z.unknown(),
+            catalogType: z.unknown(),
+            databaseSummaries: z.unknown(),
+          }).partial(),
+        ),
         createTime: z.string(),
         dryRun: z.boolean(),
         endTime: z.string(),
         service: z.string(),
-      }),
+      }).partial(),
       reportPath: z.string(),
       state: z.string(),
-    }),
+    }).partial(),
     conflictPolicy: z.string(),
     dryRun: z.boolean(),
     hiveConfig: z.object({
       catalog: z.string(),
       databases: z.array(z.string()),
-    }),
+    }).partial(),
     icebergConfig: z.object({
       catalog: z.string(),
       namespaces: z.array(z.string()),
-    }),
+    }).partial(),
     mode: z.string(),
     reportPath: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   endTime: z.string().optional(),
   name: z.string(),
@@ -218,7 +220,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Metastore Services.MigrationExecutions. Registered at `@swamp/gcp/metastore/services-migrationexecutions`. */
 export const model = {
   type: "@swamp/gcp/metastore/services-migrationexecutions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -357,6 +359,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -182,6 +182,149 @@ const TargetSchema = z.object({
   RetryPolicy: RetryPolicySchema.optional(),
 });
 
+const HttpParametersStateSchema = z.object({
+  PathParameterValues: z.array(z.string()),
+  HeaderParameters: z.record(z.string(), z.unknown()),
+  QueryStringParameters: z.record(z.string(), z.unknown()),
+}).partial();
+
+const DeadLetterConfigStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const RunCommandTargetStateSchema = z.object({
+  Values: z.array(z.string()),
+  Key: z.string(),
+}).partial();
+
+const RunCommandParametersStateSchema = z.object({
+  RunCommandTargets: z.array(RunCommandTargetStateSchema),
+}).partial();
+
+const InputTransformerStateSchema = z.object({
+  InputPathsMap: z.record(z.string(), z.unknown()),
+  InputTemplate: z.string(),
+}).partial();
+
+const KinesisParametersStateSchema = z.object({
+  PartitionKeyPath: z.string(),
+}).partial();
+
+const RedshiftDataParametersStateSchema = z.object({
+  StatementName: z.string(),
+  Sqls: z.array(z.string()),
+  Database: z.string(),
+  SecretManagerArn: z.string(),
+  DbUser: z.string(),
+  Sql: z.string(),
+  WithEvent: z.boolean(),
+}).partial();
+
+const AppSyncParametersStateSchema = z.object({
+  GraphQLOperation: z.string(),
+}).partial();
+
+const SqsParametersStateSchema = z.object({
+  MessageGroupId: z.string(),
+}).partial();
+
+const PlacementConstraintStateSchema = z.object({
+  Type: z.string(),
+  Expression: z.string(),
+}).partial();
+
+const PlacementStrategyStateSchema = z.object({
+  Field: z.string(),
+  Type: z.string(),
+}).partial();
+
+const CapacityProviderStrategyItemStateSchema = z.object({
+  CapacityProvider: z.string(),
+  Base: z.number(),
+  Weight: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const AwsVpcConfigurationStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+  AssignPublicIp: z.string(),
+}).partial();
+
+const NetworkConfigurationStateSchema = z.object({
+  AwsVpcConfiguration: AwsVpcConfigurationStateSchema,
+}).partial();
+
+const EcsParametersStateSchema = z.object({
+  PlatformVersion: z.string(),
+  Group: z.string(),
+  EnableECSManagedTags: z.boolean(),
+  EnableExecuteCommand: z.boolean(),
+  PlacementConstraints: z.array(PlacementConstraintStateSchema),
+  PropagateTags: z.string(),
+  TaskCount: z.number(),
+  PlacementStrategies: z.array(PlacementStrategyStateSchema),
+  CapacityProviderStrategy: z.array(CapacityProviderStrategyItemStateSchema),
+  LaunchType: z.string(),
+  ReferenceId: z.string(),
+  TagList: z.array(TagStateSchema),
+  NetworkConfiguration: NetworkConfigurationStateSchema,
+  TaskDefinitionArn: z.string(),
+}).partial();
+
+const BatchArrayPropertiesStateSchema = z.object({
+  Size: z.number(),
+}).partial();
+
+const BatchRetryStrategyStateSchema = z.object({
+  Attempts: z.number(),
+}).partial();
+
+const BatchParametersStateSchema = z.object({
+  ArrayProperties: BatchArrayPropertiesStateSchema,
+  JobName: z.string(),
+  RetryStrategy: BatchRetryStrategyStateSchema,
+  JobDefinition: z.string(),
+}).partial();
+
+const SageMakerPipelineParameterStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
+const SageMakerPipelineParametersStateSchema = z.object({
+  PipelineParameterList: z.array(SageMakerPipelineParameterStateSchema),
+}).partial();
+
+const RetryPolicyStateSchema = z.object({
+  MaximumRetryAttempts: z.number(),
+  MaximumEventAgeInSeconds: z.number(),
+}).partial();
+
+const TargetStateSchema = z.object({
+  InputPath: z.string(),
+  HttpParameters: HttpParametersStateSchema,
+  DeadLetterConfig: DeadLetterConfigStateSchema,
+  RunCommandParameters: RunCommandParametersStateSchema,
+  InputTransformer: InputTransformerStateSchema,
+  KinesisParameters: KinesisParametersStateSchema,
+  RoleArn: z.string(),
+  RedshiftDataParameters: RedshiftDataParametersStateSchema,
+  AppSyncParameters: AppSyncParametersStateSchema,
+  Input: z.string(),
+  SqsParameters: SqsParametersStateSchema,
+  EcsParameters: EcsParametersStateSchema,
+  BatchParameters: BatchParametersStateSchema,
+  Id: z.string(),
+  Arn: z.string(),
+  SageMakerPipelineParameters: SageMakerPipelineParametersStateSchema,
+  RetryPolicy: RetryPolicyStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -231,15 +374,15 @@ const StateSchema = z.object({
   ScheduleExpression: z.string().optional(),
   Description: z.string().optional(),
   State: z.string().optional(),
-  Targets: z.array(TargetSchema).optional(),
+  Targets: z.array(TargetStateSchema).optional(),
   Arn: z.string(),
   RoleArn: z.string().optional(),
   RuleName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Name: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -292,7 +435,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events Rule. Registered at `@swamp/aws/events/rule`. */
 export const model = {
   type: "@swamp/aws/events/rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -366,6 +509,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

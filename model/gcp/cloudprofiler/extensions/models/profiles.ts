@@ -163,7 +163,7 @@ const StateSchema = z.object({
     labels: z.record(z.string(), z.unknown()),
     projectId: z.string(),
     target: z.string(),
-  }).optional(),
+  }).partial().optional(),
   duration: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -250,7 +250,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Profiler Profiles. Registered at `@swamp/gcp/cloudprofiler/profiles`. */
 export const model = {
   type: "@swamp/gcp/cloudprofiler/profiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -389,6 +389,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

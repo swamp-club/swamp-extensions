@@ -380,30 +380,34 @@ const StateSchema = z.object({
       expression: z.string(),
       location: z.string(),
       title: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   maximumLifetime: z.string().optional(),
   name: z.string(),
   passthroughExtensions: z.object({
-    additionalExtensions: z.array(z.object({
-      objectIdPath: z.array(z.number()),
-    })),
+    additionalExtensions: z.array(
+      z.object({
+        objectIdPath: z.array(z.number()),
+      }).partial(),
+    ),
     knownExtensions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   predefinedValues: z.object({
-    additionalExtensions: z.array(z.object({
-      critical: z.boolean(),
-      objectId: z.object({
-        objectIdPath: z.array(z.unknown()),
-      }),
-      value: z.string(),
-    })),
+    additionalExtensions: z.array(
+      z.object({
+        critical: z.boolean(),
+        objectId: z.object({
+          objectIdPath: z.array(z.unknown()),
+        }).partial(),
+        value: z.string(),
+      }).partial(),
+    ),
     aiaOcspServers: z.array(z.string()),
     caOptions: z.object({
       isCa: z.boolean(),
       maxIssuerPathLength: z.number(),
-    }),
+    }).partial(),
     keyUsage: z.object({
       baseKeyUsage: z.object({
         certSign: z.boolean(),
@@ -415,7 +419,7 @@ const StateSchema = z.object({
         encipherOnly: z.boolean(),
         keyAgreement: z.boolean(),
         keyEncipherment: z.boolean(),
-      }),
+      }).partial(),
       extendedKeyUsage: z.object({
         clientAuth: z.boolean(),
         codeSigning: z.boolean(),
@@ -423,11 +427,13 @@ const StateSchema = z.object({
         ocspSigning: z.boolean(),
         serverAuth: z.boolean(),
         timeStamping: z.boolean(),
-      }),
-      unknownExtendedKeyUsages: z.array(z.object({
-        objectIdPath: z.array(z.unknown()),
-      })),
-    }),
+      }).partial(),
+      unknownExtendedKeyUsages: z.array(
+        z.object({
+          objectIdPath: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     nameConstraints: z.object({
       critical: z.boolean(),
       excludedDnsNames: z.array(z.string()),
@@ -438,11 +444,13 @@ const StateSchema = z.object({
       permittedEmailAddresses: z.array(z.string()),
       permittedIpRanges: z.array(z.string()),
       permittedUris: z.array(z.string()),
-    }),
-    policyIds: z.array(z.object({
-      objectIdPath: z.array(z.number()),
-    })),
-  }).optional(),
+    }).partial(),
+    policyIds: z.array(
+      z.object({
+        objectIdPath: z.array(z.number()),
+      }).partial(),
+    ),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -681,7 +689,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Certificate Authority CertificateTemplates. Registered at `@swamp/gcp/privateca/certificatetemplates`. */
 export const model = {
   type: "@swamp/gcp/privateca/certificatetemplates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -885,6 +893,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

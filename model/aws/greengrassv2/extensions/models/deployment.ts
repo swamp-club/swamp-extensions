@@ -96,6 +96,41 @@ const DeploymentConfigurationValidationPolicySchema = z.object({
   TimeoutInSeconds: z.number().int().min(1).max(2147483647).optional(),
 });
 
+const IoTJobExponentialRolloutRateStateSchema = z.object({
+  BaseRatePerMinute: z.number(),
+  IncrementFactor: z.number(),
+  RateIncreaseCriteria: z.record(z.string(), z.unknown()),
+}).partial();
+
+const IoTJobExecutionsRolloutConfigStateSchema = z.object({
+  ExponentialRate: IoTJobExponentialRolloutRateStateSchema,
+  MaximumPerMinute: z.number(),
+}).partial();
+
+const IoTJobAbortCriteriaStateSchema = z.object({
+  FailureType: z.string(),
+  Action: z.string(),
+  ThresholdPercentage: z.number(),
+  MinNumberOfExecutedThings: z.number(),
+}).partial();
+
+const IoTJobAbortConfigStateSchema = z.object({
+  CriteriaList: z.array(IoTJobAbortCriteriaStateSchema),
+}).partial();
+
+const IoTJobTimeoutConfigStateSchema = z.object({
+  InProgressTimeoutInMinutes: z.number(),
+}).partial();
+
+const DeploymentComponentUpdatePolicyStateSchema = z.object({
+  TimeoutInSeconds: z.number(),
+  Action: z.string(),
+}).partial();
+
+const DeploymentConfigurationValidationPolicyStateSchema = z.object({
+  TimeoutInSeconds: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -142,20 +177,20 @@ const StateSchema = z.object({
   DeploymentName: z.string().optional(),
   Components: z.record(z.string(), z.unknown()).optional(),
   IotJobConfiguration: z.object({
-    JobExecutionsRolloutConfig: IoTJobExecutionsRolloutConfigSchema,
-    AbortConfig: IoTJobAbortConfigSchema,
-    TimeoutConfig: IoTJobTimeoutConfigSchema,
-  }).optional(),
+    JobExecutionsRolloutConfig: IoTJobExecutionsRolloutConfigStateSchema,
+    AbortConfig: IoTJobAbortConfigStateSchema,
+    TimeoutConfig: IoTJobTimeoutConfigStateSchema,
+  }).partial().optional(),
   DeploymentPolicies: z.object({
     FailureHandlingPolicy: z.string(),
-    ComponentUpdatePolicy: DeploymentComponentUpdatePolicySchema,
+    ComponentUpdatePolicy: DeploymentComponentUpdatePolicyStateSchema,
     ConfigurationValidationPolicy:
-      DeploymentConfigurationValidationPolicySchema,
-  }).optional(),
+      DeploymentConfigurationValidationPolicyStateSchema,
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -205,7 +240,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GreengrassV2 Deployment. Registered at `@swamp/aws/greengrassv2/deployment`. */
 export const model = {
   type: "@swamp/aws/greengrassv2/deployment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -274,6 +309,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

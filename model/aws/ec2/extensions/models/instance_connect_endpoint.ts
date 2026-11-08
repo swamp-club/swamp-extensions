@@ -52,6 +52,16 @@ const InstanceConnectEndpointDnsNamesSchema = z.object({
   ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const InstanceConnectEndpointDnsNamesStateSchema = z.object({
+  DnsName: z.string(),
+  FipsDnsName: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -98,7 +108,7 @@ const StateSchema = z.object({
   SubnetId: z.string().optional(),
   ClientToken: z.string().optional(),
   PreserveClientIp: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
   AvailabilityZone: z.string().optional(),
   AvailabilityZoneId: z.string().optional(),
@@ -107,15 +117,15 @@ const StateSchema = z.object({
   NetworkInterfaceIds: z.array(z.string()).optional(),
   OwnerId: z.string().optional(),
   PublicDnsNames: z.object({
-    Ipv4: InstanceConnectEndpointDnsNamesSchema,
-    Dualstack: InstanceConnectEndpointDnsNamesSchema,
-  }).optional(),
+    Ipv4: InstanceConnectEndpointDnsNamesStateSchema,
+    Dualstack: InstanceConnectEndpointDnsNamesStateSchema,
+  }).partial().optional(),
   State: z.string().optional(),
   StateMessage: z.string().optional(),
   VpcId: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -167,7 +177,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 InstanceConnectEndpoint. Registered at `@swamp/aws/ec2/instance-connect-endpoint`. */
 export const model = {
   type: "@swamp/aws/ec2/instance-connect-endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -231,6 +241,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -123,6 +123,56 @@ const NotificationTargetItemSchema = z.object({
   ).describe("The ARN of the Chatbot SNS topic.").optional(),
 });
 
+const SsmParameterStateSchema = z.object({
+  Key: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const DynamicSsmParameterValueStateSchema = z.object({
+  Variable: z.string(),
+}).partial();
+
+const DynamicSsmParameterStateSchema = z.object({
+  Key: z.string(),
+  Value: DynamicSsmParameterValueStateSchema,
+}).partial();
+
+const SsmAutomationStateSchema = z.object({
+  RoleArn: z.string(),
+  DocumentName: z.string(),
+  DocumentVersion: z.string(),
+  TargetAccount: z.string(),
+  Parameters: z.array(SsmParameterStateSchema),
+  DynamicParameters: z.array(DynamicSsmParameterStateSchema),
+}).partial();
+
+const ActionStateSchema = z.object({
+  SsmAutomation: SsmAutomationStateSchema,
+}).partial();
+
+const PagerDutyIncidentConfigurationStateSchema = z.object({
+  ServiceId: z.string(),
+}).partial();
+
+const PagerDutyConfigurationStateSchema = z.object({
+  Name: z.string(),
+  SecretId: z.string(),
+  PagerDutyIncidentConfiguration: PagerDutyIncidentConfigurationStateSchema,
+}).partial();
+
+const IntegrationStateSchema = z.object({
+  PagerDutyConfiguration: PagerDutyConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const NotificationTargetItemStateSchema = z.object({
+  SnsTopicArn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -188,22 +238,22 @@ const StateSchema = z.object({
   DisplayName: z.string().optional(),
   ChatChannel: z.object({
     ChatbotSns: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Engagements: z.array(z.string()).optional(),
-  Actions: z.array(ActionSchema).optional(),
-  Integrations: z.array(IntegrationSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Actions: z.array(ActionStateSchema).optional(),
+  Integrations: z.array(IntegrationStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   IncidentTemplate: z.object({
     DedupeString: z.string(),
     Impact: z.number(),
-    NotificationTargets: z.array(NotificationTargetItemSchema),
+    NotificationTargets: z.array(NotificationTargetItemStateSchema),
     Summary: z.string(),
     Title: z.string(),
-    IncidentTags: z.array(TagSchema),
-  }).optional(),
+    IncidentTags: z.array(TagStateSchema),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -274,7 +324,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSMIncidents ResponsePlan. Registered at `@swamp/aws/ssmincidents/response-plan`. */
 export const model = {
   type: "@swamp/aws/ssmincidents/response-plan",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -338,6 +388,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

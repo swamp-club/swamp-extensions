@@ -263,15 +263,17 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   apiproduct: z.string().optional(),
   billingPeriod: z.string().optional(),
-  consumptionPricingRates: z.array(z.object({
-    end: z.string(),
-    fee: z.object({
-      currencyCode: z.string(),
-      nanos: z.number(),
-      units: z.string(),
-    }),
-    start: z.string(),
-  })).optional(),
+  consumptionPricingRates: z.array(
+    z.object({
+      end: z.string(),
+      fee: z.object({
+        currencyCode: z.string(),
+        nanos: z.number(),
+        units: z.string(),
+      }).partial(),
+      start: z.string(),
+    }).partial(),
+  ).optional(),
   consumptionPricingType: z.string().optional(),
   createdAt: z.string().optional(),
   currencyCode: z.string().optional(),
@@ -283,21 +285,23 @@ const StateSchema = z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lastModifiedAt: z.string().optional(),
   name: z.string(),
   paymentFundingModel: z.string().optional(),
-  revenueShareRates: z.array(z.object({
-    end: z.string(),
-    sharePercentage: z.number(),
-    start: z.string(),
-  })).optional(),
+  revenueShareRates: z.array(
+    z.object({
+      end: z.string(),
+      sharePercentage: z.number(),
+      start: z.string(),
+    }).partial(),
+  ).optional(),
   revenueShareType: z.string().optional(),
   setupFee: z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
 }).passthrough();
@@ -438,7 +442,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Apiproducts.Rateplans. Registered at `@swamp/gcp/apigee/apiproducts-rateplans`. */
 export const model = {
   type: "@swamp/gcp/apigee/apiproducts-rateplans",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -595,6 +599,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

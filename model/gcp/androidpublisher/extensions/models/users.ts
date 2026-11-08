@@ -179,11 +179,13 @@ const StateSchema = z.object({
   developerAccountPermissions: z.array(z.string()).optional(),
   email: z.string().optional(),
   expirationTime: z.string().optional(),
-  grants: z.array(z.object({
-    appLevelPermissions: z.array(z.string()),
-    name: z.string(),
-    packageName: z.string(),
-  })).optional(),
+  grants: z.array(
+    z.object({
+      appLevelPermissions: z.array(z.string()),
+      name: z.string(),
+      packageName: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   partial: z.boolean().optional(),
 }).passthrough();
@@ -262,7 +264,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Users. Registered at `@swamp/gcp/androidpublisher/users`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/users",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -411,6 +413,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

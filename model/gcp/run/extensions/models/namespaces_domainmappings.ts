@@ -305,41 +305,47 @@ const StateSchema = z.object({
     labels: z.record(z.string(), z.unknown()),
     name: z.string(),
     namespace: z.string(),
-    ownerReferences: z.array(z.object({
-      apiVersion: z.string(),
-      blockOwnerDeletion: z.boolean(),
-      controller: z.boolean(),
-      kind: z.string(),
-      name: z.string(),
-      uid: z.string(),
-    })),
+    ownerReferences: z.array(
+      z.object({
+        apiVersion: z.string(),
+        blockOwnerDeletion: z.boolean(),
+        controller: z.boolean(),
+        kind: z.string(),
+        name: z.string(),
+        uid: z.string(),
+      }).partial(),
+    ),
     resourceVersion: z.string(),
     selfLink: z.string(),
     uid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spec: z.object({
     certificateMode: z.string(),
     forceOverride: z.boolean(),
     routeName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
-    conditions: z.array(z.object({
-      lastTransitionTime: z.string(),
-      message: z.string(),
-      reason: z.string(),
-      severity: z.string(),
-      status: z.string(),
-      type: z.string(),
-    })),
+    conditions: z.array(
+      z.object({
+        lastTransitionTime: z.string(),
+        message: z.string(),
+        reason: z.string(),
+        severity: z.string(),
+        status: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     mappedRouteName: z.string(),
     observedGeneration: z.number(),
-    resourceRecords: z.array(z.object({
-      name: z.string(),
-      rrdata: z.string(),
-      type: z.string(),
-    })),
+    resourceRecords: z.array(
+      z.object({
+        name: z.string(),
+        rrdata: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -503,7 +509,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Domainmappings. Registered at `@swamp/gcp/run/namespaces-domainmappings`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-domainmappings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -552,6 +558,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -105,6 +105,58 @@ const UserTokenConfigurationSchema = z.object({
   JsonTokenTypeConfiguration: JsonTokenTypeConfigurationSchema.optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ValueImportanceItemStateSchema = z.object({
+  Key: z.string(),
+  Value: z.number(),
+}).partial();
+
+const RelevanceStateSchema = z.object({
+  Freshness: z.boolean(),
+  Importance: z.number(),
+  Duration: z.string(),
+  RankOrder: z.string(),
+  ValueImportanceItems: z.array(ValueImportanceItemStateSchema),
+}).partial();
+
+const SearchStateSchema = z.object({
+  Facetable: z.boolean(),
+  Searchable: z.boolean(),
+  Displayable: z.boolean(),
+  Sortable: z.boolean(),
+}).partial();
+
+const DocumentMetadataConfigurationStateSchema = z.object({
+  Name: z.string(),
+  Type: z.string(),
+  Relevance: RelevanceStateSchema,
+  Search: SearchStateSchema,
+}).partial();
+
+const JwtTokenTypeConfigurationStateSchema = z.object({
+  KeyLocation: z.string(),
+  URL: z.string(),
+  SecretManagerArn: z.string(),
+  UserNameAttributeField: z.string(),
+  GroupAttributeField: z.string(),
+  Issuer: z.string(),
+  ClaimRegex: z.string(),
+}).partial();
+
+const JsonTokenTypeConfigurationStateSchema = z.object({
+  UserNameAttributeField: z.string(),
+  GroupAttributeField: z.string(),
+}).partial();
+
+const UserTokenConfigurationStateSchema = z.object({
+  JwtTokenTypeConfiguration: JwtTokenTypeConfigurationStateSchema,
+  JsonTokenTypeConfiguration: JsonTokenTypeConfigurationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -154,22 +206,24 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   ServerSideEncryptionConfiguration: z.object({
     KmsKeyId: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Name: z.string().optional(),
   RoleArn: z.string().optional(),
   Edition: z.string().optional(),
-  DocumentMetadataConfigurations: z.array(DocumentMetadataConfigurationSchema)
-    .optional(),
+  DocumentMetadataConfigurations: z.array(
+    DocumentMetadataConfigurationStateSchema,
+  ).optional(),
   CapacityUnits: z.object({
     StorageCapacityUnits: z.number(),
     QueryCapacityUnits: z.number(),
-  }).optional(),
+  }).partial().optional(),
   UserContextPolicy: z.string().optional(),
-  UserTokenConfigurations: z.array(UserTokenConfigurationSchema).optional(),
+  UserTokenConfigurations: z.array(UserTokenConfigurationStateSchema)
+    .optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -223,7 +277,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kendra Index. Registered at `@swamp/aws/kendra/index`. */
 export const model = {
   type: "@swamp/aws/kendra/index",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -287,6 +341,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

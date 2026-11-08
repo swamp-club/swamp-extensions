@@ -93,6 +93,39 @@ const InstanceConfigSchema = z.object({
   ).optional(),
 });
 
+const ErrorInfoStateSchema = z.object({
+  Message: z.string(),
+  Code: z.string(),
+}).partial();
+
+const SlurmCustomSettingStateSchema = z.object({
+  ParameterValue: z.string(),
+  ParameterName: z.string(),
+}).partial();
+
+const ScriptSourceStateSchema = z.object({
+  Checksum: z.string(),
+  S3VersionId: z.string(),
+  ScriptLocation: z.string(),
+}).partial();
+
+const NodeLifecycleScriptStateSchema = z.object({
+  ExecutionPolicy: z.string(),
+  Arguments: z.array(z.string()),
+  OnError: z.string(),
+  ScriptSource: ScriptSourceStateSchema,
+  Name: z.string(),
+}).partial();
+
+const NodeLifecycleStagesStateSchema = z.object({
+  NodeBootstrapped: z.array(NodeLifecycleScriptStateSchema),
+  NodeReady: z.array(NodeLifecycleScriptStateSchema),
+}).partial();
+
+const InstanceConfigStateSchema = z.object({
+  InstanceType: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -198,42 +231,39 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Status: z.string().optional(),
   ClusterId: z.string().optional(),
-  ErrorInfo: z.array(z.object({
-    Message: z.string(),
-    Code: z.string(),
-  })).optional(),
+  ErrorInfo: z.array(ErrorInfoStateSchema).optional(),
   SpotOptions: z.object({
     AllocationStrategy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SlurmConfiguration: z.object({
     GresCustomSettings: z.array(z.record(z.string(), z.unknown())),
     ScaleDownIdleTimeInSeconds: z.number(),
-    SlurmCustomSettings: z.array(SlurmCustomSettingSchema),
-  }).optional(),
+    SlurmCustomSettings: z.array(SlurmCustomSettingStateSchema),
+  }).partial().optional(),
   SubnetIds: z.array(z.string()).optional(),
   Name: z.string().optional(),
   NodeLifecycleActions: z.object({
     ScriptCachingPolicy: z.string(),
-    Stages: NodeLifecycleStagesSchema,
-  }).optional(),
+    Stages: NodeLifecycleStagesStateSchema,
+  }).partial().optional(),
   ScalingConfiguration: z.object({
     MaxInstanceCount: z.number(),
     MinInstanceCount: z.number(),
-  }).optional(),
-  InstanceConfigs: z.array(InstanceConfigSchema).optional(),
+  }).partial().optional(),
+  InstanceConfigs: z.array(InstanceConfigStateSchema).optional(),
   Id: z.string().optional(),
   PurchaseOption: z.string().optional(),
   Arn: z.string(),
   CustomLaunchTemplate: z.object({
     Version: z.string(),
     TemplateId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   AmiId: z.string().optional(),
   IamInstanceProfileArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -346,7 +376,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS ComputeNodeGroup. Registered at `@swamp/aws/pcs/compute-node-group`. */
 export const model = {
   type: "@swamp/aws/pcs/compute-node-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -445,6 +475,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

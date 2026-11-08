@@ -43,6 +43,17 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const ServerCertificateSummaryStateSchema = z.object({
+  ServerCertificateArn: z.string(),
+  ServerCertificateStatus: z.string(),
+  ServerCertificateStatusDetail: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -112,7 +123,7 @@ const StateSchema = z.object({
   AuthorizerConfig: z.object({
     AllowAuthorizerOverride: z.boolean(),
     DefaultAuthorizerName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DomainName: z.string().optional(),
   ServerCertificateArns: z.array(z.string()).optional(),
   ServiceType: z.string().optional(),
@@ -124,24 +135,20 @@ const StateSchema = z.object({
     EnableOCSPCheck: z.boolean(),
     OcspLambdaArn: z.string(),
     OcspAuthorizedResponderArn: z.string(),
-  }).optional(),
-  ServerCertificates: z.array(z.object({
-    ServerCertificateArn: z.string(),
-    ServerCertificateStatus: z.string(),
-    ServerCertificateStatusDetail: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  ServerCertificates: z.array(ServerCertificateSummaryStateSchema).optional(),
   TlsConfig: z.object({
     SecurityPolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AuthenticationType: z.string().optional(),
   ApplicationProtocol: z.string().optional(),
   ClientCertificateConfig: z.object({
     ClientCertificateCallbackArn: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -218,7 +225,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT DomainConfiguration. Registered at `@swamp/aws/iot/domain-configuration`. */
 export const model = {
   type: "@swamp/aws/iot/domain-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -277,6 +284,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

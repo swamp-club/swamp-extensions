@@ -48,6 +48,21 @@ const TagSpecificationSchema = z.object({
   Tags: z.array(TagSchema).optional(),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const TagSpecificationStateSchema = z.object({
+  ResourceType: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const CapacityAllocationStateSchema = z.object({
+  AllocationType: z.string(),
+  Count: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -88,7 +103,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Tenancy: z.string().optional(),
   EndDateType: z.string().optional(),
-  TagSpecifications: z.array(TagSpecificationSchema).optional(),
+  TagSpecifications: z.array(TagSpecificationStateSchema).optional(),
   UnusedReservationBillingOwnerId: z.string().optional(),
   TotalInstanceCount: z.number().optional(),
   CreateDate: z.string().optional(),
@@ -108,21 +123,18 @@ const StateSchema = z.object({
   CommitmentInfo: z.object({
     CommittedInstanceCount: z.number(),
     CommitmentEndDate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   State: z.string().optional(),
   AvailableInstanceCount: z.number().optional(),
   ReservationType: z.string().optional(),
   InstancePlatform: z.string().optional(),
   Id: z.string(),
-  CapacityAllocationSet: z.array(z.object({
-    AllocationType: z.string(),
-    Count: z.number(),
-  })).optional(),
+  CapacityAllocationSet: z.array(CapacityAllocationStateSchema).optional(),
   EphemeralStorage: z.boolean().optional(),
   InstanceMatchCriteria: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -170,7 +182,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 CapacityReservation. Registered at `@swamp/aws/ec2/capacity-reservation`. */
 export const model = {
   type: "@swamp/aws/ec2/capacity-reservation",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -239,6 +251,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

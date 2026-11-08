@@ -121,6 +121,42 @@ const TagSchema = z.object({
   ),
 });
 
+const AttributeItemStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const FilterDimensionStateSchema = z.object({
+  Attributes: z.record(z.string(), z.unknown()),
+}).partial();
+
+const FilterGroupStateSchema = z.object({
+  Type: z.string(),
+  Dimensions: z.array(FilterDimensionStateSchema),
+}).partial();
+
+const ValueRangeStateSchema = z.object({
+  Start: z.number(),
+  End: z.number(),
+}).partial();
+
+const RangeStateSchema = z.object({
+  Value: z.number(),
+  Unit: z.string(),
+  ValueRange: ValueRangeStateSchema,
+  TimestampSource: z.string(),
+  TimestampFormat: z.string(),
+}).partial();
+
+const ThresholdStateSchema = z.object({
+  Value: z.string(),
+  Operator: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -215,18 +251,18 @@ const StateSchema = z.object({
   DisplayName: z.string().optional(),
   Description: z.string().optional(),
   AttributeDetails: z.object({
-    Attributes: z.array(AttributeItemSchema),
+    Attributes: z.array(AttributeItemStateSchema),
     Expression: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Filter: z.object({
     Include: z.string(),
-    Groups: z.array(FilterGroupSchema),
-  }).optional(),
+    Groups: z.array(FilterGroupStateSchema),
+  }).partial().optional(),
   Conditions: z.object({
-    Range: RangeSchema,
+    Range: RangeStateSchema,
     ObjectCount: z.number(),
-    Threshold: ThresholdSchema,
-  }).optional(),
+    Threshold: ThresholdStateSchema,
+  }).partial().optional(),
   Statistic: z.string().optional(),
   UseHistoricalData: z.boolean().optional(),
   CreatedAt: z.string().optional(),
@@ -235,11 +271,11 @@ const StateSchema = z.object({
   Readiness: z.object({
     ProgressPercentage: z.number(),
     Message: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -338,7 +374,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles CalculatedAttributeDefinition. Registered at `@swamp/aws/customerprofiles/calculated-attribute-definition`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/calculated-attribute-definition",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -417,6 +453,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

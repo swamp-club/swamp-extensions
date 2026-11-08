@@ -615,8 +615,8 @@ const StateSchema = z.object({
         enabledDefaultEvents: z.array(z.string()),
         enabledDeviceEvents: z.array(z.string()),
         enabledOptInEvents: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     crowdStrikeFalconNextGenConfig: z.object({
       apiKey: z.string(),
       host: z.string(),
@@ -624,21 +624,21 @@ const StateSchema = z.object({
         enabledDefaultEvents: z.array(z.string()),
         enabledDeviceEvents: z.array(z.string()),
         enabledOptInEvents: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     crowdStrikeXdrConfig: z.object({
       apiKey: z.string(),
       host: z.string(),
       xdrSettings: z.object({
         enableAllXdrEvents: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     deviceTrustConfig: z.object({
       scope: z.string(),
       serviceAccounts: z.array(z.string()),
       serviceProvider: z.string(),
       urlMatchers: z.array(z.string()),
-    }),
+    }).partial(),
     googleSecOpsConfig: z.object({
       apiKey: z.string(),
       host: z.string(),
@@ -646,12 +646,12 @@ const StateSchema = z.object({
         enabledDefaultEvents: z.array(z.string()),
         enabledDeviceEvents: z.array(z.string()),
         enabledOptInEvents: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     mipLabelConfig: z.object({
       domains: z.array(z.string()),
       microsoftTenantId: z.string(),
-    }),
+    }).partial(),
     paloAltoNetworksConfig: z.object({
       apiKey: z.string(),
       host: z.string(),
@@ -659,26 +659,26 @@ const StateSchema = z.object({
         enabledDefaultEvents: z.array(z.string()),
         enabledDeviceEvents: z.array(z.string()),
         enabledOptInEvents: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     pubSubConfig: z.object({
       reportingSettings: z.object({
         enabledDefaultEvents: z.array(z.string()),
         enabledDeviceEvents: z.array(z.string()),
         enabledOptInEvents: z.array(z.string()),
-      }),
+      }).partial(),
       topicFullPath: z.string(),
-    }),
+    }).partial(),
     pubSubXdrConfig: z.object({
       topicFullPath: z.string(),
       xdrSettings: z.object({
         enableAllXdrEvents: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     secureGatewayConfig: z.object({
       enabledPlatforms: z.array(z.string()),
       resourceId: z.string(),
-    }),
+    }).partial(),
     splunkConfig: z.object({
       hecToken: z.string(),
       host: z.string(),
@@ -687,18 +687,18 @@ const StateSchema = z.object({
         enabledDefaultEvents: z.array(z.string()),
         enabledDeviceEvents: z.array(z.string()),
         enabledOptInEvents: z.array(z.string()),
-      }),
+      }).partial(),
       source: z.string(),
       unsecureScheme: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   name: z.string(),
   status: z.object({
     failureStartTime: z.string(),
     state: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   type: z.string().optional(),
 }).passthrough();
 
@@ -1175,7 +1175,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.ConnectorConfigs. Registered at `@swamp/gcp/chromemanagement/customers-connectorconfigs`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-connectorconfigs",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1209,6 +1209,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

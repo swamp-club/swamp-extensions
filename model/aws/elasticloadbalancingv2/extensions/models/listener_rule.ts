@@ -304,6 +304,152 @@ const TagSchema = z.object({
   Key: z.string().describe("The key of the tag."),
 });
 
+const FixedResponseConfigStateSchema = z.object({
+  ContentType: z.string(),
+  StatusCode: z.string(),
+  MessageBody: z.string(),
+}).partial();
+
+const AuthenticateCognitoConfigStateSchema = z.object({
+  OnUnauthenticatedRequest: z.string(),
+  UserPoolClientId: z.string(),
+  UserPoolDomain: z.string(),
+  SessionTimeout: z.number(),
+  Scope: z.string(),
+  SessionCookieName: z.string(),
+  UserPoolArn: z.string(),
+  AuthenticationRequestExtraParams: z.record(z.string(), z.unknown()),
+}).partial();
+
+const RedirectConfigStateSchema = z.object({
+  Path: z.string(),
+  Query: z.string(),
+  Port: z.string(),
+  Host: z.string(),
+  Protocol: z.string(),
+  StatusCode: z.string(),
+}).partial();
+
+const TargetGroupStickinessConfigStateSchema = z.object({
+  Enabled: z.boolean(),
+  DurationSeconds: z.number(),
+}).partial();
+
+const TargetGroupTupleStateSchema = z.object({
+  TargetGroupArn: z.string(),
+  Weight: z.number(),
+}).partial();
+
+const ForwardConfigStateSchema = z.object({
+  TargetGroupStickinessConfig: TargetGroupStickinessConfigStateSchema,
+  TargetGroups: z.array(TargetGroupTupleStateSchema),
+}).partial();
+
+const AuthenticateOidcConfigStateSchema = z.object({
+  OnUnauthenticatedRequest: z.string(),
+  TokenEndpoint: z.string(),
+  SessionTimeout: z.number(),
+  Scope: z.string(),
+  Issuer: z.string(),
+  ClientSecret: z.string(),
+  UserInfoEndpoint: z.string(),
+  ClientId: z.string(),
+  AuthorizationEndpoint: z.string(),
+  SessionCookieName: z.string(),
+  UseExistingClientSecret: z.boolean(),
+  AuthenticationRequestExtraParams: z.record(z.string(), z.unknown()),
+}).partial();
+
+const JwtValidationActionAdditionalClaimStateSchema = z.object({
+  Format: z.string(),
+  Name: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const JwtValidationConfigStateSchema = z.object({
+  JwksEndpoint: z.string(),
+  Issuer: z.string(),
+  AdditionalClaims: z.array(JwtValidationActionAdditionalClaimStateSchema),
+}).partial();
+
+const ActionStateSchema = z.object({
+  Order: z.number(),
+  TargetGroupArn: z.string(),
+  FixedResponseConfig: FixedResponseConfigStateSchema,
+  AuthenticateCognitoConfig: AuthenticateCognitoConfigStateSchema,
+  Type: z.string(),
+  RedirectConfig: RedirectConfigStateSchema,
+  ForwardConfig: ForwardConfigStateSchema,
+  AuthenticateOidcConfig: AuthenticateOidcConfigStateSchema,
+  JwtValidationConfig: JwtValidationConfigStateSchema,
+}).partial();
+
+const HttpRequestMethodConfigStateSchema = z.object({
+  Values: z.array(z.string()),
+}).partial();
+
+const PathPatternConfigStateSchema = z.object({
+  RegexValues: z.array(z.string()),
+  Values: z.array(z.string()),
+}).partial();
+
+const HttpHeaderConfigStateSchema = z.object({
+  RegexValues: z.array(z.string()),
+  Values: z.array(z.string()),
+  HttpHeaderName: z.string(),
+}).partial();
+
+const SourceIpConfigStateSchema = z.object({
+  Values: z.array(z.string()),
+  IpAddressType: z.string(),
+}).partial();
+
+const HostHeaderConfigStateSchema = z.object({
+  RegexValues: z.array(z.string()),
+  Values: z.array(z.string()),
+}).partial();
+
+const QueryStringKeyValueStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const QueryStringConfigStateSchema = z.object({
+  Values: z.array(QueryStringKeyValueStateSchema),
+}).partial();
+
+const RuleConditionStateSchema = z.object({
+  Field: z.string(),
+  RegexValues: z.array(z.string()),
+  Values: z.array(z.string()),
+  HttpRequestMethodConfig: HttpRequestMethodConfigStateSchema,
+  PathPatternConfig: PathPatternConfigStateSchema,
+  HttpHeaderConfig: HttpHeaderConfigStateSchema,
+  SourceIpConfig: SourceIpConfigStateSchema,
+  HostHeaderConfig: HostHeaderConfigStateSchema,
+  QueryStringConfig: QueryStringConfigStateSchema,
+}).partial();
+
+const RewriteConfigStateSchema = z.object({
+  Regex: z.string(),
+  Replace: z.string(),
+}).partial();
+
+const RewriteConfigObjectStateSchema = z.object({
+  Rewrites: z.array(RewriteConfigStateSchema),
+}).partial();
+
+const TransformStateSchema = z.object({
+  Type: z.string(),
+  HostHeaderRewriteConfig: RewriteConfigObjectStateSchema,
+  UrlRewriteConfig: RewriteConfigObjectStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -339,15 +485,15 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ListenerArn: z.string().optional(),
   RuleArn: z.string(),
-  Actions: z.array(ActionSchema).optional(),
+  Actions: z.array(ActionStateSchema).optional(),
   Priority: z.number().optional(),
-  Conditions: z.array(RuleConditionSchema).optional(),
-  Transforms: z.array(TransformSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Conditions: z.array(RuleConditionStateSchema).optional(),
+  Transforms: z.array(TransformStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   IsDefault: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -390,7 +536,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticLoadBalancingV2 ListenerRule. Registered at `@swamp/aws/elasticloadbalancingv2/listener-rule`. */
 export const model = {
   type: "@swamp/aws/elasticloadbalancingv2/listener-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -469,6 +615,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

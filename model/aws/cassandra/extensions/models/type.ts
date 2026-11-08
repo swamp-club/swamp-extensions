@@ -42,6 +42,11 @@ const FieldSchema = z.object({
   FieldType: z.string(),
 });
 
+const FieldStateSchema = z.object({
+  FieldName: z.string(),
+  FieldType: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -70,7 +75,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   KeyspaceName: z.string(),
   TypeName: z.string(),
-  Fields: z.array(FieldSchema).optional(),
+  Fields: z.array(FieldStateSchema).optional(),
   DirectReferringTables: z.array(z.string()).optional(),
   DirectParentTypes: z.array(z.string()).optional(),
   MaxNestingDepth: z.number().optional(),
@@ -78,7 +83,7 @@ const StateSchema = z.object({
   KeyspaceArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -114,7 +119,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cassandra Type. Registered at `@swamp/aws/cassandra/type`. */
 export const model = {
   type: "@swamp/aws/cassandra/type",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +183,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -116,11 +116,13 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  affectedServices: z.array(z.object({
-    resourceType: z.string(),
-    service: z.string(),
-    version: z.string(),
-  })).optional(),
+  affectedServices: z.array(
+    z.object({
+      resourceType: z.string(),
+      service: z.string(),
+      version: z.string(),
+    }).partial(),
+  ).optional(),
   affectedUsersCount: z.string().optional(),
   count: z.string().optional(),
   firstSeenTime: z.string().optional(),
@@ -128,10 +130,12 @@ const StateSchema = z.object({
     groupId: z.string(),
     name: z.string(),
     resolutionStatus: z.string(),
-    trackingIssues: z.array(z.object({
-      url: z.string(),
-    })),
-  }).optional(),
+    trackingIssues: z.array(
+      z.object({
+        url: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   lastSeenTime: z.string().optional(),
   numAffectedServices: z.number().optional(),
   representative: z.object({
@@ -143,31 +147,35 @@ const StateSchema = z.object({
         responseStatusCode: z.number(),
         url: z.string(),
         userAgent: z.string(),
-      }),
+      }).partial(),
       reportLocation: z.object({
         filePath: z.string(),
         functionName: z.string(),
         lineNumber: z.number(),
-      }),
-      sourceReferences: z.array(z.object({
-        repository: z.string(),
-        revisionId: z.string(),
-      })),
+      }).partial(),
+      sourceReferences: z.array(
+        z.object({
+          repository: z.string(),
+          revisionId: z.string(),
+        }).partial(),
+      ),
       user: z.string(),
-    }),
+    }).partial(),
     eventTime: z.string(),
     message: z.string(),
     serviceContext: z.object({
       resourceType: z.string(),
       service: z.string(),
       version: z.string(),
-    }),
-  }).optional(),
-  timedCounts: z.array(z.object({
-    count: z.string(),
-    endTime: z.string(),
-    startTime: z.string(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  timedCounts: z.array(
+    z.object({
+      count: z.string(),
+      endTime: z.string(),
+      startTime: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -211,7 +219,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Error Reporting GroupStats. Registered at `@swamp/gcp/clouderrorreporting/groupstats`. */
 export const model = {
   type: "@swamp/gcp/clouderrorreporting/groupstats",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -335,6 +343,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -187,6 +187,97 @@ const TagSchema = z.object({
   Key: z.string().describe("The tag's key."),
 });
 
+const TagFilterStateSchema = z.object({
+  Value: z.string(),
+  Type: z.string(),
+  Key: z.string(),
+}).partial();
+
+const OnPremisesTagSetListObjectStateSchema = z.object({
+  OnPremisesTagGroup: z.array(TagFilterStateSchema),
+}).partial();
+
+const GreenFleetProvisioningOptionStateSchema = z.object({
+  Action: z.string(),
+}).partial();
+
+const DeploymentReadyOptionStateSchema = z.object({
+  WaitTimeInMinutes: z.number(),
+  ActionOnTimeout: z.string(),
+}).partial();
+
+const BlueInstanceTerminationOptionStateSchema = z.object({
+  TerminationWaitTimeInMinutes: z.number(),
+  Action: z.string(),
+}).partial();
+
+const EC2TagFilterStateSchema = z.object({
+  Value: z.string(),
+  Type: z.string(),
+  Key: z.string(),
+}).partial();
+
+const EC2TagSetListObjectStateSchema = z.object({
+  Ec2TagGroup: z.array(EC2TagFilterStateSchema),
+}).partial();
+
+const TriggerConfigStateSchema = z.object({
+  TriggerTargetArn: z.string(),
+  TriggerName: z.string(),
+  TriggerEvents: z.array(z.string()),
+}).partial();
+
+const S3LocationStateSchema = z.object({
+  BundleType: z.string(),
+  Bucket: z.string(),
+  ETag: z.string(),
+  Version: z.string(),
+  Key: z.string(),
+}).partial();
+
+const GitHubLocationStateSchema = z.object({
+  Repository: z.string(),
+  CommitId: z.string(),
+}).partial();
+
+const RevisionLocationStateSchema = z.object({
+  S3Location: S3LocationStateSchema,
+  GitHubLocation: GitHubLocationStateSchema,
+  RevisionType: z.string(),
+}).partial();
+
+const AlarmStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const ECSServiceStateSchema = z.object({
+  ServiceName: z.string(),
+  ClusterName: z.string(),
+}).partial();
+
+const TargetGroupInfoStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const ELBInfoStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const TrafficRouteStateSchema = z.object({
+  ListenerArns: z.array(z.string()),
+}).partial();
+
+const TargetGroupPairInfoStateSchema = z.object({
+  ProdTrafficRoute: TrafficRouteStateSchema,
+  TestTrafficRoute: TrafficRouteStateSchema,
+  TargetGroups: z.array(TargetGroupInfoStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -335,58 +426,58 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   OnPremisesTagSet: z.object({
-    OnPremisesTagSetList: z.array(OnPremisesTagSetListObjectSchema),
-  }).optional(),
+    OnPremisesTagSetList: z.array(OnPremisesTagSetListObjectStateSchema),
+  }).partial().optional(),
   ApplicationName: z.string(),
   DeploymentStyle: z.object({
     DeploymentOption: z.string(),
     DeploymentType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ServiceRoleArn: z.string().optional(),
   BlueGreenDeploymentConfiguration: z.object({
-    GreenFleetProvisioningOption: GreenFleetProvisioningOptionSchema,
-    DeploymentReadyOption: DeploymentReadyOptionSchema,
+    GreenFleetProvisioningOption: GreenFleetProvisioningOptionStateSchema,
+    DeploymentReadyOption: DeploymentReadyOptionStateSchema,
     TerminateBlueInstancesOnDeploymentSuccess:
-      BlueInstanceTerminationOptionSchema,
-  }).optional(),
+      BlueInstanceTerminationOptionStateSchema,
+  }).partial().optional(),
   AutoScalingGroups: z.array(z.string()).optional(),
   Ec2TagSet: z.object({
-    Ec2TagSetList: z.array(EC2TagSetListObjectSchema),
-  }).optional(),
+    Ec2TagSetList: z.array(EC2TagSetListObjectStateSchema),
+  }).partial().optional(),
   OutdatedInstancesStrategy: z.string().optional(),
-  TriggerConfigurations: z.array(TriggerConfigSchema).optional(),
+  TriggerConfigurations: z.array(TriggerConfigStateSchema).optional(),
   Deployment: z.object({
     Description: z.string(),
-    Revision: RevisionLocationSchema,
+    Revision: RevisionLocationStateSchema,
     IgnoreApplicationStopFailures: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   DeploymentConfigName: z.string().optional(),
   AlarmConfiguration: z.object({
-    Alarms: z.array(AlarmSchema),
+    Alarms: z.array(AlarmStateSchema),
     IgnorePollAlarmFailure: z.boolean(),
     Enabled: z.boolean(),
-  }).optional(),
-  Ec2TagFilters: z.array(EC2TagFilterSchema).optional(),
+  }).partial().optional(),
+  Ec2TagFilters: z.array(EC2TagFilterStateSchema).optional(),
   TerminationHookEnabled: z.boolean().optional(),
   Ec2DeploymentOptions: z.object({
     AutoScalingGroupProcessesToSuspend: z.array(z.string()),
-  }).optional(),
-  ECSServices: z.array(ECSServiceSchema).optional(),
+  }).partial().optional(),
+  ECSServices: z.array(ECSServiceStateSchema).optional(),
   AutoRollbackConfiguration: z.object({
     Events: z.array(z.string()),
     Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   LoadBalancerInfo: z.object({
-    TargetGroupInfoList: z.array(TargetGroupInfoSchema),
-    ElbInfoList: z.array(ELBInfoSchema),
-    TargetGroupPairInfoList: z.array(TargetGroupPairInfoSchema),
-  }).optional(),
+    TargetGroupInfoList: z.array(TargetGroupInfoStateSchema),
+    ElbInfoList: z.array(ELBInfoStateSchema),
+    TargetGroupPairInfoList: z.array(TargetGroupPairInfoStateSchema),
+  }).partial().optional(),
   DeploymentGroupName: z.string(),
-  Tags: z.array(TagSchema).optional(),
-  OnPremisesInstanceTagFilters: z.array(TagFilterSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  OnPremisesInstanceTagFilters: z.array(TagFilterStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -543,7 +634,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeDeploy DeploymentGroup. Registered at `@swamp/aws/codedeploy/deployment-group`. */
 export const model = {
   type: "@swamp/aws/codedeploy/deployment-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -612,6 +703,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

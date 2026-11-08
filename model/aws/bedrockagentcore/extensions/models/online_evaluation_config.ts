@@ -137,6 +137,51 @@ const InsightSchema = z.object({
   ).describe("The unique identifier of the insight."),
 });
 
+const CloudWatchLogsInputConfigStateSchema = z.object({
+  LogGroupNames: z.array(z.string()),
+  LogGroupNamePrefixes: z.array(z.string()),
+  ServiceNames: z.array(z.string()),
+}).partial();
+
+const EvaluatorReferenceStateSchema = z.object({
+  EvaluatorId: z.string(),
+}).partial();
+
+const SamplingConfigStateSchema = z.object({
+  SamplingPercentage: z.number(),
+}).partial();
+
+const FilterValueStateSchema = z.object({
+  StringValue: z.string(),
+  DoubleValue: z.number(),
+  BooleanValue: z.boolean(),
+}).partial();
+
+const FilterStateSchema = z.object({
+  Key: z.string(),
+  Operator: z.string(),
+  Value: FilterValueStateSchema,
+}).partial();
+
+const SessionConfigStateSchema = z.object({
+  SessionTimeoutMinutes: z.number(),
+}).partial();
+
+const CloudWatchOutputConfigStateSchema = z.object({
+  LogGroupName: z.string(),
+  MetricsNamespace: z.string(),
+  ResultDestination: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const InsightStateSchema = z.object({
+  InsightId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -220,30 +265,30 @@ const StateSchema = z.object({
   OnlineEvaluationConfigName: z.string().optional(),
   Description: z.string().optional(),
   DataSourceConfig: z.object({
-    CloudWatchLogs: CloudWatchLogsInputConfigSchema,
-  }).optional(),
+    CloudWatchLogs: CloudWatchLogsInputConfigStateSchema,
+  }).partial().optional(),
   EvaluationExecutionRoleArn: z.string().optional(),
-  Evaluators: z.array(EvaluatorReferenceSchema).optional(),
+  Evaluators: z.array(EvaluatorReferenceStateSchema).optional(),
   Rule: z.object({
-    SamplingConfig: SamplingConfigSchema,
-    Filters: z.array(FilterSchema),
-    SessionConfig: SessionConfigSchema,
-  }).optional(),
+    SamplingConfig: SamplingConfigStateSchema,
+    Filters: z.array(FilterStateSchema),
+    SessionConfig: SessionConfigStateSchema,
+  }).partial().optional(),
   Status: z.string().optional(),
   ExecutionStatus: z.string().optional(),
   OutputConfig: z.object({
-    CloudWatchConfig: CloudWatchOutputConfigSchema,
-  }).optional(),
+    CloudWatchConfig: CloudWatchOutputConfigStateSchema,
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  Insights: z.array(InsightSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  Insights: z.array(InsightStateSchema).optional(),
   ClusteringConfig: z.object({
     Frequencies: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -331,7 +376,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore OnlineEvaluationConfig. Registered at `@swamp/aws/bedrockagentcore/online-evaluation-config`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/online-evaluation-config",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -425,6 +470,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

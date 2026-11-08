@@ -236,13 +236,13 @@ const StateSchema = z.object({
       accessSelector: z.object({
         permissions: z.array(z.string()),
         roles: z.array(z.string()),
-      }),
+      }).partial(),
       conditionContext: z.object({
         accessTime: z.string(),
-      }),
+      }).partial(),
       identitySelector: z.object({
         identity: z.string(),
-      }),
+      }).partial(),
       options: z.object({
         analyzeServiceAccountImpersonation: z.boolean(),
         expandGroups: z.boolean(),
@@ -250,13 +250,13 @@ const StateSchema = z.object({
         expandRoles: z.boolean(),
         outputGroupEdges: z.boolean(),
         outputResourceEdges: z.boolean(),
-      }),
+      }).partial(),
       resourceSelector: z.object({
         fullResourceName: z.string(),
-      }),
+      }).partial(),
       scope: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   creator: z.string().optional(),
   description: z.string().optional(),
@@ -374,7 +374,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Asset SavedQueries. Registered at `@swamp/gcp/cloudasset/savedqueries`. */
 export const model = {
   type: "@swamp/gcp/cloudasset/savedqueries",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -508,6 +508,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

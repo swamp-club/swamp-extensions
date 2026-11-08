@@ -173,6 +173,85 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const RouterInputDestinationEndpointAssociatedResourceDetailsStateSchema = z
+  .object({
+    Name: z.string(),
+    MaximumBitrate: z.number(),
+    State: z.string(),
+  }).partial();
+
+const PublicDestinationEndpointNetworkingConfigurationAllowRuleStateSchema = z
+  .object({
+    Cidr: z.string(),
+  }).partial();
+
+const PublicDestinationEndpointNetworkingConfigurationStateSchema = z.object({
+  DestinationAllowRules: z.array(
+    PublicDestinationEndpointNetworkingConfigurationAllowRuleStateSchema,
+  ),
+}).partial();
+
+const VpcDestinationEndpointNetworkingConfigurationStateSchema = z.object({
+  SecurityGroupIds: z.array(z.string()),
+  SubnetId: z.string(),
+}).partial();
+
+const RistStandardDestinationEndpointConfigurationStateSchema = z.object({
+  DestinationAddress: z.string(),
+  DestinationIngestPort: z.number(),
+}).partial();
+
+const EndpointEncryptionSecretConfigurationStateSchema = z.object({
+  SecretArn: z.string(),
+}).partial();
+
+const SrtListenerStandardDestinationEndpointConfigurationStateSchema = z.object(
+  {
+    DestinationAddress: z.string(),
+    DestinationIngestPort: z.number(),
+    MinimumLatencyMilliseconds: z.number(),
+    StreamId: z.string(),
+    EncryptionPassphrase: EndpointEncryptionSecretConfigurationStateSchema,
+  },
+).partial();
+
+const SrtCallerStandardDestinationEndpointConfigurationStateSchema = z.object({
+  SourceListenerPort: z.number(),
+  MinimumLatencyMilliseconds: z.number(),
+  EncryptionPassphrase: EndpointEncryptionSecretConfigurationStateSchema,
+}).partial();
+
+const RtpStandardDestinationEndpointConfigurationStateSchema = z.object({
+  DestinationAddress: z.string(),
+  DestinationIngestPort: z.number(),
+  ForwardErrorCorrectionState: z.string(),
+}).partial();
+
+const StandardDestinationEndpointConfigurationStateSchema = z.object({
+  Name: z.string(),
+  DestinationNetworkingConfiguration: z.object({
+    Public: PublicDestinationEndpointNetworkingConfigurationStateSchema,
+    Vpc: VpcDestinationEndpointNetworkingConfigurationStateSchema,
+  }).partial(),
+  ProtocolConfiguration: z.object({
+    Rist: RistStandardDestinationEndpointConfigurationStateSchema,
+    SrtListener: SrtListenerStandardDestinationEndpointConfigurationStateSchema,
+    SrtCaller: SrtCallerStandardDestinationEndpointConfigurationStateSchema,
+    Rtp: RtpStandardDestinationEndpointConfigurationStateSchema,
+  }).partial(),
+  DestinationNetworkingType: z.string(),
+  Protocol: z.string(),
+}).partial();
+
+const RouterInputDestinationEndpointConfigurationStateSchema = z.object({
+  RouterInputArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -214,18 +293,15 @@ const StateSchema = z.object({
   Arn: z.string(),
   AssociatedResourceDetails: z.object({
     Standard: z.record(z.string(), z.unknown()),
-    RouterInput: z.object({
-      Name: z.string(),
-      MaximumBitrate: z.number(),
-      State: z.string(),
-    }),
-  }).optional(),
+    RouterInput:
+      RouterInputDestinationEndpointAssociatedResourceDetailsStateSchema,
+  }).partial().optional(),
   AvailabilityZone: z.string().optional(),
   AvailabilityZoneId: z.string().optional(),
   Configuration: z.object({
-    Standard: StandardDestinationEndpointConfigurationSchema,
-    RouterInput: RouterInputDestinationEndpointConfigurationSchema,
-  }).optional(),
+    Standard: StandardDestinationEndpointConfigurationStateSchema,
+    RouterInput: RouterInputDestinationEndpointConfigurationStateSchema,
+  }).partial().optional(),
   ConnectionState: z.string().optional(),
   CreatedAt: z.string().optional(),
   Description: z.string().optional(),
@@ -235,11 +311,11 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   RegionName: z.string().optional(),
   RegistrationState: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -287,10 +363,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect DestinationEndpoint. Registered at `@swamp/aws/mediaconnect/destination-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/destination-endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

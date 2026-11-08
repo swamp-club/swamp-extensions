@@ -227,9 +227,9 @@ const StateSchema = z.object({
       coolingThresholdDays: z.number(),
       hotTierBypassModeEnabled: z.boolean(),
       tierAction: z.string(),
-    }),
+    }).partial(),
     volumeId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   healthy: z.boolean().optional(),
   hybridPeeringDetails: z.object({
     command: z.string(),
@@ -239,11 +239,11 @@ const StateSchema = z.object({
     peerSvmName: z.string(),
     peerVolumeName: z.string(),
     subnetIp: z.string(),
-  }).optional(),
+  }).partial().optional(),
   hybridReplicationType: z.string().optional(),
   hybridReplicationUserCommands: z.object({
     commands: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   mirrorState: z.string().optional(),
   name: z.string(),
@@ -261,7 +261,7 @@ const StateSchema = z.object({
     totalTransferDuration: z.string(),
     transferBytes: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -353,7 +353,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud NetApp Volumes.Replications. Registered at `@swamp/gcp/netapp/volumes-replications`. */
 export const model = {
   type: "@swamp/gcp/netapp/volumes-replications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -501,6 +501,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

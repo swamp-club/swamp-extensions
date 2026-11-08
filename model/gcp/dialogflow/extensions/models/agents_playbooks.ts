@@ -294,97 +294,105 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   codeBlock: z.object({
     code: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   goal: z.string().optional(),
-  handlers: z.array(z.object({
-    eventHandler: z.object({
-      condition: z.string(),
-      event: z.string(),
-      fulfillment: z.object({
-        advancedSettings: z.object({
-          audioExportGcsDestination: z.unknown(),
-          dtmfSettings: z.unknown(),
-          loggingSettings: z.unknown(),
-          speechSettings: z.unknown(),
-        }),
-        codeBlockFunction: z.string(),
-        conditionalCases: z.array(z.unknown()),
-        enableGenerativeFallback: z.boolean(),
-        generators: z.array(z.unknown()),
-        messages: z.array(z.unknown()),
-        returnPartialResponses: z.boolean(),
-        setParameterActions: z.array(z.unknown()),
-        tag: z.string(),
-        webhook: z.string(),
-      }),
-    }),
-    lifecycleHandler: z.object({
-      condition: z.string(),
-      fulfillment: z.object({
-        advancedSettings: z.object({
-          audioExportGcsDestination: z.unknown(),
-          dtmfSettings: z.unknown(),
-          loggingSettings: z.unknown(),
-          speechSettings: z.unknown(),
-        }),
-        codeBlockFunction: z.string(),
-        conditionalCases: z.array(z.unknown()),
-        enableGenerativeFallback: z.boolean(),
-        generators: z.array(z.unknown()),
-        messages: z.array(z.unknown()),
-        returnPartialResponses: z.boolean(),
-        setParameterActions: z.array(z.unknown()),
-        tag: z.string(),
-        webhook: z.string(),
-      }),
-      lifecycleStage: z.string(),
-    }),
-  })).optional(),
+  handlers: z.array(
+    z.object({
+      eventHandler: z.object({
+        condition: z.string(),
+        event: z.string(),
+        fulfillment: z.object({
+          advancedSettings: z.object({
+            audioExportGcsDestination: z.unknown(),
+            dtmfSettings: z.unknown(),
+            loggingSettings: z.unknown(),
+            speechSettings: z.unknown(),
+          }).partial(),
+          codeBlockFunction: z.string(),
+          conditionalCases: z.array(z.unknown()),
+          enableGenerativeFallback: z.boolean(),
+          generators: z.array(z.unknown()),
+          messages: z.array(z.unknown()),
+          returnPartialResponses: z.boolean(),
+          setParameterActions: z.array(z.unknown()),
+          tag: z.string(),
+          webhook: z.string(),
+        }).partial(),
+      }).partial(),
+      lifecycleHandler: z.object({
+        condition: z.string(),
+        fulfillment: z.object({
+          advancedSettings: z.object({
+            audioExportGcsDestination: z.unknown(),
+            dtmfSettings: z.unknown(),
+            loggingSettings: z.unknown(),
+            speechSettings: z.unknown(),
+          }).partial(),
+          codeBlockFunction: z.string(),
+          conditionalCases: z.array(z.unknown()),
+          enableGenerativeFallback: z.boolean(),
+          generators: z.array(z.unknown()),
+          messages: z.array(z.unknown()),
+          returnPartialResponses: z.boolean(),
+          setParameterActions: z.array(z.unknown()),
+          tag: z.string(),
+          webhook: z.string(),
+        }).partial(),
+        lifecycleStage: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   inlineActions: z.array(z.string()).optional(),
-  inputParameterDefinitions: z.array(z.object({
-    description: z.string(),
-    name: z.string(),
-    type: z.string(),
-    typeSchema: z.object({
-      inlineSchema: z.object({
-        items: z.record(z.string(), z.unknown()),
-        type: z.string(),
-      }),
-      schemaReference: z.object({
-        schema: z.string(),
-        tool: z.string(),
-      }),
-    }),
-  })).optional(),
+  inputParameterDefinitions: z.array(
+    z.object({
+      description: z.string(),
+      name: z.string(),
+      type: z.string(),
+      typeSchema: z.object({
+        inlineSchema: z.object({
+          items: z.record(z.string(), z.unknown()),
+          type: z.string(),
+        }).partial(),
+        schemaReference: z.object({
+          schema: z.string(),
+          tool: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   instruction: z.object({
     guidelines: z.string(),
-    steps: z.array(z.object({
-      steps: z.array(z.record(z.string(), z.unknown())),
-      text: z.string(),
-    })),
-  }).optional(),
+    steps: z.array(
+      z.object({
+        steps: z.array(z.record(z.string(), z.unknown())),
+        text: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   llmModelSettings: z.object({
     model: z.string(),
     promptText: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  outputParameterDefinitions: z.array(z.object({
-    description: z.string(),
-    name: z.string(),
-    type: z.string(),
-    typeSchema: z.object({
-      inlineSchema: z.object({
-        items: z.record(z.string(), z.unknown()),
-        type: z.string(),
-      }),
-      schemaReference: z.object({
-        schema: z.string(),
-        tool: z.string(),
-      }),
-    }),
-  })).optional(),
+  outputParameterDefinitions: z.array(
+    z.object({
+      description: z.string(),
+      name: z.string(),
+      type: z.string(),
+      typeSchema: z.object({
+        inlineSchema: z.object({
+          items: z.record(z.string(), z.unknown()),
+          type: z.string(),
+        }).partial(),
+        schemaReference: z.object({
+          schema: z.string(),
+          tool: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   playbookType: z.string().optional(),
   referencedFlows: z.array(z.string()).optional(),
   referencedPlaybooks: z.array(z.string()).optional(),
@@ -568,7 +576,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.Playbooks. Registered at `@swamp/gcp/dialogflow/agents-playbooks`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-playbooks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -727,6 +735,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

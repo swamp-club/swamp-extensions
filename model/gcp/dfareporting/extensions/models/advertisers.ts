@@ -288,7 +288,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string(),
   idDimensionValue: z.object({
     dimensionName: z.string(),
@@ -297,13 +297,13 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   measurementPartnerLink: z.object({
     linkStatus: z.string(),
     measurementPartner: z.string(),
     partnerAdvertiserId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string().optional(),
   originalFloodlightConfigurationId: z.string().optional(),
   status: z.string().optional(),
@@ -451,7 +451,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 Advertisers. Registered at `@swamp/gcp/dfareporting/advertisers`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/advertisers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -585,6 +585,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -793,27 +793,29 @@ const StateSchema = z.object({
     databaseVersion: z.string(),
     description: z.string(),
     storedBytes: z.string(),
-  }).optional(),
+  }).partial().optional(),
   backupApplianceBackupProperties: z.object({
     finalizeTime: z.string(),
     generationId: z.number(),
     recoveryRangeEndTime: z.string(),
     recoveryRangeStartTime: z.string(),
-  }).optional(),
-  backupApplianceLocks: z.array(z.object({
-    backupApplianceLockInfo: z.object({
-      backupApplianceId: z.string(),
-      backupApplianceName: z.string(),
-      backupImage: z.string(),
-      jobName: z.string(),
-      lockReason: z.string(),
-      slaId: z.string(),
-    }),
-    lockUntilTime: z.string(),
-    serviceLockInfo: z.object({
-      operation: z.string(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  backupApplianceLocks: z.array(
+    z.object({
+      backupApplianceLockInfo: z.object({
+        backupApplianceId: z.string(),
+        backupApplianceName: z.string(),
+        backupImage: z.string(),
+        jobName: z.string(),
+        lockReason: z.string(),
+        slaId: z.string(),
+      }).partial(),
+      lockUntilTime: z.string(),
+      serviceLockInfo: z.object({
+        operation: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   backupRetentionInheritance: z.string().optional(),
   backupType: z.string().optional(),
   cloudSqlInstanceBackupProperties: z.object({
@@ -823,119 +825,139 @@ const StateSchema = z.object({
     instanceDeleteTime: z.string(),
     instanceTier: z.string(),
     sourceInstance: z.string(),
-  }).optional(),
+  }).partial().optional(),
   computeInstanceBackupProperties: z.object({
     canIpForward: z.boolean(),
     description: z.string(),
-    disk: z.array(z.object({
-      autoDelete: z.boolean(),
-      boot: z.boolean(),
-      deviceName: z.string(),
-      diskEncryptionKey: z.object({
-        kmsKeyName: z.string(),
-        kmsKeyServiceAccount: z.string(),
-        rawKey: z.string(),
-        rsaEncryptedKey: z.string(),
-      }),
-      diskInterface: z.string(),
-      diskSizeGb: z.string(),
-      diskType: z.string(),
-      diskTypeDeprecated: z.string(),
-      guestOsFeature: z.array(z.object({
-        type: z.unknown(),
-      })),
-      index: z.string(),
-      initializeParams: z.object({
-        diskName: z.string(),
-        replicaZones: z.array(z.unknown()),
-      }),
-      kind: z.string(),
-      license: z.array(z.string()),
-      mode: z.string(),
-      savedState: z.string(),
-      source: z.string(),
-      type: z.string(),
-    })),
+    disk: z.array(
+      z.object({
+        autoDelete: z.boolean(),
+        boot: z.boolean(),
+        deviceName: z.string(),
+        diskEncryptionKey: z.object({
+          kmsKeyName: z.string(),
+          kmsKeyServiceAccount: z.string(),
+          rawKey: z.string(),
+          rsaEncryptedKey: z.string(),
+        }).partial(),
+        diskInterface: z.string(),
+        diskSizeGb: z.string(),
+        diskType: z.string(),
+        diskTypeDeprecated: z.string(),
+        guestOsFeature: z.array(
+          z.object({
+            type: z.unknown(),
+          }).partial(),
+        ),
+        index: z.string(),
+        initializeParams: z.object({
+          diskName: z.string(),
+          replicaZones: z.array(z.unknown()),
+        }).partial(),
+        kind: z.string(),
+        license: z.array(z.string()),
+        mode: z.string(),
+        savedState: z.string(),
+        source: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     excludedDisks: z.array(z.string()),
-    guestAccelerator: z.array(z.object({
-      acceleratorCount: z.number(),
-      acceleratorType: z.string(),
-    })),
+    guestAccelerator: z.array(
+      z.object({
+        acceleratorCount: z.number(),
+        acceleratorType: z.string(),
+      }).partial(),
+    ),
     guestFlush: z.boolean(),
     includedDisks: z.array(z.string()),
     keyRevocationActionType: z.string(),
     labels: z.record(z.string(), z.unknown()),
     machineType: z.string(),
     metadata: z.object({
-      items: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
-    }),
+      items: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     minCpuPlatform: z.string(),
-    networkInterface: z.array(z.object({
-      accessConfigs: z.array(z.object({
-        externalIpv6: z.unknown(),
-        externalIpv6PrefixLength: z.unknown(),
-        name: z.unknown(),
-        natIP: z.unknown(),
-        networkTier: z.unknown(),
-        publicPtrDomainName: z.unknown(),
-        setPublicPtr: z.unknown(),
-        type: z.unknown(),
-      })),
-      aliasIpRanges: z.array(z.object({
-        ipCidrRange: z.unknown(),
-        subnetworkRangeName: z.unknown(),
-      })),
-      internalIpv6PrefixLength: z.number(),
-      ipv6AccessConfigs: z.array(z.object({
-        externalIpv6: z.unknown(),
-        externalIpv6PrefixLength: z.unknown(),
-        name: z.unknown(),
-        natIP: z.unknown(),
-        networkTier: z.unknown(),
-        publicPtrDomainName: z.unknown(),
-        setPublicPtr: z.unknown(),
-        type: z.unknown(),
-      })),
-      ipv6AccessType: z.string(),
-      ipv6Address: z.string(),
-      name: z.string(),
-      network: z.string(),
-      networkAttachment: z.string(),
-      networkIP: z.string(),
-      nicType: z.string(),
-      queueCount: z.number(),
-      stackType: z.string(),
-      subnetwork: z.string(),
-    })),
+    networkInterface: z.array(
+      z.object({
+        accessConfigs: z.array(
+          z.object({
+            externalIpv6: z.unknown(),
+            externalIpv6PrefixLength: z.unknown(),
+            name: z.unknown(),
+            natIP: z.unknown(),
+            networkTier: z.unknown(),
+            publicPtrDomainName: z.unknown(),
+            setPublicPtr: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+        aliasIpRanges: z.array(
+          z.object({
+            ipCidrRange: z.unknown(),
+            subnetworkRangeName: z.unknown(),
+          }).partial(),
+        ),
+        internalIpv6PrefixLength: z.number(),
+        ipv6AccessConfigs: z.array(
+          z.object({
+            externalIpv6: z.unknown(),
+            externalIpv6PrefixLength: z.unknown(),
+            name: z.unknown(),
+            natIP: z.unknown(),
+            networkTier: z.unknown(),
+            publicPtrDomainName: z.unknown(),
+            setPublicPtr: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+        ipv6AccessType: z.string(),
+        ipv6Address: z.string(),
+        name: z.string(),
+        network: z.string(),
+        networkAttachment: z.string(),
+        networkIP: z.string(),
+        nicType: z.string(),
+        queueCount: z.number(),
+        stackType: z.string(),
+        subnetwork: z.string(),
+      }).partial(),
+    ),
     scheduling: z.object({
       automaticRestart: z.boolean(),
       instanceTerminationAction: z.string(),
       localSsdRecoveryTimeout: z.object({
         nanos: z.number(),
         seconds: z.string(),
-      }),
+      }).partial(),
       minNodeCpus: z.number(),
-      nodeAffinities: z.array(z.object({
-        key: z.string(),
-        operator: z.string(),
-        values: z.array(z.unknown()),
-      })),
+      nodeAffinities: z.array(
+        z.object({
+          key: z.string(),
+          operator: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+      ),
       onHostMaintenance: z.string(),
       preemptible: z.boolean(),
       provisioningModel: z.string(),
-    }),
-    serviceAccount: z.array(z.object({
-      email: z.string(),
-      scopes: z.array(z.string()),
-    })),
+    }).partial(),
+    serviceAccount: z.array(
+      z.object({
+        email: z.string(),
+        scopes: z.array(z.string()),
+      }).partial(),
+    ),
     sourceInstance: z.string(),
     tags: z.object({
       items: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   consistencyTime: z.string().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
@@ -945,9 +967,11 @@ const StateSchema = z.object({
     description: z.string(),
     enableConfidentialCompute: z.boolean(),
     guestFlush: z.boolean(),
-    guestOsFeature: z.array(z.object({
-      type: z.string(),
-    })),
+    guestOsFeature: z.array(
+      z.object({
+        type: z.string(),
+      }).partial(),
+    ),
     labels: z.record(z.string(), z.unknown()),
     licenses: z.array(z.string()),
     physicalBlockSizeBytes: z.string(),
@@ -960,54 +984,56 @@ const StateSchema = z.object({
     storagePool: z.string(),
     type: z.string(),
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   enforcedRetentionEndTime: z.string().optional(),
   etag: z.string().optional(),
   expireTime: z.string().optional(),
   filestoreInstanceBackupProperties: z.object({
     sourceInstance: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcpBackupPlanInfo: z.object({
     backupPlan: z.string(),
     backupPlanRevisionId: z.string(),
     backupPlanRevisionName: z.string(),
     backupPlanRuleId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcpResource: z.object({
     gcpResourcename: z.string(),
     location: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kmsKeyVersions: z.array(z.string()).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   netappVolumeBackupProperties: z.object({
     sourceResource: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resourceSizeBytes: z.string().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
-  serviceLocks: z.array(z.object({
-    backupApplianceLockInfo: z.object({
-      backupApplianceId: z.string(),
-      backupApplianceName: z.string(),
-      backupImage: z.string(),
-      jobName: z.string(),
-      lockReason: z.string(),
-      slaId: z.string(),
-    }),
-    lockUntilTime: z.string(),
-    serviceLockInfo: z.object({
-      operation: z.string(),
-    }),
-  })).optional(),
+  serviceLocks: z.array(
+    z.object({
+      backupApplianceLockInfo: z.object({
+        backupApplianceId: z.string(),
+        backupApplianceName: z.string(),
+        backupImage: z.string(),
+        jobName: z.string(),
+        lockReason: z.string(),
+        slaId: z.string(),
+      }).partial(),
+      lockUntilTime: z.string(),
+      serviceLockInfo: z.object({
+        operation: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
   verificationSummary: z.object({
     lastVerificationExecution: z.string(),
     lastVerificationState: z.string(),
     lastVerificationTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1678,7 +1704,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupVaults.DataSources.Backups. Registered at `@swamp/gcp/backupdr/backupvaults-datasources-backups`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupvaults-datasources-backups",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1848,6 +1874,11 @@ export const model = {
     {
       toVersion: "2026.11.05.1",
       description: "Added: verificationSummary",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

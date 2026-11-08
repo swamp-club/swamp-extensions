@@ -154,19 +154,21 @@ const StateSchema = z.object({
       id: z.string(),
       image: z.object({
         url: z.string(),
-      }),
+      }).partial(),
       url: z.string(),
-    }),
+    }).partial(),
     blog: z.object({
       id: z.string(),
-    }),
+    }).partial(),
     content: z.string(),
     customMetaData: z.string(),
     etag: z.string(),
     id: z.string(),
-    images: z.array(z.object({
-      url: z.string(),
-    })),
+    images: z.array(
+      z.object({
+        url: z.string(),
+      }).partial(),
+    ),
     kind: z.string(),
     labels: z.array(z.string()),
     location: z.object({
@@ -174,37 +176,39 @@ const StateSchema = z.object({
       lng: z.number(),
       name: z.string(),
       span: z.string(),
-    }),
+    }).partial(),
     published: z.string(),
     readerComments: z.string(),
     replies: z.object({
-      items: z.array(z.object({
-        author: z.object({
-          displayName: z.unknown(),
-          id: z.unknown(),
-          image: z.unknown(),
-          url: z.unknown(),
-        }),
-        blog: z.object({
-          id: z.unknown(),
-        }),
-        content: z.string(),
-        id: z.string(),
-        inReplyTo: z.object({
-          id: z.unknown(),
-        }),
-        kind: z.string(),
-        post: z.object({
-          id: z.unknown(),
-        }),
-        published: z.string(),
-        selfLink: z.string(),
-        status: z.string(),
-        updated: z.string(),
-      })),
+      items: z.array(
+        z.object({
+          author: z.object({
+            displayName: z.unknown(),
+            id: z.unknown(),
+            image: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+          blog: z.object({
+            id: z.unknown(),
+          }).partial(),
+          content: z.string(),
+          id: z.string(),
+          inReplyTo: z.object({
+            id: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          post: z.object({
+            id: z.unknown(),
+          }).partial(),
+          published: z.string(),
+          selfLink: z.string(),
+          status: z.string(),
+          updated: z.string(),
+        }).partial(),
+      ),
       selfLink: z.string(),
       totalItems: z.string(),
-    }),
+    }).partial(),
     selfLink: z.string(),
     status: z.string(),
     title: z.string(),
@@ -212,14 +216,14 @@ const StateSchema = z.object({
     trashed: z.string(),
     updated: z.string(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   post_user_info: z.object({
     blogId: z.string(),
     hasEditAccess: z.boolean(),
     kind: z.string(),
     postId: z.string(),
     userId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -262,7 +266,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Blogger PostUserInfos. Registered at `@swamp/gcp/blogger/postuserinfos`. */
 export const model = {
   type: "@swamp/gcp/blogger/postuserinfos",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -396,6 +400,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

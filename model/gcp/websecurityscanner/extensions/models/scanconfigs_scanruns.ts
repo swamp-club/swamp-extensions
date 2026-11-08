@@ -120,8 +120,8 @@ const StateSchema = z.object({
     scanConfigError: z.object({
       code: z.string(),
       fieldName: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   executionState: z.string().optional(),
   hasVulnerabilities: z.boolean().optional(),
   name: z.string(),
@@ -130,9 +130,11 @@ const StateSchema = z.object({
   startTime: z.string().optional(),
   urlsCrawledCount: z.string().optional(),
   urlsTestedCount: z.string().optional(),
-  warningTraces: z.array(z.object({
-    code: z.string(),
-  })).optional(),
+  warningTraces: z.array(
+    z.object({
+      code: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -179,7 +181,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Web Security Scanner ScanConfigs.ScanRuns. Registered at `@swamp/gcp/websecurityscanner/scanconfigs-scanruns`. */
 export const model = {
   type: "@swamp/gcp/websecurityscanner/scanconfigs-scanruns",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -308,6 +310,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

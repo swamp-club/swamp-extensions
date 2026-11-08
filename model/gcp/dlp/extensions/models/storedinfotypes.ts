@@ -240,99 +240,105 @@ const StateSchema = z.object({
       dictionary: z.object({
         cloudStoragePath: z.object({
           path: z.string(),
-        }),
+        }).partial(),
         wordList: z.object({
           words: z.array(z.unknown()),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       displayName: z.string(),
       largeCustomDictionary: z.object({
         bigQueryField: z.object({
           field: z.object({
             name: z.unknown(),
-          }),
+          }).partial(),
           table: z.object({
             datasetId: z.unknown(),
             projectId: z.unknown(),
             tableId: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         cloudStorageFileSet: z.object({
           url: z.string(),
-        }),
+        }).partial(),
         outputPath: z.object({
           path: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       regex: z.object({
         groupIndexes: z.array(z.number()),
         pattern: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     createTime: z.string(),
-    errors: z.array(z.object({
-      details: z.object({
-        code: z.number(),
-        details: z.array(z.unknown()),
-        message: z.string(),
-      }),
-      extraInfo: z.string(),
-      timestamps: z.array(z.string()),
-    })),
+    errors: z.array(
+      z.object({
+        details: z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+        extraInfo: z.string(),
+        timestamps: z.array(z.string()),
+      }).partial(),
+    ),
     state: z.string(),
     stats: z.object({
       largeCustomDictionary: z.object({
         approxNumPhrases: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
-  pendingVersions: z.array(z.object({
-    config: z.object({
-      description: z.string(),
-      dictionary: z.object({
-        cloudStoragePath: z.object({
-          path: z.unknown(),
-        }),
-        wordList: z.object({
-          words: z.unknown(),
-        }),
-      }),
-      displayName: z.string(),
-      largeCustomDictionary: z.object({
-        bigQueryField: z.object({
-          field: z.unknown(),
-          table: z.unknown(),
-        }),
-        cloudStorageFileSet: z.object({
-          url: z.unknown(),
-        }),
-        outputPath: z.object({
-          path: z.unknown(),
-        }),
-      }),
-      regex: z.object({
-        groupIndexes: z.array(z.unknown()),
-        pattern: z.string(),
-      }),
-    }),
-    createTime: z.string(),
-    errors: z.array(z.object({
-      details: z.object({
-        code: z.unknown(),
-        details: z.unknown(),
-        message: z.unknown(),
-      }),
-      extraInfo: z.string(),
-      timestamps: z.array(z.unknown()),
-    })),
-    state: z.string(),
-    stats: z.object({
-      largeCustomDictionary: z.object({
-        approxNumPhrases: z.string(),
-      }),
-    }),
-  })).optional(),
+  pendingVersions: z.array(
+    z.object({
+      config: z.object({
+        description: z.string(),
+        dictionary: z.object({
+          cloudStoragePath: z.object({
+            path: z.unknown(),
+          }).partial(),
+          wordList: z.object({
+            words: z.unknown(),
+          }).partial(),
+        }).partial(),
+        displayName: z.string(),
+        largeCustomDictionary: z.object({
+          bigQueryField: z.object({
+            field: z.unknown(),
+            table: z.unknown(),
+          }).partial(),
+          cloudStorageFileSet: z.object({
+            url: z.unknown(),
+          }).partial(),
+          outputPath: z.object({
+            path: z.unknown(),
+          }).partial(),
+        }).partial(),
+        regex: z.object({
+          groupIndexes: z.array(z.unknown()),
+          pattern: z.string(),
+        }).partial(),
+      }).partial(),
+      createTime: z.string(),
+      errors: z.array(
+        z.object({
+          details: z.object({
+            code: z.unknown(),
+            details: z.unknown(),
+            message: z.unknown(),
+          }).partial(),
+          extraInfo: z.string(),
+          timestamps: z.array(z.unknown()),
+        }).partial(),
+      ),
+      state: z.string(),
+      stats: z.object({
+        largeCustomDictionary: z.object({
+          approxNumPhrases: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -447,7 +453,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) StoredInfoTypes. Registered at `@swamp/gcp/dlp/storedinfotypes`. */
 export const model = {
   type: "@swamp/gcp/dlp/storedinfotypes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -586,6 +592,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -70,6 +70,25 @@ const AgentTagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
+const CustomPromptProfileStateSchema = z.object({
+  ModelProfileId: z.string(),
+  SubscriptionId: z.string(),
+  QbsAwsAccountId: z.string(),
+}).partial();
+
+const CustomPromptInputParametersStateSchema = z.object({
+  ResponseLength: z.string(),
+  OutputStyle: z.string(),
+  Identity: z.string(),
+  Tone: z.string(),
+  CustomInstructions: z.string(),
+}).partial();
+
+const AgentTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -169,12 +188,12 @@ const StateSchema = z.object({
   WelcomeMessage: z.string().optional(),
   AgentLifecycle: z.string().optional(),
   CustomPromptInput: z.object({
-    ExistingPrompt: CustomPromptProfileSchema,
-    NewPrompt: CustomPromptInputParametersSchema,
-  }).optional(),
+    ExistingPrompt: CustomPromptProfileStateSchema,
+    NewPrompt: CustomPromptInputParametersStateSchema,
+  }).partial().optional(),
   Spaces: z.array(z.string()).optional(),
   ActionConnectors: z.array(z.string()).optional(),
-  Tags: z.array(AgentTagSchema).optional(),
+  Tags: z.array(AgentTagStateSchema).optional(),
   Arn: z.string().optional(),
   AgentStatus: z.string().optional(),
   CreatedAt: z.string().optional(),
@@ -190,11 +209,11 @@ const StateSchema = z.object({
     Tone: z.string(),
     CustomInstructions: z.string(),
     PromptSummary: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ErrorMessage: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -294,7 +313,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Agent. Registered at `@swamp/aws/quicksight/agent`. */
 export const model = {
   type: "@swamp/aws/quicksight/agent",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -318,6 +337,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

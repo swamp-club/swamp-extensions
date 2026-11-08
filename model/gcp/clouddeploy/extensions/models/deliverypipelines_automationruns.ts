@@ -124,7 +124,7 @@ const StateSchema = z.object({
     rollout: z.string(),
     sourcePhase: z.string(),
     wait: z.string(),
-  }).optional(),
+  }).partial().optional(),
   automationId: z.string().optional(),
   automationSnapshot: z.object({
     annotations: z.record(z.string(), z.unknown()),
@@ -133,96 +133,104 @@ const StateSchema = z.object({
     etag: z.string(),
     labels: z.record(z.string(), z.unknown()),
     name: z.string(),
-    rules: z.array(z.object({
-      advanceRolloutRule: z.object({
-        condition: z.object({
-          targetsPresentCondition: z.unknown(),
-          timedPromoteReleaseCondition: z.unknown(),
-        }),
-        id: z.string(),
-        sourcePhases: z.array(z.unknown()),
-        wait: z.string(),
-      }),
-      promoteReleaseRule: z.object({
-        condition: z.object({
-          targetsPresentCondition: z.unknown(),
-          timedPromoteReleaseCondition: z.unknown(),
-        }),
-        destinationPhase: z.string(),
-        destinationTargetId: z.string(),
-        id: z.string(),
-        wait: z.string(),
-      }),
-      repairRolloutRule: z.object({
-        condition: z.object({
-          targetsPresentCondition: z.unknown(),
-          timedPromoteReleaseCondition: z.unknown(),
-        }),
-        id: z.string(),
-        jobs: z.array(z.unknown()),
-        phases: z.array(z.unknown()),
-        repairPhases: z.array(z.unknown()),
-      }),
-      timedPromoteReleaseRule: z.object({
-        condition: z.object({
-          targetsPresentCondition: z.unknown(),
-          timedPromoteReleaseCondition: z.unknown(),
-        }),
-        destinationPhase: z.string(),
-        destinationTargetId: z.string(),
-        id: z.string(),
-        schedule: z.string(),
-        timeZone: z.string(),
-      }),
-    })),
+    rules: z.array(
+      z.object({
+        advanceRolloutRule: z.object({
+          condition: z.object({
+            targetsPresentCondition: z.unknown(),
+            timedPromoteReleaseCondition: z.unknown(),
+          }).partial(),
+          id: z.string(),
+          sourcePhases: z.array(z.unknown()),
+          wait: z.string(),
+        }).partial(),
+        promoteReleaseRule: z.object({
+          condition: z.object({
+            targetsPresentCondition: z.unknown(),
+            timedPromoteReleaseCondition: z.unknown(),
+          }).partial(),
+          destinationPhase: z.string(),
+          destinationTargetId: z.string(),
+          id: z.string(),
+          wait: z.string(),
+        }).partial(),
+        repairRolloutRule: z.object({
+          condition: z.object({
+            targetsPresentCondition: z.unknown(),
+            timedPromoteReleaseCondition: z.unknown(),
+          }).partial(),
+          id: z.string(),
+          jobs: z.array(z.unknown()),
+          phases: z.array(z.unknown()),
+          repairPhases: z.array(z.unknown()),
+        }).partial(),
+        timedPromoteReleaseRule: z.object({
+          condition: z.object({
+            targetsPresentCondition: z.unknown(),
+            timedPromoteReleaseCondition: z.unknown(),
+          }).partial(),
+          destinationPhase: z.string(),
+          destinationTargetId: z.string(),
+          id: z.string(),
+          schedule: z.string(),
+          timeZone: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     selector: z.object({
-      targets: z.array(z.object({
-        id: z.string(),
-        labels: z.record(z.string(), z.unknown()),
-      })),
-    }),
+      targets: z.array(
+        z.object({
+          id: z.string(),
+          labels: z.record(z.string(), z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     serviceAccount: z.string(),
     suspended: z.boolean(),
     uid: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   etag: z.string().optional(),
   expireTime: z.string().optional(),
   name: z.string(),
   policyViolation: z.object({
-    policyViolationDetails: z.array(z.object({
-      failureMessage: z.string(),
-      policy: z.string(),
-      ruleId: z.string(),
-    })),
-  }).optional(),
+    policyViolationDetails: z.array(
+      z.object({
+        failureMessage: z.string(),
+        policy: z.string(),
+        ruleId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   promoteReleaseOperation: z.object({
     phase: z.string(),
     rollout: z.string(),
     targetId: z.string(),
     wait: z.string(),
-  }).optional(),
+  }).partial().optional(),
   repairRolloutOperation: z.object({
     currentRepairPhaseIndex: z.string(),
     jobId: z.string(),
     phaseId: z.string(),
-    repairPhases: z.array(z.object({
-      retry: z.object({
-        attempts: z.array(z.unknown()),
-        backoffMode: z.string(),
-        totalAttempts: z.string(),
-      }),
-      rollback: z.object({
-        destinationPhase: z.string(),
-        disableRollbackIfRolloutPending: z.boolean(),
-        rolloutId: z.string(),
-        state: z.string(),
-        stateDesc: z.string(),
-      }),
-    })),
+    repairPhases: z.array(
+      z.object({
+        retry: z.object({
+          attempts: z.array(z.unknown()),
+          backoffMode: z.string(),
+          totalAttempts: z.string(),
+        }).partial(),
+        rollback: z.object({
+          destinationPhase: z.string(),
+          disableRollbackIfRolloutPending: z.boolean(),
+          rolloutId: z.string(),
+          state: z.string(),
+          stateDesc: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     rollout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ruleId: z.string().optional(),
   serviceAccount: z.string().optional(),
   state: z.string().optional(),
@@ -232,7 +240,7 @@ const StateSchema = z.object({
     phase: z.string(),
     release: z.string(),
     targetId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   waitUntilTime: z.string().optional(),
@@ -282,7 +290,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deploy DeliveryPipelines.AutomationRuns. Registered at `@swamp/gcp/clouddeploy/deliverypipelines-automationruns`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/deliverypipelines-automationruns",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -416,6 +424,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

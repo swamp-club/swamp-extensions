@@ -314,7 +314,7 @@ const StateSchema = z.object({
   importOnly: z.boolean().optional(),
   keyAccessJustificationsPolicy: z.object({
     allowedAccessReasons: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   nextRotationTime: z.string().optional(),
@@ -325,10 +325,10 @@ const StateSchema = z.object({
         caviumCerts: z.array(z.string()),
         googleCardCerts: z.array(z.string()),
         googlePartitionCerts: z.array(z.string()),
-      }),
+      }).partial(),
       content: z.string(),
       format: z.string(),
-    }),
+    }).partial(),
     createTime: z.string(),
     destroyEventTime: z.string(),
     destroyTime: z.string(),
@@ -337,7 +337,7 @@ const StateSchema = z.object({
       ekmConnectionBackendOverride: z.string(),
       ekmConnectionKeyPath: z.string(),
       externalKeyUri: z.string(),
-    }),
+    }).partial(),
     generateTime: z.string(),
     generationFailureReason: z.string(),
     hsmTrusted: z.boolean(),
@@ -349,13 +349,13 @@ const StateSchema = z.object({
     reimportEligible: z.boolean(),
     state: z.string(),
     trustedWrappingEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   purpose: z.string().optional(),
   rotationPeriod: z.string().optional(),
   versionTemplate: z.object({
     algorithm: z.string(),
     protectionLevel: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -529,7 +529,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Key Management Service (KMS) KeyRings.CryptoKeys. Registered at `@swamp/gcp/cloudkms/keyrings-cryptokeys`. */
 export const model = {
   type: "@swamp/gcp/cloudkms/keyrings-cryptokeys",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -699,6 +699,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -209,7 +209,7 @@ const StateSchema = z.object({
   resourceState: z.string().optional(),
   state: z.object({
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uniqueId: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -275,7 +275,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services MulticastConsumerAssociations. Registered at `@swamp/gcp/networkservices/multicastconsumerassociations`. */
 export const model = {
   type: "@swamp/gcp/networkservices/multicastconsumerassociations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -299,6 +299,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

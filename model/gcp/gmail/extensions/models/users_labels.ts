@@ -212,7 +212,7 @@ const StateSchema = z.object({
   color: z.object({
     backgroundColor: z.string(),
     textColor: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string(),
   labelListVisibility: z.string().optional(),
   messageListVisibility: z.string().optional(),
@@ -298,7 +298,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Labels. Registered at `@swamp/gcp/gmail/users-labels`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-labels",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -482,6 +482,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

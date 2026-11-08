@@ -349,6 +349,233 @@ const SpotMaintenanceStrategiesSchema = z.object({
   CapacityRebalance: SpotCapacityRebalanceSchema.optional(),
 });
 
+const EbsBlockDeviceStateSchema = z.object({
+  DeleteOnTermination: z.boolean(),
+  Encrypted: z.boolean(),
+  Iops: z.number(),
+  SnapshotId: z.string(),
+  VolumeSize: z.number(),
+  VolumeType: z.string(),
+}).partial();
+
+const BlockDeviceMappingStateSchema = z.object({
+  DeviceName: z.string(),
+  Ebs: EbsBlockDeviceStateSchema,
+  NoDevice: z.string(),
+  VirtualName: z.string(),
+}).partial();
+
+const IamInstanceProfileSpecificationStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const SpotFleetMonitoringStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const InstanceIpv6AddressStateSchema = z.object({
+  Ipv6Address: z.string(),
+}).partial();
+
+const PrivateIpAddressSpecificationStateSchema = z.object({
+  Primary: z.boolean(),
+  PrivateIpAddress: z.string(),
+}).partial();
+
+const InstanceNetworkInterfaceSpecificationStateSchema = z.object({
+  AssociatePublicIpAddress: z.boolean(),
+  DeleteOnTermination: z.boolean(),
+  Description: z.string(),
+  DeviceIndex: z.number(),
+  Groups: z.array(z.string()),
+  Ipv6AddressCount: z.number(),
+  Ipv6Addresses: z.array(InstanceIpv6AddressStateSchema),
+  NetworkInterfaceId: z.string(),
+  PrivateIpAddresses: z.array(PrivateIpAddressSpecificationStateSchema),
+  SecondaryPrivateIpAddressCount: z.number(),
+  SubnetId: z.string(),
+}).partial();
+
+const SpotPlacementStateSchema = z.object({
+  AvailabilityZone: z.string(),
+  AvailabilityZoneId: z.string(),
+  GroupName: z.string(),
+  Tenancy: z.string(),
+}).partial();
+
+const GroupIdentifierStateSchema = z.object({
+  GroupId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const SpotFleetTagSpecificationStateSchema = z.object({
+  ResourceType: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const VCpuCountRangeRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const MemoryMiBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const MemoryGiBPerVCpuRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const NetworkBandwidthGbpsRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const NetworkInterfaceCountRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const TotalLocalStorageGBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const BaselineEbsBandwidthMbpsRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorCountRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorTotalMemoryMiBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const PerformanceFactorReferenceRequestStateSchema = z.object({
+  InstanceFamily: z.string(),
+}).partial();
+
+const CpuPerformanceFactorRequestStateSchema = z.object({
+  References: z.array(PerformanceFactorReferenceRequestStateSchema),
+}).partial();
+
+const BaselinePerformanceFactorsRequestStateSchema = z.object({
+  Cpu: CpuPerformanceFactorRequestStateSchema,
+}).partial();
+
+const InstanceRequirementsRequestStateSchema = z.object({
+  VCpuCount: VCpuCountRangeRequestStateSchema,
+  MemoryMiB: MemoryMiBRequestStateSchema,
+  CpuManufacturers: z.array(z.string()),
+  MemoryGiBPerVCpu: MemoryGiBPerVCpuRequestStateSchema,
+  AllowedInstanceTypes: z.array(z.string()),
+  ExcludedInstanceTypes: z.array(z.string()),
+  InstanceGenerations: z.array(z.string()),
+  SpotMaxPricePercentageOverLowestPrice: z.number(),
+  OnDemandMaxPricePercentageOverLowestPrice: z.number(),
+  MaxSpotPriceAsPercentageOfOptimalOnDemandPrice: z.number(),
+  BareMetal: z.string(),
+  BurstablePerformance: z.string(),
+  RequireHibernateSupport: z.boolean(),
+  NetworkBandwidthGbps: NetworkBandwidthGbpsRequestStateSchema,
+  NetworkInterfaceCount: NetworkInterfaceCountRequestStateSchema,
+  LocalStorage: z.string(),
+  LocalStorageTypes: z.array(z.string()),
+  TotalLocalStorageGB: TotalLocalStorageGBRequestStateSchema,
+  BaselineEbsBandwidthMbps: BaselineEbsBandwidthMbpsRequestStateSchema,
+  AcceleratorTypes: z.array(z.string()),
+  AcceleratorCount: AcceleratorCountRequestStateSchema,
+  AcceleratorManufacturers: z.array(z.string()),
+  AcceleratorNames: z.array(z.string()),
+  AcceleratorTotalMemoryMiB: AcceleratorTotalMemoryMiBRequestStateSchema,
+  BaselinePerformanceFactors: BaselinePerformanceFactorsRequestStateSchema,
+  RequireEncryptionInTransit: z.boolean(),
+}).partial();
+
+const SpotFleetLaunchSpecificationStateSchema = z.object({
+  BlockDeviceMappings: z.array(BlockDeviceMappingStateSchema),
+  EbsOptimized: z.boolean(),
+  IamInstanceProfile: IamInstanceProfileSpecificationStateSchema,
+  ImageId: z.string(),
+  InstanceType: z.string(),
+  KernelId: z.string(),
+  KeyName: z.string(),
+  Monitoring: SpotFleetMonitoringStateSchema,
+  NetworkInterfaces: z.array(InstanceNetworkInterfaceSpecificationStateSchema),
+  Placement: SpotPlacementStateSchema,
+  RamdiskId: z.string(),
+  SecurityGroups: z.array(GroupIdentifierStateSchema),
+  SpotPrice: z.string(),
+  SubnetId: z.string(),
+  TagSpecifications: z.array(SpotFleetTagSpecificationStateSchema),
+  UserData: z.string(),
+  WeightedCapacity: z.number(),
+  InstanceRequirements: InstanceRequirementsRequestStateSchema,
+}).partial();
+
+const FleetLaunchTemplateSpecificationStateSchema = z.object({
+  LaunchTemplateId: z.string(),
+  LaunchTemplateName: z.string(),
+  Version: z.string(),
+}).partial();
+
+const LaunchTemplateOverridesStateSchema = z.object({
+  AvailabilityZone: z.string(),
+  AvailabilityZoneId: z.string(),
+  InstanceType: z.string(),
+  SpotPrice: z.string(),
+  SubnetId: z.string(),
+  WeightedCapacity: z.number(),
+  InstanceRequirements: InstanceRequirementsRequestStateSchema,
+  Priority: z.number(),
+}).partial();
+
+const LaunchTemplateConfigStateSchema = z.object({
+  LaunchTemplateSpecification: FleetLaunchTemplateSpecificationStateSchema,
+  Overrides: z.array(LaunchTemplateOverridesStateSchema),
+}).partial();
+
+const ClassicLoadBalancerStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const ClassicLoadBalancersConfigStateSchema = z.object({
+  ClassicLoadBalancers: z.array(ClassicLoadBalancerStateSchema),
+}).partial();
+
+const TargetGroupStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const TargetGroupsConfigStateSchema = z.object({
+  TargetGroups: z.array(TargetGroupStateSchema),
+}).partial();
+
+const LoadBalancersConfigStateSchema = z.object({
+  ClassicLoadBalancersConfig: ClassicLoadBalancersConfigStateSchema,
+  TargetGroupsConfig: TargetGroupsConfigStateSchema,
+}).partial();
+
+const SpotCapacityRebalanceStateSchema = z.object({
+  ReplacementStrategy: z.string(),
+  TerminationDelay: z.number(),
+}).partial();
+
+const SpotMaintenanceStrategiesStateSchema = z.object({
+  CapacityRebalance: SpotCapacityRebalanceStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -417,14 +644,14 @@ const StateSchema = z.object({
     IamFleetRole: z.string(),
     InstanceInterruptionBehavior: z.string(),
     InstancePoolsToUseCount: z.number(),
-    LaunchSpecifications: z.array(SpotFleetLaunchSpecificationSchema),
-    LaunchTemplateConfigs: z.array(LaunchTemplateConfigSchema),
-    LoadBalancersConfig: LoadBalancersConfigSchema,
+    LaunchSpecifications: z.array(SpotFleetLaunchSpecificationStateSchema),
+    LaunchTemplateConfigs: z.array(LaunchTemplateConfigStateSchema),
+    LoadBalancersConfig: LoadBalancersConfigStateSchema,
     OnDemandAllocationStrategy: z.string(),
     OnDemandMaxTotalPrice: z.string(),
     OnDemandTargetCapacity: z.number(),
     ReplaceUnhealthyInstances: z.boolean(),
-    SpotMaintenanceStrategies: SpotMaintenanceStrategiesSchema,
+    SpotMaintenanceStrategies: SpotMaintenanceStrategiesStateSchema,
     SpotMaxTotalPrice: z.string(),
     SpotPrice: z.string(),
     TargetCapacity: z.number(),
@@ -432,13 +659,13 @@ const StateSchema = z.object({
     Type: z.string(),
     ValidFrom: z.string(),
     ValidUntil: z.string(),
-    TagSpecifications: z.array(SpotFleetTagSpecificationSchema),
+    TagSpecifications: z.array(SpotFleetTagSpecificationStateSchema),
     TargetCapacityUnitType: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -508,7 +735,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 SpotFleet. Registered at `@swamp/aws/ec2/spot-fleet`. */
 export const model = {
   type: "@swamp/aws/ec2/spot-fleet",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -587,6 +814,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

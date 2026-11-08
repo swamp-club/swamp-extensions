@@ -292,9 +292,11 @@ const StateSchema = z.object({
   downloadBytes: z.string().optional(),
   enableConfidentialCompute: z.boolean().optional(),
   guestFlush: z.boolean().optional(),
-  guestOsFeatures: z.array(z.object({
-    type: z.string(),
-  })).optional(),
+  guestOsFeatures: z.array(
+    z.object({
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   labelFingerprint: z.string().optional(),
@@ -305,7 +307,7 @@ const StateSchema = z.object({
   name: z.string(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   region: z.string().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -316,7 +318,7 @@ const StateSchema = z.object({
     rawKey: z.string(),
     rsaEncryptedKey: z.string(),
     sha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   snapshotGroupId: z.string().optional(),
   snapshotGroupName: z.string().optional(),
   snapshotType: z.string().optional(),
@@ -327,7 +329,7 @@ const StateSchema = z.object({
     rawKey: z.string(),
     rsaEncryptedKey: z.string(),
     sha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceDiskForRecoveryCheckpoint: z.string().optional(),
   sourceDiskId: z.string().optional(),
   sourceInstantSnapshot: z.string().optional(),
@@ -337,7 +339,7 @@ const StateSchema = z.object({
     rawKey: z.string(),
     rsaEncryptedKey: z.string(),
     sha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceInstantSnapshotId: z.string().optional(),
   sourceSnapshotSchedulePolicy: z.string().optional(),
   sourceSnapshotSchedulePolicyId: z.string().optional(),
@@ -491,7 +493,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionSnapshots. Registered at `@swamp/gcp/compute/regionsnapshots`. */
 export const model = {
   type: "@swamp/gcp/compute/regionsnapshots",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.26.1",
@@ -545,6 +547,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

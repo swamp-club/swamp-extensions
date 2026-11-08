@@ -313,12 +313,12 @@ const StateSchema = z.object({
   authProviderTypeParams: z.object({
     apiKey: z.object({
       apiKey: z.string(),
-    }),
+    }).partial(),
     connectorReferenceAuthProvider: z.object({
       authorizationDetails: z.array(z.record(z.string(), z.unknown())),
       connector: z.string(),
-    }),
-    geAuthProvider: z.object({}),
+    }).partial(),
+    geAuthProvider: z.object({}).partial(),
     threeLeggedOauth: z.object({
       authorizationUrl: z.string(),
       clientId: z.string(),
@@ -327,35 +327,35 @@ const StateSchema = z.object({
       enablePkce: z.boolean(),
       redirectUrl: z.string(),
       tokenUrl: z.string(),
-    }),
+    }).partial(),
     twoLeggedOauth: z.object({
       clientId: z.string(),
       clientSecret: z.string(),
       tokenUrl: z.string(),
-    }),
+    }).partial(),
     xaaAuthProvider: z.object({
       additionalParameters: z.record(z.string(), z.unknown()),
       clientAssertionJwtAuth: z.object({
         clientId: z.string(),
-      }),
+      }).partial(),
       clientSecretAuth: z.object({
         clientId: z.string(),
         clientSecret: z.string(),
-      }),
+      }).partial(),
       customIssuer: z.object({
         issuer: z.string(),
         tokenUrl: z.string(),
-      }),
-      googleAccount: z.object({}),
-      idJagInput: z.object({}),
+      }).partial(),
+      googleAccount: z.object({}).partial(),
+      idJagInput: z.object({}).partial(),
       idTokenInput: z.object({
-        agentIdentityPool: z.object({}),
+        agentIdentityPool: z.object({}).partial(),
         idJagAdditionalClaims: z.record(z.string(), z.unknown()),
         idJagAuthProvider: z.string(),
-      }),
-      workforceIdentityFederation: z.object({}),
-    }),
-  }).optional(),
+      }).partial(),
+      workforceIdentityFederation: z.object({}).partial(),
+    }).partial(),
+  }).partial().optional(),
   blockedScopes: z.array(z.string()).optional(),
   createTime: z.string().optional(),
   deleted: z.boolean().optional(),
@@ -539,7 +539,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Identity AuthProviders. Registered at `@swamp/gcp/agentidentity/authproviders`. */
 export const model = {
   type: "@swamp/gcp/agentidentity/authproviders",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -595,6 +595,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

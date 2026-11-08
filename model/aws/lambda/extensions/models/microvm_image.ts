@@ -83,6 +83,47 @@ const TagSchema = z.object({
     .optional(),
 });
 
+const CloudWatchLoggingStateSchema = z.object({
+  LogGroup: z.string(),
+  LogStream: z.string(),
+}).partial();
+
+const CpuConfigurationStateSchema = z.object({
+  Architecture: z.string(),
+}).partial();
+
+const ResourcesStateSchema = z.object({
+  MinimumMemoryInMiB: z.number(),
+}).partial();
+
+const MicrovmHooksStateSchema = z.object({
+  Run: z.string(),
+  RunTimeoutInSeconds: z.number(),
+  Resume: z.string(),
+  ResumeTimeoutInSeconds: z.number(),
+  Suspend: z.string(),
+  SuspendTimeoutInSeconds: z.number(),
+  Terminate: z.string(),
+  TerminateTimeoutInSeconds: z.number(),
+}).partial();
+
+const MicrovmImageHooksStateSchema = z.object({
+  Ready: z.string(),
+  ReadyTimeoutInSeconds: z.number(),
+  Validate: z.string(),
+  ValidateTimeoutInSeconds: z.number(),
+}).partial();
+
+const EnvironmentVariableStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -155,30 +196,30 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   CodeArtifact: z.object({
     Uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Logging: z.object({
     Disabled: z.boolean(),
-    CloudWatch: CloudWatchLoggingSchema,
-  }).optional(),
+    CloudWatch: CloudWatchLoggingStateSchema,
+  }).partial().optional(),
   EgressNetworkConnectors: z.array(z.string()).optional(),
-  CpuConfigurations: z.array(CpuConfigurationSchema).optional(),
-  Resources: z.array(ResourcesSchema).optional(),
+  CpuConfigurations: z.array(CpuConfigurationStateSchema).optional(),
+  Resources: z.array(ResourcesStateSchema).optional(),
   AdditionalOsCapabilities: z.array(z.string()).optional(),
   Hooks: z.object({
     Port: z.number(),
-    MicrovmHooks: MicrovmHooksSchema,
-    MicrovmImageHooks: MicrovmImageHooksSchema,
-  }).optional(),
-  EnvironmentVariables: z.array(EnvironmentVariableSchema).optional(),
+    MicrovmHooks: MicrovmHooksStateSchema,
+    MicrovmImageHooks: MicrovmImageHooksStateSchema,
+  }).partial().optional(),
+  EnvironmentVariables: z.array(EnvironmentVariableStateSchema).optional(),
   KmsKeyIdentifier: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LatestActiveImageVersion: z.string().optional(),
   LatestFailedImageVersion: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -251,7 +292,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda MicrovmImage. Registered at `@swamp/aws/lambda/microvm-image`. */
 export const model = {
   type: "@swamp/aws/lambda/microvm-image",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -280,6 +321,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -464,6 +464,225 @@ const TagSchema = z.object({
   ),
 });
 
+const AutomaticFailConfigurationStateSchema = z.object({
+  TargetSection: z.string(),
+}).partial();
+
+const QuestionOptionPointsConfigurationStateSchema = z.object({
+  PointValue: z.number(),
+  IsBonus: z.boolean(),
+}).partial();
+
+const EvaluationFormNumericQuestionOptionStateSchema = z.object({
+  MinValue: z.number(),
+  MaxValue: z.number(),
+  Score: z.number(),
+  AutomaticFail: z.boolean(),
+  AutomaticFailConfiguration: AutomaticFailConfigurationStateSchema,
+  PointsConfiguration: QuestionOptionPointsConfigurationStateSchema,
+}).partial();
+
+const NumericQuestionPropertyValueAutomationStateSchema = z.object({
+  Label: z.string(),
+}).partial();
+
+const EvaluationFormQuestionAutomationAnswerSourceStateSchema = z.object({
+  SourceType: z.string(),
+}).partial();
+
+const EvaluationFormNumericQuestionAutomationStateSchema = z.object({
+  PropertyValue: NumericQuestionPropertyValueAutomationStateSchema,
+  AnswerSource: EvaluationFormQuestionAutomationAnswerSourceStateSchema,
+}).partial();
+
+const EvaluationFormNumericQuestionPropertiesStateSchema = z.object({
+  MinValue: z.number(),
+  MaxValue: z.number(),
+  Options: z.array(EvaluationFormNumericQuestionOptionStateSchema),
+  Automation: EvaluationFormNumericQuestionAutomationStateSchema,
+}).partial();
+
+const EvaluationFormSingleSelectQuestionOptionStateSchema = z.object({
+  RefId: z.string(),
+  Text: z.string(),
+  Score: z.number(),
+  AutomaticFail: z.boolean(),
+  AutomaticFailConfiguration: AutomaticFailConfigurationStateSchema,
+  PointsConfiguration: QuestionOptionPointsConfigurationStateSchema,
+}).partial();
+
+const SingleSelectQuestionRuleCategoryAutomationStateSchema = z.object({
+  Category: z.string(),
+  Condition: z.string(),
+  OptionRefId: z.string(),
+}).partial();
+
+const EvaluationFormSingleSelectQuestionAutomationOptionStateSchema = z.object({
+  RuleCategory: SingleSelectQuestionRuleCategoryAutomationStateSchema,
+}).partial();
+
+const EvaluationFormSingleSelectQuestionAutomationStateSchema = z.object({
+  Options: z.array(
+    EvaluationFormSingleSelectQuestionAutomationOptionStateSchema,
+  ),
+  DefaultOptionRefId: z.string(),
+  AnswerSource: EvaluationFormQuestionAutomationAnswerSourceStateSchema,
+}).partial();
+
+const EvaluationFormSingleSelectQuestionPropertiesStateSchema = z.object({
+  Options: z.array(EvaluationFormSingleSelectQuestionOptionStateSchema),
+  DisplayAs: z.string(),
+  Automation: EvaluationFormSingleSelectQuestionAutomationStateSchema,
+}).partial();
+
+const EvaluationFormTextQuestionAutomationStateSchema = z.object({
+  AnswerSource: EvaluationFormQuestionAutomationAnswerSourceStateSchema,
+}).partial();
+
+const EvaluationFormTextQuestionPropertiesStateSchema = z.object({
+  Automation: EvaluationFormTextQuestionAutomationStateSchema,
+}).partial();
+
+const EvaluationFormMultiSelectQuestionOptionStateSchema = z.object({
+  RefId: z.string(),
+  Text: z.string(),
+  Score: z.number(),
+  AutomaticFail: z.boolean(),
+  AutomaticFailConfiguration: AutomaticFailConfigurationStateSchema,
+  PointsConfiguration: QuestionOptionPointsConfigurationStateSchema,
+}).partial();
+
+const MultiSelectQuestionRuleCategoryAutomationStateSchema = z.object({
+  Category: z.string(),
+  Condition: z.string(),
+  OptionRefIds: z.array(z.string()),
+}).partial();
+
+const EvaluationFormMultiSelectQuestionAutomationOptionStateSchema = z.object({
+  RuleCategory: MultiSelectQuestionRuleCategoryAutomationStateSchema,
+}).partial();
+
+const EvaluationFormMultiSelectQuestionAutomationStateSchema = z.object({
+  Options: z.array(
+    EvaluationFormMultiSelectQuestionAutomationOptionStateSchema,
+  ),
+  DefaultOptionRefIds: z.array(z.string()),
+  AnswerSource: EvaluationFormQuestionAutomationAnswerSourceStateSchema,
+}).partial();
+
+const EvaluationFormMultiSelectQuestionPropertiesStateSchema = z.object({
+  Options: z.array(EvaluationFormMultiSelectQuestionOptionStateSchema),
+  DisplayAs: z.string(),
+  Automation: EvaluationFormMultiSelectQuestionAutomationStateSchema,
+}).partial();
+
+const EvaluationFormQuestionTypePropertiesStateSchema = z.object({
+  Numeric: EvaluationFormNumericQuestionPropertiesStateSchema,
+  SingleSelect: EvaluationFormSingleSelectQuestionPropertiesStateSchema,
+  Text: EvaluationFormTextQuestionPropertiesStateSchema,
+  MultiSelect: EvaluationFormMultiSelectQuestionPropertiesStateSchema,
+}).partial();
+
+const QuestionPointsConfigurationStateSchema = z.object({
+  MaxPointValue: z.number(),
+  MinPointValue: z.number(),
+  IsBonus: z.boolean(),
+}).partial();
+
+const EvaluationFormScoreThresholdStateSchema = z.object({
+  PerformanceCategory: z.string(),
+  MinScorePercentage: z.number(),
+  MaxScorePercentage: z.number(),
+}).partial();
+
+const EvaluationFormQuestionScoringConfigurationStateSchema = z.object({
+  PointsConfiguration: QuestionPointsConfigurationStateSchema,
+  IsExcludedFromScoring: z.boolean(),
+  ScoreThresholds: z.array(EvaluationFormScoreThresholdStateSchema),
+}).partial();
+
+const EvaluationFormMetricConfigurationStateSchema = z.object({
+  MetricType: z.string(),
+  MetricName: z.string(),
+}).partial();
+
+const EvaluationFormItemEnablementSourceStateSchema = z.object({
+  Type: z.string(),
+  RefId: z.string(),
+}).partial();
+
+const EvaluationFormItemEnablementSourceValueStateSchema = z.object({
+  Type: z.string(),
+  RefId: z.string(),
+}).partial();
+
+const EvaluationFormItemEnablementExpressionStateSchema = z.object({
+  Source: EvaluationFormItemEnablementSourceStateSchema,
+  Values: z.array(EvaluationFormItemEnablementSourceValueStateSchema),
+  Comparator: z.string(),
+}).partial();
+
+const EvaluationFormItemEnablementConditionOperandStateSchema = z.object({
+  Expression: EvaluationFormItemEnablementExpressionStateSchema,
+}).partial();
+
+const EvaluationFormItemEnablementConditionStateSchema = z.object({
+  Operands: z.array(EvaluationFormItemEnablementConditionOperandStateSchema),
+  Operator: z.string(),
+}).partial();
+
+const EvaluationFormItemEnablementConfigurationStateSchema = z.object({
+  Condition: EvaluationFormItemEnablementConditionStateSchema,
+  Action: z.string(),
+  DefaultAction: z.string(),
+}).partial();
+
+const EvaluationFormQuestionStateSchema = z.object({
+  Title: z.string(),
+  Instructions: z.string(),
+  RefId: z.string(),
+  NotApplicableEnabled: z.boolean(),
+  QuestionType: z.string(),
+  QuestionTypeProperties: EvaluationFormQuestionTypePropertiesStateSchema,
+  Weight: z.number(),
+  ScoringConfiguration: EvaluationFormQuestionScoringConfigurationStateSchema,
+  MetricConfiguration: EvaluationFormMetricConfigurationStateSchema,
+  Enablement: EvaluationFormItemEnablementConfigurationStateSchema,
+}).partial();
+
+const EvaluationFormItemStateSchema = z.object({
+  Section: z.record(z.string(), z.unknown()),
+  Question: EvaluationFormQuestionStateSchema,
+}).partial();
+
+const EvaluationFormSectionStateSchema = z.object({
+  Title: z.string(),
+  Instructions: z.string(),
+  RefId: z.string(),
+  Items: z.array(EvaluationFormItemStateSchema),
+  Weight: z.number(),
+  IsExcludedFromScoring: z.boolean(),
+  ScoreThresholds: z.array(EvaluationFormScoreThresholdStateSchema),
+}).partial();
+
+const EvaluationFormBaseItemStateSchema = z.object({
+  Section: EvaluationFormSectionStateSchema,
+}).partial();
+
+const EvaluationReviewNotificationRecipientValueStateSchema = z.object({
+  UserId: z.string(),
+}).partial();
+
+const EvaluationReviewNotificationRecipientStateSchema = z.object({
+  Type: z.string(),
+  Value: EvaluationReviewNotificationRecipientValueStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -556,33 +775,33 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   EvaluationFormArn: z.string(),
   InstanceArn: z.string().optional(),
-  Items: z.array(EvaluationFormBaseItemSchema).optional(),
+  Items: z.array(EvaluationFormBaseItemStateSchema).optional(),
   ScoringStrategy: z.object({
     Mode: z.string(),
     Status: z.string(),
-    ScoreThresholds: z.array(EvaluationFormScoreThresholdSchema),
-  }).optional(),
+    ScoreThresholds: z.array(EvaluationFormScoreThresholdStateSchema),
+  }).partial().optional(),
   AutoEvaluationConfiguration: z.object({
     Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   TargetConfiguration: z.object({
     ContactInteractionType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LanguageConfiguration: z.object({
     FormLanguage: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ReviewConfiguration: z.object({
     ReviewNotificationRecipients: z.array(
-      EvaluationReviewNotificationRecipientSchema,
+      EvaluationReviewNotificationRecipientStateSchema,
     ),
     EligibilityDays: z.number(),
-  }).optional(),
+  }).partial().optional(),
   AIVersion: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -680,7 +899,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect EvaluationForm. Registered at `@swamp/aws/connect/evaluation-form`. */
 export const model = {
   type: "@swamp/aws/connect/evaluation-form",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -779,6 +998,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -117,15 +117,17 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   artifactType: z.string().optional(),
   buildTime: z.string().optional(),
-  imageManifests: z.array(z.object({
-    architecture: z.string(),
-    digest: z.string(),
-    mediaType: z.string(),
-    os: z.string(),
-    osFeatures: z.array(z.string()),
-    osVersion: z.string(),
-    variant: z.string(),
-  })).optional(),
+  imageManifests: z.array(
+    z.object({
+      architecture: z.string(),
+      digest: z.string(),
+      mediaType: z.string(),
+      os: z.string(),
+      osFeatures: z.array(z.string()),
+      osVersion: z.string(),
+      variant: z.string(),
+    }).partial(),
+  ).optional(),
   imageSizeBytes: z.string().optional(),
   mediaType: z.string().optional(),
   name: z.string(),
@@ -179,7 +181,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Artifact Registry Repositories.DockerImages. Registered at `@swamp/gcp/artifactregistry/repositories-dockerimages`. */
 export const model = {
   type: "@swamp/gcp/artifactregistry/repositories-dockerimages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -308,6 +310,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -224,7 +224,7 @@ const StateSchema = z.object({
   autoscale: z.object({
     currentSlots: z.string(),
     maxSlots: z.string(),
-  }).optional(),
+  }).partial().optional(),
   concurrency: z.string().optional(),
   creationTime: z.string().optional(),
   edition: z.string().optional(),
@@ -240,18 +240,18 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     lastErrorTime: z.string(),
     lastReplicationTime: z.string(),
     softFailoverStartTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reservationGroup: z.string().optional(),
   reservationGroupPath: z.array(z.string()).optional(),
   scalingMode: z.string().optional(),
   schedulingPolicy: z.object({
     concurrency: z.string(),
     maxSlots: z.string(),
-  }).optional(),
+  }).partial().optional(),
   secondaryLocation: z.string().optional(),
   slotCapacity: z.string().optional(),
   updateTime: z.string().optional(),
@@ -358,7 +358,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Reservation Reservations. Registered at `@swamp/gcp/bigqueryreservation/reservations`. */
 export const model = {
   type: "@swamp/gcp/bigqueryreservation/reservations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -518,6 +518,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -493,124 +493,136 @@ const StateSchema = z.object({
   deploymentType: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   documentation: z.object({
     externalUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endpoints: z.array(z.string()).optional(),
   environment: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   managementUrl: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   resourceUri: z.string().optional(),
   slo: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   sourceEnvironment: z.string().optional(),
-  sourceMetadata: z.array(z.object({
-    originalResourceCreateTime: z.string(),
-    originalResourceId: z.string(),
-    originalResourceUpdateTime: z.string(),
-    pluginInstanceActionSource: z.object({
-      actionId: z.string(),
-      pluginInstance: z.string(),
-    }),
-    sourceType: z.string(),
-  })).optional(),
+  sourceMetadata: z.array(
+    z.object({
+      originalResourceCreateTime: z.string(),
+      originalResourceId: z.string(),
+      originalResourceUpdateTime: z.string(),
+      pluginInstanceActionSource: z.object({
+        actionId: z.string(),
+        pluginInstance: z.string(),
+      }).partial(),
+      sourceType: z.string(),
+    }).partial(),
+  ).optional(),
   sourceProject: z.string().optional(),
   sourceRevision: z.string().optional(),
   sourceUri: z.object({
     attribute: z.string(),
     enumValues: z.object({
-      values: z.array(z.object({
-        description: z.string(),
-        displayName: z.string(),
-        id: z.string(),
-        immutable: z.boolean(),
-      })),
-    }),
+      values: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          id: z.string(),
+          immutable: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     jsonValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     stringValues: z.object({
       values: z.array(z.string()),
-    }),
+    }).partial(),
     uriValues: z.object({
       values: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   specs: z.array(z.string()).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -978,7 +990,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Deployments. Registered at `@swamp/gcp/apihub/deployments`. */
 export const model = {
   type: "@swamp/gcp/apihub/deployments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1132,6 +1144,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

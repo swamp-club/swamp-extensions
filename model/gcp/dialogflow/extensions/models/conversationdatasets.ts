@@ -113,15 +113,15 @@ const StateSchema = z.object({
   conversationCount: z.string().optional(),
   conversationInfo: z.object({
     languageCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   inputConfig: z.object({
     gcsSource: z.object({
       uris: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -168,7 +168,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow ConversationDatasets. Registered at `@swamp/gcp/dialogflow/conversationdatasets`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/conversationdatasets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -192,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

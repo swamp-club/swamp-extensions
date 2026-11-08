@@ -333,6 +333,153 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const EndpointEncryptionSecretConfigurationStateSchema = z.object({
+  SecretArn: z.string(),
+}).partial();
+
+const SecretsManagerEndpointEncryptionConfigurationStateSchema = z.object({
+  EncryptionSecretType: z.string(),
+  EncryptionSecret: EndpointEncryptionSecretConfigurationStateSchema,
+}).partial();
+
+const DestinationEndpointRouterInputConfigurationStateSchema = z.object({
+  EndpointLifecycleManagement: z.string(),
+  SourceTransitDecryptionType: z.string(),
+  SourceTransitDecryption: z.object({
+    SecretsManager: SecretsManagerEndpointEncryptionConfigurationStateSchema,
+    Automatic: z.record(z.string(), z.unknown()),
+  }).partial(),
+}).partial();
+
+const RistRouterInputConfigurationStateSchema = z.object({
+  Port: z.number(),
+  RecoveryLatencyMilliseconds: z.number(),
+}).partial();
+
+const SecretsManagerEncryptionKeyConfigurationStateSchema = z.object({
+  SecretArn: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const SrtDecryptionConfigurationStateSchema = z.object({
+  EncryptionKey: SecretsManagerEncryptionKeyConfigurationStateSchema,
+}).partial();
+
+const SrtListenerRouterInputConfigurationStateSchema = z.object({
+  Port: z.number(),
+  MinimumLatencyMilliseconds: z.number(),
+  DecryptionConfiguration: SrtDecryptionConfigurationStateSchema,
+}).partial();
+
+const SrtCallerRouterInputConfigurationStateSchema = z.object({
+  SourceAddress: z.string(),
+  SourcePort: z.number(),
+  MinimumLatencyMilliseconds: z.number(),
+  StreamId: z.string(),
+  DecryptionConfiguration: SrtDecryptionConfigurationStateSchema,
+}).partial();
+
+const RtpRouterInputConfigurationStateSchema = z.object({
+  Port: z.number(),
+  ForwardErrorCorrection: z.string(),
+}).partial();
+
+const StandardRouterInputConfigurationStateSchema = z.object({
+  NetworkInterfaceArn: z.string(),
+  ProtocolConfiguration: z.object({
+    Rist: RistRouterInputConfigurationStateSchema,
+    SrtListener: SrtListenerRouterInputConfigurationStateSchema,
+    SrtCaller: SrtCallerRouterInputConfigurationStateSchema,
+    Rtp: RtpRouterInputConfigurationStateSchema,
+  }).partial(),
+  Protocol: z.string(),
+}).partial();
+
+const MediaLiveTransitEncryptionStateSchema = z.object({
+  EncryptionKeyType: z.string(),
+  EncryptionKeyConfiguration: z.object({
+    SecretsManager: SecretsManagerEncryptionKeyConfigurationStateSchema,
+    Automatic: z.record(z.string(), z.unknown()),
+  }).partial(),
+}).partial();
+
+const MediaLiveChannelRouterInputConfigurationStateSchema = z.object({
+  MediaLiveChannelArn: z.string(),
+  MediaLivePipelineId: z.string(),
+  MediaLiveChannelOutputName: z.string(),
+  SourceTransitDecryption: MediaLiveTransitEncryptionStateSchema,
+}).partial();
+
+const FailoverRouterInputConfigurationStateSchema = z.object({
+  NetworkInterfaceArn: z.string(),
+  ProtocolConfigurations: z.array(
+    z.object({
+      Rist: RistRouterInputConfigurationStateSchema,
+      SrtListener: SrtListenerRouterInputConfigurationStateSchema,
+      SrtCaller: SrtCallerRouterInputConfigurationStateSchema,
+      Rtp: RtpRouterInputConfigurationStateSchema,
+    }).partial(),
+  ),
+  SourcePriorityMode: z.string(),
+  PrimarySourceIndex: z.number(),
+}).partial();
+
+const FlowTransitEncryptionStateSchema = z.object({
+  EncryptionKeyType: z.string(),
+  EncryptionKeyConfiguration: z.object({
+    SecretsManager: SecretsManagerEncryptionKeyConfigurationStateSchema,
+    Automatic: z.record(z.string(), z.unknown()),
+  }).partial(),
+}).partial();
+
+const MediaConnectFlowRouterInputConfigurationStateSchema = z.object({
+  FlowArn: z.string(),
+  FlowOutputArn: z.string(),
+  SourceTransitDecryption: FlowTransitEncryptionStateSchema,
+}).partial();
+
+const MergeRouterInputConfigurationStateSchema = z.object({
+  NetworkInterfaceArn: z.string(),
+  ProtocolConfigurations: z.array(
+    z.object({
+      Rtp: RtpRouterInputConfigurationStateSchema,
+      Rist: RistRouterInputConfigurationStateSchema,
+    }).partial(),
+  ),
+  MergeRecoveryWindowMilliseconds: z.number(),
+}).partial();
+
+const BlackFramesConfigurationStateSchema = z.object({
+  State: z.string(),
+  ThresholdSeconds: z.number(),
+}).partial();
+
+const FrozenFramesConfigurationStateSchema = z.object({
+  State: z.string(),
+  ThresholdSeconds: z.number(),
+}).partial();
+
+const SilentAudioConfigurationStateSchema = z.object({
+  State: z.string(),
+  ThresholdSeconds: z.number(),
+}).partial();
+
+const ContentQualityAnalysisFeatureConfigurationStateSchema = z.object({
+  BlackFrames: BlackFramesConfigurationStateSchema,
+  FrozenFrames: FrozenFramesConfigurationStateSchema,
+  SilentAudio: SilentAudioConfigurationStateSchema,
+}).partial();
+
+const PreferredDayTimeMaintenanceConfigurationStateSchema = z.object({
+  Day: z.string(),
+  Time: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -424,25 +571,25 @@ const StateSchema = z.object({
   AssociatedDestinationEndpointArns: z.array(z.string()).optional(),
   AvailabilityZone: z.string().optional(),
   Configuration: z.object({
-    DestinationEndpoint: DestinationEndpointRouterInputConfigurationSchema,
-    Standard: StandardRouterInputConfigurationSchema,
-    MediaLiveChannel: MediaLiveChannelRouterInputConfigurationSchema,
-    Failover: FailoverRouterInputConfigurationSchema,
-    MediaConnectFlow: MediaConnectFlowRouterInputConfigurationSchema,
-    Merge: MergeRouterInputConfigurationSchema,
-  }).optional(),
+    DestinationEndpoint: DestinationEndpointRouterInputConfigurationStateSchema,
+    Standard: StandardRouterInputConfigurationStateSchema,
+    MediaLiveChannel: MediaLiveChannelRouterInputConfigurationStateSchema,
+    Failover: FailoverRouterInputConfigurationStateSchema,
+    MediaConnectFlow: MediaConnectFlowRouterInputConfigurationStateSchema,
+    Merge: MergeRouterInputConfigurationStateSchema,
+  }).partial().optional(),
   ContentQualityAnalysisConfiguration: z.object({
-    ContentLevel: ContentQualityAnalysisFeatureConfigurationSchema,
-  }).optional(),
+    ContentLevel: ContentQualityAnalysisFeatureConfigurationStateSchema,
+  }).partial().optional(),
   ContentQualityAnalysisType: z.string().optional(),
   CreatedAt: z.string().optional(),
   Id: z.string().optional(),
   InputType: z.string().optional(),
   IpAddress: z.string().optional(),
   MaintenanceConfiguration: z.object({
-    PreferredDayTime: PreferredDayTimeMaintenanceConfigurationSchema,
+    PreferredDayTime: PreferredDayTimeMaintenanceConfigurationStateSchema,
     Default: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   MaintenanceType: z.string().optional(),
   MaximumBitrate: z.number().optional(),
   Name: z.string().optional(),
@@ -450,19 +597,19 @@ const StateSchema = z.object({
   RoutedOutputs: z.number().optional(),
   RoutingScope: z.string().optional(),
   State: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Tier: z.string().optional(),
   TransitEncryption: z.object({
     EncryptionKeyType: z.string(),
     EncryptionKeyConfiguration: z.object({
-      SecretsManager: SecretsManagerEncryptionKeyConfigurationSchema,
+      SecretsManager: SecretsManagerEncryptionKeyConfigurationStateSchema,
       Automatic: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -559,7 +706,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect RouterInput. Registered at `@swamp/aws/mediaconnect/router-input`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/router-input",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -648,6 +795,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

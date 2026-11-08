@@ -90,6 +90,29 @@ const TagSchema = z.object({
   Value: z.string().describe("The tag value"),
 });
 
+const ProvisioningArtifactPropertiesStateSchema = z.object({
+  Description: z.string(),
+  Info: z.object({
+    LoadTemplateFromURL: z.string(),
+    ImportFromPhysicalId: z.string(),
+  }).partial(),
+  DisableTemplateValidation: z.boolean(),
+  Name: z.string(),
+  Type: z.string(),
+}).partial();
+
+const CodeStarParametersStateSchema = z.object({
+  ArtifactPath: z.string(),
+  Branch: z.string(),
+  ConnectionArn: z.string(),
+  Repository: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -154,8 +177,9 @@ const StateSchema = z.object({
   SupportEmail: z.string().optional(),
   SupportUrl: z.string().optional(),
   ProductType: z.string().optional(),
-  ProvisioningArtifactParameters: z.array(ProvisioningArtifactPropertiesSchema)
-    .optional(),
+  ProvisioningArtifactParameters: z.array(
+    ProvisioningArtifactPropertiesStateSchema,
+  ).optional(),
   ProductName: z.string().optional(),
   Name: z.string().optional(),
   ReplaceProvisioningArtifacts: z.boolean().optional(),
@@ -167,14 +191,14 @@ const StateSchema = z.object({
   Id: z.string(),
   SourceConnection: z.object({
     ConnectionParameters: z.object({
-      CodeStar: CodeStarParametersSchema,
-    }),
+      CodeStar: CodeStarParametersStateSchema,
+    }).partial(),
     Type: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -244,7 +268,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ServiceCatalog CloudFormationProduct. Registered at `@swamp/aws/servicecatalog/cloud-formation-product`. */
 export const model = {
   type: "@swamp/aws/servicecatalog/cloud-formation-product",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -268,6 +292,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -67,6 +67,33 @@ const TagSchema = z.object({
   ),
 });
 
+const InitialVlanInfoStateSchema = z.object({
+  Cidr: z.string(),
+}).partial();
+
+const HostInfoForCreateStateSchema = z.object({
+  HostName: z.string(),
+  KeyName: z.string(),
+  InstanceType: z.string(),
+  PlacementGroupId: z.string(),
+  DedicatedHostId: z.string(),
+}).partial();
+
+const CheckStateSchema = z.object({
+  Type: z.string(),
+  Result: z.string(),
+  ImpairedSince: z.string(),
+}).partial();
+
+const SecretStateSchema = z.object({
+  SecretArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -161,25 +188,25 @@ const StateSchema = z.object({
   LicenseInfo: z.object({
     SolutionKey: z.string(),
     VsanKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   InitialVlans: z.object({
-    VmkManagement: InitialVlanInfoSchema,
-    VmManagement: InitialVlanInfoSchema,
-    VMotion: InitialVlanInfoSchema,
-    VSan: InitialVlanInfoSchema,
-    VTep: InitialVlanInfoSchema,
-    EdgeVTep: InitialVlanInfoSchema,
-    NsxUpLink: InitialVlanInfoSchema,
-    Hcx: InitialVlanInfoSchema,
+    VmkManagement: InitialVlanInfoStateSchema,
+    VmManagement: InitialVlanInfoStateSchema,
+    VMotion: InitialVlanInfoStateSchema,
+    VSan: InitialVlanInfoStateSchema,
+    VTep: InitialVlanInfoStateSchema,
+    EdgeVTep: InitialVlanInfoStateSchema,
+    NsxUpLink: InitialVlanInfoStateSchema,
+    Hcx: InitialVlanInfoStateSchema,
     IsHcxPublic: z.boolean(),
     HcxNetworkAclId: z.string(),
-    ExpansionVlan1: InitialVlanInfoSchema,
-    ExpansionVlan2: InitialVlanInfoSchema,
-  }).optional(),
-  Hosts: z.array(HostInfoForCreateSchema).optional(),
+    ExpansionVlan1: InitialVlanInfoStateSchema,
+    ExpansionVlan2: InitialVlanInfoStateSchema,
+  }).partial().optional(),
+  Hosts: z.array(HostInfoForCreateStateSchema).optional(),
   ConnectivityInfo: z.object({
     PrivateRouteServerPeerings: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   VcfHostnames: z.object({
     VCenter: z.string(),
     Nsx: z.string(),
@@ -190,29 +217,23 @@ const StateSchema = z.object({
     NsxEdge2: z.string(),
     SddcManager: z.string(),
     CloudBuilder: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SiteId: z.string().optional(),
   EnvironmentId: z.string(),
   EnvironmentArn: z.string().optional(),
   EnvironmentState: z.string().optional(),
   StateDetails: z.string().optional(),
-  Checks: z.array(z.object({
-    Type: z.string(),
-    Result: z.string(),
-    ImpairedSince: z.string(),
-  })).optional(),
-  Credentials: z.array(z.object({
-    SecretArn: z.string(),
-  })).optional(),
+  Checks: z.array(CheckStateSchema).optional(),
+  Credentials: z.array(SecretStateSchema).optional(),
   ServiceAccessSecurityGroups: z.object({
     SecurityGroups: z.array(z.string()),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CreatedAt: z.string().optional(),
   ModifiedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -308,7 +329,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EVS Environment. Registered at `@swamp/aws/evs/environment`. */
 export const model = {
   type: "@swamp/aws/evs/environment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -387,6 +408,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

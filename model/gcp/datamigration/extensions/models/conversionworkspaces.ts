@@ -235,7 +235,7 @@ const StateSchema = z.object({
   destination: z.object({
     engine: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   destinationProvider: z.string().optional(),
   displayName: z.string().optional(),
   globalSettings: z.record(z.string(), z.unknown()).optional(),
@@ -248,7 +248,7 @@ const StateSchema = z.object({
   source: z.object({
     engine: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceProvider: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -349,7 +349,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration ConversionWorkspaces. Registered at `@swamp/gcp/datamigration/conversionworkspaces`. */
 export const model = {
   type: "@swamp/gcp/datamigration/conversionworkspaces",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -511,6 +511,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

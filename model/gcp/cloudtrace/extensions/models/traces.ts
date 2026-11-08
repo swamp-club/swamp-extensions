@@ -122,15 +122,17 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   projectId: z.string().optional(),
-  spans: z.array(z.object({
-    endTime: z.string(),
-    kind: z.string(),
-    labels: z.record(z.string(), z.unknown()),
-    name: z.string(),
-    parentSpanId: z.string(),
-    spanId: z.string(),
-    startTime: z.string(),
-  })).optional(),
+  spans: z.array(
+    z.object({
+      endTime: z.string(),
+      kind: z.string(),
+      labels: z.record(z.string(), z.unknown()),
+      name: z.string(),
+      parentSpanId: z.string(),
+      spanId: z.string(),
+      startTime: z.string(),
+    }).partial(),
+  ).optional(),
   traceId: z.string().optional(),
 }).passthrough();
 
@@ -172,7 +174,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Trace Traces. Registered at `@swamp/gcp/cloudtrace/traces`. */
 export const model = {
   type: "@swamp/gcp/cloudtrace/traces",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -241,6 +243,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -188,12 +188,14 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   accountAccess: z.object({
     permission: z.string(),
-  }).optional(),
+  }).partial().optional(),
   accountId: z.string().optional(),
-  containerAccess: z.array(z.object({
-    containerId: z.string(),
-    permission: z.string(),
-  })).optional(),
+  containerAccess: z.array(
+    z.object({
+      containerId: z.string(),
+      permission: z.string(),
+    }).partial(),
+  ).optional(),
   emailAddress: z.string().optional(),
   path: z.string().optional(),
 }).passthrough();
@@ -266,7 +268,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tag Manager Accounts.User_permissions. Registered at `@swamp/gcp/tagmanager/accounts-user-permissions`. */
 export const model = {
   type: "@swamp/gcp/tagmanager/accounts-user-permissions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -405,6 +407,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

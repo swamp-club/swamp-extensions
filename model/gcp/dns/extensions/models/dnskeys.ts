@@ -132,10 +132,12 @@ const StateSchema = z.object({
   algorithm: z.string().optional(),
   creationTime: z.string().optional(),
   description: z.string().optional(),
-  digests: z.array(z.object({
-    digest: z.string(),
-    type: z.string(),
-  })).optional(),
+  digests: z.array(
+    z.object({
+      digest: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   isActive: z.boolean().optional(),
   keyLength: z.number().optional(),
@@ -186,7 +188,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS DnsKeys. Registered at `@swamp/gcp/dns/dnskeys`. */
 export const model = {
   type: "@swamp/gcp/dns/dnskeys",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -315,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

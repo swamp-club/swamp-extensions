@@ -252,31 +252,31 @@ const StateSchema = z.object({
     endpointInfo: z.object({
       jsonRpcApiEndpoint: z.string(),
       websocketsApiEndpoint: z.string(),
-    }),
+    }).partial(),
     serviceAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   ethereumDetails: z.object({
     additionalEndpoints: z.object({
       beaconApiEndpoint: z.string(),
       beaconPrometheusMetricsApiEndpoint: z.string(),
       executionClientPrometheusMetricsApiEndpoint: z.string(),
-    }),
+    }).partial(),
     apiEnableAdmin: z.boolean(),
     apiEnableDebug: z.boolean(),
     consensusClient: z.string(),
     executionClient: z.string(),
     gethDetails: z.object({
       garbageCollectionMode: z.string(),
-    }),
+    }).partial(),
     network: z.string(),
     nodeType: z.string(),
     validatorConfig: z.object({
       beaconFeeRecipient: z.string(),
       managedValidatorClient: z.boolean(),
       mevRelayUrls: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   privateServiceConnectEnabled: z.boolean().optional(),
@@ -394,7 +394,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Blockchain Node Engine BlockchainNodes. Registered at `@swamp/gcp/blockchainnodeengine/blockchainnodes`. */
 export const model = {
   type: "@swamp/gcp/blockchainnodeengine/blockchainnodes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -536,6 +536,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

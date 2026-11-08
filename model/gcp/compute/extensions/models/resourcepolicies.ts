@@ -353,14 +353,14 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
-  diskConsistencyGroupPolicy: z.object({}).optional(),
+  diskConsistencyGroupPolicy: z.object({}).partial().optional(),
   groupPlacementPolicy: z.object({
     acceleratorTopologyMode: z.string(),
     availabilityDomainCount: z.number(),
     collocation: z.string(),
     gpuTopology: z.string(),
     vmCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   instanceSchedulePolicy: z.object({
     expirationTime: z.string(),
@@ -368,11 +368,11 @@ const StateSchema = z.object({
     timeZone: z.string(),
     vmStartSchedule: z.object({
       schedule: z.string(),
-    }),
+    }).partial(),
     vmStopSchedule: z.object({
       schedule: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   kind: z.string().optional(),
   name: z.string(),
   region: z.string().optional(),
@@ -380,47 +380,49 @@ const StateSchema = z.object({
     instanceSchedulePolicy: z.object({
       lastRunStartTime: z.string(),
       nextRunStartTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   snapshotSchedulePolicy: z.object({
     retentionPolicy: z.object({
       maxRetentionDays: z.number(),
       onSourceDiskDelete: z.string(),
-    }),
+    }).partial(),
     schedule: z.object({
       dailySchedule: z.object({
         daysInCycle: z.number(),
         duration: z.string(),
         startTime: z.string(),
-      }),
+      }).partial(),
       hourlySchedule: z.object({
         duration: z.string(),
         hoursInCycle: z.number(),
         startTime: z.string(),
-      }),
+      }).partial(),
       weeklySchedule: z.object({
-        dayOfWeeks: z.array(z.object({
-          day: z.unknown(),
-          duration: z.unknown(),
-          startTime: z.unknown(),
-        })),
-      }),
-    }),
+        dayOfWeeks: z.array(
+          z.object({
+            day: z.unknown(),
+            duration: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
     snapshotProperties: z.object({
       chainName: z.string(),
       guestFlush: z.boolean(),
       labels: z.record(z.string(), z.unknown()),
       storageLocations: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   status: z.string().optional(),
   workloadPolicy: z.object({
     acceleratorTopology: z.string(),
     acceleratorTopologyMode: z.string(),
     maxTopologyDistance: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -601,7 +603,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ResourcePolicies. Registered at `@swamp/gcp/compute/resourcepolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/resourcepolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -760,6 +762,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

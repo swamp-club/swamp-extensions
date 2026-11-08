@@ -44,6 +44,10 @@ const ResourceMetricSelectionSchema = z.object({
   ),
 });
 
+const ResourceMetricSelectionStateSchema = z.object({
+  IncludeMetrics: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -69,12 +73,12 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ResourceArn: z.string(),
-  MetricSelections: z.array(ResourceMetricSelectionSchema).optional(),
+  MetricSelections: z.array(ResourceMetricSelectionStateSchema).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -110,7 +114,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch ResourceMetricsConfiguration. Registered at `@swamp/aws/cloudwatch/resource-metrics-configuration`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/resource-metrics-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -124,6 +128,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

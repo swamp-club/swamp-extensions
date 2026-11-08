@@ -57,6 +57,22 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The tag's value."),
 });
 
+const S3LocationStateSchema = z.object({
+  Bucket: z.string(),
+  Key: z.string(),
+  Version: z.string(),
+}).partial();
+
+const StreamFileStateSchema = z.object({
+  FileId: z.number(),
+  S3Location: S3LocationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -90,15 +106,15 @@ const StateSchema = z.object({
   Arn: z.string(),
   StreamId: z.string().optional(),
   Description: z.string().optional(),
-  Files: z.array(StreamFileSchema).optional(),
+  Files: z.array(StreamFileStateSchema).optional(),
   RoleArn: z.string().optional(),
   StreamVersion: z.number().optional(),
   CreatedAt: z.string().optional(),
   LastUpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -138,7 +154,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT Stream. Registered at `@swamp/aws/iot/stream`. */
 export const model = {
   type: "@swamp/aws/iot/stream",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -152,6 +168,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

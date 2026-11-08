@@ -248,7 +248,7 @@ const StateSchema = z.object({
   contentDetails: z.object({
     channels: z.array(z.string()),
     playlists: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -258,17 +258,17 @@ const StateSchema = z.object({
     defaultLanguage: z.string(),
     localized: z.object({
       title: z.string(),
-    }),
+    }).partial(),
     position: z.number(),
     style: z.string(),
     title: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targeting: z.object({
     countries: z.array(z.string()),
     languages: z.array(z.string()),
     regions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -389,7 +389,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data ChannelSections. Registered at `@swamp/gcp/youtube/channelsections`. */
 export const model = {
   type: "@swamp/gcp/youtube/channelsections",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -528,6 +528,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

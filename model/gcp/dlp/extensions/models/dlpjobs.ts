@@ -101,65 +101,71 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  actionDetails: z.array(z.object({
-    deidentifyDetails: z.object({
-      deidentifyStats: z.object({
-        transformationCount: z.string(),
-        transformationErrorCount: z.string(),
-        transformedBytes: z.string(),
-      }),
-      requestedOptions: z.object({
-        snapshotDeidentifyTemplate: z.object({
-          createTime: z.unknown(),
-          deidentifyConfig: z.unknown(),
-          description: z.unknown(),
-          displayName: z.unknown(),
-          name: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        snapshotImageRedactTemplate: z.object({
-          createTime: z.unknown(),
-          deidentifyConfig: z.unknown(),
-          description: z.unknown(),
-          displayName: z.unknown(),
-          name: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-        snapshotStructuredDeidentifyTemplate: z.object({
-          createTime: z.unknown(),
-          deidentifyConfig: z.unknown(),
-          description: z.unknown(),
-          displayName: z.unknown(),
-          name: z.unknown(),
-          updateTime: z.unknown(),
-        }),
-      }),
-    }),
-  })).optional(),
+  actionDetails: z.array(
+    z.object({
+      deidentifyDetails: z.object({
+        deidentifyStats: z.object({
+          transformationCount: z.string(),
+          transformationErrorCount: z.string(),
+          transformedBytes: z.string(),
+        }).partial(),
+        requestedOptions: z.object({
+          snapshotDeidentifyTemplate: z.object({
+            createTime: z.unknown(),
+            deidentifyConfig: z.unknown(),
+            description: z.unknown(),
+            displayName: z.unknown(),
+            name: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          snapshotImageRedactTemplate: z.object({
+            createTime: z.unknown(),
+            deidentifyConfig: z.unknown(),
+            description: z.unknown(),
+            displayName: z.unknown(),
+            name: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+          snapshotStructuredDeidentifyTemplate: z.object({
+            createTime: z.unknown(),
+            deidentifyConfig: z.unknown(),
+            description: z.unknown(),
+            displayName: z.unknown(),
+            name: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   endTime: z.string().optional(),
-  errors: z.array(z.object({
-    details: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    extraInfo: z.string(),
-    timestamps: z.array(z.string()),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      details: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      extraInfo: z.string(),
+      timestamps: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   inspectDetails: z.object({
     requestedOptions: z.object({
       jobConfig: z.object({
-        actions: z.array(z.object({
-          deidentify: z.unknown(),
-          jobNotificationEmails: z.unknown(),
-          pubSub: z.unknown(),
-          publishFindingsToCloudDataCatalog: z.unknown(),
-          publishFindingsToDataplexCatalog: z.unknown(),
-          publishSummaryToCscc: z.unknown(),
-          publishToStackdriver: z.unknown(),
-          saveFindings: z.unknown(),
-        })),
+        actions: z.array(
+          z.object({
+            deidentify: z.unknown(),
+            jobNotificationEmails: z.unknown(),
+            pubSub: z.unknown(),
+            publishFindingsToCloudDataCatalog: z.unknown(),
+            publishFindingsToDataplexCatalog: z.unknown(),
+            publishSummaryToCscc: z.unknown(),
+            publishToStackdriver: z.unknown(),
+            saveFindings: z.unknown(),
+          }).partial(),
+        ),
         inspectConfig: z.object({
           contentOptions: z.array(z.unknown()),
           customInfoTypes: z.array(z.unknown()),
@@ -170,11 +176,11 @@ const StateSchema = z.object({
             maxFindingsPerInfoType: z.unknown(),
             maxFindingsPerItem: z.unknown(),
             maxFindingsPerRequest: z.unknown(),
-          }),
+          }).partial(),
           minLikelihood: z.string(),
           minLikelihoodPerInfoType: z.array(z.unknown()),
           ruleSet: z.array(z.unknown()),
-        }),
+        }).partial(),
         inspectTemplateName: z.string(),
         storageConfig: z.object({
           bigQueryOptions: z.object({
@@ -185,7 +191,7 @@ const StateSchema = z.object({
             rowsLimitPercent: z.unknown(),
             sampleMethod: z.unknown(),
             tableReference: z.unknown(),
-          }),
+          }).partial(),
           cloudStorageOptions: z.object({
             bytesLimitPerFile: z.unknown(),
             bytesLimitPerFilePercent: z.unknown(),
@@ -193,25 +199,25 @@ const StateSchema = z.object({
             fileTypes: z.unknown(),
             filesLimitPercent: z.unknown(),
             sampleMethod: z.unknown(),
-          }),
+          }).partial(),
           datastoreOptions: z.object({
             kind: z.unknown(),
             partitionId: z.unknown(),
-          }),
+          }).partial(),
           hybridOptions: z.object({
             description: z.unknown(),
             labels: z.unknown(),
             requiredFindingLabelKeys: z.unknown(),
             tableOptions: z.unknown(),
-          }),
+          }).partial(),
           timespanConfig: z.object({
             enableAutoPopulationOfTimespanConfig: z.unknown(),
             endTime: z.unknown(),
             startTime: z.unknown(),
             timestampField: z.unknown(),
-          }),
-        }),
-      }),
+          }).partial(),
+        }).partial(),
+      }).partial(),
       snapshotInspectTemplate: z.object({
         allowLimitedAvailabilityInfoTypes: z.boolean(),
         createTime: z.string(),
@@ -227,83 +233,95 @@ const StateSchema = z.object({
             maxFindingsPerInfoType: z.unknown(),
             maxFindingsPerItem: z.unknown(),
             maxFindingsPerRequest: z.unknown(),
-          }),
+          }).partial(),
           minLikelihood: z.string(),
           minLikelihoodPerInfoType: z.array(z.unknown()),
           ruleSet: z.array(z.unknown()),
-        }),
+        }).partial(),
         name: z.string(),
         updateTime: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     result: z.object({
       hybridStats: z.object({
         abortedCount: z.string(),
         pendingCount: z.string(),
         processedCount: z.string(),
-      }),
-      infoTypeStats: z.array(z.object({
-        count: z.string(),
-        infoType: z.object({
-          name: z.unknown(),
-          sensitivityScore: z.unknown(),
-          version: z.unknown(),
-        }),
-      })),
+      }).partial(),
+      infoTypeStats: z.array(
+        z.object({
+          count: z.string(),
+          infoType: z.object({
+            name: z.unknown(),
+            sensitivityScore: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       numRowsProcessed: z.string(),
       processedBytes: z.string(),
       totalEstimatedBytes: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   jobTriggerName: z.string().optional(),
   lastModified: z.string().optional(),
   name: z.string(),
   riskDetails: z.object({
     categoricalStatsResult: z.object({
-      valueFrequencyHistogramBuckets: z.array(z.object({
-        bucketSize: z.string(),
-        bucketValueCount: z.string(),
-        bucketValues: z.array(z.unknown()),
-        valueFrequencyLowerBound: z.string(),
-        valueFrequencyUpperBound: z.string(),
-      })),
-    }),
+      valueFrequencyHistogramBuckets: z.array(
+        z.object({
+          bucketSize: z.string(),
+          bucketValueCount: z.string(),
+          bucketValues: z.array(z.unknown()),
+          valueFrequencyLowerBound: z.string(),
+          valueFrequencyUpperBound: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     deltaPresenceEstimationResult: z.object({
-      deltaPresenceEstimationHistogram: z.array(z.object({
-        bucketSize: z.string(),
-        bucketValueCount: z.string(),
-        bucketValues: z.array(z.unknown()),
-        maxProbability: z.number(),
-        minProbability: z.number(),
-      })),
-    }),
+      deltaPresenceEstimationHistogram: z.array(
+        z.object({
+          bucketSize: z.string(),
+          bucketValueCount: z.string(),
+          bucketValues: z.array(z.unknown()),
+          maxProbability: z.number(),
+          minProbability: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
     kAnonymityResult: z.object({
-      equivalenceClassHistogramBuckets: z.array(z.object({
-        bucketSize: z.string(),
-        bucketValueCount: z.string(),
-        bucketValues: z.array(z.unknown()),
-        equivalenceClassSizeLowerBound: z.string(),
-        equivalenceClassSizeUpperBound: z.string(),
-      })),
-    }),
+      equivalenceClassHistogramBuckets: z.array(
+        z.object({
+          bucketSize: z.string(),
+          bucketValueCount: z.string(),
+          bucketValues: z.array(z.unknown()),
+          equivalenceClassSizeLowerBound: z.string(),
+          equivalenceClassSizeUpperBound: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     kMapEstimationResult: z.object({
-      kMapEstimationHistogram: z.array(z.object({
-        bucketSize: z.string(),
-        bucketValueCount: z.string(),
-        bucketValues: z.array(z.unknown()),
-        maxAnonymity: z.string(),
-        minAnonymity: z.string(),
-      })),
-    }),
+      kMapEstimationHistogram: z.array(
+        z.object({
+          bucketSize: z.string(),
+          bucketValueCount: z.string(),
+          bucketValues: z.array(z.unknown()),
+          maxAnonymity: z.string(),
+          minAnonymity: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     lDiversityResult: z.object({
-      sensitiveValueFrequencyHistogramBuckets: z.array(z.object({
-        bucketSize: z.string(),
-        bucketValueCount: z.string(),
-        bucketValues: z.array(z.unknown()),
-        sensitiveValueFrequencyLowerBound: z.string(),
-        sensitiveValueFrequencyUpperBound: z.string(),
-      })),
-    }),
+      sensitiveValueFrequencyHistogramBuckets: z.array(
+        z.object({
+          bucketSize: z.string(),
+          bucketValueCount: z.string(),
+          bucketValues: z.array(z.unknown()),
+          sensitiveValueFrequencyLowerBound: z.string(),
+          sensitiveValueFrequencyUpperBound: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     numericalStatsResult: z.object({
       maxValue: z.object({
         booleanValue: z.boolean(),
@@ -311,7 +329,7 @@ const StateSchema = z.object({
           day: z.number(),
           month: z.number(),
           year: z.number(),
-        }),
+        }).partial(),
         dayOfWeekValue: z.string(),
         floatValue: z.number(),
         integerValue: z.string(),
@@ -321,16 +339,16 @@ const StateSchema = z.object({
           minutes: z.number(),
           nanos: z.number(),
           seconds: z.number(),
-        }),
+        }).partial(),
         timestampValue: z.string(),
-      }),
+      }).partial(),
       minValue: z.object({
         booleanValue: z.boolean(),
         dateValue: z.object({
           day: z.number(),
           month: z.number(),
           year: z.number(),
-        }),
+        }).partial(),
         dayOfWeekValue: z.string(),
         floatValue: z.number(),
         integerValue: z.string(),
@@ -340,138 +358,154 @@ const StateSchema = z.object({
           minutes: z.number(),
           nanos: z.number(),
           seconds: z.number(),
-        }),
+        }).partial(),
         timestampValue: z.string(),
-      }),
-      quantileValues: z.array(z.object({
-        booleanValue: z.boolean(),
-        dateValue: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        dayOfWeekValue: z.string(),
-        floatValue: z.number(),
-        integerValue: z.string(),
-        stringValue: z.string(),
-        timeValue: z.object({
-          hours: z.unknown(),
-          minutes: z.unknown(),
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-        timestampValue: z.string(),
-      })),
-    }),
+      }).partial(),
+      quantileValues: z.array(
+        z.object({
+          booleanValue: z.boolean(),
+          dateValue: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          dayOfWeekValue: z.string(),
+          floatValue: z.number(),
+          integerValue: z.string(),
+          stringValue: z.string(),
+          timeValue: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          timestampValue: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     requestedOptions: z.object({
       jobConfig: z.object({
-        actions: z.array(z.object({
-          deidentify: z.unknown(),
-          jobNotificationEmails: z.unknown(),
-          pubSub: z.unknown(),
-          publishFindingsToCloudDataCatalog: z.unknown(),
-          publishFindingsToDataplexCatalog: z.unknown(),
-          publishSummaryToCscc: z.unknown(),
-          publishToStackdriver: z.unknown(),
-          saveFindings: z.unknown(),
-        })),
+        actions: z.array(
+          z.object({
+            deidentify: z.unknown(),
+            jobNotificationEmails: z.unknown(),
+            pubSub: z.unknown(),
+            publishFindingsToCloudDataCatalog: z.unknown(),
+            publishFindingsToDataplexCatalog: z.unknown(),
+            publishSummaryToCscc: z.unknown(),
+            publishToStackdriver: z.unknown(),
+            saveFindings: z.unknown(),
+          }).partial(),
+        ),
         privacyMetric: z.object({
           categoricalStatsConfig: z.object({
             field: z.unknown(),
-          }),
+          }).partial(),
           deltaPresenceEstimationConfig: z.object({
             auxiliaryTables: z.unknown(),
             quasiIds: z.unknown(),
             regionCode: z.unknown(),
-          }),
+          }).partial(),
           kAnonymityConfig: z.object({
             entityId: z.unknown(),
             quasiIds: z.unknown(),
-          }),
+          }).partial(),
           kMapEstimationConfig: z.object({
             auxiliaryTables: z.unknown(),
             quasiIds: z.unknown(),
             regionCode: z.unknown(),
-          }),
+          }).partial(),
           lDiversityConfig: z.object({
             quasiIds: z.unknown(),
             sensitiveAttribute: z.unknown(),
-          }),
+          }).partial(),
           numericalStatsConfig: z.object({
             field: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         sourceTable: z.object({
           datasetId: z.string(),
           projectId: z.string(),
           tableId: z.string(),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     requestedPrivacyMetric: z.object({
       categoricalStatsConfig: z.object({
         field: z.object({
           name: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       deltaPresenceEstimationConfig: z.object({
-        auxiliaryTables: z.array(z.object({
-          quasiIds: z.unknown(),
-          relativeFrequency: z.unknown(),
-          table: z.unknown(),
-        })),
-        quasiIds: z.array(z.object({
-          customTag: z.unknown(),
-          field: z.unknown(),
-          inferred: z.unknown(),
-          infoType: z.unknown(),
-        })),
+        auxiliaryTables: z.array(
+          z.object({
+            quasiIds: z.unknown(),
+            relativeFrequency: z.unknown(),
+            table: z.unknown(),
+          }).partial(),
+        ),
+        quasiIds: z.array(
+          z.object({
+            customTag: z.unknown(),
+            field: z.unknown(),
+            inferred: z.unknown(),
+            infoType: z.unknown(),
+          }).partial(),
+        ),
         regionCode: z.string(),
-      }),
+      }).partial(),
       kAnonymityConfig: z.object({
         entityId: z.object({
           field: z.object({
             name: z.unknown(),
-          }),
-        }),
-        quasiIds: z.array(z.object({
-          name: z.unknown(),
-        })),
-      }),
+          }).partial(),
+        }).partial(),
+        quasiIds: z.array(
+          z.object({
+            name: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       kMapEstimationConfig: z.object({
-        auxiliaryTables: z.array(z.object({
-          quasiIds: z.unknown(),
-          relativeFrequency: z.unknown(),
-          table: z.unknown(),
-        })),
-        quasiIds: z.array(z.object({
-          customTag: z.unknown(),
-          field: z.unknown(),
-          inferred: z.unknown(),
-          infoType: z.unknown(),
-        })),
+        auxiliaryTables: z.array(
+          z.object({
+            quasiIds: z.unknown(),
+            relativeFrequency: z.unknown(),
+            table: z.unknown(),
+          }).partial(),
+        ),
+        quasiIds: z.array(
+          z.object({
+            customTag: z.unknown(),
+            field: z.unknown(),
+            inferred: z.unknown(),
+            infoType: z.unknown(),
+          }).partial(),
+        ),
         regionCode: z.string(),
-      }),
+      }).partial(),
       lDiversityConfig: z.object({
-        quasiIds: z.array(z.object({
-          name: z.unknown(),
-        })),
+        quasiIds: z.array(
+          z.object({
+            name: z.unknown(),
+          }).partial(),
+        ),
         sensitiveAttribute: z.object({
           name: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       numericalStatsConfig: z.object({
         field: z.object({
           name: z.string(),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     requestedSourceTable: z.object({
       datasetId: z.string(),
       projectId: z.string(),
       tableId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
   type: z.string().optional(),
@@ -518,7 +552,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) DlpJobs. Registered at `@swamp/gcp/dlp/dlpjobs`. */
 export const model = {
   type: "@swamp/gcp/dlp/dlpjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -677,6 +711,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

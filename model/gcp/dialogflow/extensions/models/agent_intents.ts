@@ -384,156 +384,190 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   endInteraction: z.boolean().optional(),
   events: z.array(z.string()).optional(),
-  followupIntentInfo: z.array(z.object({
-    followupIntentName: z.string(),
-    parentFollowupIntentName: z.string(),
-  })).optional(),
+  followupIntentInfo: z.array(
+    z.object({
+      followupIntentName: z.string(),
+      parentFollowupIntentName: z.string(),
+    }).partial(),
+  ).optional(),
   inputContextNames: z.array(z.string()).optional(),
   isFallback: z.boolean().optional(),
   liveAgentHandoff: z.boolean().optional(),
-  messages: z.array(z.object({
-    basicCard: z.object({
-      buttons: z.array(z.object({
-        openUriAction: z.unknown(),
-        title: z.unknown(),
-      })),
-      formattedText: z.string(),
+  messages: z.array(
+    z.object({
+      basicCard: z.object({
+        buttons: z.array(
+          z.object({
+            openUriAction: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+        ),
+        formattedText: z.string(),
+        image: z.object({
+          accessibilityText: z.string(),
+          imageUri: z.string(),
+        }).partial(),
+        subtitle: z.string(),
+        title: z.string(),
+      }).partial(),
+      browseCarouselCard: z.object({
+        imageDisplayOptions: z.string(),
+        items: z.array(
+          z.object({
+            description: z.unknown(),
+            footer: z.unknown(),
+            image: z.unknown(),
+            openUriAction: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      card: z.object({
+        buttons: z.array(
+          z.object({
+            postback: z.unknown(),
+            text: z.unknown(),
+          }).partial(),
+        ),
+        imageUri: z.string(),
+        subtitle: z.string(),
+        title: z.string(),
+      }).partial(),
+      carouselSelect: z.object({
+        items: z.array(
+          z.object({
+            description: z.unknown(),
+            image: z.unknown(),
+            info: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       image: z.object({
         accessibilityText: z.string(),
         imageUri: z.string(),
-      }),
-      subtitle: z.string(),
-      title: z.string(),
-    }),
-    browseCarouselCard: z.object({
-      imageDisplayOptions: z.string(),
-      items: z.array(z.object({
-        description: z.unknown(),
-        footer: z.unknown(),
-        image: z.unknown(),
-        openUriAction: z.unknown(),
-        title: z.unknown(),
-      })),
-    }),
-    card: z.object({
-      buttons: z.array(z.object({
-        postback: z.unknown(),
-        text: z.unknown(),
-      })),
-      imageUri: z.string(),
-      subtitle: z.string(),
-      title: z.string(),
-    }),
-    carouselSelect: z.object({
-      items: z.array(z.object({
-        description: z.unknown(),
-        image: z.unknown(),
-        info: z.unknown(),
-        title: z.unknown(),
-      })),
-    }),
-    image: z.object({
-      accessibilityText: z.string(),
-      imageUri: z.string(),
-    }),
-    linkOutSuggestion: z.object({
-      destinationName: z.string(),
-      uri: z.string(),
-    }),
-    listSelect: z.object({
-      items: z.array(z.object({
-        description: z.unknown(),
-        image: z.unknown(),
-        info: z.unknown(),
-        title: z.unknown(),
-      })),
-      subtitle: z.string(),
-      title: z.string(),
-    }),
-    mediaContent: z.object({
-      mediaObjects: z.array(z.object({
-        contentUrl: z.unknown(),
-        description: z.unknown(),
-        icon: z.unknown(),
-        largeImage: z.unknown(),
-        name: z.unknown(),
-      })),
-      mediaType: z.string(),
-    }),
-    payload: z.record(z.string(), z.unknown()),
-    platform: z.string(),
-    quickReplies: z.object({
-      quickReplies: z.array(z.string()),
-      title: z.string(),
-    }),
-    simpleResponses: z.object({
-      simpleResponses: z.array(z.object({
-        displayText: z.unknown(),
-        ssml: z.unknown(),
-        textToSpeech: z.unknown(),
-      })),
-    }),
-    suggestions: z.object({
-      suggestions: z.array(z.object({
-        title: z.unknown(),
-      })),
-    }),
-    tableCard: z.object({
-      buttons: z.array(z.object({
-        openUriAction: z.unknown(),
-        title: z.unknown(),
-      })),
-      columnProperties: z.array(z.object({
-        header: z.unknown(),
-        horizontalAlignment: z.unknown(),
-      })),
-      image: z.object({
-        accessibilityText: z.string(),
-        imageUri: z.string(),
-      }),
-      rows: z.array(z.object({
-        cells: z.unknown(),
-        dividerAfter: z.unknown(),
-      })),
-      subtitle: z.string(),
-      title: z.string(),
-    }),
-    text: z.object({
-      text: z.array(z.string()),
-    }),
-  })).optional(),
+      }).partial(),
+      linkOutSuggestion: z.object({
+        destinationName: z.string(),
+        uri: z.string(),
+      }).partial(),
+      listSelect: z.object({
+        items: z.array(
+          z.object({
+            description: z.unknown(),
+            image: z.unknown(),
+            info: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+        ),
+        subtitle: z.string(),
+        title: z.string(),
+      }).partial(),
+      mediaContent: z.object({
+        mediaObjects: z.array(
+          z.object({
+            contentUrl: z.unknown(),
+            description: z.unknown(),
+            icon: z.unknown(),
+            largeImage: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+        ),
+        mediaType: z.string(),
+      }).partial(),
+      payload: z.record(z.string(), z.unknown()),
+      platform: z.string(),
+      quickReplies: z.object({
+        quickReplies: z.array(z.string()),
+        title: z.string(),
+      }).partial(),
+      simpleResponses: z.object({
+        simpleResponses: z.array(
+          z.object({
+            displayText: z.unknown(),
+            ssml: z.unknown(),
+            textToSpeech: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      suggestions: z.object({
+        suggestions: z.array(
+          z.object({
+            title: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      tableCard: z.object({
+        buttons: z.array(
+          z.object({
+            openUriAction: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+        ),
+        columnProperties: z.array(
+          z.object({
+            header: z.unknown(),
+            horizontalAlignment: z.unknown(),
+          }).partial(),
+        ),
+        image: z.object({
+          accessibilityText: z.string(),
+          imageUri: z.string(),
+        }).partial(),
+        rows: z.array(
+          z.object({
+            cells: z.unknown(),
+            dividerAfter: z.unknown(),
+          }).partial(),
+        ),
+        subtitle: z.string(),
+        title: z.string(),
+      }).partial(),
+      text: z.object({
+        text: z.array(z.string()),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   mlDisabled: z.boolean().optional(),
   name: z.string(),
-  outputContexts: z.array(z.object({
-    lifespanCount: z.number(),
-    name: z.string(),
-    parameters: z.record(z.string(), z.unknown()),
-  })).optional(),
-  parameters: z.array(z.object({
-    defaultValue: z.string(),
-    displayName: z.string(),
-    entityTypeDisplayName: z.string(),
-    isList: z.boolean(),
-    mandatory: z.boolean(),
-    name: z.string(),
-    prompts: z.array(z.string()),
-    value: z.string(),
-  })).optional(),
+  outputContexts: z.array(
+    z.object({
+      lifespanCount: z.number(),
+      name: z.string(),
+      parameters: z.record(z.string(), z.unknown()),
+    }).partial(),
+  ).optional(),
+  parameters: z.array(
+    z.object({
+      defaultValue: z.string(),
+      displayName: z.string(),
+      entityTypeDisplayName: z.string(),
+      isList: z.boolean(),
+      mandatory: z.boolean(),
+      name: z.string(),
+      prompts: z.array(z.string()),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   parentFollowupIntentName: z.string().optional(),
   priority: z.number().optional(),
   resetContexts: z.boolean().optional(),
   rootFollowupIntentName: z.string().optional(),
-  trainingPhrases: z.array(z.object({
-    name: z.string(),
-    parts: z.array(z.object({
-      alias: z.string(),
-      entityType: z.string(),
-      text: z.string(),
-      userDefined: z.boolean(),
-    })),
-    timesAddedCount: z.number(),
-    type: z.string(),
-  })).optional(),
+  trainingPhrases: z.array(
+    z.object({
+      name: z.string(),
+      parts: z.array(
+        z.object({
+          alias: z.string(),
+          entityType: z.string(),
+          text: z.string(),
+          userDefined: z.boolean(),
+        }).partial(),
+      ),
+      timesAddedCount: z.number(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   webhookState: z.string().optional(),
 }).passthrough();
 
@@ -775,7 +809,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agent.Intents. Registered at `@swamp/gcp/dialogflow/agent-intents`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agent-intents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -794,6 +828,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

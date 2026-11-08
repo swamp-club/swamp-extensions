@@ -86,139 +86,165 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   androidDeviceCatalog: z.object({
-    models: z.array(z.object({
-      accessDeniedReasons: z.array(z.string()),
-      brand: z.string(),
-      codename: z.string(),
-      form: z.string(),
-      formFactor: z.string(),
-      id: z.string(),
-      labInfo: z.object({
+    models: z.array(
+      z.object({
+        accessDeniedReasons: z.array(z.string()),
+        brand: z.string(),
+        codename: z.string(),
+        form: z.string(),
+        formFactor: z.string(),
+        id: z.string(),
+        labInfo: z.object({
+          name: z.string(),
+          regionCode: z.string(),
+        }).partial(),
+        lowFpsVideoRecording: z.boolean(),
+        manufacturer: z.string(),
         name: z.string(),
-        regionCode: z.string(),
-      }),
-      lowFpsVideoRecording: z.boolean(),
-      manufacturer: z.string(),
-      name: z.string(),
-      perVersionInfo: z.array(z.object({
-        deviceCapacity: z.unknown(),
-        directAccessVersionInfo: z.unknown(),
-        interactiveDeviceAvailabilityEstimate: z.unknown(),
-        versionId: z.unknown(),
-      })),
-      screenDensity: z.number(),
-      screenX: z.number(),
-      screenY: z.number(),
-      supportedAbis: z.array(z.string()),
-      supportedVersionIds: z.array(z.string()),
-      tags: z.array(z.string()),
-      thumbnailUrl: z.string(),
-    })),
+        perVersionInfo: z.array(
+          z.object({
+            deviceCapacity: z.unknown(),
+            directAccessVersionInfo: z.unknown(),
+            interactiveDeviceAvailabilityEstimate: z.unknown(),
+            versionId: z.unknown(),
+          }).partial(),
+        ),
+        screenDensity: z.number(),
+        screenX: z.number(),
+        screenY: z.number(),
+        supportedAbis: z.array(z.string()),
+        supportedVersionIds: z.array(z.string()),
+        tags: z.array(z.string()),
+        thumbnailUrl: z.string(),
+      }).partial(),
+    ),
     runtimeConfiguration: z.object({
-      locales: z.array(z.object({
+      locales: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          region: z.string(),
+          tags: z.array(z.unknown()),
+        }).partial(),
+      ),
+      orientations: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          tags: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+    versions: z.array(
+      z.object({
+        apiLevel: z.number(),
+        codeName: z.string(),
+        distribution: z.object({
+          marketShare: z.number(),
+          measurementTime: z.string(),
+        }).partial(),
         id: z.string(),
-        name: z.string(),
-        region: z.string(),
-        tags: z.array(z.unknown()),
-      })),
-      orientations: z.array(z.object({
-        id: z.string(),
-        name: z.string(),
-        tags: z.array(z.unknown()),
-      })),
-    }),
-    versions: z.array(z.object({
-      apiLevel: z.number(),
-      codeName: z.string(),
-      distribution: z.object({
-        marketShare: z.number(),
-        measurementTime: z.string(),
-      }),
-      id: z.string(),
-      releaseDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-      tags: z.array(z.string()),
-      versionString: z.string(),
-    })),
-  }).optional(),
+        releaseDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+        tags: z.array(z.string()),
+        versionString: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   deviceIpBlockCatalog: z.object({
-    ipBlocks: z.array(z.object({
-      addedDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-      block: z.string(),
-      form: z.string(),
-    })),
-  }).optional(),
+    ipBlocks: z.array(
+      z.object({
+        addedDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+        block: z.string(),
+        form: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   iosDeviceCatalog: z.object({
-    models: z.array(z.object({
-      deviceCapabilities: z.array(z.string()),
-      formFactor: z.string(),
-      id: z.string(),
-      name: z.string(),
-      perVersionInfo: z.array(z.object({
-        deviceCapacity: z.unknown(),
-        versionId: z.unknown(),
-      })),
-      screenDensity: z.number(),
-      screenX: z.number(),
-      screenY: z.number(),
-      supportedVersionIds: z.array(z.string()),
-      tags: z.array(z.string()),
-    })),
+    models: z.array(
+      z.object({
+        deviceCapabilities: z.array(z.string()),
+        formFactor: z.string(),
+        id: z.string(),
+        name: z.string(),
+        perVersionInfo: z.array(
+          z.object({
+            deviceCapacity: z.unknown(),
+            versionId: z.unknown(),
+          }).partial(),
+        ),
+        screenDensity: z.number(),
+        screenX: z.number(),
+        screenY: z.number(),
+        supportedVersionIds: z.array(z.string()),
+        tags: z.array(z.string()),
+      }).partial(),
+    ),
     runtimeConfiguration: z.object({
-      locales: z.array(z.object({
+      locales: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          region: z.string(),
+          tags: z.array(z.unknown()),
+        }).partial(),
+      ),
+      orientations: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          tags: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+    versions: z.array(
+      z.object({
         id: z.string(),
-        name: z.string(),
-        region: z.string(),
-        tags: z.array(z.unknown()),
-      })),
-      orientations: z.array(z.object({
-        id: z.string(),
-        name: z.string(),
-        tags: z.array(z.unknown()),
-      })),
-    }),
-    versions: z.array(z.object({
-      id: z.string(),
-      majorVersion: z.number(),
-      minorVersion: z.number(),
-      supportedXcodeVersionIds: z.array(z.string()),
-      tags: z.array(z.string()),
-    })),
-    xcodeVersions: z.array(z.object({
-      tags: z.array(z.string()),
-      version: z.string(),
-    })),
-  }).optional(),
+        majorVersion: z.number(),
+        minorVersion: z.number(),
+        supportedXcodeVersionIds: z.array(z.string()),
+        tags: z.array(z.string()),
+      }).partial(),
+    ),
+    xcodeVersions: z.array(
+      z.object({
+        tags: z.array(z.string()),
+        version: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   networkConfigurationCatalog: z.object({
-    configurations: z.array(z.object({
-      downRule: z.object({
-        bandwidth: z.number(),
-        burst: z.number(),
-        delay: z.string(),
-        packetDuplicationRatio: z.number(),
-        packetLossRatio: z.number(),
-      }),
-      id: z.string(),
-      upRule: z.object({
-        bandwidth: z.number(),
-        burst: z.number(),
-        delay: z.string(),
-        packetDuplicationRatio: z.number(),
-        packetLossRatio: z.number(),
-      }),
-    })),
-  }).optional(),
+    configurations: z.array(
+      z.object({
+        downRule: z.object({
+          bandwidth: z.number(),
+          burst: z.number(),
+          delay: z.string(),
+          packetDuplicationRatio: z.number(),
+          packetLossRatio: z.number(),
+        }).partial(),
+        id: z.string(),
+        upRule: z.object({
+          bandwidth: z.number(),
+          burst: z.number(),
+          delay: z.string(),
+          packetDuplicationRatio: z.number(),
+          packetLossRatio: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   softwareCatalog: z.object({
     androidxOrchestratorVersion: z.string(),
     orchestratorVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -259,7 +285,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Testing TestEnvironmentCatalog. Registered at `@swamp/gcp/testing/testenvironmentcatalog`. */
 export const model = {
   type: "@swamp/gcp/testing/testenvironmentcatalog",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -383,6 +409,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -166,6 +166,69 @@ const InstanceTypeConfigSchema = z.object({
   ).optional(),
 });
 
+const SpotProvisioningSpecificationStateSchema = z.object({
+  AllocationStrategy: z.string(),
+  TimeoutDurationMinutes: z.number(),
+  TimeoutAction: z.string(),
+  BlockDurationMinutes: z.number(),
+}).partial();
+
+const OnDemandCapacityReservationOptionsStateSchema = z.object({
+  UsageStrategy: z.string(),
+  CapacityReservationResourceGroupArn: z.string(),
+  CapacityReservationPreference: z.string(),
+}).partial();
+
+const OnDemandProvisioningSpecificationStateSchema = z.object({
+  CapacityReservationOptions: OnDemandCapacityReservationOptionsStateSchema,
+  AllocationStrategy: z.string(),
+}).partial();
+
+const OnDemandResizingSpecificationStateSchema = z.object({
+  CapacityReservationOptions: OnDemandCapacityReservationOptionsStateSchema,
+  AllocationStrategy: z.string(),
+  TimeoutDurationMinutes: z.number(),
+}).partial();
+
+const SpotResizingSpecificationStateSchema = z.object({
+  AllocationStrategy: z.string(),
+  TimeoutDurationMinutes: z.number(),
+}).partial();
+
+const VolumeSpecificationStateSchema = z.object({
+  SizeInGB: z.number(),
+  VolumeType: z.string(),
+  Throughput: z.number(),
+  Iops: z.number(),
+}).partial();
+
+const EbsBlockDeviceConfigStateSchema = z.object({
+  VolumeSpecification: VolumeSpecificationStateSchema,
+  VolumesPerInstance: z.number(),
+}).partial();
+
+const EbsConfigurationStateSchema = z.object({
+  EbsBlockDeviceConfigs: z.array(EbsBlockDeviceConfigStateSchema),
+  EbsOptimized: z.boolean(),
+}).partial();
+
+const ApplicationConfigurationStateSchema = z.object({
+  ConfigurationProperties: z.record(z.string(), z.unknown()),
+  Configurations: z.array(z.record(z.string(), z.unknown())),
+  Classification: z.string(),
+}).partial();
+
+const InstanceTypeConfigStateSchema = z.object({
+  BidPrice: z.string(),
+  WeightedCapacity: z.number(),
+  EbsConfiguration: EbsConfigurationStateSchema,
+  BidPriceAsPercentageOfOnDemandPrice: z.number(),
+  CustomAmiId: z.string(),
+  Configurations: z.array(ApplicationConfigurationStateSchema),
+  InstanceType: z.string(),
+  Priority: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -222,19 +285,19 @@ const StateSchema = z.object({
   ClusterId: z.string(),
   TargetSpotCapacity: z.number().optional(),
   LaunchSpecifications: z.object({
-    SpotSpecification: SpotProvisioningSpecificationSchema,
-    OnDemandSpecification: OnDemandProvisioningSpecificationSchema,
-  }).optional(),
+    SpotSpecification: SpotProvisioningSpecificationStateSchema,
+    OnDemandSpecification: OnDemandProvisioningSpecificationStateSchema,
+  }).partial().optional(),
   ResizeSpecifications: z.object({
-    OnDemandResizeSpecification: OnDemandResizingSpecificationSchema,
-    SpotResizeSpecification: SpotResizingSpecificationSchema,
-  }).optional(),
+    OnDemandResizeSpecification: OnDemandResizingSpecificationStateSchema,
+    SpotResizeSpecification: SpotResizingSpecificationStateSchema,
+  }).partial().optional(),
   InstanceFleetId: z.string(),
-  InstanceTypeConfigs: z.array(InstanceTypeConfigSchema).optional(),
+  InstanceTypeConfigs: z.array(InstanceTypeConfigStateSchema).optional(),
   Name: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -295,7 +358,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR InstanceFleetConfig. Registered at `@swamp/aws/emr/instance-fleet-config`. */
 export const model = {
   type: "@swamp/aws/emr/instance-fleet-config",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -314,6 +377,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

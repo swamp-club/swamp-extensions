@@ -74,6 +74,25 @@ const RoleValuesSchema = z.object({
   ).optional(),
 });
 
+const IdpMetadataStateSchema = z.object({
+  Url: z.string(),
+  Xml: z.string(),
+}).partial();
+
+const AssertionAttributesStateSchema = z.object({
+  Name: z.string(),
+  Login: z.string(),
+  Email: z.string(),
+  Groups: z.string(),
+  Role: z.string(),
+  Org: z.string(),
+}).partial();
+
+const RoleValuesStateSchema = z.object({
+  Editor: z.array(z.string()),
+  Admin: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -189,20 +208,20 @@ const StateSchema = z.object({
   AuthenticationProviders: z.array(z.string()).optional(),
   SsoClientId: z.string().optional(),
   SamlConfiguration: z.object({
-    IdpMetadata: IdpMetadataSchema,
-    AssertionAttributes: AssertionAttributesSchema,
-    RoleValues: RoleValuesSchema,
+    IdpMetadata: IdpMetadataStateSchema,
+    AssertionAttributes: AssertionAttributesStateSchema,
+    RoleValues: RoleValuesStateSchema,
     AllowedOrganizations: z.array(z.string()),
     LoginValidityDuration: z.number(),
-  }).optional(),
+  }).partial().optional(),
   NetworkAccessControl: z.object({
     PrefixListIds: z.array(z.string()),
     VpceIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   VpcConfiguration: z.object({
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   SamlConfigurationStatus: z.string().optional(),
   ClientToken: z.string().optional(),
   Status: z.string().optional(),
@@ -222,13 +241,15 @@ const StateSchema = z.object({
   OrganizationalUnits: z.array(z.string()).optional(),
   RoleArn: z.string().optional(),
   PluginAdminEnabled: z.boolean().optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-  })).optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -350,7 +371,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Grafana Workspace. Registered at `@swamp/aws/grafana/workspace`. */
 export const model = {
   type: "@swamp/aws/grafana/workspace",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -419,6 +440,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

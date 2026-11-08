@@ -135,6 +135,57 @@ const TagSchema = z.object({
   Key: z.string().describe("The tag value."),
 });
 
+const RepositoryAuthConfigStateSchema = z.object({
+  RepositoryCredentialsProviderArn: z.string(),
+}).partial();
+
+const ImageConfigStateSchema = z.object({
+  RepositoryAccessMode: z.string(),
+  RepositoryAuthConfig: RepositoryAuthConfigStateSchema,
+}).partial();
+
+const HubAccessConfigStateSchema = z.object({
+  HubContentArn: z.string(),
+}).partial();
+
+const ModelAccessConfigStateSchema = z.object({
+  AcceptEula: z.boolean(),
+}).partial();
+
+const S3DataSourceStateSchema = z.object({
+  CompressionType: z.string(),
+  HubAccessConfig: HubAccessConfigStateSchema,
+  ModelAccessConfig: ModelAccessConfigStateSchema,
+  S3DataType: z.string(),
+  S3Uri: z.string(),
+}).partial();
+
+const ModelDataSourceStateSchema = z.object({
+  S3DataSource: S3DataSourceStateSchema,
+}).partial();
+
+const MultiModelConfigStateSchema = z.object({
+  ModelCacheSetting: z.string(),
+}).partial();
+
+const ContainerDefinitionStateSchema = z.object({
+  ContainerHostname: z.string(),
+  Environment: z.record(z.string(), z.unknown()),
+  Image: z.string(),
+  ImageConfig: ImageConfigStateSchema,
+  InferenceSpecificationName: z.string(),
+  Mode: z.string(),
+  ModelDataSource: ModelDataSourceStateSchema,
+  ModelDataUrl: z.string(),
+  ModelPackageName: z.string(),
+  MultiModelConfig: MultiModelConfigStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -217,23 +268,34 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Containers: z.array(ContainerDefinitionSchema).optional(),
+  Containers: z.array(ContainerDefinitionStateSchema).optional(),
   EnableNetworkIsolation: z.boolean().optional(),
   ExecutionRoleArn: z.string().optional(),
   InferenceExecutionConfig: z.object({
     Mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ModelArn: z.string(),
   ModelName: z.string().optional(),
-  PrimaryContainer: ContainerDefinitionSchema.optional(),
-  Tags: z.array(TagSchema).optional(),
+  PrimaryContainer: z.object({
+    ContainerHostname: z.string(),
+    Environment: z.record(z.string(), z.unknown()),
+    Image: z.string(),
+    ImageConfig: ImageConfigStateSchema,
+    InferenceSpecificationName: z.string(),
+    Mode: z.string(),
+    ModelDataSource: ModelDataSourceStateSchema,
+    ModelDataUrl: z.string(),
+    ModelPackageName: z.string(),
+    MultiModelConfig: MultiModelConfigStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   VpcConfig: z.object({
     SecurityGroupIds: z.array(z.string()),
     Subnets: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -325,7 +387,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Model. Registered at `@swamp/aws/sagemaker/model`. */
 export const model = {
   type: "@swamp/aws/sagemaker/model",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -389,6 +451,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

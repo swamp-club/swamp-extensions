@@ -205,14 +205,14 @@ const StateSchema = z.object({
     minimumQuartile: z.string(),
     minimumViewability: z.string(),
     minimumVolume: z.string(),
-  }).optional(),
+  }).partial().optional(),
   customVariables: z.record(z.string(), z.unknown()).optional(),
   displayName: z.string().optional(),
   floodlightGroupId: z.string().optional(),
   lookbackWindow: z.object({
     clickDays: z.number(),
     impressionDays: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   webTagType: z.string().optional(),
 }).passthrough();
@@ -345,7 +345,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 FloodlightGroups. Registered at `@swamp/gcp/displayvideo/floodlightgroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/floodlightgroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -494,6 +494,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

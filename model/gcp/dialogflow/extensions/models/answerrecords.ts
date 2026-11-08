@@ -367,60 +367,64 @@ const StateSchema = z.object({
       snippets: z.array(z.string()),
       title: z.string(),
       uri: z.string(),
-    }),
+    }).partial(),
     companionSuggestion: z.object({
-      guidances: z.array(z.object({
-        explanation: z.string(),
-        groundingMetadata: z.object({
-          groundingChunks: z.unknown(),
-          groundingSupports: z.unknown(),
-          searchEntryPoint: z.unknown(),
-          webSearchQueries: z.unknown(),
-        }),
-        instructionSource: z.object({
-          actions: z.unknown(),
-          condition: z.unknown(),
-          disableSuggestedReply: z.unknown(),
-          displayDetails: z.unknown(),
-          displayName: z.unknown(),
-          triggerEvent: z.unknown(),
-        }),
-        knowledgeSources: z.array(z.unknown()),
-        suggestedAction: z.string(),
-        suggestedReply: z.string(),
-        toolCalls: z.array(z.unknown()),
-        triggeringToolCallAnswerRecords: z.array(z.unknown()),
-      })),
-    }),
+      guidances: z.array(
+        z.object({
+          explanation: z.string(),
+          groundingMetadata: z.object({
+            groundingChunks: z.unknown(),
+            groundingSupports: z.unknown(),
+            searchEntryPoint: z.unknown(),
+            webSearchQueries: z.unknown(),
+          }).partial(),
+          instructionSource: z.object({
+            actions: z.unknown(),
+            condition: z.unknown(),
+            disableSuggestedReply: z.unknown(),
+            displayDetails: z.unknown(),
+            displayName: z.unknown(),
+            triggerEvent: z.unknown(),
+          }).partial(),
+          knowledgeSources: z.array(z.unknown()),
+          suggestedAction: z.string(),
+          suggestedReply: z.string(),
+          toolCalls: z.array(z.unknown()),
+          triggeringToolCallAnswerRecords: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     dialogflowAssistAnswer: z.object({
       answerRecord: z.string(),
       intentSuggestion: z.object({
         description: z.string(),
         displayName: z.string(),
         intentV2: z.string(),
-      }),
+      }).partial(),
       queryResult: z.object({
         action: z.string(),
         allRequiredParamsPresent: z.boolean(),
         cancelsSlotFilling: z.boolean(),
         diagnosticInfo: z.record(z.string(), z.unknown()),
-        fulfillmentMessages: z.array(z.object({
-          basicCard: z.unknown(),
-          browseCarouselCard: z.unknown(),
-          card: z.unknown(),
-          carouselSelect: z.unknown(),
-          image: z.unknown(),
-          linkOutSuggestion: z.unknown(),
-          listSelect: z.unknown(),
-          mediaContent: z.unknown(),
-          payload: z.unknown(),
-          platform: z.unknown(),
-          quickReplies: z.unknown(),
-          simpleResponses: z.unknown(),
-          suggestions: z.unknown(),
-          tableCard: z.unknown(),
-          text: z.unknown(),
-        })),
+        fulfillmentMessages: z.array(
+          z.object({
+            basicCard: z.unknown(),
+            browseCarouselCard: z.unknown(),
+            card: z.unknown(),
+            carouselSelect: z.unknown(),
+            image: z.unknown(),
+            linkOutSuggestion: z.unknown(),
+            listSelect: z.unknown(),
+            mediaContent: z.unknown(),
+            payload: z.unknown(),
+            platform: z.unknown(),
+            quickReplies: z.unknown(),
+            simpleResponses: z.unknown(),
+            suggestions: z.unknown(),
+            tableCard: z.unknown(),
+            text: z.unknown(),
+          }).partial(),
+        ),
         fulfillmentText: z.string(),
         intent: z.object({
           action: z.string(),
@@ -443,32 +447,34 @@ const StateSchema = z.object({
           rootFollowupIntentName: z.string(),
           trainingPhrases: z.array(z.unknown()),
           webhookState: z.string(),
-        }),
+        }).partial(),
         intentDetectionConfidence: z.number(),
         languageCode: z.string(),
-        outputContexts: z.array(z.object({
-          lifespanCount: z.unknown(),
-          name: z.unknown(),
-          parameters: z.unknown(),
-        })),
+        outputContexts: z.array(
+          z.object({
+            lifespanCount: z.unknown(),
+            name: z.unknown(),
+            parameters: z.unknown(),
+          }).partial(),
+        ),
         parameters: z.record(z.string(), z.unknown()),
         queryText: z.string(),
         sentimentAnalysisResult: z.object({
           queryTextSentiment: z.object({
             magnitude: z.unknown(),
             score: z.unknown(),
-          }),
+          }).partial(),
           status: z.object({
             code: z.unknown(),
             details: z.unknown(),
             message: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         speechRecognitionConfidence: z.number(),
         webhookPayload: z.record(z.string(), z.unknown()),
         webhookSource: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     faqAnswer: z.object({
       answer: z.string(),
       answerRecord: z.string(),
@@ -476,118 +482,134 @@ const StateSchema = z.object({
       metadata: z.record(z.string(), z.unknown()),
       question: z.string(),
       source: z.string(),
-    }),
+    }).partial(),
     generatorSuggestion: z.object({
       agentCoachingSuggestion: z.object({
-        agentActionSuggestions: z.array(z.object({
-          agentAction: z.unknown(),
-          duplicateCheckResult: z.unknown(),
-          sources: z.unknown(),
-        })),
-        applicableInstructions: z.array(z.object({
-          agentAction: z.unknown(),
-          condition: z.unknown(),
-          displayDetails: z.unknown(),
-          displayName: z.unknown(),
-          duplicateCheckResult: z.unknown(),
-          systemAction: z.unknown(),
-          triggeringEvent: z.unknown(),
-        })),
-        sampleResponses: z.array(z.object({
-          duplicateCheckResult: z.unknown(),
-          responseText: z.unknown(),
-          sources: z.unknown(),
-        })),
-      }),
+        agentActionSuggestions: z.array(
+          z.object({
+            agentAction: z.unknown(),
+            duplicateCheckResult: z.unknown(),
+            sources: z.unknown(),
+          }).partial(),
+        ),
+        applicableInstructions: z.array(
+          z.object({
+            agentAction: z.unknown(),
+            condition: z.unknown(),
+            displayDetails: z.unknown(),
+            displayName: z.unknown(),
+            duplicateCheckResult: z.unknown(),
+            systemAction: z.unknown(),
+            triggeringEvent: z.unknown(),
+          }).partial(),
+        ),
+        sampleResponses: z.array(
+          z.object({
+            duplicateCheckResult: z.unknown(),
+            responseText: z.unknown(),
+            sources: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       freeFormSuggestion: z.object({
         response: z.string(),
-      }),
+      }).partial(),
       summarySuggestion: z.object({
-        summarySections: z.array(z.object({
-          section: z.unknown(),
-          summary: z.unknown(),
-        })),
-      }),
-      toolCallInfo: z.array(z.object({
-        toolCall: z.object({
-          action: z.unknown(),
-          answerRecord: z.unknown(),
-          cesApp: z.unknown(),
-          cesTool: z.unknown(),
-          cesToolset: z.unknown(),
-          createTime: z.unknown(),
-          inputParameters: z.unknown(),
-          state: z.unknown(),
-          tool: z.unknown(),
-          toolDisplayDetails: z.unknown(),
-          toolDisplayName: z.unknown(),
-        }),
-        toolCallResult: z.object({
-          action: z.unknown(),
-          answerRecord: z.unknown(),
-          cesApp: z.unknown(),
-          cesTool: z.unknown(),
-          cesToolset: z.unknown(),
-          content: z.unknown(),
-          createTime: z.unknown(),
-          error: z.unknown(),
-          rawContent: z.unknown(),
-          tool: z.unknown(),
-        }),
-      })),
-    }),
+        summarySections: z.array(
+          z.object({
+            section: z.unknown(),
+            summary: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      toolCallInfo: z.array(
+        z.object({
+          toolCall: z.object({
+            action: z.unknown(),
+            answerRecord: z.unknown(),
+            cesApp: z.unknown(),
+            cesTool: z.unknown(),
+            cesToolset: z.unknown(),
+            createTime: z.unknown(),
+            inputParameters: z.unknown(),
+            state: z.unknown(),
+            tool: z.unknown(),
+            toolDisplayDetails: z.unknown(),
+            toolDisplayName: z.unknown(),
+          }).partial(),
+          toolCallResult: z.object({
+            action: z.unknown(),
+            answerRecord: z.unknown(),
+            cesApp: z.unknown(),
+            cesTool: z.unknown(),
+            cesToolset: z.unknown(),
+            content: z.unknown(),
+            createTime: z.unknown(),
+            error: z.unknown(),
+            rawContent: z.unknown(),
+            tool: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     reactiveCompanionSuggestion: z.object({
       groundingMetadata: z.object({
-        groundingChunks: z.array(z.object({
-          retrievedContext: z.unknown(),
-          web: z.unknown(),
-        })),
-        groundingSupports: z.array(z.object({
-          groundingChunkIndices: z.unknown(),
-          segment: z.unknown(),
-        })),
+        groundingChunks: z.array(
+          z.object({
+            retrievedContext: z.unknown(),
+            web: z.unknown(),
+          }).partial(),
+        ),
+        groundingSupports: z.array(
+          z.object({
+            groundingChunkIndices: z.unknown(),
+            segment: z.unknown(),
+          }).partial(),
+        ),
         searchEntryPoint: z.object({
           renderedContent: z.string(),
-        }),
+        }).partial(),
         webSearchQueries: z.array(z.string()),
-      }),
+      }).partial(),
       response: z.string(),
-      toolCalls: z.array(z.object({
-        textUpdate: z.string(),
-        toolCallInfo: z.object({
-          toolCall: z.unknown(),
-          toolCallResult: z.unknown(),
-        }),
-      })),
-    }),
-  }).optional(),
+      toolCalls: z.array(
+        z.object({
+          textUpdate: z.string(),
+          toolCallInfo: z.object({
+            toolCall: z.unknown(),
+            toolCallResult: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   answerFeedback: z.object({
     agentAssistantDetailFeedback: z.object({
       answerRelevance: z.string(),
-      companionFeedback: z.object({}),
+      companionFeedback: z.object({}).partial(),
       documentCorrectness: z.string(),
       documentEfficiency: z.string(),
       knowledgeAssistFeedback: z.object({
         answerCopied: z.boolean(),
         clickedUris: z.array(z.string()),
-      }),
+      }).partial(),
       knowledgeSearchFeedback: z.object({
         answerCopied: z.boolean(),
         clickedUris: z.array(z.string()),
-      }),
+      }).partial(),
       summarizationFeedback: z.object({
         startTime: z.string(),
         submitTime: z.string(),
         summaryText: z.string(),
         textSections: z.record(z.string(), z.unknown()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     clickTime: z.string(),
     clicked: z.boolean(),
     correctnessLevel: z.string(),
     displayTime: z.string(),
     displayed: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
 }).passthrough();
 
@@ -882,7 +904,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow AnswerRecords. Registered at `@swamp/gcp/dialogflow/answerrecords`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/answerrecords",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -921,6 +943,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

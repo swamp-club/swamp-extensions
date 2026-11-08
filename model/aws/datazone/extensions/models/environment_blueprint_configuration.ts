@@ -56,6 +56,16 @@ const LakeFormationConfigurationSchema = z.object({
   ).optional(),
 });
 
+const RegionalParameterStateSchema = z.object({
+  Parameters: z.record(z.string(), z.unknown()),
+  Region: z.string(),
+}).partial();
+
+const LakeFormationConfigurationStateSchema = z.object({
+  LocationRegistrationExcludeS3Locations: z.array(z.string()),
+  LocationRegistrationRole: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -111,18 +121,20 @@ const StateSchema = z.object({
   EnvironmentBlueprintIdentifier: z.string().optional(),
   EnvironmentBlueprintId: z.string(),
   UpdatedAt: z.string().optional(),
-  RegionalParameters: z.array(RegionalParameterSchema).optional(),
+  RegionalParameters: z.array(RegionalParameterStateSchema).optional(),
   ProvisioningRoleArn: z.string().optional(),
   DomainId: z.string(),
-  ProvisioningConfigurations: z.array(z.object({
-    LakeFormationConfiguration: LakeFormationConfigurationSchema,
-  })).optional(),
+  ProvisioningConfigurations: z.array(
+    z.object({
+      LakeFormationConfiguration: LakeFormationConfigurationStateSchema,
+    }).partial(),
+  ).optional(),
   DomainIdentifier: z.string().optional(),
   EnvironmentRolePermissionBoundary: z.string().optional(),
   ManageAccessRoleArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -181,7 +193,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone EnvironmentBlueprintConfiguration. Registered at `@swamp/aws/datazone/environment-blueprint-configuration`. */
 export const model = {
   type: "@swamp/aws/datazone/environment-blueprint-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -245,6 +257,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

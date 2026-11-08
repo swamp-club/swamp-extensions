@@ -80,6 +80,35 @@ const TagSchema = z.object({
   Key: z.string().min(1).max(128),
 });
 
+const FileSystemConfigStateSchema = z.object({
+  DefaultGid: z.number(),
+  DefaultUid: z.number(),
+  MountPath: z.string(),
+}).partial();
+
+const KernelSpecStateSchema = z.object({
+  DisplayName: z.string(),
+  Name: z.string(),
+}).partial();
+
+const CustomImageContainerEnvironmentVariableStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const ContainerConfigStateSchema = z.object({
+  ContainerArguments: z.array(z.string()),
+  ContainerEntrypoint: z.array(z.string()),
+  ContainerEnvironmentVariables: z.array(
+    CustomImageContainerEnvironmentVariableStateSchema,
+  ),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -123,19 +152,19 @@ const StateSchema = z.object({
   AppImageConfigArn: z.string().optional(),
   AppImageConfigName: z.string(),
   KernelGatewayImageConfig: z.object({
-    FileSystemConfig: FileSystemConfigSchema,
-    KernelSpecs: z.array(KernelSpecSchema),
-  }).optional(),
+    FileSystemConfig: FileSystemConfigStateSchema,
+    KernelSpecs: z.array(KernelSpecStateSchema),
+  }).partial().optional(),
   JupyterLabAppImageConfig: z.object({
-    ContainerConfig: ContainerConfigSchema,
-  }).optional(),
+    ContainerConfig: ContainerConfigStateSchema,
+  }).partial().optional(),
   CodeEditorAppImageConfig: z.object({
-    ContainerConfig: ContainerConfigSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    ContainerConfig: ContainerConfigStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -187,7 +216,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker AppImageConfig. Registered at `@swamp/aws/sagemaker/app-image-config`. */
 export const model = {
   type: "@swamp/aws/sagemaker/app-image-config",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -251,6 +280,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

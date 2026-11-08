@@ -554,12 +554,12 @@ const StateSchema = z.object({
   data: z.object({
     entity: z.string(),
     resource: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataDiscoveryResult: z.object({
     bigqueryPublishing: z.object({
       dataset: z.string(),
       location: z.string(),
-    }),
+    }).partial(),
     scanStatistics: z.object({
       dataProcessedBytes: z.string(),
       filesExcluded: z.number(),
@@ -570,15 +570,15 @@ const StateSchema = z.object({
       tablesCreated: z.number(),
       tablesDeleted: z.number(),
       tablesUpdated: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   dataDiscoverySpec: z.object({
     bigqueryPublishingConfig: z.object({
       connection: z.string(),
       location: z.string(),
       project: z.string(),
       tableType: z.string(),
-    }),
+    }).partial(),
     storageConfig: z.object({
       csvOptions: z.object({
         delimiter: z.string(),
@@ -586,228 +586,252 @@ const StateSchema = z.object({
         headerRows: z.number(),
         quote: z.string(),
         typeInferenceDisabled: z.boolean(),
-      }),
+      }).partial(),
       excludePatterns: z.array(z.string()),
       includePatterns: z.array(z.string()),
       jsonOptions: z.object({
         encoding: z.string(),
         typeInferenceDisabled: z.boolean(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   dataDocumentationResult: z.object({
     dataProductResult: z.object({
-      assetDescriptions: z.array(z.object({
-        overview: z.string(),
-        resource: z.string(),
-      })),
+      assetDescriptions: z.array(
+        z.object({
+          overview: z.string(),
+          resource: z.string(),
+        }).partial(),
+      ),
       overview: z.string(),
-      queries: z.array(z.object({
-        description: z.string(),
-        sql: z.string(),
-        sqlDialect: z.string(),
-      })),
-    }),
+      queries: z.array(
+        z.object({
+          description: z.string(),
+          sql: z.string(),
+          sqlDialect: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     datasetResult: z.object({
       overview: z.string(),
-      queries: z.array(z.object({
-        description: z.string(),
-        sql: z.string(),
-        sqlDialect: z.string(),
-      })),
-      schemaRelationships: z.array(z.object({
-        leftSchemaPaths: z.object({
-          paths: z.unknown(),
-          tableFqn: z.unknown(),
-        }),
-        rightSchemaPaths: z.object({
-          paths: z.unknown(),
-          tableFqn: z.unknown(),
-        }),
-        sources: z.array(z.unknown()),
-        type: z.string(),
-      })),
-    }),
+      queries: z.array(
+        z.object({
+          description: z.string(),
+          sql: z.string(),
+          sqlDialect: z.string(),
+        }).partial(),
+      ),
+      schemaRelationships: z.array(
+        z.object({
+          leftSchemaPaths: z.object({
+            paths: z.unknown(),
+            tableFqn: z.unknown(),
+          }).partial(),
+          rightSchemaPaths: z.object({
+            paths: z.unknown(),
+            tableFqn: z.unknown(),
+          }).partial(),
+          sources: z.array(z.unknown()),
+          type: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     tableResult: z.object({
       name: z.string(),
       overview: z.string(),
-      queries: z.array(z.object({
-        description: z.string(),
-        sql: z.string(),
-        sqlDialect: z.string(),
-      })),
+      queries: z.array(
+        z.object({
+          description: z.string(),
+          sql: z.string(),
+          sqlDialect: z.string(),
+        }).partial(),
+      ),
       schema: z.object({
-        fields: z.array(z.object({
-          description: z.unknown(),
-          fields: z.unknown(),
-          name: z.unknown(),
-        })),
-      }),
-    }),
-  }).optional(),
+        fields: z.array(
+          z.object({
+            description: z.unknown(),
+            fields: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   dataDocumentationSpec: z.object({
     catalogPublishingEnabled: z.boolean(),
     customInstructions: z.string(),
     generationScopes: z.array(z.string()),
     sqlDialect: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataProfileResult: z.object({
     catalogPublishingStatus: z.object({
       state: z.string(),
-    }),
+    }).partial(),
     postScanActionsResult: z.object({
       bigqueryExportResult: z.object({
         message: z.string(),
         state: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     profile: z.object({
-      fields: z.array(z.object({
-        mode: z.string(),
-        name: z.string(),
-        profile: z.object({
-          distinctRatio: z.unknown(),
-          doubleProfile: z.unknown(),
-          integerProfile: z.unknown(),
-          nullRatio: z.unknown(),
-          stringProfile: z.unknown(),
-          topNValues: z.unknown(),
-        }),
-        type: z.string(),
-      })),
-    }),
+      fields: z.array(
+        z.object({
+          mode: z.string(),
+          name: z.string(),
+          profile: z.object({
+            distinctRatio: z.unknown(),
+            doubleProfile: z.unknown(),
+            integerProfile: z.unknown(),
+            nullRatio: z.unknown(),
+            stringProfile: z.unknown(),
+            topNValues: z.unknown(),
+          }).partial(),
+          type: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     rowCount: z.string(),
     scannedData: z.object({
       incrementalField: z.object({
         end: z.string(),
         field: z.string(),
         start: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   dataProfileSpec: z.object({
     catalogPublishingEnabled: z.boolean(),
     excludeFields: z.object({
       fieldNames: z.array(z.string()),
-    }),
+    }).partial(),
     includeFields: z.object({
       fieldNames: z.array(z.string()),
-    }),
+    }).partial(),
     mode: z.string(),
     postScanActions: z.object({
       bigqueryExport: z.object({
         resultsTable: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     rowFilter: z.string(),
     samplingPercent: z.number(),
-  }).optional(),
+  }).partial().optional(),
   dataQualityResult: z.object({
     anomalyDetectionGeneratedAssets: z.object({
       dataIntermediateTable: z.string(),
       freshnessIntermediateTable: z.string(),
       resultTable: z.string(),
       volumeIntermediateTable: z.string(),
-    }),
+    }).partial(),
     catalogPublishingStatus: z.object({
       state: z.string(),
-    }),
-    columns: z.array(z.object({
-      column: z.string(),
-      dimensions: z.array(z.object({
-        dimension: z.unknown(),
-        passed: z.unknown(),
-        score: z.unknown(),
-      })),
-      passed: z.boolean(),
-      score: z.number(),
-    })),
-    dimensions: z.array(z.object({
-      dimension: z.object({
-        name: z.string(),
-      }),
-      passed: z.boolean(),
-      score: z.number(),
-    })),
+    }).partial(),
+    columns: z.array(
+      z.object({
+        column: z.string(),
+        dimensions: z.array(
+          z.object({
+            dimension: z.unknown(),
+            passed: z.unknown(),
+            score: z.unknown(),
+          }).partial(),
+        ),
+        passed: z.boolean(),
+        score: z.number(),
+      }).partial(),
+    ),
+    dimensions: z.array(
+      z.object({
+        dimension: z.object({
+          name: z.string(),
+        }).partial(),
+        passed: z.boolean(),
+        score: z.number(),
+      }).partial(),
+    ),
     passed: z.boolean(),
     postScanActionsResult: z.object({
       bigqueryExportResult: z.object({
         message: z.string(),
         state: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     rowCount: z.string(),
-    rules: z.array(z.object({
-      assertionRowCount: z.string(),
-      debugQueriesResultSets: z.array(z.object({
-        results: z.unknown(),
-      })),
-      evaluatedCount: z.string(),
-      failingRowsQuery: z.string(),
-      nullCount: z.string(),
-      passRatio: z.number(),
-      passed: z.boolean(),
-      passedCount: z.string(),
-      rule: z.object({
-        attributes: z.record(z.string(), z.unknown()),
-        column: z.string(),
-        debugQueries: z.array(z.unknown()),
-        description: z.string(),
-        dimension: z.string(),
-        ignoreNull: z.boolean(),
-        name: z.string(),
-        nonNullExpectation: z.object({}),
-        rangeExpectation: z.object({
-          maxValue: z.unknown(),
-          minValue: z.unknown(),
-          strictMaxEnabled: z.unknown(),
-          strictMinEnabled: z.unknown(),
-        }),
-        regexExpectation: z.object({
-          regex: z.unknown(),
-        }),
-        rowConditionExpectation: z.object({
-          sqlExpression: z.unknown(),
-        }),
-        ruleSource: z.object({
-          rulePathElements: z.unknown(),
-        }),
-        setExpectation: z.object({
-          values: z.unknown(),
-        }),
-        sqlAssertion: z.object({
-          sqlStatement: z.unknown(),
-        }),
-        statisticRangeExpectation: z.object({
-          maxValue: z.unknown(),
-          minValue: z.unknown(),
-          statistic: z.unknown(),
-          strictMaxEnabled: z.unknown(),
-          strictMinEnabled: z.unknown(),
-        }),
-        suspended: z.boolean(),
-        tableConditionExpectation: z.object({
-          sqlExpression: z.unknown(),
-        }),
-        templateReference: z.object({
-          name: z.unknown(),
-          resolvedSql: z.unknown(),
-          ruleTemplate: z.unknown(),
-          values: z.unknown(),
-        }),
-        threshold: z.number(),
-        uniquenessExpectation: z.object({}),
-      }),
-    })),
+    rules: z.array(
+      z.object({
+        assertionRowCount: z.string(),
+        debugQueriesResultSets: z.array(
+          z.object({
+            results: z.unknown(),
+          }).partial(),
+        ),
+        evaluatedCount: z.string(),
+        failingRowsQuery: z.string(),
+        nullCount: z.string(),
+        passRatio: z.number(),
+        passed: z.boolean(),
+        passedCount: z.string(),
+        rule: z.object({
+          attributes: z.record(z.string(), z.unknown()),
+          column: z.string(),
+          debugQueries: z.array(z.unknown()),
+          description: z.string(),
+          dimension: z.string(),
+          ignoreNull: z.boolean(),
+          name: z.string(),
+          nonNullExpectation: z.object({}).partial(),
+          rangeExpectation: z.object({
+            maxValue: z.unknown(),
+            minValue: z.unknown(),
+            strictMaxEnabled: z.unknown(),
+            strictMinEnabled: z.unknown(),
+          }).partial(),
+          regexExpectation: z.object({
+            regex: z.unknown(),
+          }).partial(),
+          rowConditionExpectation: z.object({
+            sqlExpression: z.unknown(),
+          }).partial(),
+          ruleSource: z.object({
+            rulePathElements: z.unknown(),
+          }).partial(),
+          setExpectation: z.object({
+            values: z.unknown(),
+          }).partial(),
+          sqlAssertion: z.object({
+            sqlStatement: z.unknown(),
+          }).partial(),
+          statisticRangeExpectation: z.object({
+            maxValue: z.unknown(),
+            minValue: z.unknown(),
+            statistic: z.unknown(),
+            strictMaxEnabled: z.unknown(),
+            strictMinEnabled: z.unknown(),
+          }).partial(),
+          suspended: z.boolean(),
+          tableConditionExpectation: z.object({
+            sqlExpression: z.unknown(),
+          }).partial(),
+          templateReference: z.object({
+            name: z.unknown(),
+            resolvedSql: z.unknown(),
+            ruleTemplate: z.unknown(),
+            values: z.unknown(),
+          }).partial(),
+          threshold: z.number(),
+          uniquenessExpectation: z.object({}).partial(),
+        }).partial(),
+      }).partial(),
+    ),
     scannedData: z.object({
       incrementalField: z.object({
         end: z.string(),
         field: z.string(),
         start: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     score: z.number(),
-  }).optional(),
+  }).partial().optional(),
   dataQualitySpec: z.object({
     catalogPublishingEnabled: z.boolean(),
     enableCatalogBasedRules: z.boolean(),
@@ -815,106 +839,110 @@ const StateSchema = z.object({
     postScanActions: z.object({
       bigqueryExport: z.object({
         resultsTable: z.string(),
-      }),
+      }).partial(),
       notificationReport: z.object({
-        jobEndTrigger: z.object({}),
-        jobFailureTrigger: z.object({}),
+        jobEndTrigger: z.object({}).partial(),
+        jobFailureTrigger: z.object({}).partial(),
         recipients: z.object({
           emails: z.array(z.unknown()),
-        }),
+        }).partial(),
         scoreThresholdTrigger: z.object({
           scoreThreshold: z.number(),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     rowFilter: z.string(),
-    rules: z.array(z.object({
-      attributes: z.record(z.string(), z.unknown()),
-      column: z.string(),
-      debugQueries: z.array(z.object({
-        description: z.unknown(),
-        sqlStatement: z.unknown(),
-      })),
-      description: z.string(),
-      dimension: z.string(),
-      ignoreNull: z.boolean(),
-      name: z.string(),
-      nonNullExpectation: z.object({}),
-      rangeExpectation: z.object({
-        maxValue: z.string(),
-        minValue: z.string(),
-        strictMaxEnabled: z.boolean(),
-        strictMinEnabled: z.boolean(),
-      }),
-      regexExpectation: z.object({
-        regex: z.string(),
-      }),
-      rowConditionExpectation: z.object({
-        sqlExpression: z.string(),
-      }),
-      ruleSource: z.object({
-        rulePathElements: z.array(z.unknown()),
-      }),
-      setExpectation: z.object({
-        values: z.array(z.unknown()),
-      }),
-      sqlAssertion: z.object({
-        sqlStatement: z.string(),
-      }),
-      statisticRangeExpectation: z.object({
-        maxValue: z.string(),
-        minValue: z.string(),
-        statistic: z.string(),
-        strictMaxEnabled: z.boolean(),
-        strictMinEnabled: z.boolean(),
-      }),
-      suspended: z.boolean(),
-      tableConditionExpectation: z.object({
-        sqlExpression: z.string(),
-      }),
-      templateReference: z.object({
+    rules: z.array(
+      z.object({
+        attributes: z.record(z.string(), z.unknown()),
+        column: z.string(),
+        debugQueries: z.array(
+          z.object({
+            description: z.unknown(),
+            sqlStatement: z.unknown(),
+          }).partial(),
+        ),
+        description: z.string(),
+        dimension: z.string(),
+        ignoreNull: z.boolean(),
         name: z.string(),
-        resolvedSql: z.string(),
-        ruleTemplate: z.object({
-          capabilities: z.unknown(),
-          dimension: z.unknown(),
-          inputParameters: z.unknown(),
-          name: z.unknown(),
-          sqlCollection: z.unknown(),
-        }),
-        values: z.record(z.string(), z.unknown()),
-      }),
-      threshold: z.number(),
-      uniquenessExpectation: z.object({}),
-    })),
+        nonNullExpectation: z.object({}).partial(),
+        rangeExpectation: z.object({
+          maxValue: z.string(),
+          minValue: z.string(),
+          strictMaxEnabled: z.boolean(),
+          strictMinEnabled: z.boolean(),
+        }).partial(),
+        regexExpectation: z.object({
+          regex: z.string(),
+        }).partial(),
+        rowConditionExpectation: z.object({
+          sqlExpression: z.string(),
+        }).partial(),
+        ruleSource: z.object({
+          rulePathElements: z.array(z.unknown()),
+        }).partial(),
+        setExpectation: z.object({
+          values: z.array(z.unknown()),
+        }).partial(),
+        sqlAssertion: z.object({
+          sqlStatement: z.string(),
+        }).partial(),
+        statisticRangeExpectation: z.object({
+          maxValue: z.string(),
+          minValue: z.string(),
+          statistic: z.string(),
+          strictMaxEnabled: z.boolean(),
+          strictMinEnabled: z.boolean(),
+        }).partial(),
+        suspended: z.boolean(),
+        tableConditionExpectation: z.object({
+          sqlExpression: z.string(),
+        }).partial(),
+        templateReference: z.object({
+          name: z.string(),
+          resolvedSql: z.string(),
+          ruleTemplate: z.object({
+            capabilities: z.unknown(),
+            dimension: z.unknown(),
+            inputParameters: z.unknown(),
+            name: z.unknown(),
+            sqlCollection: z.unknown(),
+          }).partial(),
+          values: z.record(z.string(), z.unknown()),
+        }).partial(),
+        threshold: z.number(),
+        uniquenessExpectation: z.object({}).partial(),
+      }).partial(),
+    ),
     samplingPercent: z.number(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   executionIdentity: z.object({
-    dataplexServiceAgent: z.object({}),
+    dataplexServiceAgent: z.object({}).partial(),
     serviceAccount: z.object({
       email: z.string(),
-    }),
-    userCredential: z.object({}),
-  }).optional(),
+    }).partial(),
+    userCredential: z.object({}).partial(),
+  }).partial().optional(),
   executionSpec: z.object({
     field: z.string(),
     trigger: z.object({
-      onDemand: z.object({}),
+      onDemand: z.object({}).partial(),
       oneTime: z.object({
         ttlAfterScanCompletion: z.string(),
-      }),
+      }).partial(),
       schedule: z.object({
         cron: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   executionStatus: z.object({
     latestJobCreateTime: z.string(),
     latestJobEndTime: z.string(),
     latestJobStartTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   state: z.string().optional(),
@@ -1333,7 +1361,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataScans. Registered at `@swamp/gcp/dataplex/datascans`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1665,6 +1693,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

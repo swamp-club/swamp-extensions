@@ -57,6 +57,19 @@ const TagSchema = z.object({
   ),
 });
 
+const IpamOperatingRegionStateSchema = z.object({
+  RegionName: z.string(),
+}).partial();
+
+const IpamOrganizationalUnitExclusionStateSchema = z.object({
+  OrganizationsEntityPath: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -105,17 +118,17 @@ const StateSchema = z.object({
   PublicDefaultScopeId: z.string().optional(),
   PrivateDefaultScopeId: z.string().optional(),
   ScopeCount: z.number().optional(),
-  OperatingRegions: z.array(IpamOperatingRegionSchema).optional(),
+  OperatingRegions: z.array(IpamOperatingRegionStateSchema).optional(),
   Tier: z.string().optional(),
   EnablePrivateGua: z.boolean().optional(),
   MeteredAccount: z.string().optional(),
   DefaultResourceDiscoveryOrganizationalUnitExclusions: z.array(
-    IpamOrganizationalUnitExclusionSchema,
+    IpamOrganizationalUnitExclusionStateSchema,
   ).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -164,7 +177,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 IPAM. Registered at `@swamp/aws/ec2/ipam`. */
 export const model = {
   type: "@swamp/aws/ec2/ipam",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -223,6 +236,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

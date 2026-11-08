@@ -377,98 +377,114 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   inspectConfig: z.object({
     contentOptions: z.array(z.string()),
-    customInfoTypes: z.array(z.object({
-      detectionRules: z.array(z.object({
-        hotwordRule: z.unknown(),
-      })),
-      dictionary: z.object({
-        cloudStoragePath: z.object({
-          path: z.unknown(),
-        }),
-        wordList: z.object({
-          words: z.unknown(),
-        }),
-      }),
-      exclusionType: z.string(),
-      fileLabelInfoType: z.object({
-        googleDriveLabel: z.object({
-          labelFieldsToMatch: z.unknown(),
-          labelId: z.unknown(),
-        }),
-        sensitivityLabel: z.object({
-          guid: z.unknown(),
-        }),
-      }),
-      infoType: z.object({
-        name: z.string(),
+    customInfoTypes: z.array(
+      z.object({
+        detectionRules: z.array(
+          z.object({
+            hotwordRule: z.unknown(),
+          }).partial(),
+        ),
+        dictionary: z.object({
+          cloudStoragePath: z.object({
+            path: z.unknown(),
+          }).partial(),
+          wordList: z.object({
+            words: z.unknown(),
+          }).partial(),
+        }).partial(),
+        exclusionType: z.string(),
+        fileLabelInfoType: z.object({
+          googleDriveLabel: z.object({
+            labelFieldsToMatch: z.unknown(),
+            labelId: z.unknown(),
+          }).partial(),
+          sensitivityLabel: z.object({
+            guid: z.unknown(),
+          }).partial(),
+        }).partial(),
+        infoType: z.object({
+          name: z.string(),
+          sensitivityScore: z.object({
+            score: z.unknown(),
+          }).partial(),
+          version: z.string(),
+        }).partial(),
+        likelihood: z.string(),
+        metadataKeyValueExpression: z.object({
+          keyRegex: z.string(),
+          valueRegex: z.string(),
+        }).partial(),
+        regex: z.object({
+          groupIndexes: z.array(z.unknown()),
+          pattern: z.string(),
+        }).partial(),
         sensitivityScore: z.object({
-          score: z.unknown(),
-        }),
-        version: z.string(),
-      }),
-      likelihood: z.string(),
-      metadataKeyValueExpression: z.object({
-        keyRegex: z.string(),
-        valueRegex: z.string(),
-      }),
-      regex: z.object({
-        groupIndexes: z.array(z.unknown()),
-        pattern: z.string(),
-      }),
-      sensitivityScore: z.object({
-        score: z.string(),
-      }),
-      storedType: z.object({
-        createTime: z.string(),
-        name: z.string(),
-      }),
-      surrogateType: z.object({}),
-    })),
+          score: z.string(),
+        }).partial(),
+        storedType: z.object({
+          createTime: z.string(),
+          name: z.string(),
+        }).partial(),
+        surrogateType: z.object({}).partial(),
+      }).partial(),
+    ),
     excludeInfoTypes: z.boolean(),
     includeQuote: z.boolean(),
-    infoTypes: z.array(z.object({
-      name: z.string(),
-      sensitivityScore: z.object({
-        score: z.string(),
-      }),
-      version: z.string(),
-    })),
-    limits: z.object({
-      maxFindingsPerInfoType: z.array(z.object({
-        infoType: z.object({
-          name: z.unknown(),
-          sensitivityScore: z.unknown(),
-          version: z.unknown(),
-        }),
-        maxFindings: z.number(),
-      })),
-      maxFindingsPerItem: z.number(),
-      maxFindingsPerRequest: z.number(),
-    }),
-    minLikelihood: z.string(),
-    minLikelihoodPerInfoType: z.array(z.object({
-      infoType: z.object({
+    infoTypes: z.array(
+      z.object({
         name: z.string(),
         sensitivityScore: z.object({
-          score: z.unknown(),
-        }),
+          score: z.string(),
+        }).partial(),
         version: z.string(),
-      }),
-      minLikelihood: z.string(),
-    })),
-    ruleSet: z.array(z.object({
-      infoTypes: z.array(z.object({
-        name: z.unknown(),
-        sensitivityScore: z.unknown(),
-        version: z.unknown(),
-      })),
-      rules: z.array(z.object({
-        adjustmentRule: z.unknown(),
-        exclusionRule: z.unknown(),
-        hotwordRule: z.unknown(),
-      })),
-    })),
-  }).optional(),
+      }).partial(),
+    ),
+    limits: z.object({
+      maxFindingsPerInfoType: z.array(
+        z.object({
+          infoType: z.object({
+            name: z.unknown(),
+            sensitivityScore: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+          maxFindings: z.number(),
+        }).partial(),
+      ),
+      maxFindingsPerItem: z.number(),
+      maxFindingsPerRequest: z.number(),
+    }).partial(),
+    minLikelihood: z.string(),
+    minLikelihoodPerInfoType: z.array(
+      z.object({
+        infoType: z.object({
+          name: z.string(),
+          sensitivityScore: z.object({
+            score: z.unknown(),
+          }).partial(),
+          version: z.string(),
+        }).partial(),
+        minLikelihood: z.string(),
+      }).partial(),
+    ),
+    ruleSet: z.array(
+      z.object({
+        infoTypes: z.array(
+          z.object({
+            name: z.unknown(),
+            sensitivityScore: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+        ),
+        rules: z.array(
+          z.object({
+            adjustmentRule: z.unknown(),
+            exclusionRule: z.unknown(),
+            hotwordRule: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -722,7 +738,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) InspectTemplates. Registered at `@swamp/gcp/dlp/inspecttemplates`. */
 export const model = {
   type: "@swamp/gcp/dlp/inspecttemplates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -896,6 +912,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

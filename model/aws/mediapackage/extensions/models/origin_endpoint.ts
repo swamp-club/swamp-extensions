@@ -200,6 +200,68 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const EncryptionContractConfigurationStateSchema = z.object({
+  PresetSpeke20Audio: z.string(),
+  PresetSpeke20Video: z.string(),
+}).partial();
+
+const SpekeKeyProviderStateSchema = z.object({
+  ResourceId: z.string(),
+  SystemIds: z.array(z.string()),
+  Url: z.string(),
+  RoleArn: z.string(),
+  CertificateArn: z.string(),
+  EncryptionContractConfiguration: EncryptionContractConfigurationStateSchema,
+}).partial();
+
+const HlsEncryptionStateSchema = z.object({
+  EncryptionMethod: z.string(),
+  ConstantInitializationVector: z.string(),
+  KeyRotationIntervalSeconds: z.number(),
+  RepeatExtXKey: z.boolean(),
+  SpekeKeyProvider: SpekeKeyProviderStateSchema,
+}).partial();
+
+const StreamSelectionStateSchema = z.object({
+  MinVideoBitsPerSecond: z.number(),
+  MaxVideoBitsPerSecond: z.number(),
+  StreamOrder: z.string(),
+}).partial();
+
+const DashEncryptionStateSchema = z.object({
+  KeyRotationIntervalSeconds: z.number(),
+  SpekeKeyProvider: SpekeKeyProviderStateSchema,
+}).partial();
+
+const MssEncryptionStateSchema = z.object({
+  SpekeKeyProvider: SpekeKeyProviderStateSchema,
+}).partial();
+
+const CmafEncryptionStateSchema = z.object({
+  KeyRotationIntervalSeconds: z.number(),
+  SpekeKeyProvider: SpekeKeyProviderStateSchema,
+  ConstantInitializationVector: z.string(),
+  EncryptionMethod: z.string(),
+}).partial();
+
+const HlsManifestStateSchema = z.object({
+  Id: z.string(),
+  ManifestName: z.string(),
+  Url: z.string(),
+  PlaylistWindowSeconds: z.number(),
+  PlaylistType: z.string(),
+  AdMarkers: z.string(),
+  ProgramDateTimeIntervalSeconds: z.number(),
+  IncludeIframeOnlyStream: z.boolean(),
+  AdTriggers: z.array(z.string()),
+  AdsOnDeliveryRestrictions: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -429,7 +491,7 @@ const StateSchema = z.object({
   Authorization: z.object({
     SecretsRoleArn: z.string(),
     CdnIdentifierSecret: z.string(),
-  }).optional(),
+  }).partial().optional(),
   HlsPackage: z.object({
     SegmentDurationSeconds: z.number(),
     PlaylistWindowSeconds: z.number(),
@@ -441,9 +503,9 @@ const StateSchema = z.object({
     IncludeIframeOnlyStream: z.boolean(),
     UseAudioRenditionGroup: z.boolean(),
     IncludeDvbSubtitles: z.boolean(),
-    Encryption: HlsEncryptionSchema,
-    StreamSelection: StreamSelectionSchema,
-  }).optional(),
+    Encryption: HlsEncryptionStateSchema,
+    StreamSelection: StreamSelectionStateSchema,
+  }).partial().optional(),
   DashPackage: z.object({
     SegmentDurationSeconds: z.number(),
     ManifestWindowSeconds: z.number(),
@@ -457,28 +519,28 @@ const StateSchema = z.object({
     SegmentTemplateFormat: z.string(),
     AdTriggers: z.array(z.string()),
     AdsOnDeliveryRestrictions: z.string(),
-    Encryption: DashEncryptionSchema,
-    StreamSelection: StreamSelectionSchema,
+    Encryption: DashEncryptionStateSchema,
+    StreamSelection: StreamSelectionStateSchema,
     UtcTiming: z.string(),
     UtcTimingUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MssPackage: z.object({
     ManifestWindowSeconds: z.number(),
     SegmentDurationSeconds: z.number(),
-    Encryption: MssEncryptionSchema,
-    StreamSelection: StreamSelectionSchema,
-  }).optional(),
+    Encryption: MssEncryptionStateSchema,
+    StreamSelection: StreamSelectionStateSchema,
+  }).partial().optional(),
   CmafPackage: z.object({
     SegmentDurationSeconds: z.number(),
     SegmentPrefix: z.string(),
-    Encryption: CmafEncryptionSchema,
-    StreamSelection: StreamSelectionSchema,
-    HlsManifests: z.array(HlsManifestSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    Encryption: CmafEncryptionStateSchema,
+    StreamSelection: StreamSelectionStateSchema,
+    HlsManifests: z.array(HlsManifestStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -706,7 +768,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackage OriginEndpoint. Registered at `@swamp/aws/mediapackage/origin-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediapackage/origin-endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -775,6 +837,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

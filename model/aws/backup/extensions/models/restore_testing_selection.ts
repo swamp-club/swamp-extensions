@@ -43,6 +43,11 @@ const KeyValueSchema = z.object({
   Value: z.string(),
 });
 
+const KeyValueStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -76,9 +81,9 @@ const StateSchema = z.object({
   IamRoleArn: z.string().optional(),
   ProtectedResourceArns: z.array(z.string()).optional(),
   ProtectedResourceConditions: z.object({
-    StringEquals: z.array(KeyValueSchema),
-    StringNotEquals: z.array(KeyValueSchema),
-  }).optional(),
+    StringEquals: z.array(KeyValueStateSchema),
+    StringNotEquals: z.array(KeyValueStateSchema),
+  }).partial().optional(),
   ProtectedResourceType: z.string().optional(),
   RestoreMetadataOverrides: z.record(z.string(), z.unknown()).optional(),
   RestoreTestingPlanName: z.string(),
@@ -86,7 +91,7 @@ const StateSchema = z.object({
   ValidationWindowHours: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -126,7 +131,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup RestoreTestingSelection. Registered at `@swamp/aws/backup/restore-testing-selection`. */
 export const model = {
   type: "@swamp/aws/backup/restore-testing-selection",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -190,6 +195,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

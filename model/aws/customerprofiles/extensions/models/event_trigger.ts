@@ -146,6 +146,50 @@ const TagSchema = z.object({
   ),
 });
 
+const ObjectAttributeStateSchema = z.object({
+  Source: z.string(),
+  FieldName: z.string(),
+  ComparisonOperator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const EventTriggerDimensionStateSchema = z.object({
+  ObjectAttributes: z.array(ObjectAttributeStateSchema),
+}).partial();
+
+const EventTriggerConditionStateSchema = z.object({
+  EventTriggerDimensions: z.array(EventTriggerDimensionStateSchema),
+  LogicalOperator: z.string(),
+}).partial();
+
+const PeriodStateSchema = z.object({
+  Unit: z.string(),
+  Value: z.number(),
+  MaxInvocationsPerProfile: z.number(),
+  Unlimited: z.boolean(),
+}).partial();
+
+const IntentStateSchema = z.object({
+  IntentDomain: z.string(),
+  Type: z.string(),
+}).partial();
+
+const IntentFilterConditionStateSchema = z.object({
+  Intent: IntentStateSchema,
+  ComparisonOperator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const IntentFilterGroupStateSchema = z.object({
+  Conditions: z.array(IntentFilterConditionStateSchema),
+  LogicalOperator: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -210,22 +254,22 @@ const StateSchema = z.object({
   EventTriggerName: z.string(),
   ObjectTypeName: z.string().optional(),
   Description: z.string().optional(),
-  EventTriggerConditions: z.array(EventTriggerConditionSchema).optional(),
+  EventTriggerConditions: z.array(EventTriggerConditionStateSchema).optional(),
   EventTriggerLimits: z.object({
     EventExpiration: z.number(),
-    Periods: z.array(PeriodSchema),
-  }).optional(),
+    Periods: z.array(PeriodStateSchema),
+  }).partial().optional(),
   SegmentFilter: z.string().optional(),
   IntentFilterDefinition: z.object({
-    Groups: z.array(IntentFilterGroupSchema),
+    Groups: z.array(IntentFilterGroupStateSchema),
     LogicalOperator: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   LastUpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -295,7 +339,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles EventTrigger. Registered at `@swamp/aws/customerprofiles/event-trigger`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/event-trigger",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -369,6 +413,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

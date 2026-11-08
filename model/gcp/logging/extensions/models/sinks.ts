@@ -423,19 +423,21 @@ const StateSchema = z.object({
   bigqueryOptions: z.object({
     usePartitionedTables: z.boolean(),
     usesTimestampColumnPartitioning: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   destination: z.string().optional(),
   disabled: z.boolean().optional(),
-  exclusions: z.array(z.object({
-    createTime: z.string(),
-    description: z.string(),
-    disabled: z.boolean(),
-    filter: z.string(),
-    name: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  exclusions: z.array(
+    z.object({
+      createTime: z.string(),
+      description: z.string(),
+      disabled: z.boolean(),
+      filter: z.string(),
+      name: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   filter: z.string().optional(),
   includeChildren: z.boolean().optional(),
   interceptChildren: z.boolean().optional(),
@@ -544,7 +546,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Logging Sinks. Registered at `@swamp/gcp/logging/sinks`. */
 export const model = {
   type: "@swamp/gcp/logging/sinks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -693,6 +695,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

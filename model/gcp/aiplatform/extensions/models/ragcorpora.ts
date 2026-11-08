@@ -239,13 +239,13 @@ const StateSchema = z.object({
   corpusStatus: z.object({
     errorStatus: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -255,33 +255,33 @@ const StateSchema = z.object({
       apiKeyConfig: z.object({
         apiKeySecretVersion: z.string(),
         apiKeyString: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     pinecone: z.object({
       indexName: z.string(),
-    }),
+    }).partial(),
     ragEmbeddingModelConfig: z.object({
       vertexPredictionEndpoint: z.object({
         endpoint: z.string(),
         model: z.string(),
         modelVersionId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     ragManagedDb: z.object({
       ann: z.object({
         leafCount: z.number(),
         treeDepth: z.number(),
-      }),
-      knn: z.object({}),
-    }),
+      }).partial(),
+      knn: z.object({}).partial(),
+    }).partial(),
     vertexVectorSearch: z.object({
       index: z.string(),
       indexEndpoint: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   vertexAiSearchConfig: z.object({
     servingConfig: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -401,7 +401,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform RagCorpora. Registered at `@swamp/gcp/aiplatform/ragcorpora`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/ragcorpora",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -568,6 +568,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

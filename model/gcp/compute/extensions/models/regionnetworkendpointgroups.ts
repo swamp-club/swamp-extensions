@@ -281,16 +281,16 @@ const StateSchema = z.object({
     service: z.string(),
     urlMask: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cloudFunction: z.object({
     function: z.string(),
     urlMask: z.string(),
-  }).optional(),
+  }).partial().optional(),
   cloudRun: z.object({
     service: z.string(),
     tag: z.string(),
     urlMask: z.string(),
-  }).optional(),
+  }).partial().optional(),
   creationTimestamp: z.string().optional(),
   defaultPort: z.number().optional(),
   description: z.string().optional(),
@@ -304,7 +304,7 @@ const StateSchema = z.object({
     producerPort: z.number(),
     pscConnectionId: z.string(),
     pscConnectionStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   pscTargetService: z.string().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
@@ -449,7 +449,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionNetworkEndpointGroups. Registered at `@swamp/gcp/compute/regionnetworkendpointgroups`. */
 export const model = {
   type: "@swamp/gcp/compute/regionnetworkendpointgroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -638,6 +638,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

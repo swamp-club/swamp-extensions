@@ -179,14 +179,16 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
-  endpoints: z.array(z.object({
-    address: z.string(),
-    annotations: z.record(z.string(), z.unknown()),
-    name: z.string(),
-    network: z.string(),
-    port: z.number(),
-    uid: z.string(),
-  })).optional(),
+  endpoints: z.array(
+    z.object({
+      address: z.string(),
+      annotations: z.record(z.string(), z.unknown()),
+      name: z.string(),
+      network: z.string(),
+      port: z.number(),
+      uid: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   uid: z.string().optional(),
 }).passthrough();
@@ -243,7 +245,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Service Directory Namespaces.Services. Registered at `@swamp/gcp/servicedirectory/namespaces-services`. */
 export const model = {
   type: "@swamp/gcp/servicedirectory/namespaces-services",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -382,6 +384,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

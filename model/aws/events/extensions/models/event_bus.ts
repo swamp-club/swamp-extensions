@@ -49,6 +49,11 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -195,21 +200,21 @@ async function putEvents(
 const StateSchema = z.object({
   EventSourceName: z.string().optional(),
   Name: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Description: z.string().optional(),
   KmsKeyIdentifier: z.string().optional(),
   Policy: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   Arn: z.string().optional(),
   DeadLetterConfig: z.object({
     Arn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LogConfig: z.object({
     IncludeDetail: z.string(),
     Level: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -262,7 +267,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events EventBus. Registered at `@swamp/aws/events/event-bus`. */
 export const model = {
   type: "@swamp/aws/events/event-bus",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -366,6 +371,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

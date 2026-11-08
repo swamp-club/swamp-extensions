@@ -87,6 +87,31 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
+const MonthlySettingStateSchema = z.object({
+  DayOfMonth: z.number(),
+  HandOffTime: z.string(),
+}).partial();
+
+const WeeklySettingStateSchema = z.object({
+  DayOfWeek: z.string(),
+  HandOffTime: z.string(),
+}).partial();
+
+const CoverageTimeStateSchema = z.object({
+  StartTime: z.string(),
+  EndTime: z.string(),
+}).partial();
+
+const ShiftCoverageStateSchema = z.object({
+  DayOfWeek: z.string(),
+  CoverageTimes: z.array(CoverageTimeStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -145,18 +170,18 @@ const StateSchema = z.object({
   StartTime: z.string().optional(),
   TimeZoneId: z.string().optional(),
   Recurrence: z.object({
-    MonthlySettings: z.array(MonthlySettingSchema),
-    WeeklySettings: z.array(WeeklySettingSchema),
+    MonthlySettings: z.array(MonthlySettingStateSchema),
+    WeeklySettings: z.array(WeeklySettingStateSchema),
     DailySettings: z.array(z.string()),
     NumberOfOnCalls: z.number(),
     RecurrenceMultiplier: z.number(),
-    ShiftCoverages: z.array(ShiftCoverageSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    ShiftCoverages: z.array(ShiftCoverageStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Arn: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -219,7 +244,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSMContacts Rotation. Registered at `@swamp/aws/ssmcontacts/rotation`. */
 export const model = {
   type: "@swamp/aws/ssmcontacts/rotation",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -283,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

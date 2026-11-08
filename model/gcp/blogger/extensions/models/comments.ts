@@ -173,21 +173,21 @@ const StateSchema = z.object({
     id: z.string(),
     image: z.object({
       url: z.string(),
-    }),
+    }).partial(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   blog: z.object({
     id: z.string(),
-  }).optional(),
+  }).partial().optional(),
   content: z.string().optional(),
   id: z.string().optional(),
   inReplyTo: z.object({
     id: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kind: z.string().optional(),
   post: z.object({
     id: z.string(),
-  }).optional(),
+  }).partial().optional(),
   published: z.string().optional(),
   selfLink: z.string().optional(),
   status: z.string().optional(),
@@ -234,7 +234,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Blogger Comments. Registered at `@swamp/gcp/blogger/comments`. */
 export const model = {
   type: "@swamp/gcp/blogger/comments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +373,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

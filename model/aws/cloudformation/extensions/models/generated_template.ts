@@ -89,7 +89,7 @@ const StateSchema = z.object({
   TemplateConfiguration: z.object({
     DeletionPolicy: z.string(),
     UpdateReplacePolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   CreationTime: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
@@ -98,11 +98,11 @@ const StateSchema = z.object({
     ResourcesFailed: z.number(),
     ResourcesProcessing: z.number(),
     ResourcesPending: z.number(),
-  }).optional(),
+  }).partial().optional(),
   TotalWarnings: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -158,7 +158,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation GeneratedTemplate. Registered at `@swamp/aws/cloudformation/generated-template`. */
 export const model = {
   type: "@swamp/aws/cloudformation/generated-template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -172,6 +172,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

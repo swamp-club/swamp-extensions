@@ -253,31 +253,33 @@ const StateSchema = z.object({
       gcsOutputBucket: z.string(),
       gcsRepositorySnapshotDestination: z.object({
         repositorySnapshotUri: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     defaultSchema: z.string(),
     pipelineConfig: z.object({
       path: z.string(),
       pipelineType: z.string(),
-    }),
+    }).partial(),
     schemaSuffix: z.string(),
     tablePrefix: z.string(),
     vars: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   cronSchedule: z.string().optional(),
   disabled: z.boolean().optional(),
   gitCommitish: z.string().optional(),
   internalMetadata: z.string().optional(),
   name: z.string(),
-  recentScheduledReleaseRecords: z.array(z.object({
-    compilationResult: z.string(),
-    errorStatus: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    releaseTime: z.string(),
-  })).optional(),
+  recentScheduledReleaseRecords: z.array(
+    z.object({
+      compilationResult: z.string(),
+      errorStatus: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      releaseTime: z.string(),
+    }).partial(),
+  ).optional(),
   releaseCompilationResult: z.string().optional(),
   timeZone: z.string().optional(),
 }).passthrough();
@@ -404,7 +406,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.ReleaseConfigs. Registered at `@swamp/gcp/dataform/repositories-releaseconfigs`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-releaseconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -578,6 +580,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

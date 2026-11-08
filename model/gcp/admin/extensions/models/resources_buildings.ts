@@ -229,13 +229,13 @@ const StateSchema = z.object({
     postalCode: z.string(),
     regionCode: z.string(),
     sublocality: z.string(),
-  }).optional(),
+  }).partial().optional(),
   buildingId: z.string().optional(),
   buildingName: z.string().optional(),
   coordinates: z.object({
     latitude: z.number(),
     longitude: z.number(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   etags: z.string().optional(),
   floorNames: z.array(z.string()).optional(),
@@ -328,7 +328,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Resources.Buildings. Registered at `@swamp/gcp/admin/resources-buildings`. */
 export const model = {
   type: "@swamp/gcp/admin/resources-buildings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -362,6 +362,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

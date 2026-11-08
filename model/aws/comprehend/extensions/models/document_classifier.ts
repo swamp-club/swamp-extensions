@@ -72,6 +72,28 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const AugmentedManifestsListItemStateSchema = z.object({
+  AttributeNames: z.array(z.string()),
+  S3Uri: z.string(),
+  Split: z.string(),
+}).partial();
+
+const DocumentClassifierDocumentsStateSchema = z.object({
+  S3Uri: z.string(),
+  TestS3Uri: z.string(),
+}).partial();
+
+const DocumentReaderConfigStateSchema = z.object({
+  DocumentReadAction: z.string(),
+  DocumentReadMode: z.string(),
+  FeatureTypes: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -141,35 +163,35 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   DataAccessRoleArn: z.string().optional(),
   InputDataConfig: z.object({
-    AugmentedManifests: z.array(AugmentedManifestsListItemSchema),
+    AugmentedManifests: z.array(AugmentedManifestsListItemStateSchema),
     DataFormat: z.string(),
     LabelDelimiter: z.string(),
     DocumentType: z.string(),
-    Documents: DocumentClassifierDocumentsSchema,
-    DocumentReaderConfig: DocumentReaderConfigSchema,
+    Documents: DocumentClassifierDocumentsStateSchema,
+    DocumentReaderConfig: DocumentReaderConfigStateSchema,
     S3Uri: z.string(),
     TestS3Uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OutputDataConfig: z.object({
     KmsKeyId: z.string(),
     S3Uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LanguageCode: z.string().optional(),
   ModelKmsKeyId: z.string().optional(),
   ModelPolicy: z.string().optional(),
   DocumentClassifierName: z.string().optional(),
   Mode: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   VersionName: z.string().optional(),
   VolumeKmsKeyId: z.string().optional(),
   VpcConfig: z.object({
     SecurityGroupIds: z.array(z.string()),
     Subnets: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -246,7 +268,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Comprehend DocumentClassifier. Registered at `@swamp/aws/comprehend/document-classifier`. */
 export const model = {
   type: "@swamp/aws/comprehend/document-classifier",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -310,6 +332,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

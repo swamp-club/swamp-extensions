@@ -162,6 +162,97 @@ const MatchModelsSchema = z.object({
   AnyOf: z.array(MatchModelEntrySchema),
 });
 
+const StaticOverrideStateSchema = z.object({
+  BundleArn: z.string(),
+  BundleVersion: z.string(),
+}).partial();
+
+const ConfigurationBundleReferenceStateSchema = z.object({
+  BundleArn: z.string(),
+  BundleVersion: z.string(),
+}).partial();
+
+const TrafficSplitEntryStateSchema = z.object({
+  Name: z.string(),
+  Weight: z.number(),
+  ConfigurationBundle: ConfigurationBundleReferenceStateSchema,
+  Description: z.string(),
+  Metadata: z.record(z.string(), z.unknown()),
+}).partial();
+
+const WeightedOverrideStateSchema = z.object({
+  TrafficSplit: z.array(TrafficSplitEntryStateSchema),
+}).partial();
+
+const FallbackTriggersStateSchema = z.object({
+  StatusCodes: z.array(z.string()),
+  Errors: z.array(z.string()),
+}).partial();
+
+const CircuitBreakerConfigurationStateSchema = z.object({
+  Mode: z.string(),
+}).partial();
+
+const FallbackTargetStateSchema = z.object({
+  TargetName: z.string(),
+  Model: z.string(),
+  TriggerOn: FallbackTriggersStateSchema,
+  FirstByteTimeoutMilliseconds: z.number(),
+}).partial();
+
+const FallbackStateSchema = z.object({
+  TriggerOn: FallbackTriggersStateSchema,
+  FirstByteTimeoutMilliseconds: z.number(),
+  CircuitBreaker: CircuitBreakerConfigurationStateSchema,
+  TargetFallback: z.array(FallbackTargetStateSchema),
+}).partial();
+
+const StaticRouteStateSchema = z.object({
+  TargetName: z.string(),
+  Model: z.string(),
+  Fallback: FallbackStateSchema,
+}).partial();
+
+const TargetTrafficSplitEntryStateSchema = z.object({
+  Name: z.string(),
+  Weight: z.number(),
+  TargetName: z.string(),
+  Model: z.string(),
+  Fallback: FallbackStateSchema,
+  Description: z.string(),
+  Metadata: z.record(z.string(), z.unknown()),
+}).partial();
+
+const WeightedRouteStateSchema = z.object({
+  TrafficSplit: z.array(TargetTrafficSplitEntryStateSchema),
+}).partial();
+
+const IamPrincipalStateSchema = z.object({
+  Arn: z.string(),
+  Operator: z.string(),
+}).partial();
+
+const MatchPrincipalsStateSchema = z.object({
+  AnyOf: z.array(
+    z.object({
+      IamPrincipal: IamPrincipalStateSchema,
+    }).partial(),
+  ),
+}).partial();
+
+const MatchPathsStateSchema = z.object({
+  AnyOf: z.array(z.string()),
+}).partial();
+
+const MatchModelEntryStateSchema = z.object({
+  Value: z.string(),
+  Operator: z.string(),
+}).partial();
+
+const MatchModelsStateSchema = z.object({
+  AnyOf: z.array(MatchModelEntryStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -204,21 +295,25 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Actions: z.array(z.object({
-    ConfigurationBundle: z.object({
-      StaticOverride: StaticOverrideSchema,
-      WeightedOverride: WeightedOverrideSchema,
-    }),
-    RouteToTarget: z.object({
-      StaticRoute: StaticRouteSchema,
-      WeightedRoute: WeightedRouteSchema,
-    }),
-  })).optional(),
-  Conditions: z.array(z.object({
-    MatchPrincipals: MatchPrincipalsSchema,
-    MatchPaths: MatchPathsSchema,
-    MatchModels: MatchModelsSchema,
-  })).optional(),
+  Actions: z.array(
+    z.object({
+      ConfigurationBundle: z.object({
+        StaticOverride: StaticOverrideStateSchema,
+        WeightedOverride: WeightedOverrideStateSchema,
+      }).partial(),
+      RouteToTarget: z.object({
+        StaticRoute: StaticRouteStateSchema,
+        WeightedRoute: WeightedRouteStateSchema,
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  Conditions: z.array(
+    z.object({
+      MatchPrincipals: MatchPrincipalsStateSchema,
+      MatchPaths: MatchPathsStateSchema,
+      MatchModels: MatchModelsStateSchema,
+    }).partial(),
+  ).optional(),
   CreatedAt: z.string().optional(),
   Description: z.string().optional(),
   GatewayArn: z.string().optional(),
@@ -228,11 +323,11 @@ const StateSchema = z.object({
   Status: z.string().optional(),
   System: z.object({
     ManagedBy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -284,7 +379,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore GatewayRule. Registered at `@swamp/aws/bedrockagentcore/gateway-rule`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -318,6 +413,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

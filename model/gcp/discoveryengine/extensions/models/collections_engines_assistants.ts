@@ -268,22 +268,24 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   customerPolicy: z.object({
-    bannedPhrases: z.array(z.object({
-      ignoreDiacritics: z.boolean(),
-      matchType: z.string(),
-      phrase: z.string(),
-    })),
+    bannedPhrases: z.array(
+      z.object({
+        ignoreDiacritics: z.boolean(),
+        matchType: z.string(),
+        phrase: z.string(),
+      }).partial(),
+    ),
     dataProtectionPolicy: z.object({
       sensitiveDataProtectionPolicy: z.object({
         policy: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     modelArmorConfig: z.object({
       failureMode: z.string(),
       responseTemplate: z.string(),
       userPromptTemplate: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   defaultWebGroundingToggleOff: z.boolean().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -294,8 +296,8 @@ const StateSchema = z.object({
     defaultModelId: z.string(),
     systemInstruction: z.object({
       additionalSystemInstruction: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   updateTime: z.string().optional(),
   webGroundingType: z.string().optional(),
@@ -443,7 +445,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Assistants. Registered at `@swamp/gcp/discoveryengine/collections-engines-assistants`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-assistants",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -627,6 +629,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -222,54 +222,62 @@ const recommenderInventoryMethods = {
 };
 
 const StateSchema = z.object({
-  additionalImpact: z.array(z.object({
-    category: z.string(),
-    costProjection: z.object({
-      cost: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-      costInLocalCurrency: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-      duration: z.string(),
-    }),
-    reliabilityProjection: z.object({
-      details: z.record(z.string(), z.unknown()),
-      risks: z.array(z.string()),
-    }),
-    securityProjection: z.object({
-      details: z.record(z.string(), z.unknown()),
-    }),
-    service: z.string(),
-    sustainabilityProjection: z.object({
-      duration: z.string(),
-      kgCO2e: z.number(),
-    }),
-  })).optional(),
-  associatedInsights: z.array(z.object({
-    insight: z.string(),
-  })).optional(),
+  additionalImpact: z.array(
+    z.object({
+      category: z.string(),
+      costProjection: z.object({
+        cost: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+        costInLocalCurrency: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+        duration: z.string(),
+      }).partial(),
+      reliabilityProjection: z.object({
+        details: z.record(z.string(), z.unknown()),
+        risks: z.array(z.string()),
+      }).partial(),
+      securityProjection: z.object({
+        details: z.record(z.string(), z.unknown()),
+      }).partial(),
+      service: z.string(),
+      sustainabilityProjection: z.object({
+        duration: z.string(),
+        kgCO2e: z.number(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  associatedInsights: z.array(
+    z.object({
+      insight: z.string(),
+    }).partial(),
+  ).optional(),
   content: z.object({
-    operationGroups: z.array(z.object({
-      operations: z.array(z.object({
-        action: z.unknown(),
-        path: z.unknown(),
-        pathFilters: z.unknown(),
-        pathValueMatchers: z.unknown(),
-        resource: z.unknown(),
-        resourceType: z.unknown(),
-        sourcePath: z.unknown(),
-        sourceResource: z.unknown(),
-        value: z.unknown(),
-        valueMatcher: z.unknown(),
-      })),
-    })),
+    operationGroups: z.array(
+      z.object({
+        operations: z.array(
+          z.object({
+            action: z.unknown(),
+            path: z.unknown(),
+            pathFilters: z.unknown(),
+            pathValueMatchers: z.unknown(),
+            resource: z.unknown(),
+            resourceType: z.unknown(),
+            sourcePath: z.unknown(),
+            sourceResource: z.unknown(),
+            value: z.unknown(),
+            valueMatcher: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
     overview: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
   lastRefreshTime: z.string().optional(),
@@ -281,33 +289,33 @@ const StateSchema = z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
+      }).partial(),
       costInLocalCurrency: z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
+      }).partial(),
       duration: z.string(),
-    }),
+    }).partial(),
     reliabilityProjection: z.object({
       details: z.record(z.string(), z.unknown()),
       risks: z.array(z.string()),
-    }),
+    }).partial(),
     securityProjection: z.object({
       details: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     service: z.string(),
     sustainabilityProjection: z.object({
       duration: z.string(),
       kgCO2e: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   priority: z.string().optional(),
   recommenderSubtype: z.string().optional(),
   stateInfo: z.object({
     state: z.string(),
     stateMetadata: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   targetResources: z.array(z.string()).optional(),
   xorGroupId: z.string().optional(),
 }).passthrough();
@@ -353,7 +361,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Recommender Recommenders.Recommendations. Registered at `@swamp/gcp/recommender/recommenders-recommendations`. */
 export const model = {
   type: "@swamp/gcp/recommender/recommenders-recommendations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -497,6 +505,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

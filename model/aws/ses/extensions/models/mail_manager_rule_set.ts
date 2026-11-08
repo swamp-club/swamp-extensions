@@ -287,6 +287,183 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const AnalysisStateSchema = z.object({
+  Analyzer: z.string(),
+  ResultField: z.string(),
+}).partial();
+
+const RuleIsInAddressListStateSchema = z.object({
+  Attribute: z.string(),
+  AddressLists: z.array(z.string()),
+}).partial();
+
+const RuleBooleanExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Attribute: z.string(),
+    Analysis: AnalysisStateSchema,
+    IsInAddressList: RuleIsInAddressListStateSchema,
+  }).partial(),
+  Operator: z.string(),
+}).partial();
+
+const RuleStringExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Attribute: z.string(),
+    MimeHeaderAttribute: z.string(),
+    Analysis: AnalysisStateSchema,
+    ClientCertificateAttribute: z.string(),
+  }).partial(),
+  Operator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const RuleNumberExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Attribute: z.string(),
+  }).partial(),
+  Operator: z.string(),
+  Value: z.number(),
+}).partial();
+
+const RuleIpExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Attribute: z.string(),
+  }).partial(),
+  Operator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const RuleVerdictExpressionStateSchema = z.object({
+  Evaluate: z.object({
+    Attribute: z.string(),
+    Analysis: AnalysisStateSchema,
+  }).partial(),
+  Operator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const RuleDmarcExpressionStateSchema = z.object({
+  Operator: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const RelayActionStateSchema = z.object({
+  ActionFailurePolicy: z.string(),
+  Relay: z.string(),
+  MailFrom: z.string(),
+}).partial();
+
+const ArchiveActionStateSchema = z.object({
+  ActionFailurePolicy: z.string(),
+  TargetArchive: z.string(),
+}).partial();
+
+const S3ActionStateSchema = z.object({
+  ActionFailurePolicy: z.string(),
+  RoleArn: z.string(),
+  S3Bucket: z.string(),
+  S3Prefix: z.string(),
+  S3SseKmsKeyId: z.string(),
+}).partial();
+
+const SendActionStateSchema = z.object({
+  ActionFailurePolicy: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const AddHeaderActionStateSchema = z.object({
+  HeaderName: z.string(),
+  HeaderValue: z.string(),
+}).partial();
+
+const ReplaceRecipientActionStateSchema = z.object({
+  ReplaceWith: z.array(z.string()),
+}).partial();
+
+const DeliverToMailboxActionStateSchema = z.object({
+  ActionFailurePolicy: z.string(),
+  MailboxArn: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const DeliverToQBusinessActionStateSchema = z.object({
+  ActionFailurePolicy: z.string(),
+  ApplicationId: z.string(),
+  IndexId: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const SnsActionStateSchema = z.object({
+  ActionFailurePolicy: z.string(),
+  TopicArn: z.string(),
+  RoleArn: z.string(),
+  Encoding: z.string(),
+  PayloadType: z.string(),
+}).partial();
+
+const BounceActionStateSchema = z.object({
+  ActionFailurePolicy: z.string(),
+  RoleArn: z.string(),
+  Sender: z.string(),
+  StatusCode: z.string(),
+  SmtpReplyCode: z.string(),
+  DiagnosticMessage: z.string(),
+  Message: z.string(),
+}).partial();
+
+const InvokeLambdaActionStateSchema = z.object({
+  ActionFailurePolicy: z.string(),
+  FunctionArn: z.string(),
+  InvocationType: z.string(),
+  RoleArn: z.string(),
+  RetryTimeMinutes: z.number(),
+}).partial();
+
+const RuleStateSchema = z.object({
+  Name: z.string(),
+  Conditions: z.array(
+    z.object({
+      BooleanExpression: RuleBooleanExpressionStateSchema,
+      StringExpression: RuleStringExpressionStateSchema,
+      NumberExpression: RuleNumberExpressionStateSchema,
+      IpExpression: RuleIpExpressionStateSchema,
+      VerdictExpression: RuleVerdictExpressionStateSchema,
+      DmarcExpression: RuleDmarcExpressionStateSchema,
+    }).partial(),
+  ),
+  Unless: z.array(
+    z.object({
+      BooleanExpression: RuleBooleanExpressionStateSchema,
+      StringExpression: RuleStringExpressionStateSchema,
+      NumberExpression: RuleNumberExpressionStateSchema,
+      IpExpression: RuleIpExpressionStateSchema,
+      VerdictExpression: RuleVerdictExpressionStateSchema,
+      DmarcExpression: RuleDmarcExpressionStateSchema,
+    }).partial(),
+  ),
+  Actions: z.array(
+    z.object({
+      Drop: z.record(z.string(), z.unknown()),
+      Relay: RelayActionStateSchema,
+      Archive: ArchiveActionStateSchema,
+      WriteToS3: S3ActionStateSchema,
+      Send: SendActionStateSchema,
+      AddHeader: AddHeaderActionStateSchema,
+      ReplaceRecipient: ReplaceRecipientActionStateSchema,
+      DeliverToMailbox: DeliverToMailboxActionStateSchema,
+      DeliverToQBusiness: DeliverToQBusinessActionStateSchema,
+      PublishToSns: SnsActionStateSchema,
+      Bounce: BounceActionStateSchema,
+      InvokeLambda: InvokeLambdaActionStateSchema,
+    }).partial(),
+  ),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -313,11 +490,11 @@ const StateSchema = z.object({
   RuleSetArn: z.string().optional(),
   RuleSetId: z.string(),
   RuleSetName: z.string().optional(),
-  Rules: z.array(RuleSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Rules: z.array(RuleStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -350,7 +527,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES MailManagerRuleSet. Registered at `@swamp/aws/ses/mail-manager-rule-set`. */
 export const model = {
   type: "@swamp/aws/ses/mail-manager-rule-set",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -439,6 +616,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

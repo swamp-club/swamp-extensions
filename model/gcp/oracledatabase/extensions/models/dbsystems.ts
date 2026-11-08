@@ -423,7 +423,7 @@ const StateSchema = z.object({
     dataCollectionOptions: z.object({
       isDiagnosticsEventsEnabled: z.boolean(),
       isIncidentLogsEnabled: z.boolean(),
-    }),
+    }).partial(),
     dataStorageSizeGb: z.number(),
     databaseEdition: z.string(),
     dbHome: z.object({
@@ -447,7 +447,7 @@ const StateSchema = z.object({
           databaseManagementConfig: z.object({
             managementState: z.unknown(),
             managementType: z.unknown(),
-          }),
+          }).partial(),
           dbBackupConfig: z.object({
             autoBackupEnabled: z.unknown(),
             autoFullBackupDay: z.unknown(),
@@ -456,20 +456,20 @@ const StateSchema = z.object({
             backupDeletionPolicy: z.unknown(),
             backupDestinationDetails: z.unknown(),
             retentionPeriodDays: z.unknown(),
-          }),
+          }).partial(),
           dbVersion: z.string(),
           state: z.string(),
-        }),
+        }).partial(),
         tdeWalletPassword: z.string(),
         tdeWalletPasswordSecretVersion: z.string(),
-      }),
+      }).partial(),
       dbVersion: z.string(),
       displayName: z.string(),
       isUnifiedAuditingEnabled: z.boolean(),
-    }),
+    }).partial(),
     dbSystemOptions: z.object({
       storageManagement: z.string(),
-    }),
+    }).partial(),
     domain: z.string(),
     hostname: z.string(),
     hostnamePrefix: z.string(),
@@ -486,8 +486,8 @@ const StateSchema = z.object({
     timeZone: z.object({
       id: z.string(),
       version: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -763,7 +763,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud DbSystems. Registered at `@swamp/gcp/oracledatabase/dbsystems`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/dbsystems",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -937,6 +937,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

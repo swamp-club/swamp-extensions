@@ -7,6 +7,7 @@ import type { GcpParsedResource } from "./pipeline.ts";
 import type { ParsedEnrichmentSource } from "./enrichments/types.ts";
 import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
+import { assertUniqueTopLevelDeclarations } from "../shared/util.ts";
 import { liveFillFields } from "../shared/liveFill.ts";
 
 /**
@@ -1927,7 +1928,9 @@ export function generateGcpExtensionModel(
   lines.push(`};`);
   lines.push("");
 
-  return lines.join("\n");
+  const code = lines.join("\n");
+  assertUniqueTopLevelDeclarations(code, resource.typeName);
+  return code;
 }
 
 /**

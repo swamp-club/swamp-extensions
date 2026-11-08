@@ -256,15 +256,19 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  allowed: z.array(z.object({
-    IPProtocol: z.string(),
-    ports: z.array(z.string()),
-  })).optional(),
+  allowed: z.array(
+    z.object({
+      IPProtocol: z.string(),
+      ports: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   creationTimestamp: z.string().optional(),
-  denied: z.array(z.object({
-    IPProtocol: z.string(),
-    ports: z.array(z.string()),
-  })).optional(),
+  denied: z.array(
+    z.object({
+      IPProtocol: z.string(),
+      ports: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   description: z.string().optional(),
   destinationRanges: z.array(z.string()).optional(),
   direction: z.string().optional(),
@@ -274,12 +278,12 @@ const StateSchema = z.object({
   logConfig: z.object({
     enable: z.boolean(),
     metadata: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   network: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   priority: z.number().optional(),
   selfLink: z.string().optional(),
   sourceRanges: z.array(z.string()).optional(),
@@ -403,7 +407,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Firewalls. Registered at `@swamp/gcp/compute/firewalls`. */
 export const model = {
   type: "@swamp/gcp/compute/firewalls",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -567,6 +571,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

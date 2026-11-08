@@ -121,56 +121,62 @@ const StateSchema = z.object({
         backupProperties: z.object({
           latestBackupStatus: z.string(),
           latestBackupTime: z.string(),
-        }),
+        }).partial(),
         databaseType: z.string(),
-      }),
+      }).partial(),
       haHosts: z.array(z.string()),
-      resources: z.array(z.object({
-        instanceProperties: z.object({
-          instanceNumber: z.unknown(),
-          machineType: z.unknown(),
-          roles: z.unknown(),
-          sapInstanceProperties: z.unknown(),
-          status: z.unknown(),
-          upcomingMaintenanceEvent: z.unknown(),
-        }),
-        kind: z.string(),
-        name: z.string(),
-      })),
+      resources: z.array(
+        z.object({
+          instanceProperties: z.object({
+            instanceNumber: z.unknown(),
+            machineType: z.unknown(),
+            roles: z.unknown(),
+            sapInstanceProperties: z.unknown(),
+            status: z.unknown(),
+            upcomingMaintenanceEvent: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          name: z.string(),
+        }).partial(),
+      ),
       sid: z.string(),
       topologyType: z.string(),
-    }),
+    }).partial(),
     architecture: z.string(),
     database: z.object({
       databaseProperties: z.object({
         backupProperties: z.object({
           latestBackupStatus: z.string(),
           latestBackupTime: z.string(),
-        }),
+        }).partial(),
         databaseType: z.string(),
-      }),
+      }).partial(),
       haHosts: z.array(z.string()),
-      resources: z.array(z.object({
-        instanceProperties: z.object({
-          instanceNumber: z.unknown(),
-          machineType: z.unknown(),
-          roles: z.unknown(),
-          sapInstanceProperties: z.unknown(),
-          status: z.unknown(),
-          upcomingMaintenanceEvent: z.unknown(),
-        }),
-        kind: z.string(),
-        name: z.string(),
-      })),
+      resources: z.array(
+        z.object({
+          instanceProperties: z.object({
+            instanceNumber: z.unknown(),
+            machineType: z.unknown(),
+            roles: z.unknown(),
+            sapInstanceProperties: z.unknown(),
+            status: z.unknown(),
+            upcomingMaintenanceEvent: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          name: z.string(),
+        }).partial(),
+      ),
       sid: z.string(),
       topologyType: z.string(),
-    }),
+    }).partial(),
     metadata: z.record(z.string(), z.unknown()),
-    products: z.array(z.object({
-      name: z.string(),
-      version: z.string(),
-    })),
-  }).optional(),
+    products: z.array(
+      z.object({
+        name: z.string(),
+        version: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   workloadType: z.string().optional(),
 }).passthrough();
 
@@ -215,7 +221,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workload Manager Discoveredprofiles. Registered at `@swamp/gcp/workloadmanager/discoveredprofiles`. */
 export const model = {
   type: "@swamp/gcp/workloadmanager/discoveredprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +355,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

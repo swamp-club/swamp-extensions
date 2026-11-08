@@ -101,7 +101,7 @@ const StateSchema = z.object({
     releaseType: z.string(),
     securityFix: z.boolean(),
     supportEndTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -145,7 +145,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GoldengateDeploymentVersions. Registered at `@swamp/gcp/oracledatabase/goldengatedeploymentversions`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/goldengatedeploymentversions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -164,6 +164,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

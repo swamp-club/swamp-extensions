@@ -220,6 +220,100 @@ const TagSchema = z.object({
   Key: z.string().describe("The key of the tag."),
 });
 
+const ListenerAttributeStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const FixedResponseConfigStateSchema = z.object({
+  ContentType: z.string(),
+  StatusCode: z.string(),
+  MessageBody: z.string(),
+}).partial();
+
+const AuthenticateCognitoConfigStateSchema = z.object({
+  OnUnauthenticatedRequest: z.string(),
+  UserPoolClientId: z.string(),
+  UserPoolDomain: z.string(),
+  SessionTimeout: z.string(),
+  Scope: z.string(),
+  SessionCookieName: z.string(),
+  UserPoolArn: z.string(),
+  AuthenticationRequestExtraParams: z.record(z.string(), z.unknown()),
+}).partial();
+
+const RedirectConfigStateSchema = z.object({
+  Path: z.string(),
+  Query: z.string(),
+  Port: z.string(),
+  Host: z.string(),
+  Protocol: z.string(),
+  StatusCode: z.string(),
+}).partial();
+
+const JwtValidationActionAdditionalClaimStateSchema = z.object({
+  Format: z.string(),
+  Values: z.array(z.string()),
+  Name: z.string(),
+}).partial();
+
+const JwtValidationConfigStateSchema = z.object({
+  JwksEndpoint: z.string(),
+  Issuer: z.string(),
+  AdditionalClaims: z.array(JwtValidationActionAdditionalClaimStateSchema),
+}).partial();
+
+const TargetGroupStickinessConfigStateSchema = z.object({
+  Enabled: z.boolean(),
+  DurationSeconds: z.number(),
+}).partial();
+
+const TargetGroupTupleStateSchema = z.object({
+  TargetGroupArn: z.string(),
+  Weight: z.number(),
+}).partial();
+
+const ForwardConfigStateSchema = z.object({
+  TargetGroupStickinessConfig: TargetGroupStickinessConfigStateSchema,
+  TargetGroups: z.array(TargetGroupTupleStateSchema),
+}).partial();
+
+const AuthenticateOidcConfigStateSchema = z.object({
+  OnUnauthenticatedRequest: z.string(),
+  TokenEndpoint: z.string(),
+  UseExistingClientSecret: z.boolean(),
+  SessionTimeout: z.string(),
+  Scope: z.string(),
+  Issuer: z.string(),
+  ClientSecret: z.string(),
+  UserInfoEndpoint: z.string(),
+  ClientId: z.string(),
+  AuthorizationEndpoint: z.string(),
+  SessionCookieName: z.string(),
+  AuthenticationRequestExtraParams: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ActionStateSchema = z.object({
+  Order: z.number(),
+  TargetGroupArn: z.string(),
+  FixedResponseConfig: FixedResponseConfigStateSchema,
+  AuthenticateCognitoConfig: AuthenticateCognitoConfigStateSchema,
+  Type: z.string(),
+  RedirectConfig: RedirectConfigStateSchema,
+  JwtValidationConfig: JwtValidationConfigStateSchema,
+  ForwardConfig: ForwardConfigStateSchema,
+  AuthenticateOidcConfig: AuthenticateOidcConfigStateSchema,
+}).partial();
+
+const CertificateStateSchema = z.object({
+  CertificateArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -285,19 +379,19 @@ const StateSchema = z.object({
     Mode: z.string(),
     TrustStoreArn: z.string(),
     AdvertiseTrustStoreCaNames: z.string(),
-  }).optional(),
-  ListenerAttributes: z.array(ListenerAttributeSchema).optional(),
+  }).partial().optional(),
+  ListenerAttributes: z.array(ListenerAttributeStateSchema).optional(),
   AlpnPolicy: z.array(z.string()).optional(),
   SslPolicy: z.string().optional(),
   LoadBalancerArn: z.string().optional(),
-  DefaultActions: z.array(ActionSchema).optional(),
+  DefaultActions: z.array(ActionStateSchema).optional(),
   Port: z.number().optional(),
-  Certificates: z.array(CertificateSchema).optional(),
+  Certificates: z.array(CertificateStateSchema).optional(),
   Protocol: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -366,7 +460,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticLoadBalancingV2 Listener. Registered at `@swamp/aws/elasticloadbalancingv2/listener`. */
 export const model = {
   type: "@swamp/aws/elasticloadbalancingv2/listener",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -450,6 +544,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

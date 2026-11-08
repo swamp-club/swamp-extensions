@@ -58,6 +58,20 @@ const ContactHandlingSchema = z.object({
   Scope: z.enum(["CROSS_CONTACTS", "PER_CONTACT"]),
 });
 
+const ExternalUrlConfigStateSchema = z.object({
+  AccessUrl: z.string(),
+  ApprovedOrigins: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ContactHandlingStateSchema = z.object({
+  Scope: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -120,23 +134,23 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   ApplicationArn: z.string(),
   ApplicationSourceConfig: z.object({
-    ExternalUrlConfig: ExternalUrlConfigSchema,
-  }).optional(),
+    ExternalUrlConfig: ExternalUrlConfigStateSchema,
+  }).partial().optional(),
   Permissions: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   IsService: z.boolean().optional(),
   ApplicationType: z.string().optional(),
   InitializationTimeout: z.number().optional(),
   ApplicationConfig: z.object({
-    ContactHandling: ContactHandlingSchema,
-  }).optional(),
+    ContactHandling: ContactHandlingStateSchema,
+  }).partial().optional(),
   IframeConfig: z.object({
     Allow: z.array(z.string()),
     Sandbox: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -202,7 +216,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppIntegrations Application. Registered at `@swamp/aws/appintegrations/application`. */
 export const model = {
   type: "@swamp/aws/appintegrations/application",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

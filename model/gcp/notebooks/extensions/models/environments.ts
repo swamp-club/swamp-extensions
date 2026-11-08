@@ -178,7 +178,7 @@ const StateSchema = z.object({
   containerImage: z.object({
     repository: z.string(),
     tag: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -188,7 +188,7 @@ const StateSchema = z.object({
     imageFamily: z.string(),
     imageName: z.string(),
     project: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -263,7 +263,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Notebooks Environments. Registered at `@swamp/gcp/notebooks/environments`. */
 export const model = {
   type: "@swamp/gcp/notebooks/environments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -282,6 +282,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

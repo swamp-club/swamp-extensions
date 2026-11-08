@@ -124,24 +124,24 @@ const StateSchema = z.object({
         kind: z.string(),
         playlistId: z.string(),
         videoId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     channelItem: z.object({
       resourceId: z.object({
         channelId: z.string(),
         kind: z.string(),
         playlistId: z.string(),
         videoId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     comment: z.object({
       resourceId: z.object({
         channelId: z.string(),
         kind: z.string(),
         playlistId: z.string(),
         videoId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     playlistItem: z.object({
       playlistId: z.string(),
       playlistItemId: z.string(),
@@ -150,8 +150,8 @@ const StateSchema = z.object({
         kind: z.string(),
         playlistId: z.string(),
         videoId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     promotedItem: z.object({
       adTag: z.string(),
       clickTrackingUrl: z.string(),
@@ -163,7 +163,7 @@ const StateSchema = z.object({
       forecastingUrl: z.array(z.string()),
       impressionUrl: z.array(z.string()),
       videoId: z.string(),
-    }),
+    }).partial(),
     recommendation: z.object({
       reason: z.string(),
       resourceId: z.object({
@@ -171,14 +171,14 @@ const StateSchema = z.object({
         kind: z.string(),
         playlistId: z.string(),
         videoId: z.string(),
-      }),
+      }).partial(),
       seedResourceId: z.object({
         channelId: z.string(),
         kind: z.string(),
         playlistId: z.string(),
         videoId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     social: z.object({
       author: z.string(),
       imageUrl: z.string(),
@@ -188,21 +188,21 @@ const StateSchema = z.object({
         kind: z.string(),
         playlistId: z.string(),
         videoId: z.string(),
-      }),
+      }).partial(),
       type: z.string(),
-    }),
+    }).partial(),
     subscription: z.object({
       resourceId: z.object({
         channelId: z.string(),
         kind: z.string(),
         playlistId: z.string(),
         videoId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     upload: z.object({
       videoId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -217,51 +217,51 @@ const StateSchema = z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       fhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       high: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       maxres: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       medium: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       qhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       shortsAspectRatio: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       standard: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       uhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     title: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -305,7 +305,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Activities. Registered at `@swamp/gcp/youtube/activities`. */
 export const model = {
   type: "@swamp/gcp/youtube/activities",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -454,6 +454,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

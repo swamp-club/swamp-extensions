@@ -97,14 +97,14 @@ const StateSchema = z.object({
   impressionCount: z.object({
     value: z.string(),
     variance: z.string(),
-  }).optional(),
+  }).partial().optional(),
   rowDimensions: z.object({
     publisherIdentifier: z.string(),
     timeInterval: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -148,7 +148,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Bidders.FilterSets.BidResponseErrors. Registered at `@swamp/gcp/adexchangebuyer2/bidders-filtersets-bidresponseerrors`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/bidders-filtersets-bidresponseerrors",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -267,6 +267,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

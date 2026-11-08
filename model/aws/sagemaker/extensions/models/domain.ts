@@ -740,6 +740,153 @@ const UnifiedStudioSettingsSchema = z.object({
     ).optional(),
 });
 
+const ResourceSpecStateSchema = z.object({
+  InstanceType: z.string(),
+  SageMakerImageArn: z.string(),
+  SageMakerImageVersionArn: z.string(),
+  LifecycleConfigArn: z.string(),
+  TrainingPlanArn: z.string(),
+}).partial();
+
+const JupyterServerAppSettingsStateSchema = z.object({
+  DefaultResourceSpec: ResourceSpecStateSchema,
+  LifecycleConfigArns: z.array(z.string()),
+}).partial();
+
+const CustomImageStateSchema = z.object({
+  AppImageConfigName: z.string(),
+  ImageName: z.string(),
+  ImageVersionNumber: z.number(),
+}).partial();
+
+const KernelGatewayAppSettingsStateSchema = z.object({
+  CustomImages: z.array(CustomImageStateSchema),
+  DefaultResourceSpec: ResourceSpecStateSchema,
+  LifecycleConfigArns: z.array(z.string()),
+}).partial();
+
+const RStudioServerProAppSettingsStateSchema = z.object({
+  AccessStatus: z.string(),
+  UserGroup: z.string(),
+}).partial();
+
+const RSessionAppSettingsStateSchema = z.object({
+  CustomImages: z.array(CustomImageStateSchema),
+  DefaultResourceSpec: ResourceSpecStateSchema,
+}).partial();
+
+const CodeRepositoryStateSchema = z.object({
+  RepositoryUrl: z.string(),
+}).partial();
+
+const IdleSettingsStateSchema = z.object({
+  LifecycleManagement: z.string(),
+  IdleTimeoutInMinutes: z.number(),
+  MinIdleTimeoutInMinutes: z.number(),
+  MaxIdleTimeoutInMinutes: z.number(),
+}).partial();
+
+const AppLifecycleManagementStateSchema = z.object({
+  IdleSettings: IdleSettingsStateSchema,
+}).partial();
+
+const JupyterLabAppSettingsStateSchema = z.object({
+  DefaultResourceSpec: ResourceSpecStateSchema,
+  LifecycleConfigArns: z.array(z.string()),
+  CodeRepositories: z.array(CodeRepositoryStateSchema),
+  CustomImages: z.array(CustomImageStateSchema),
+  AppLifecycleManagement: AppLifecycleManagementStateSchema,
+  BuiltInLifecycleConfigArn: z.string(),
+}).partial();
+
+const DefaultEbsStorageSettingsStateSchema = z.object({
+  DefaultEbsVolumeSizeInGb: z.number(),
+  MaximumEbsVolumeSizeInGb: z.number(),
+}).partial();
+
+const DefaultSpaceStorageSettingsStateSchema = z.object({
+  DefaultEbsStorageSettings: DefaultEbsStorageSettingsStateSchema,
+}).partial();
+
+const CodeEditorAppSettingsStateSchema = z.object({
+  DefaultResourceSpec: ResourceSpecStateSchema,
+  LifecycleConfigArns: z.array(z.string()),
+  CustomImages: z.array(CustomImageStateSchema),
+  AppLifecycleManagement: AppLifecycleManagementStateSchema,
+  BuiltInLifecycleConfigArn: z.string(),
+}).partial();
+
+const HiddenSageMakerImageStateSchema = z.object({
+  SageMakerImageName: z.string(),
+  VersionAliases: z.array(z.string()),
+}).partial();
+
+const StudioWebPortalSettingsStateSchema = z.object({
+  HiddenMlTools: z.array(z.string()),
+  HiddenAppTypes: z.array(z.string()),
+  HiddenInstanceTypes: z.array(z.string()),
+  HiddenSageMakerImageVersionAliases: z.array(HiddenSageMakerImageStateSchema),
+}).partial();
+
+const CustomPosixUserConfigStateSchema = z.object({
+  Uid: z.number(),
+  Gid: z.number(),
+}).partial();
+
+const EFSFileSystemConfigStateSchema = z.object({
+  FileSystemPath: z.string(),
+  FileSystemId: z.string(),
+}).partial();
+
+const FSxLustreFileSystemConfigStateSchema = z.object({
+  FileSystemPath: z.string(),
+  FileSystemId: z.string(),
+}).partial();
+
+const S3FileSystemConfigStateSchema = z.object({
+  MountPath: z.string(),
+  S3Uri: z.string(),
+}).partial();
+
+const CustomFileSystemConfigStateSchema = z.object({
+  EFSFileSystemConfig: EFSFileSystemConfigStateSchema,
+  FSxLustreFileSystemConfig: FSxLustreFileSystemConfigStateSchema,
+  S3FileSystemConfig: S3FileSystemConfigStateSchema,
+}).partial();
+
+const SharingSettingsStateSchema = z.object({
+  NotebookOutputOption: z.string(),
+  S3KmsKeyId: z.string(),
+  S3OutputPath: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const RStudioServerProDomainSettingsStateSchema = z.object({
+  DomainExecutionRoleArn: z.string(),
+  RStudioConnectUrl: z.string(),
+  RStudioPackageManagerUrl: z.string(),
+  DefaultResourceSpec: ResourceSpecStateSchema,
+}).partial();
+
+const DockerSettingsStateSchema = z.object({
+  EnableDockerAccess: z.string(),
+  VpcOnlyTrustedAccounts: z.array(z.string()),
+}).partial();
+
+const UnifiedStudioSettingsStateSchema = z.object({
+  StudioWebPortalAccess: z.string(),
+  DomainAccountId: z.string(),
+  DomainRegion: z.string(),
+  DomainId: z.string(),
+  ProjectId: z.string(),
+  EnvironmentId: z.string(),
+  ProjectS3Path: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -897,35 +1044,35 @@ const StateSchema = z.object({
   DefaultUserSettings: z.object({
     ExecutionRole: z.string(),
     AutoMountHomeEFS: z.string(),
-    JupyterServerAppSettings: JupyterServerAppSettingsSchema,
-    KernelGatewayAppSettings: KernelGatewayAppSettingsSchema,
-    RStudioServerProAppSettings: RStudioServerProAppSettingsSchema,
-    RSessionAppSettings: RSessionAppSettingsSchema,
-    JupyterLabAppSettings: JupyterLabAppSettingsSchema,
-    SpaceStorageSettings: DefaultSpaceStorageSettingsSchema,
-    CodeEditorAppSettings: CodeEditorAppSettingsSchema,
-    StudioWebPortalSettings: StudioWebPortalSettingsSchema,
+    JupyterServerAppSettings: JupyterServerAppSettingsStateSchema,
+    KernelGatewayAppSettings: KernelGatewayAppSettingsStateSchema,
+    RStudioServerProAppSettings: RStudioServerProAppSettingsStateSchema,
+    RSessionAppSettings: RSessionAppSettingsStateSchema,
+    JupyterLabAppSettings: JupyterLabAppSettingsStateSchema,
+    SpaceStorageSettings: DefaultSpaceStorageSettingsStateSchema,
+    CodeEditorAppSettings: CodeEditorAppSettingsStateSchema,
+    StudioWebPortalSettings: StudioWebPortalSettingsStateSchema,
     DefaultLandingUri: z.string(),
     StudioWebPortal: z.string(),
-    CustomPosixUserConfig: CustomPosixUserConfigSchema,
-    CustomFileSystemConfigs: z.array(CustomFileSystemConfigSchema),
+    CustomPosixUserConfig: CustomPosixUserConfigStateSchema,
+    CustomFileSystemConfigs: z.array(CustomFileSystemConfigStateSchema),
     SecurityGroups: z.array(z.string()),
-    SharingSettings: SharingSettingsSchema,
-  }).optional(),
+    SharingSettings: SharingSettingsStateSchema,
+  }).partial().optional(),
   DefaultSpaceSettings: z.object({
     ExecutionRole: z.string(),
-    JupyterServerAppSettings: JupyterServerAppSettingsSchema,
-    KernelGatewayAppSettings: KernelGatewayAppSettingsSchema,
+    JupyterServerAppSettings: JupyterServerAppSettingsStateSchema,
+    KernelGatewayAppSettings: KernelGatewayAppSettingsStateSchema,
     SecurityGroups: z.array(z.string()),
-    JupyterLabAppSettings: JupyterLabAppSettingsSchema,
-    SpaceStorageSettings: DefaultSpaceStorageSettingsSchema,
-    CustomPosixUserConfig: CustomPosixUserConfigSchema,
-    CustomFileSystemConfigs: z.array(CustomFileSystemConfigSchema),
-  }).optional(),
+    JupyterLabAppSettings: JupyterLabAppSettingsStateSchema,
+    SpaceStorageSettings: DefaultSpaceStorageSettingsStateSchema,
+    CustomPosixUserConfig: CustomPosixUserConfigStateSchema,
+    CustomFileSystemConfigs: z.array(CustomFileSystemConfigStateSchema),
+  }).partial().optional(),
   DomainName: z.string().optional(),
   KmsKeyId: z.string().optional(),
   SubnetIds: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   VpcId: z.string().optional(),
   DomainId: z.string(),
   HomeEfsFileSystemId: z.string().optional(),
@@ -933,19 +1080,19 @@ const StateSchema = z.object({
   SingleSignOnApplicationArn: z.string().optional(),
   DomainSettings: z.object({
     SecurityGroupIds: z.array(z.string()),
-    RStudioServerProDomainSettings: RStudioServerProDomainSettingsSchema,
-    DockerSettings: DockerSettingsSchema,
+    RStudioServerProDomainSettings: RStudioServerProDomainSettingsStateSchema,
+    DockerSettings: DockerSettingsStateSchema,
     ExecutionRoleIdentityConfig: z.string(),
-    UnifiedStudioSettings: UnifiedStudioSettingsSchema,
+    UnifiedStudioSettings: UnifiedStudioSettingsStateSchema,
     IpAddressType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AppSecurityGroupManagement: z.string().optional(),
   SecurityGroupIdForDomainBoundary: z.string().optional(),
   TagPropagation: z.string().optional(),
   HomeEfsFileSystemCreation: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -1105,7 +1252,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Domain. Registered at `@swamp/aws/sagemaker/domain`. */
 export const model = {
   type: "@swamp/aws/sagemaker/domain",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1194,6 +1341,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

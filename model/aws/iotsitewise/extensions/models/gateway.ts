@@ -69,6 +69,25 @@ const GatewayCapabilitySummarySchema = z.object({
   ).optional(),
 });
 
+const GreengrassV2StateSchema = z.object({
+  CoreDeviceThingName: z.string(),
+  CoreDeviceOperatingSystem: z.string(),
+}).partial();
+
+const SiemensIEStateSchema = z.object({
+  IotCoreThingName: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const GatewayCapabilitySummaryStateSchema = z.object({
+  CapabilityNamespace: z.string(),
+  CapabilityConfiguration: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -111,17 +130,17 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   GatewayName: z.string().optional(),
   GatewayPlatform: z.object({
-    GreengrassV2: GreengrassV2Schema,
-    SiemensIE: SiemensIESchema,
-  }).optional(),
+    GreengrassV2: GreengrassV2StateSchema,
+    SiemensIE: SiemensIEStateSchema,
+  }).partial().optional(),
   GatewayVersion: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   GatewayId: z.string(),
-  GatewayCapabilitySummaries: z.array(GatewayCapabilitySummarySchema)
+  GatewayCapabilitySummaries: z.array(GatewayCapabilitySummaryStateSchema)
     .optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -171,7 +190,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Gateway. Registered at `@swamp/aws/iotsitewise/gateway`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/gateway",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +254,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

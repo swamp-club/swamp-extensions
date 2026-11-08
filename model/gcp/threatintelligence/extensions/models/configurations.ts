@@ -121,7 +121,7 @@ const StateSchema = z.object({
     creator: z.string(),
     updateTime: z.string(),
     updater: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   detail: z.object({
     customThreatScenario: z.object({
@@ -130,7 +130,7 @@ const StateSchema = z.object({
       documentQuery: z.object({
         query: z.string(),
         queryType: z.string(),
-      }),
+      }).partial(),
       legacyMonitorMetadata: z.object({
         aggregationEnabled: z.boolean(),
         aggregationSimilarity: z.number(),
@@ -148,135 +148,159 @@ const StateSchema = z.object({
         tenantId: z.string(),
         updaterUserId: z.string(),
         version: z.number(),
-      }),
+      }).partial(),
       scenarioType: z.string(),
-    }),
+    }).partial(),
     customerProfile: z.object({
-      brands: z.array(z.object({
-        brand: z.string(),
-        citationIds: z.array(z.unknown()),
-        id: z.string(),
-      })),
-      citations: z.array(z.object({
-        citationId: z.string(),
-        document: z.string(),
-        retrievalTime: z.string(),
-        source: z.string(),
-        uri: z.string(),
-      })),
-      contactInfo: z.array(z.object({
-        address: z.string(),
-        citationIds: z.array(z.unknown()),
-        email: z.string(),
-        label: z.string(),
-        other: z.string(),
-        phone: z.string(),
-      })),
-      executives: z.array(z.object({
-        citationIds: z.array(z.unknown()),
-        name: z.string(),
-        title: z.string(),
-      })),
-      industries: z.array(z.object({
-        citationIds: z.array(z.unknown()),
-        industry: z.string(),
-      })),
-      locations: z.array(z.object({
-        address: z.string(),
-        brand: z.string(),
-        citationIds: z.array(z.unknown()),
-        facilityType: z.string(),
-      })),
+      brands: z.array(
+        z.object({
+          brand: z.string(),
+          citationIds: z.array(z.unknown()),
+          id: z.string(),
+        }).partial(),
+      ),
+      citations: z.array(
+        z.object({
+          citationId: z.string(),
+          document: z.string(),
+          retrievalTime: z.string(),
+          source: z.string(),
+          uri: z.string(),
+        }).partial(),
+      ),
+      contactInfo: z.array(
+        z.object({
+          address: z.string(),
+          citationIds: z.array(z.unknown()),
+          email: z.string(),
+          label: z.string(),
+          other: z.string(),
+          phone: z.string(),
+        }).partial(),
+      ),
+      executives: z.array(
+        z.object({
+          citationIds: z.array(z.unknown()),
+          name: z.string(),
+          title: z.string(),
+        }).partial(),
+      ),
+      industries: z.array(
+        z.object({
+          citationIds: z.array(z.unknown()),
+          industry: z.string(),
+        }).partial(),
+      ),
+      locations: z.array(
+        z.object({
+          address: z.string(),
+          brand: z.string(),
+          citationIds: z.array(z.unknown()),
+          facilityType: z.string(),
+        }).partial(),
+      ),
       org: z.string(),
       orgSummary: z.string(),
-      parentCompanies: z.array(z.object({
-        citationIds: z.array(z.unknown()),
-        company: z.string(),
-      })),
-      products: z.array(z.object({
-        brand: z.string(),
-        citationIds: z.array(z.unknown()),
-        product: z.string(),
-      })),
+      parentCompanies: z.array(
+        z.object({
+          citationIds: z.array(z.unknown()),
+          company: z.string(),
+        }).partial(),
+      ),
+      products: z.array(
+        z.object({
+          brand: z.string(),
+          citationIds: z.array(z.unknown()),
+          product: z.string(),
+        }).partial(),
+      ),
       securityConsiderations: z.object({
         considerations: z.array(z.string()),
         note: z.string(),
-      }),
+      }).partial(),
       summary: z.object({
         areaServed: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         brands: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         entityType: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         founded: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         headquarters: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         industry: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         keyPeopleSummary: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         parentCompany: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         primaryWebsite: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         productsSummary: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         servicesSummary: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
+        }).partial(),
         title: z.object({
           citationIds: z.array(z.unknown()),
           value: z.string(),
-        }),
-      }),
-      technologies: z.array(z.object({
-        citationIds: z.array(z.unknown()),
-        technology: z.string(),
-      })),
+        }).partial(),
+      }).partial(),
+      technologies: z.array(
+        z.object({
+          citationIds: z.array(z.unknown()),
+          technology: z.string(),
+        }).partial(),
+      ),
       technologyPresence: z.string(),
-      webPresences: z.array(z.object({
-        citationIds: z.array(z.unknown()),
-        domain: z.string(),
-      })),
-    }),
+      webPresences: z.array(
+        z.object({
+          citationIds: z.array(z.unknown()),
+          domain: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     detailType: z.string(),
     domainConfiguration: z.object({
-      domainSettings: z.array(z.object({
-        domain: z.string(),
-        domainMonitoringConfig: z.object({
-          disabled: z.unknown(),
-        }),
-        state: z.string(),
-      })),
-    }),
+      domainSettings: z.array(
+        z.object({
+          domain: z.string(),
+          domainMonitoringConfig: z.object({
+            disabled: z.unknown(),
+          }).partial(),
+          state: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     domainMonitoring: z.object({
-      domains: z.array(z.object({
-        domain: z.string(),
-      })),
-    }),
+      domains: z.array(
+        z.object({
+          domain: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     technologyWatchlist: z.object({
       alertThreshold: z.object({
         cvssScoreMinimum: z.number(),
@@ -284,10 +308,10 @@ const StateSchema = z.object({
         exploitationStates: z.array(z.string()),
         priorityMinimum: z.string(),
         riskRatingMinimum: z.string(),
-      }),
+      }).partial(),
       technologies: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
   name: z.string(),
@@ -337,7 +361,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Threat Intelligence Configurations. Registered at `@swamp/gcp/threatintelligence/configurations`. */
 export const model = {
   type: "@swamp/gcp/threatintelligence/configurations",
-  version: "2026.11.03.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -526,6 +550,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

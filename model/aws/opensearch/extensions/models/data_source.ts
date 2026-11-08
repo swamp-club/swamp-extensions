@@ -46,6 +46,10 @@ const S3GlueDataCatalogSchema = z.object({
   ),
 });
 
+const S3GlueDataCatalogStateSchema = z.object({
+  RoleArn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -81,13 +85,13 @@ const StateSchema = z.object({
   DomainName: z.string().optional(),
   Name: z.string().optional(),
   DataSourceType: z.object({
-    S3GlueDataCatalog: S3GlueDataCatalogSchema,
-  }).optional(),
+    S3GlueDataCatalog: S3GlueDataCatalogStateSchema,
+  }).partial().optional(),
   Description: z.string().optional(),
   Status: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -128,7 +132,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearch DataSource. Registered at `@swamp/aws/opensearch/data-source`. */
 export const model = {
   type: "@swamp/aws/opensearch/data-source",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -152,6 +156,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

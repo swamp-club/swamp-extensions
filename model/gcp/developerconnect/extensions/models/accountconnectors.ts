@@ -293,10 +293,10 @@ const StateSchema = z.object({
     serverVersion: z.string(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     sslCaCertificate: z.string(),
     tokenUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -304,11 +304,11 @@ const StateSchema = z.object({
   providerOauthConfig: z.object({
     scopes: z.array(z.string()),
     systemProviderId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   proxyConfig: z.object({
     enabled: z.boolean(),
     httpProxyBaseUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -440,7 +440,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Developer Connect AccountConnectors. Registered at `@swamp/gcp/developerconnect/accountconnectors`. */
 export const model = {
   type: "@swamp/gcp/developerconnect/accountconnectors",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -624,6 +624,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

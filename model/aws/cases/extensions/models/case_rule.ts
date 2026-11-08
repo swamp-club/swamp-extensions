@@ -104,6 +104,44 @@ const TagSchema = z.object({
   ),
 });
 
+const BooleanOperandsStateSchema = z.object({
+  OperandOne: z.object({
+    FieldId: z.string(),
+  }).partial(),
+  OperandTwo: z.object({
+    StringValue: z.string(),
+    BooleanValue: z.boolean(),
+    DoubleValue: z.number(),
+    EmptyValue: z.record(z.string(), z.unknown()),
+  }).partial(),
+  Result: z.boolean(),
+}).partial();
+
+const RequiredCaseRuleStateSchema = z.object({
+  DefaultValue: z.boolean(),
+  Conditions: z.array(
+    z.object({
+      EqualTo: BooleanOperandsStateSchema,
+      NotEqualTo: BooleanOperandsStateSchema,
+    }).partial(),
+  ),
+}).partial();
+
+const HiddenCaseRuleStateSchema = z.object({
+  DefaultValue: z.boolean(),
+  Conditions: z.array(
+    z.object({
+      EqualTo: BooleanOperandsStateSchema,
+      NotEqualTo: BooleanOperandsStateSchema,
+    }).partial(),
+  ),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -151,15 +189,15 @@ const StateSchema = z.object({
   DomainId: z.string().optional(),
   Name: z.string().optional(),
   Rule: z.object({
-    Required: RequiredCaseRuleSchema,
-    Hidden: HiddenCaseRuleSchema,
-  }).optional(),
+    Required: RequiredCaseRuleStateSchema,
+    Hidden: HiddenCaseRuleStateSchema,
+  }).partial().optional(),
   CreatedTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -210,7 +248,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cases CaseRule. Registered at `@swamp/aws/cases/case-rule`. */
 export const model = {
   type: "@swamp/aws/cases/case-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -279,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

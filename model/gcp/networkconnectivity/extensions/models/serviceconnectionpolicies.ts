@@ -249,7 +249,7 @@ const StateSchema = z.object({
     internalRangeRef: z.string(),
     subnetwork: z.string(),
     subnetworkRef: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
@@ -262,31 +262,33 @@ const StateSchema = z.object({
     limit: z.string(),
     producerInstanceLocation: z.string(),
     subnetworks: z.array(z.string()),
-  }).optional(),
-  pscConnections: z.array(z.object({
-    consumerAddress: z.string(),
-    consumerForwardingRule: z.string(),
-    consumerTargetProject: z.string(),
-    error: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    errorInfo: z.object({
-      domain: z.string(),
-      metadata: z.record(z.string(), z.unknown()),
-      reason: z.string(),
-    }),
-    errorType: z.string(),
-    gceOperation: z.string(),
-    ipVersion: z.string(),
-    producerInstanceId: z.string(),
-    producerInstanceMetadata: z.record(z.string(), z.unknown()),
-    pscConnectionId: z.string(),
-    selectedSubnetwork: z.string(),
-    serviceClass: z.string(),
-    state: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  pscConnections: z.array(
+    z.object({
+      consumerAddress: z.string(),
+      consumerForwardingRule: z.string(),
+      consumerTargetProject: z.string(),
+      error: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      errorInfo: z.object({
+        domain: z.string(),
+        metadata: z.record(z.string(), z.unknown()),
+        reason: z.string(),
+      }).partial(),
+      errorType: z.string(),
+      gceOperation: z.string(),
+      ipVersion: z.string(),
+      producerInstanceId: z.string(),
+      producerInstanceMetadata: z.record(z.string(), z.unknown()),
+      pscConnectionId: z.string(),
+      selectedSubnetwork: z.string(),
+      serviceClass: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   serviceClass: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -381,7 +383,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity ServiceConnectionPolicies. Registered at `@swamp/gcp/networkconnectivity/serviceconnectionpolicies`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/serviceconnectionpolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -523,6 +525,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -58,6 +58,26 @@ const InstanceTypeSpecificationSchema = z.object({
   EbsOptimized: z.boolean().optional(),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const TagSpecificationStateSchema = z.object({
+  ResourceType: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const InstanceTypeSpecificationStateSchema = z.object({
+  Priority: z.number(),
+  AvailabilityZoneId: z.string(),
+  AvailabilityZone: z.string(),
+  InstancePlatform: z.string(),
+  InstanceType: z.string(),
+  Weight: z.number(),
+  EbsOptimized: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -90,17 +110,17 @@ const StateSchema = z.object({
   Tenancy: z.string().optional(),
   TotalTargetCapacity: z.number().optional(),
   CapacityReservationFleetId: z.string(),
-  TagSpecifications: z.array(TagSpecificationSchema).optional(),
+  TagSpecifications: z.array(TagSpecificationStateSchema).optional(),
   RemoveEndDate: z.boolean().optional(),
   EndDate: z.string().optional(),
   AllocationStrategy: z.string().optional(),
   NoRemoveEndDate: z.boolean().optional(),
-  InstanceTypeSpecifications: z.array(InstanceTypeSpecificationSchema)
+  InstanceTypeSpecifications: z.array(InstanceTypeSpecificationStateSchema)
     .optional(),
   InstanceMatchCriteria: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -139,7 +159,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 CapacityReservationFleet. Registered at `@swamp/aws/ec2/capacity-reservation-fleet`. */
 export const model = {
   type: "@swamp/aws/ec2/capacity-reservation-fleet",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -208,6 +228,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

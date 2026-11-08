@@ -67,6 +67,29 @@ const EntityRecognitionConfigSchema = z.object({
   EntityTypes: z.array(EntityTypesListItemSchema).optional(),
 });
 
+const VpcConfigStateSchema = z.object({
+  SecurityGroupIds: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const DocumentClassificationConfigStateSchema = z.object({
+  Mode: z.string(),
+  Labels: z.array(z.string()),
+}).partial();
+
+const EntityTypesListItemStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const EntityRecognitionConfigStateSchema = z.object({
+  EntityTypes: z.array(EntityTypesListItemStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -120,20 +143,20 @@ const StateSchema = z.object({
     ModelKmsKeyId: z.string(),
     VolumeKmsKeyId: z.string(),
     DataLakeKmsKeyId: z.string(),
-    VpcConfig: VpcConfigSchema,
-  }).optional(),
+    VpcConfig: VpcConfigStateSchema,
+  }).partial().optional(),
   FlywheelName: z.string().optional(),
   ModelType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TaskConfig: z.object({
     LanguageCode: z.string(),
-    DocumentClassificationConfig: DocumentClassificationConfigSchema,
-    EntityRecognitionConfig: EntityRecognitionConfigSchema,
-  }).optional(),
+    DocumentClassificationConfig: DocumentClassificationConfigStateSchema,
+    EntityRecognitionConfig: EntityRecognitionConfigStateSchema,
+  }).partial().optional(),
   Arn: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -189,7 +212,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Comprehend Flywheel. Registered at `@swamp/aws/comprehend/flywheel`. */
 export const model = {
   type: "@swamp/aws/comprehend/flywheel",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -253,6 +276,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

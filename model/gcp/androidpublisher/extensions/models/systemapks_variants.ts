@@ -164,12 +164,12 @@ const StateSchema = z.object({
     screenDensity: z.number(),
     supportedAbis: z.array(z.string()),
     supportedLocales: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   options: z.object({
     rotated: z.boolean(),
     uncompressedDexFiles: z.boolean(),
     uncompressedNativeLibraries: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   variantId: z.number().optional(),
 }).passthrough();
 
@@ -234,7 +234,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Systemapks.Variants. Registered at `@swamp/gcp/androidpublisher/systemapks-variants`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/systemapks-variants",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -358,6 +358,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

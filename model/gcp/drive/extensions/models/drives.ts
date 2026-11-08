@@ -239,7 +239,7 @@ const StateSchema = z.object({
     width: z.number(),
     xCoordinate: z.number(),
     yCoordinate: z.number(),
-  }).optional(),
+  }).partial().optional(),
   backgroundImageLink: z.string().optional(),
   capabilities: z.object({
     canAddChildren: z.boolean(),
@@ -263,7 +263,7 @@ const StateSchema = z.object({
     canResetDriveRestrictions: z.boolean(),
     canShare: z.boolean(),
     canTrashChildren: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   colorRgb: z.string().optional(),
   createdTime: z.string().optional(),
   hidden: z.boolean().optional(),
@@ -278,10 +278,10 @@ const StateSchema = z.object({
     downloadRestriction: z.object({
       restrictedForReaders: z.boolean(),
       restrictedForWriters: z.boolean(),
-    }),
+    }).partial(),
     driveMembersOnly: z.boolean(),
     sharingFoldersRequiresOrganizerPermission: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   themeId: z.string().optional(),
 }).passthrough();
 
@@ -385,7 +385,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Drives. Registered at `@swamp/gcp/drive/drives`. */
 export const model = {
   type: "@swamp/gcp/drive/drives",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -569,6 +569,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

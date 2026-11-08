@@ -871,111 +871,131 @@ const StateSchema = z.object({
   accountId: z.string().optional(),
   criteria: z.object({
     activities: z.object({
-      filters: z.array(z.object({
-        dimensionName: z.string(),
-        etag: z.string(),
-        id: z.string(),
-        kind: z.string(),
-        matchType: z.string(),
-        value: z.string(),
-      })),
+      filters: z.array(
+        z.object({
+          dimensionName: z.string(),
+          etag: z.string(),
+          id: z.string(),
+          kind: z.string(),
+          matchType: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       kind: z.string(),
       metricNames: z.array(z.string()),
-    }),
+    }).partial(),
     customRichMediaEvents: z.object({
-      filteredEventIds: z.array(z.object({
-        dimensionName: z.string(),
-        etag: z.string(),
-        id: z.string(),
-        kind: z.string(),
-        matchType: z.string(),
-        value: z.string(),
-      })),
+      filteredEventIds: z.array(
+        z.object({
+          dimensionName: z.string(),
+          etag: z.string(),
+          id: z.string(),
+          kind: z.string(),
+          matchType: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       kind: z.string(),
-    }),
+    }).partial(),
     dateRange: z.object({
       endDate: z.string(),
       kind: z.string(),
       relativeDateRange: z.string(),
       startDate: z.string(),
-    }),
-    dimensionFilters: z.array(z.object({
-      dimensionName: z.string(),
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      matchType: z.string(),
-      value: z.string(),
-    })),
-    dimensions: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-      sortOrder: z.string(),
-    })),
+    }).partial(),
+    dimensionFilters: z.array(
+      z.object({
+        dimensionName: z.string(),
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        matchType: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+    dimensions: z.array(
+      z.object({
+        kind: z.string(),
+        name: z.string(),
+        sortOrder: z.string(),
+      }).partial(),
+    ),
     metricNames: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   crossMediaReachCriteria: z.object({
     dateRange: z.object({
       endDate: z.string(),
       kind: z.string(),
       relativeDateRange: z.string(),
       startDate: z.string(),
-    }),
-    dimensionFilters: z.array(z.object({
-      dimensionName: z.string(),
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      matchType: z.string(),
-      value: z.string(),
-    })),
-    dimensions: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-      sortOrder: z.string(),
-    })),
+    }).partial(),
+    dimensionFilters: z.array(
+      z.object({
+        dimensionName: z.string(),
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        matchType: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+    dimensions: z.array(
+      z.object({
+        kind: z.string(),
+        name: z.string(),
+        sortOrder: z.string(),
+      }).partial(),
+    ),
     metricNames: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   delivery: z.object({
     emailOwner: z.boolean(),
     emailOwnerDeliveryType: z.string(),
     message: z.string(),
-    recipients: z.array(z.object({
-      deliveryType: z.string(),
-      email: z.string(),
-      kind: z.string(),
-    })),
-  }).optional(),
+    recipients: z.array(
+      z.object({
+        deliveryType: z.string(),
+        email: z.string(),
+        kind: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   etag: z.string().optional(),
   fileName: z.string().optional(),
   floodlightCriteria: z.object({
-    customRichMediaEvents: z.array(z.object({
-      dimensionName: z.string(),
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      matchType: z.string(),
-      value: z.string(),
-    })),
+    customRichMediaEvents: z.array(
+      z.object({
+        dimensionName: z.string(),
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        matchType: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     dateRange: z.object({
       endDate: z.string(),
       kind: z.string(),
       relativeDateRange: z.string(),
       startDate: z.string(),
-    }),
-    dimensionFilters: z.array(z.object({
-      dimensionName: z.string(),
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      matchType: z.string(),
-      value: z.string(),
-    })),
-    dimensions: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-      sortOrder: z.string(),
-    })),
+    }).partial(),
+    dimensionFilters: z.array(
+      z.object({
+        dimensionName: z.string(),
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        matchType: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+    dimensions: z.array(
+      z.object({
+        kind: z.string(),
+        name: z.string(),
+        sortOrder: z.string(),
+      }).partial(),
+    ),
     floodlightConfigId: z.object({
       dimensionName: z.string(),
       etag: z.string(),
@@ -983,14 +1003,14 @@ const StateSchema = z.object({
       kind: z.string(),
       matchType: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     metricNames: z.array(z.string()),
     reportProperties: z.object({
       includeAttributedIPConversions: z.boolean(),
       includeUnattributedCookieConversions: z.boolean(),
       includeUnattributedIPConversions: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   format: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -998,38 +1018,46 @@ const StateSchema = z.object({
   name: z.string(),
   ownerProfileId: z.string().optional(),
   pathToConversionCriteria: z.object({
-    activityFilters: z.array(z.object({
-      dimensionName: z.string(),
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      matchType: z.string(),
-      value: z.string(),
-    })),
-    conversionDimensions: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-      sortOrder: z.string(),
-    })),
-    customFloodlightVariables: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-      sortOrder: z.string(),
-    })),
-    customRichMediaEvents: z.array(z.object({
-      dimensionName: z.string(),
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      matchType: z.string(),
-      value: z.string(),
-    })),
+    activityFilters: z.array(
+      z.object({
+        dimensionName: z.string(),
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        matchType: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+    conversionDimensions: z.array(
+      z.object({
+        kind: z.string(),
+        name: z.string(),
+        sortOrder: z.string(),
+      }).partial(),
+    ),
+    customFloodlightVariables: z.array(
+      z.object({
+        kind: z.string(),
+        name: z.string(),
+        sortOrder: z.string(),
+      }).partial(),
+    ),
+    customRichMediaEvents: z.array(
+      z.object({
+        dimensionName: z.string(),
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        matchType: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     dateRange: z.object({
       endDate: z.string(),
       kind: z.string(),
       relativeDateRange: z.string(),
       startDate: z.string(),
-    }),
+    }).partial(),
     floodlightConfigId: z.object({
       dimensionName: z.string(),
       etag: z.string(),
@@ -1037,13 +1065,15 @@ const StateSchema = z.object({
       kind: z.string(),
       matchType: z.string(),
       value: z.string(),
-    }),
+    }).partial(),
     metricNames: z.array(z.string()),
-    perInteractionDimensions: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-      sortOrder: z.string(),
-    })),
+    perInteractionDimensions: z.array(
+      z.object({
+        kind: z.string(),
+        name: z.string(),
+        sortOrder: z.string(),
+      }).partial(),
+    ),
     reportProperties: z.object({
       clicksLookbackWindow: z.number(),
       impressionsLookbackWindow: z.number(),
@@ -1054,54 +1084,62 @@ const StateSchema = z.object({
       maximumImpressionInteractions: z.number(),
       maximumInteractionGap: z.number(),
       pivotOnInteractionPath: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   reachCriteria: z.object({
     activities: z.object({
-      filters: z.array(z.object({
-        dimensionName: z.string(),
-        etag: z.string(),
-        id: z.string(),
-        kind: z.string(),
-        matchType: z.string(),
-        value: z.string(),
-      })),
+      filters: z.array(
+        z.object({
+          dimensionName: z.string(),
+          etag: z.string(),
+          id: z.string(),
+          kind: z.string(),
+          matchType: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       kind: z.string(),
       metricNames: z.array(z.string()),
-    }),
+    }).partial(),
     customRichMediaEvents: z.object({
-      filteredEventIds: z.array(z.object({
-        dimensionName: z.string(),
-        etag: z.string(),
-        id: z.string(),
-        kind: z.string(),
-        matchType: z.string(),
-        value: z.string(),
-      })),
+      filteredEventIds: z.array(
+        z.object({
+          dimensionName: z.string(),
+          etag: z.string(),
+          id: z.string(),
+          kind: z.string(),
+          matchType: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
       kind: z.string(),
-    }),
+    }).partial(),
     dateRange: z.object({
       endDate: z.string(),
       kind: z.string(),
       relativeDateRange: z.string(),
       startDate: z.string(),
-    }),
-    dimensionFilters: z.array(z.object({
-      dimensionName: z.string(),
-      etag: z.string(),
-      id: z.string(),
-      kind: z.string(),
-      matchType: z.string(),
-      value: z.string(),
-    })),
-    dimensions: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-      sortOrder: z.string(),
-    })),
+    }).partial(),
+    dimensionFilters: z.array(
+      z.object({
+        dimensionName: z.string(),
+        etag: z.string(),
+        id: z.string(),
+        kind: z.string(),
+        matchType: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+    dimensions: z.array(
+      z.object({
+        kind: z.string(),
+        name: z.string(),
+        sortOrder: z.string(),
+      }).partial(),
+    ),
     metricNames: z.array(z.string()),
     reachByFrequencyMetricNames: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   schedule: z.object({
     active: z.boolean(),
     every: z.number(),
@@ -1111,7 +1149,7 @@ const StateSchema = z.object({
     runsOnDayOfMonth: z.string(),
     startDate: z.string(),
     timezone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   subAccountId: z.string().optional(),
   type: z.string().optional(),
 }).passthrough();
@@ -1846,7 +1884,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 Reports. Registered at `@swamp/gcp/dfareporting/reports`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1985,6 +2023,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

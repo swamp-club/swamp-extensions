@@ -156,7 +156,7 @@ const StateSchema = z.object({
     failedResourceCount: z.string(),
     matchingResourceCount: z.string(),
     protectedResourceCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
@@ -222,7 +222,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service AutoProtectionPolicies.Bindings. Registered at `@swamp/gcp/backupdr/autoprotectionpolicies-bindings`. */
 export const model = {
   type: "@swamp/gcp/backupdr/autoprotectionpolicies-bindings",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -232,6 +232,11 @@ export const model = {
     {
       toVersion: "2026.10.28.1",
       description: "Added: requestId",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

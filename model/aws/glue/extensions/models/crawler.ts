@@ -151,6 +151,62 @@ const HudiTargetSchema = z.object({
   ).optional(),
 });
 
+const S3TargetStateSchema = z.object({
+  ConnectionName: z.string(),
+  Path: z.string(),
+  SampleSize: z.number(),
+  Exclusions: z.array(z.string()),
+  DlqEventQueueArn: z.string(),
+  EventQueueArn: z.string(),
+}).partial();
+
+const CatalogTargetStateSchema = z.object({
+  ConnectionName: z.string(),
+  DatabaseName: z.string(),
+  DlqEventQueueArn: z.string(),
+  Tables: z.array(z.string()),
+  EventQueueArn: z.string(),
+}).partial();
+
+const DeltaTargetStateSchema = z.object({
+  ConnectionName: z.string(),
+  CreateNativeDeltaTable: z.boolean(),
+  WriteManifest: z.boolean(),
+  DeltaTables: z.array(z.string()),
+}).partial();
+
+const MongoDBTargetStateSchema = z.object({
+  ConnectionName: z.string(),
+  Path: z.string(),
+}).partial();
+
+const JdbcTargetStateSchema = z.object({
+  ConnectionName: z.string(),
+  Path: z.string(),
+  Exclusions: z.array(z.string()),
+  EnableAdditionalMetadata: z.array(z.string()),
+}).partial();
+
+const DynamoDBTargetStateSchema = z.object({
+  Path: z.string(),
+  ScanAll: z.boolean(),
+  ScanRate: z.number(),
+}).partial();
+
+const IcebergTargetStateSchema = z.object({
+  ConnectionName: z.string(),
+  Paths: z.array(z.string()),
+  Exclusions: z.array(z.string()),
+  MaximumTraversalDepth: z.number(),
+}).partial();
+
+const HudiTargetStateSchema = z.object({
+  ConnectionName: z.string(),
+  Paths: z.array(z.string()),
+  Exclusions: z.array(z.string()),
+  MaximumTraversalDepth: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -254,37 +310,37 @@ const StateSchema = z.object({
   SchemaChangePolicy: z.object({
     UpdateBehavior: z.string(),
     DeleteBehavior: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Configuration: z.string().optional(),
   RecrawlPolicy: z.object({
     RecrawlBehavior: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DatabaseName: z.string().optional(),
   Targets: z.object({
-    S3Targets: z.array(S3TargetSchema),
-    CatalogTargets: z.array(CatalogTargetSchema),
-    DeltaTargets: z.array(DeltaTargetSchema),
-    MongoDBTargets: z.array(MongoDBTargetSchema),
-    JdbcTargets: z.array(JdbcTargetSchema),
-    DynamoDBTargets: z.array(DynamoDBTargetSchema),
-    IcebergTargets: z.array(IcebergTargetSchema),
-    HudiTargets: z.array(HudiTargetSchema),
-  }).optional(),
+    S3Targets: z.array(S3TargetStateSchema),
+    CatalogTargets: z.array(CatalogTargetStateSchema),
+    DeltaTargets: z.array(DeltaTargetStateSchema),
+    MongoDBTargets: z.array(MongoDBTargetStateSchema),
+    JdbcTargets: z.array(JdbcTargetStateSchema),
+    DynamoDBTargets: z.array(DynamoDBTargetStateSchema),
+    IcebergTargets: z.array(IcebergTargetStateSchema),
+    HudiTargets: z.array(HudiTargetStateSchema),
+  }).partial().optional(),
   CrawlerSecurityConfiguration: z.string().optional(),
   Name: z.string(),
   Role: z.string().optional(),
   LakeFormationConfiguration: z.object({
     UseLakeFormationCredentials: z.boolean(),
     AccountId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Schedule: z.object({
     ScheduleExpression: z.string(),
-  }).optional(),
+  }).partial().optional(),
   TablePrefix: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -394,7 +450,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Crawler. Registered at `@swamp/aws/glue/crawler`. */
 export const model = {
   type: "@swamp/aws/glue/crawler",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -463,6 +519,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

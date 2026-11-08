@@ -226,73 +226,81 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   createTime: z.string().optional(),
-  deployedIndexes: z.array(z.object({
-    automaticResources: z.object({
-      maxReplicaCount: z.number(),
-      minReplicaCount: z.number(),
-    }),
-    createTime: z.string(),
-    dedicatedResources: z.object({
-      autoscalingMetricSpecs: z.array(z.object({
-        metricName: z.unknown(),
-        target: z.unknown(),
-      })),
-      machineSpec: z.object({
-        acceleratorCount: z.number(),
-        acceleratorType: z.string(),
-        gpuPartitionSize: z.string(),
-        machineType: z.string(),
-        reservationAffinity: z.object({
-          key: z.unknown(),
-          reservationAffinityType: z.unknown(),
-          values: z.unknown(),
-        }),
-        tpuTopology: z.string(),
-      }),
-      maxReplicaCount: z.number(),
-      minReplicaCount: z.number(),
-      requiredReplicaCount: z.number(),
-      spot: z.boolean(),
-    }),
-    deployedIndexAuthConfig: z.object({
-      authProvider: z.object({
-        allowedIssuers: z.array(z.unknown()),
-        audiences: z.array(z.unknown()),
-      }),
-    }),
-    deploymentGroup: z.string(),
-    deploymentTier: z.string(),
-    displayName: z.string(),
-    enableAccessLogging: z.boolean(),
-    enableDatapointUpsertLogging: z.boolean(),
-    id: z.string(),
-    index: z.string(),
-    indexSyncTime: z.string(),
-    privateEndpoints: z.object({
-      matchGrpcAddress: z.string(),
-      pscAutomatedEndpoints: z.array(z.object({
-        matchAddress: z.unknown(),
-        network: z.unknown(),
-        projectId: z.unknown(),
-      })),
-      serviceAttachment: z.string(),
-    }),
-    pscAutomationConfigs: z.array(z.object({
-      errorMessage: z.string(),
-      forwardingRule: z.string(),
-      ipAddress: z.string(),
-      network: z.string(),
-      projectId: z.string(),
-      state: z.string(),
-    })),
-    reservedIpRanges: z.array(z.string()),
-  })).optional(),
+  deployedIndexes: z.array(
+    z.object({
+      automaticResources: z.object({
+        maxReplicaCount: z.number(),
+        minReplicaCount: z.number(),
+      }).partial(),
+      createTime: z.string(),
+      dedicatedResources: z.object({
+        autoscalingMetricSpecs: z.array(
+          z.object({
+            metricName: z.unknown(),
+            target: z.unknown(),
+          }).partial(),
+        ),
+        machineSpec: z.object({
+          acceleratorCount: z.number(),
+          acceleratorType: z.string(),
+          gpuPartitionSize: z.string(),
+          machineType: z.string(),
+          reservationAffinity: z.object({
+            key: z.unknown(),
+            reservationAffinityType: z.unknown(),
+            values: z.unknown(),
+          }).partial(),
+          tpuTopology: z.string(),
+        }).partial(),
+        maxReplicaCount: z.number(),
+        minReplicaCount: z.number(),
+        requiredReplicaCount: z.number(),
+        spot: z.boolean(),
+      }).partial(),
+      deployedIndexAuthConfig: z.object({
+        authProvider: z.object({
+          allowedIssuers: z.array(z.unknown()),
+          audiences: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+      deploymentGroup: z.string(),
+      deploymentTier: z.string(),
+      displayName: z.string(),
+      enableAccessLogging: z.boolean(),
+      enableDatapointUpsertLogging: z.boolean(),
+      id: z.string(),
+      index: z.string(),
+      indexSyncTime: z.string(),
+      privateEndpoints: z.object({
+        matchGrpcAddress: z.string(),
+        pscAutomatedEndpoints: z.array(
+          z.object({
+            matchAddress: z.unknown(),
+            network: z.unknown(),
+            projectId: z.unknown(),
+          }).partial(),
+        ),
+        serviceAttachment: z.string(),
+      }).partial(),
+      pscAutomationConfigs: z.array(
+        z.object({
+          errorMessage: z.string(),
+          forwardingRule: z.string(),
+          ipAddress: z.string(),
+          network: z.string(),
+          projectId: z.string(),
+          state: z.string(),
+        }).partial(),
+      ),
+      reservedIpRanges: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   enablePrivateServiceConnect: z.boolean().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -300,16 +308,18 @@ const StateSchema = z.object({
   privateServiceConnectConfig: z.object({
     enablePrivateServiceConnect: z.boolean(),
     projectAllowlist: z.array(z.string()),
-    pscAutomationConfigs: z.array(z.object({
-      errorMessage: z.string(),
-      forwardingRule: z.string(),
-      ipAddress: z.string(),
-      network: z.string(),
-      projectId: z.string(),
-      state: z.string(),
-    })),
+    pscAutomationConfigs: z.array(
+      z.object({
+        errorMessage: z.string(),
+        forwardingRule: z.string(),
+        ipAddress: z.string(),
+        network: z.string(),
+        projectId: z.string(),
+        state: z.string(),
+      }).partial(),
+    ),
     serviceAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   publicEndpointDomainName: z.string().optional(),
   publicEndpointEnabled: z.boolean().optional(),
   satisfiesPzi: z.boolean().optional(),
@@ -417,7 +427,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform IndexEndpoints. Registered at `@swamp/gcp/aiplatform/indexendpoints`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/indexendpoints",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -601,6 +611,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

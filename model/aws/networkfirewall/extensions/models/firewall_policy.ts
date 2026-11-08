@@ -90,6 +90,52 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(255).regex(new RegExp("^.*$")),
 });
 
+const DimensionStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const PublishMetricActionStateSchema = z.object({
+  Dimensions: z.array(DimensionStateSchema),
+}).partial();
+
+const ActionDefinitionStateSchema = z.object({
+  PublishMetricAction: PublishMetricActionStateSchema,
+}).partial();
+
+const CustomActionStateSchema = z.object({
+  ActionName: z.string(),
+  ActionDefinition: ActionDefinitionStateSchema,
+}).partial();
+
+const StatelessRuleGroupReferenceStateSchema = z.object({
+  ResourceArn: z.string(),
+  Priority: z.number(),
+}).partial();
+
+const StatefulRuleGroupOverrideStateSchema = z.object({
+  Action: z.string(),
+}).partial();
+
+const StatefulRuleGroupReferenceStateSchema = z.object({
+  ResourceArn: z.string(),
+  Priority: z.number(),
+  Override: StatefulRuleGroupOverrideStateSchema,
+  DeepThreatInspection: z.boolean(),
+}).partial();
+
+const StatefulEngineOptionsStateSchema = z.object({
+  RuleOrder: z.string(),
+  StreamExceptionPolicy: z.string(),
+  FlowTimeouts: z.object({
+    TcpIdleTimeoutSeconds: z.number(),
+  }).partial(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -137,23 +183,25 @@ const StateSchema = z.object({
   FirewallPolicy: z.object({
     StatelessDefaultActions: z.array(z.string()),
     StatelessFragmentDefaultActions: z.array(z.string()),
-    StatelessCustomActions: z.array(CustomActionSchema),
-    StatelessRuleGroupReferences: z.array(StatelessRuleGroupReferenceSchema),
-    StatefulRuleGroupReferences: z.array(StatefulRuleGroupReferenceSchema),
+    StatelessCustomActions: z.array(CustomActionStateSchema),
+    StatelessRuleGroupReferences: z.array(
+      StatelessRuleGroupReferenceStateSchema,
+    ),
+    StatefulRuleGroupReferences: z.array(StatefulRuleGroupReferenceStateSchema),
     StatefulDefaultActions: z.array(z.string()),
-    StatefulEngineOptions: StatefulEngineOptionsSchema,
+    StatefulEngineOptions: StatefulEngineOptionsStateSchema,
     PolicyVariables: z.object({
       RuleVariables: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     TLSInspectionConfigurationArn: z.string(),
     EnableTLSSessionHolding: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   FirewallPolicyId: z.string().optional(),
   Description: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -205,7 +253,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkFirewall FirewallPolicy. Registered at `@swamp/aws/networkfirewall/firewall-policy`. */
 export const model = {
   type: "@swamp/aws/networkfirewall/firewall-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -269,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

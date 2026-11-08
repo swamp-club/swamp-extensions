@@ -342,52 +342,56 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   network: z.string().optional(),
   pscInterfaceConfig: z.object({
-    dnsPeeringConfigs: z.array(z.object({
-      domain: z.string(),
-      targetNetwork: z.string(),
-      targetProject: z.string(),
-    })),
+    dnsPeeringConfigs: z.array(
+      z.object({
+        domain: z.string(),
+        targetNetwork: z.string(),
+        targetProject: z.string(),
+      }).partial(),
+    ),
     networkAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reservedIpRanges: z.array(z.string()).optional(),
-  resourcePools: z.array(z.object({
-    autoscalingSpec: z.object({
-      maxReplicaCount: z.string(),
-      minReplicaCount: z.string(),
-    }),
-    diskSpec: z.object({
-      bootDiskSizeGb: z.number(),
-      bootDiskType: z.string(),
-    }),
-    id: z.string(),
-    machineSpec: z.object({
-      acceleratorCount: z.number(),
-      acceleratorType: z.string(),
-      gpuPartitionSize: z.string(),
-      machineType: z.string(),
-      reservationAffinity: z.object({
-        key: z.string(),
-        reservationAffinityType: z.string(),
-        values: z.array(z.unknown()),
-      }),
-      tpuTopology: z.string(),
-    }),
-    replicaCount: z.string(),
-    usedReplicaCount: z.string(),
-  })).optional(),
+  resourcePools: z.array(
+    z.object({
+      autoscalingSpec: z.object({
+        maxReplicaCount: z.string(),
+        minReplicaCount: z.string(),
+      }).partial(),
+      diskSpec: z.object({
+        bootDiskSizeGb: z.number(),
+        bootDiskType: z.string(),
+      }).partial(),
+      id: z.string(),
+      machineSpec: z.object({
+        acceleratorCount: z.number(),
+        acceleratorType: z.string(),
+        gpuPartitionSize: z.string(),
+        machineType: z.string(),
+        reservationAffinity: z.object({
+          key: z.string(),
+          reservationAffinityType: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+        tpuTopology: z.string(),
+      }).partial(),
+      replicaCount: z.string(),
+      usedReplicaCount: z.string(),
+    }).partial(),
+  ).optional(),
   resourceRuntime: z.object({
     accessUris: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   resourceRuntimeSpec: z.object({
     raySpec: z.object({
       headNodeResourcePoolId: z.string(),
@@ -395,21 +399,21 @@ const StateSchema = z.object({
       rayClusterAutoscalingSpec: z.object({
         idleTimeoutMinutes: z.string(),
         upscalingSpeed: z.string(),
-      }),
+      }).partial(),
       rayLogsSpec: z.object({
         disabled: z.boolean(),
-      }),
+      }).partial(),
       rayMetricSpec: z.object({
         disabled: z.boolean(),
         enableUsageStatsCollection: z.boolean(),
-      }),
+      }).partial(),
       resourcePoolImages: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     serviceAccountSpec: z.object({
       enableCustomServiceAccount: z.boolean(),
       serviceAccount: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   startTime: z.string().optional(),
@@ -635,7 +639,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform PersistentResources. Registered at `@swamp/gcp/aiplatform/persistentresources`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/persistentresources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -828,6 +832,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

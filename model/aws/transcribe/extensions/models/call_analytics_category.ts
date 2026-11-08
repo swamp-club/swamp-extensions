@@ -96,6 +96,64 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const AbsoluteTimeRangeStateSchema = z.object({
+  StartTime: z.number(),
+  EndTime: z.number(),
+  First: z.number(),
+  Last: z.number(),
+}).partial();
+
+const RelativeTimeRangeStateSchema = z.object({
+  StartPercentage: z.number(),
+  EndPercentage: z.number(),
+  First: z.number(),
+  Last: z.number(),
+}).partial();
+
+const NonTalkTimeFilterStateSchema = z.object({
+  Threshold: z.number(),
+  AbsoluteTimeRange: AbsoluteTimeRangeStateSchema,
+  RelativeTimeRange: RelativeTimeRangeStateSchema,
+  Negate: z.boolean(),
+}).partial();
+
+const InterruptionFilterStateSchema = z.object({
+  Threshold: z.number(),
+  ParticipantRole: z.string(),
+  AbsoluteTimeRange: AbsoluteTimeRangeStateSchema,
+  RelativeTimeRange: RelativeTimeRangeStateSchema,
+  Negate: z.boolean(),
+}).partial();
+
+const TranscriptFilterStateSchema = z.object({
+  TranscriptFilterType: z.string(),
+  AbsoluteTimeRange: AbsoluteTimeRangeStateSchema,
+  RelativeTimeRange: RelativeTimeRangeStateSchema,
+  ParticipantRole: z.string(),
+  Negate: z.boolean(),
+  Targets: z.array(z.string()),
+}).partial();
+
+const SentimentFilterStateSchema = z.object({
+  Sentiments: z.array(z.string()),
+  AbsoluteTimeRange: AbsoluteTimeRangeStateSchema,
+  RelativeTimeRange: RelativeTimeRangeStateSchema,
+  ParticipantRole: z.string(),
+  Negate: z.boolean(),
+}).partial();
+
+const RuleStateSchema = z.object({
+  NonTalkTimeFilter: NonTalkTimeFilterStateSchema,
+  InterruptionFilter: InterruptionFilterStateSchema,
+  TranscriptFilter: TranscriptFilterStateSchema,
+  SentimentFilter: SentimentFilterStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -129,14 +187,14 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Arn: z.string(),
   CategoryName: z.string().optional(),
-  Rules: z.array(RuleSchema).optional(),
+  Rules: z.array(RuleStateSchema).optional(),
   InputType: z.string().optional(),
   CreateTime: z.string().optional(),
   LastUpdateTime: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -177,7 +235,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transcribe CallAnalyticsCategory. Registered at `@swamp/aws/transcribe/call-analytics-category`. */
 export const model = {
   type: "@swamp/aws/transcribe/call-analytics-category",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -191,6 +249,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

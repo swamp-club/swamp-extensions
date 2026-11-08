@@ -120,20 +120,24 @@ const StateSchema = z.object({
   lastRunId: z.string().optional(),
   name: z.string(),
   osPolicyAssignment: z.string().optional(),
-  osPolicyCompliances: z.array(z.object({
-    complianceState: z.string(),
-    complianceStateReason: z.string(),
-    osPolicyId: z.string(),
-    osPolicyResourceCompliances: z.array(z.object({
+  osPolicyCompliances: z.array(
+    z.object({
       complianceState: z.string(),
       complianceStateReason: z.string(),
-      configSteps: z.array(z.unknown()),
-      execResourceOutput: z.object({
-        enforcementOutput: z.unknown(),
-      }),
-      osPolicyResourceId: z.string(),
-    })),
-  })).optional(),
+      osPolicyId: z.string(),
+      osPolicyResourceCompliances: z.array(
+        z.object({
+          complianceState: z.string(),
+          complianceStateReason: z.string(),
+          configSteps: z.array(z.unknown()),
+          execResourceOutput: z.object({
+            enforcementOutput: z.unknown(),
+          }).partial(),
+          osPolicyResourceId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -181,7 +185,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud OS Config Instances.OsPolicyAssignments.Reports. Registered at `@swamp/gcp/osconfig/instances-ospolicyassignments-reports`. */
 export const model = {
   type: "@swamp/gcp/osconfig/instances-ospolicyassignments-reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -200,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -514,16 +514,18 @@ const StateSchema = z.object({
   aclPolicy: z.string().optional(),
   aclPolicyInSync: z.boolean().optional(),
   aclPolicyInfo: z.object({
-    aclPolicyRevisionStatuses: z.array(z.object({
-      aclPolicyRevision: z.string(),
-      aclPolicyRevisionNumber: z.string(),
-      errorMessage: z.string(),
-      state: z.string(),
-    })),
+    aclPolicyRevisionStatuses: z.array(
+      z.object({
+        aclPolicyRevision: z.string(),
+        aclPolicyRevisionNumber: z.string(),
+        errorMessage: z.string(),
+        state: z.string(),
+      }).partial(),
+    ),
     appliedAclPolicy: z.string(),
     appliedAclPolicyRevision: z.string(),
     appliedAclPolicyRevisionNumber: z.string(),
-  }).optional(),
+  }).partial().optional(),
   allowFewerZonesDeployment: z.boolean().optional(),
   asyncClusterEndpointsDeletionEnabled: z.boolean().optional(),
   authorizationMode: z.string().optional(),
@@ -535,37 +537,41 @@ const StateSchema = z.object({
         minutes: z.number(),
         nanos: z.number(),
         seconds: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     retention: z.string(),
-  }).optional(),
+  }).partial().optional(),
   availableMaintenanceVersions: z.array(z.string()).optional(),
   backupCollection: z.string().optional(),
-  clusterEndpoints: z.array(z.object({
-    connections: z.array(z.object({
-      pscAutoConnection: z.object({
-        address: z.unknown(),
-        connectionType: z.unknown(),
-        forwardingRule: z.unknown(),
-        network: z.unknown(),
-        projectId: z.unknown(),
-        pscConnectionId: z.unknown(),
-        pscConnectionStatus: z.unknown(),
-        serviceAttachment: z.unknown(),
-      }),
-      pscConnection: z.object({
-        address: z.unknown(),
-        connectionType: z.unknown(),
-        forwardingRule: z.unknown(),
-        network: z.unknown(),
-        port: z.unknown(),
-        projectId: z.unknown(),
-        pscConnectionId: z.unknown(),
-        pscConnectionStatus: z.unknown(),
-        serviceAttachment: z.unknown(),
-      }),
-    })),
-  })).optional(),
+  clusterEndpoints: z.array(
+    z.object({
+      connections: z.array(
+        z.object({
+          pscAutoConnection: z.object({
+            address: z.unknown(),
+            connectionType: z.unknown(),
+            forwardingRule: z.unknown(),
+            network: z.unknown(),
+            projectId: z.unknown(),
+            pscConnectionId: z.unknown(),
+            pscConnectionStatus: z.unknown(),
+            serviceAttachment: z.unknown(),
+          }).partial(),
+          pscConnection: z.object({
+            address: z.unknown(),
+            connectionType: z.unknown(),
+            forwardingRule: z.unknown(),
+            network: z.unknown(),
+            port: z.unknown(),
+            projectId: z.unknown(),
+            pscConnectionId: z.unknown(),
+            pscConnectionStatus: z.unknown(),
+            serviceAttachment: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   crossClusterReplicationConfig: z.object({
     clusterRole: z.string(),
@@ -573,95 +579,109 @@ const StateSchema = z.object({
       primaryCluster: z.object({
         cluster: z.string(),
         uid: z.string(),
-      }),
-      secondaryClusters: z.array(z.object({
-        cluster: z.string(),
-        uid: z.string(),
-      })),
-    }),
+      }).partial(),
+      secondaryClusters: z.array(
+        z.object({
+          cluster: z.string(),
+          uid: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     primaryCluster: z.object({
       cluster: z.string(),
       uid: z.string(),
-    }),
-    secondaryClusters: z.array(z.object({
-      cluster: z.string(),
-      uid: z.string(),
-    })),
+    }).partial(),
+    secondaryClusters: z.array(
+      z.object({
+        cluster: z.string(),
+        uid: z.string(),
+      }).partial(),
+    ),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deletionProtectionEnabled: z.boolean().optional(),
-  discoveryEndpoints: z.array(z.object({
-    address: z.string(),
-    port: z.number(),
-    pscConfig: z.object({
-      network: z.string(),
-    }),
-  })).optional(),
+  discoveryEndpoints: z.array(
+    z.object({
+      address: z.string(),
+      port: z.number(),
+      pscConfig: z.object({
+        network: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   effectiveMaintenanceVersion: z.string().optional(),
   encryptionInfo: z.object({
     encryptionType: z.string(),
     kmsKeyPrimaryState: z.string(),
     kmsKeyVersions: z.array(z.string()),
     lastUpdateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcsSource: z.object({
     uris: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   kmsKey: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   maintenancePolicy: z.object({
     createTime: z.string(),
     updateTime: z.string(),
-    weeklyMaintenanceWindow: z.array(z.object({
-      day: z.string(),
-      startTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
-  }).optional(),
+    weeklyMaintenanceWindow: z.array(
+      z.object({
+        day: z.string(),
+        startTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   maintenanceSchedule: z.object({
     endTime: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   maintenanceVersion: z.string().optional(),
   managedBackupSource: z.object({
     backup: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   nodeType: z.string().optional(),
   ondemandMaintenance: z.boolean().optional(),
   persistenceConfig: z.object({
     aofConfig: z.object({
       appendFsync: z.string(),
-    }),
+    }).partial(),
     mode: z.string(),
     rdbConfig: z.object({
       rdbSnapshotPeriod: z.string(),
       rdbSnapshotStartTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   preciseSizeGb: z.number().optional(),
-  pscConfigs: z.array(z.object({
-    network: z.string(),
-  })).optional(),
-  pscConnections: z.array(z.object({
-    address: z.string(),
-    connectionType: z.string(),
-    forwardingRule: z.string(),
-    network: z.string(),
-    port: z.number(),
-    projectId: z.string(),
-    pscConnectionId: z.string(),
-    pscConnectionStatus: z.string(),
-    serviceAttachment: z.string(),
-  })).optional(),
-  pscServiceAttachments: z.array(z.object({
-    connectionType: z.string(),
-    serviceAttachment: z.string(),
-  })).optional(),
+  pscConfigs: z.array(
+    z.object({
+      network: z.string(),
+    }).partial(),
+  ).optional(),
+  pscConnections: z.array(
+    z.object({
+      address: z.string(),
+      connectionType: z.string(),
+      forwardingRule: z.string(),
+      network: z.string(),
+      port: z.number(),
+      projectId: z.string(),
+      pscConnectionId: z.string(),
+      pscConnectionStatus: z.string(),
+      serviceAttachment: z.string(),
+    }).partial(),
+  ).optional(),
+  pscServiceAttachments: z.array(
+    z.object({
+      connectionType: z.string(),
+      serviceAttachment: z.string(),
+    }).partial(),
+  ).optional(),
   redisConfigs: z.record(z.string(), z.unknown()).optional(),
   replicaCount: z.number().optional(),
   rotateServerCertificate: z.boolean().optional(),
@@ -678,8 +698,8 @@ const StateSchema = z.object({
       targetNodeType: z.string(),
       targetReplicaCount: z.number(),
       targetShardCount: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   transitEncryptionMode: z.string().optional(),
   uid: z.string().optional(),
   zoneDistributionConfig: z.object({
@@ -687,7 +707,7 @@ const StateSchema = z.object({
     mode: z.string(),
     zone: z.string(),
     zones: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1072,7 +1092,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Cloud Memorystore for Redis Clusters. Registered at `@swamp/gcp/redis/clusters`. */
 export const model = {
   type: "@swamp/gcp/redis/clusters",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1274,6 +1294,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

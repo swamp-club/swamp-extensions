@@ -101,6 +101,52 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const WeightedTargetGroupStateSchema = z.object({
+  TargetGroupIdentifier: z.string(),
+  Weight: z.number(),
+}).partial();
+
+const ForwardStateSchema = z.object({
+  TargetGroups: z.array(WeightedTargetGroupStateSchema),
+}).partial();
+
+const FixedResponseStateSchema = z.object({
+  StatusCode: z.number(),
+}).partial();
+
+const PathMatchTypeStateSchema = z.object({
+  Exact: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const PathMatchStateSchema = z.object({
+  Match: PathMatchTypeStateSchema,
+  CaseSensitive: z.boolean(),
+}).partial();
+
+const HeaderMatchTypeStateSchema = z.object({
+  Exact: z.string(),
+  Prefix: z.string(),
+  Contains: z.string(),
+}).partial();
+
+const HeaderMatchStateSchema = z.object({
+  Name: z.string(),
+  Match: HeaderMatchTypeStateSchema,
+  CaseSensitive: z.boolean(),
+}).partial();
+
+const HttpMatchStateSchema = z.object({
+  Method: z.string(),
+  PathMatch: PathMatchStateSchema,
+  HeaderMatches: z.array(HeaderMatchStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -142,18 +188,23 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Action: ForwardSchema.optional(),
+  Action: z.object({
+    Forward: ForwardStateSchema,
+    FixedResponse: FixedResponseStateSchema,
+  }).partial().optional(),
   Arn: z.string(),
   Id: z.string().optional(),
   ListenerIdentifier: z.string().optional(),
-  Match: HttpMatchSchema.optional(),
+  Match: z.object({
+    HttpMatch: HttpMatchStateSchema,
+  }).partial().optional(),
   Name: z.string().optional(),
   Priority: z.number().optional(),
   ServiceIdentifier: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -204,7 +255,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for VpcLattice Rule. Registered at `@swamp/aws/vpclattice/rule`. */
 export const model = {
   type: "@swamp/aws/vpclattice/rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -278,6 +329,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

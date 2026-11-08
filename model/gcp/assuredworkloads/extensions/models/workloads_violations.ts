@@ -138,11 +138,13 @@ const StateSchema = z.object({
   childResourceViolationCount: z.number().optional(),
   description: z.string().optional(),
   exceptionAuditLogLink: z.string().optional(),
-  exceptionContexts: z.array(z.object({
-    acknowledgementTime: z.string(),
-    comment: z.string(),
-    userName: z.string(),
-  })).optional(),
+  exceptionContexts: z.array(
+    z.object({
+      acknowledgementTime: z.string(),
+      comment: z.string(),
+      userName: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   nonCompliantOrgPolicy: z.string().optional(),
   orgPolicyConstraint: z.string().optional(),
@@ -154,15 +156,15 @@ const StateSchema = z.object({
         additionalLinks: z.array(z.string()),
         consoleUris: z.array(z.string()),
         steps: z.array(z.string()),
-      }),
+      }).partial(),
       gcloudInstructions: z.object({
         additionalLinks: z.array(z.string()),
         gcloudCommands: z.array(z.string()),
         steps: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     remediationType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   remediationMarkdown: z.string().optional(),
   resolveTime: z.string().optional(),
   resourceName: z.string().optional(),
@@ -213,7 +215,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads Workloads.Violations. Registered at `@swamp/gcp/assuredworkloads/workloads-violations`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/workloads-violations",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -367,6 +369,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

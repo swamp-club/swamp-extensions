@@ -1711,62 +1711,72 @@ const StateSchema = z.object({
     mtePolicy: z.string(),
     personalAppsThatCanReadWorkNotifications: z.array(z.string()),
     untrustedAppsPolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   alwaysOnVpnPackage: z.object({
     lockdownEnabled: z.boolean(),
     packageName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   androidDevicePolicyTracks: z.array(z.string()).optional(),
   appAutoUpdatePolicy: z.string().optional(),
   appFunctions: z.string().optional(),
-  applications: z.array(z.object({
-    accessibleTrackIds: z.array(z.string()),
-    alwaysOnVpnLockdownExemption: z.string(),
-    autoUpdateMode: z.string(),
-    connectedWorkAndPersonalApp: z.string(),
-    credentialProviderPolicy: z.string(),
-    customAppConfig: z.object({
-      userUninstallSettings: z.string(),
-    }),
-    defaultPermissionPolicy: z.string(),
-    delegatedScopes: z.array(z.string()),
-    disabled: z.boolean(),
-    extensionConfig: z.object({
-      notificationReceiver: z.string(),
-      signingKeyFingerprintsSha256: z.array(z.string()),
-    }),
-    installConstraint: z.array(z.object({
-      chargingConstraint: z.string(),
-      deviceIdleConstraint: z.string(),
-      networkTypeConstraint: z.string(),
-    })),
-    installPriority: z.number(),
-    installType: z.string(),
-    lockTaskAllowed: z.boolean(),
-    managedConfiguration: z.record(z.string(), z.unknown()),
-    managedConfigurationTemplate: z.object({
-      configurationVariables: z.record(z.string(), z.unknown()),
-      templateId: z.string(),
-    }),
-    minimumVersionCode: z.number(),
-    packageName: z.string(),
-    permissionGrants: z.array(z.object({
-      permission: z.string(),
-      policy: z.string(),
-    })),
-    preferentialNetworkId: z.string(),
-    roles: z.array(z.object({
-      extraCapabilities: z.object({
-        localDeviceWipeCommand: z.unknown(),
-      }),
-      roleType: z.string(),
-    })),
-    signingKeyCerts: z.array(z.object({
-      signingKeyCertFingerprintSha256: z.string(),
-    })),
-    userControlSettings: z.string(),
-    workProfileWidgets: z.string(),
-  })).optional(),
+  applications: z.array(
+    z.object({
+      accessibleTrackIds: z.array(z.string()),
+      alwaysOnVpnLockdownExemption: z.string(),
+      autoUpdateMode: z.string(),
+      connectedWorkAndPersonalApp: z.string(),
+      credentialProviderPolicy: z.string(),
+      customAppConfig: z.object({
+        userUninstallSettings: z.string(),
+      }).partial(),
+      defaultPermissionPolicy: z.string(),
+      delegatedScopes: z.array(z.string()),
+      disabled: z.boolean(),
+      extensionConfig: z.object({
+        notificationReceiver: z.string(),
+        signingKeyFingerprintsSha256: z.array(z.string()),
+      }).partial(),
+      installConstraint: z.array(
+        z.object({
+          chargingConstraint: z.string(),
+          deviceIdleConstraint: z.string(),
+          networkTypeConstraint: z.string(),
+        }).partial(),
+      ),
+      installPriority: z.number(),
+      installType: z.string(),
+      lockTaskAllowed: z.boolean(),
+      managedConfiguration: z.record(z.string(), z.unknown()),
+      managedConfigurationTemplate: z.object({
+        configurationVariables: z.record(z.string(), z.unknown()),
+        templateId: z.string(),
+      }).partial(),
+      minimumVersionCode: z.number(),
+      packageName: z.string(),
+      permissionGrants: z.array(
+        z.object({
+          permission: z.string(),
+          policy: z.string(),
+        }).partial(),
+      ),
+      preferentialNetworkId: z.string(),
+      roles: z.array(
+        z.object({
+          extraCapabilities: z.object({
+            localDeviceWipeCommand: z.unknown(),
+          }).partial(),
+          roleType: z.string(),
+        }).partial(),
+      ),
+      signingKeyCerts: z.array(
+        z.object({
+          signingKeyCertFingerprintSha256: z.string(),
+        }).partial(),
+      ),
+      userControlSettings: z.string(),
+      workProfileWidgets: z.string(),
+    }).partial(),
+  ).optional(),
   assistContentPolicy: z.string().optional(),
   autoDateAndTimeZone: z.string().optional(),
   autoTimeRequired: z.boolean().optional(),
@@ -1779,23 +1789,27 @@ const StateSchema = z.object({
   cameraAccess: z.string().optional(),
   cameraDisabled: z.boolean().optional(),
   cellBroadcastsConfigDisabled: z.boolean().optional(),
-  choosePrivateKeyRules: z.array(z.object({
-    packageNames: z.array(z.string()),
-    privateKeyAlias: z.string(),
-    urlPattern: z.string(),
-  })).optional(),
-  complianceRules: z.array(z.object({
-    apiLevelCondition: z.object({
-      minApiLevel: z.number(),
-    }),
-    disableApps: z.boolean(),
-    nonComplianceDetailCondition: z.object({
-      nonComplianceReason: z.string(),
-      packageName: z.string(),
-      settingName: z.string(),
-    }),
-    packageNamesToDisable: z.array(z.string()),
-  })).optional(),
+  choosePrivateKeyRules: z.array(
+    z.object({
+      packageNames: z.array(z.string()),
+      privateKeyAlias: z.string(),
+      urlPattern: z.string(),
+    }).partial(),
+  ).optional(),
+  complianceRules: z.array(
+    z.object({
+      apiLevelCondition: z.object({
+        minApiLevel: z.number(),
+      }).partial(),
+      disableApps: z.boolean(),
+      nonComplianceDetailCondition: z.object({
+        nonComplianceReason: z.string(),
+        packageName: z.string(),
+        settingName: z.string(),
+      }).partial(),
+      packageNamesToDisable: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   createWindowsDisabled: z.boolean().optional(),
   credentialProviderPolicyDefault: z.string().optional(),
   credentialsConfigDisabled: z.boolean().optional(),
@@ -1803,87 +1817,99 @@ const StateSchema = z.object({
     nearbyAppStreaming: z.string(),
     nearbyNotificationStreaming: z.string(),
     taskContinuityHandoff: z.string(),
-  }).optional(),
+  }).partial().optional(),
   crossProfilePolicies: z.object({
     crossProfileAppFunctions: z.string(),
     crossProfileCopyPaste: z.string(),
     crossProfileDataSharing: z.string(),
     exemptionsToShowWorkContactsInPersonalProfile: z.object({
       packageNames: z.array(z.string()),
-    }),
+    }).partial(),
     showWorkContactsInPersonalProfile: z.string(),
     workProfileWidgetsDefault: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataRoamingDisabled: z.boolean().optional(),
   debuggingFeaturesAllowed: z.boolean().optional(),
-  defaultApplicationSettings: z.array(z.object({
-    defaultApplicationScopes: z.array(z.string()),
-    defaultApplicationType: z.string(),
-    defaultApplications: z.array(z.object({
-      packageName: z.string(),
-    })),
-  })).optional(),
+  defaultApplicationSettings: z.array(
+    z.object({
+      defaultApplicationScopes: z.array(z.string()),
+      defaultApplicationType: z.string(),
+      defaultApplications: z.array(
+        z.object({
+          packageName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   defaultPermissionPolicy: z.string().optional(),
   deviceConnectivityManagement: z.object({
     apnPolicy: z.object({
-      apnSettings: z.array(z.object({
-        alwaysOnSetting: z.string(),
-        apn: z.string(),
-        apnTypes: z.array(z.unknown()),
-        authType: z.string(),
-        carrierId: z.number(),
-        displayName: z.string(),
-        mmsProxyAddress: z.string(),
-        mmsProxyPort: z.number(),
-        mmsc: z.string(),
-        mtuV4: z.number(),
-        mtuV6: z.number(),
-        mvnoType: z.string(),
-        networkTypes: z.array(z.unknown()),
-        numericOperatorId: z.string(),
-        password: z.string(),
-        protocol: z.string(),
-        proxyAddress: z.string(),
-        proxyPort: z.number(),
-        roamingProtocol: z.string(),
-        username: z.string(),
-      })),
+      apnSettings: z.array(
+        z.object({
+          alwaysOnSetting: z.string(),
+          apn: z.string(),
+          apnTypes: z.array(z.unknown()),
+          authType: z.string(),
+          carrierId: z.number(),
+          displayName: z.string(),
+          mmsProxyAddress: z.string(),
+          mmsProxyPort: z.number(),
+          mmsc: z.string(),
+          mtuV4: z.number(),
+          mtuV6: z.number(),
+          mvnoType: z.string(),
+          networkTypes: z.array(z.unknown()),
+          numericOperatorId: z.string(),
+          password: z.string(),
+          protocol: z.string(),
+          proxyAddress: z.string(),
+          proxyPort: z.number(),
+          roamingProtocol: z.string(),
+          username: z.string(),
+        }).partial(),
+      ),
       overrideApns: z.string(),
-    }),
+    }).partial(),
     bluetoothSharing: z.string(),
     configureWifi: z.string(),
     preferentialNetworkServiceSettings: z.object({
       defaultPreferentialNetworkId: z.string(),
-      preferentialNetworkServiceConfigs: z.array(z.object({
-        fallbackToDefaultConnection: z.string(),
-        nonMatchingNetworks: z.string(),
-        preferentialNetworkId: z.string(),
-      })),
-    }),
+      preferentialNetworkServiceConfigs: z.array(
+        z.object({
+          fallbackToDefaultConnection: z.string(),
+          nonMatchingNetworks: z.string(),
+          preferentialNetworkId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     privateDnsSettings: z.object({
       privateDnsHost: z.string(),
       privateDnsMode: z.string(),
-    }),
+    }).partial(),
     tetheringSettings: z.string(),
     usbDataAccess: z.string(),
     wifiDirectSettings: z.string(),
     wifiRoamingPolicy: z.object({
-      wifiRoamingSettings: z.array(z.object({
-        wifiRoamingMode: z.string(),
-        wifiSsid: z.string(),
-      })),
-    }),
+      wifiRoamingSettings: z.array(
+        z.object({
+          wifiRoamingMode: z.string(),
+          wifiSsid: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     wifiSsidPolicy: z.object({
       wifiSsidPolicyType: z.string(),
-      wifiSsids: z.array(z.object({
-        wifiSsid: z.string(),
-      })),
-    }),
-  }).optional(),
+      wifiSsids: z.array(
+        z.object({
+          wifiSsid: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   deviceOwnerLockScreenInfo: z.object({
     defaultMessage: z.string(),
     localizedMessages: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   deviceRadioState: z.object({
     airplaneModeState: z.string(),
     cellularTwoGState: z.string(),
@@ -1892,22 +1918,22 @@ const StateSchema = z.object({
     ultraWidebandState: z.string(),
     userInitiatedAddEsimSettings: z.string(),
     wifiState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deviceWidePolicies: z.object({
     deviceRadioState: z.object({
       nfc: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   displaySettings: z.object({
     screenBrightnessSettings: z.object({
       screenBrightness: z.number(),
       screenBrightnessMode: z.string(),
-    }),
+    }).partial(),
     screenTimeoutSettings: z.object({
       screenTimeout: z.string(),
       screenTimeoutMode: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   encryptionPolicy: z.string().optional(),
   ensureVerifyAppsEnabled: z.boolean().optional(),
   enterpriseDisplayNameVisibility: z.string().optional(),
@@ -1925,12 +1951,12 @@ const StateSchema = z.object({
     statusBar: z.string(),
     systemErrorWarnings: z.string(),
     systemNavigation: z.string(),
-  }).optional(),
+  }).partial().optional(),
   locationMode: z.string().optional(),
   longSupportMessage: z.object({
     defaultMessage: z.string(),
     localizedMessages: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   maximumTimeToLock: z.string().optional(),
   microphoneAccess: z.string().optional(),
   minimumApiLevel: z.number().optional(),
@@ -1940,33 +1966,37 @@ const StateSchema = z.object({
   name: z.string(),
   networkEscapeHatchEnabled: z.boolean().optional(),
   networkResetDisabled: z.boolean().optional(),
-  oncCertificateProviders: z.array(z.object({
-    certificateReferences: z.array(z.string()),
-    contentProviderEndpoint: z.object({
-      packageName: z.string(),
-      signingCertsSha256: z.array(z.string()),
-      uri: z.string(),
-    }),
-  })).optional(),
+  oncCertificateProviders: z.array(
+    z.object({
+      certificateReferences: z.array(z.string()),
+      contentProviderEndpoint: z.object({
+        packageName: z.string(),
+        signingCertsSha256: z.array(z.string()),
+        uri: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   openNetworkConfiguration: z.record(z.string(), z.unknown()).optional(),
   outgoingBeamDisabled: z.boolean().optional(),
   outgoingCallsDisabled: z.boolean().optional(),
-  passwordPolicies: z.array(z.object({
-    maximumFailedPasswordsForWipe: z.number(),
-    passwordExpirationTimeout: z.string(),
-    passwordHistoryLength: z.number(),
-    passwordMinimumLength: z.number(),
-    passwordMinimumLetters: z.number(),
-    passwordMinimumLowerCase: z.number(),
-    passwordMinimumNonLetter: z.number(),
-    passwordMinimumNumeric: z.number(),
-    passwordMinimumSymbols: z.number(),
-    passwordMinimumUpperCase: z.number(),
-    passwordQuality: z.string(),
-    passwordScope: z.string(),
-    requirePasswordUnlock: z.string(),
-    unifiedLockSettings: z.string(),
-  })).optional(),
+  passwordPolicies: z.array(
+    z.object({
+      maximumFailedPasswordsForWipe: z.number(),
+      passwordExpirationTimeout: z.string(),
+      passwordHistoryLength: z.number(),
+      passwordMinimumLength: z.number(),
+      passwordMinimumLetters: z.number(),
+      passwordMinimumLowerCase: z.number(),
+      passwordMinimumNonLetter: z.number(),
+      passwordMinimumNumeric: z.number(),
+      passwordMinimumSymbols: z.number(),
+      passwordMinimumUpperCase: z.number(),
+      passwordQuality: z.string(),
+      passwordScope: z.string(),
+      requirePasswordUnlock: z.string(),
+      unifiedLockSettings: z.string(),
+    }).partial(),
+  ).optional(),
   passwordRequirements: z.object({
     maximumFailedPasswordsForWipe: z.number(),
     passwordExpirationTimeout: z.string(),
@@ -1982,50 +2012,58 @@ const StateSchema = z.object({
     passwordScope: z.string(),
     requirePasswordUnlock: z.string(),
     unifiedLockSettings: z.string(),
-  }).optional(),
-  permissionGrants: z.array(z.object({
-    permission: z.string(),
-    policy: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  permissionGrants: z.array(
+    z.object({
+      permission: z.string(),
+      policy: z.string(),
+    }).partial(),
+  ).optional(),
   permittedAccessibilityServices: z.object({
     packageNames: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   permittedInputMethods: z.object({
     packageNames: z.array(z.string()),
-  }).optional(),
-  persistentPreferredActivities: z.array(z.object({
-    actions: z.array(z.string()),
-    categories: z.array(z.string()),
-    receiverActivity: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  persistentPreferredActivities: z.array(
+    z.object({
+      actions: z.array(z.string()),
+      categories: z.array(z.string()),
+      receiverActivity: z.string(),
+    }).partial(),
+  ).optional(),
   personalUsagePolicies: z.object({
     accountTypesWithManagementDisabled: z.array(z.string()),
     bluetoothSharing: z.string(),
     cameraDisabled: z.boolean(),
     crossDevicePolicies: z.object({
       taskContinuityHandoff: z.string(),
-    }),
+    }).partial(),
     maxDaysWithWorkOff: z.number(),
-    personalApplications: z.array(z.object({
-      installType: z.string(),
-      packageName: z.string(),
-    })),
+    personalApplications: z.array(
+      z.object({
+        installType: z.string(),
+        packageName: z.string(),
+      }).partial(),
+    ),
     personalPlayStoreMode: z.string(),
     privateSpacePolicy: z.string(),
     screenCaptureDisabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   playStoreMode: z.string().optional(),
-  policyEnforcementRules: z.array(z.object({
-    blockAction: z.object({
-      blockAfterDays: z.number(),
-      blockScope: z.string(),
-    }),
-    settingName: z.string(),
-    wipeAction: z.object({
-      preserveFrp: z.boolean(),
-      wipeAfterDays: z.number(),
-    }),
-  })).optional(),
+  policyEnforcementRules: z.array(
+    z.object({
+      blockAction: z.object({
+        blockAfterDays: z.number(),
+        blockScope: z.string(),
+      }).partial(),
+      settingName: z.string(),
+      wipeAction: z.object({
+        preserveFrp: z.boolean(),
+        wipeAfterDays: z.number(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   preferentialNetworkService: z.string().optional(),
   printingPolicy: z.string().optional(),
   privateKeySelectionEnabled: z.boolean().optional(),
@@ -2034,37 +2072,39 @@ const StateSchema = z.object({
     host: z.string(),
     pacUri: z.string(),
     port: z.number(),
-  }).optional(),
+  }).partial().optional(),
   removeUserDisabled: z.boolean().optional(),
   safeBootDisabled: z.boolean().optional(),
   screenCaptureDisabled: z.boolean().optional(),
   setUserIconDisabled: z.boolean().optional(),
   setWallpaperDisabled: z.boolean().optional(),
-  setupActions: z.array(z.object({
-    description: z.object({
-      defaultMessage: z.string(),
-      localizedMessages: z.record(z.string(), z.unknown()),
-    }),
-    launchApp: z.object({
-      packageName: z.string(),
-    }),
-    title: z.object({
-      defaultMessage: z.string(),
-      localizedMessages: z.record(z.string(), z.unknown()),
-    }),
-  })).optional(),
+  setupActions: z.array(
+    z.object({
+      description: z.object({
+        defaultMessage: z.string(),
+        localizedMessages: z.record(z.string(), z.unknown()),
+      }).partial(),
+      launchApp: z.object({
+        packageName: z.string(),
+      }).partial(),
+      title: z.object({
+        defaultMessage: z.string(),
+        localizedMessages: z.record(z.string(), z.unknown()),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   shareLocationDisabled: z.boolean().optional(),
   shortSupportMessage: z.object({
     defaultMessage: z.string(),
     localizedMessages: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   skipFirstUseHintsEnabled: z.boolean().optional(),
   smsDisabled: z.boolean().optional(),
   statusBarDisabled: z.boolean().optional(),
   statusReportingSettings: z.object({
     applicationReportingSettings: z.object({
       includeRemovedApps: z.boolean(),
-    }),
+    }).partial(),
     applicationReportsEnabled: z.boolean(),
     commonCriteriaModeEnabled: z.boolean(),
     defaultApplicationInfoReportingEnabled: z.boolean(),
@@ -2076,72 +2116,78 @@ const StateSchema = z.object({
     powerManagementEventsEnabled: z.boolean(),
     softwareInfoEnabled: z.boolean(),
     systemPropertiesEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   stayOnPluggedModes: z.array(z.string()).optional(),
   systemUpdate: z.object({
     endMinutes: z.number(),
-    freezePeriods: z.array(z.object({
-      endDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-      startDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-    })),
+    freezePeriods: z.array(
+      z.object({
+        endDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+        startDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     startMinutes: z.number(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tetheringConfigDisabled: z.boolean().optional(),
   unifiedUpdatePolicy: z.object({
-    rules: z.array(z.object({
-      id: z.string(),
-      outcome: z.object({
-        outcomeType: z.string(),
-      }),
-      predicate: z.object({
-        dateLowerBound: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        dateUpperBound: z.object({
-          day: z.unknown(),
-          month: z.unknown(),
-          year: z.unknown(),
-        }),
-        daysOfWeek: z.array(z.unknown()),
-        timeOfDayLowerBound: z.object({
-          hours: z.unknown(),
-          minutes: z.unknown(),
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-        timeOfDayUpperBound: z.object({
-          hours: z.unknown(),
-          minutes: z.unknown(),
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-        updateAgeLowerBound: z.string(),
-        updateAgeUpperBound: z.string(),
-      }),
-      stages: z.array(z.string()),
-      targets: z.array(z.object({
-        singleApp: z.unknown(),
-        targetType: z.unknown(),
-      })),
-    })),
-  }).optional(),
+    rules: z.array(
+      z.object({
+        id: z.string(),
+        outcome: z.object({
+          outcomeType: z.string(),
+        }).partial(),
+        predicate: z.object({
+          dateLowerBound: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          dateUpperBound: z.object({
+            day: z.unknown(),
+            month: z.unknown(),
+            year: z.unknown(),
+          }).partial(),
+          daysOfWeek: z.array(z.unknown()),
+          timeOfDayLowerBound: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          timeOfDayUpperBound: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          updateAgeLowerBound: z.string(),
+          updateAgeUpperBound: z.string(),
+        }).partial(),
+        stages: z.array(z.string()),
+        targets: z.array(
+          z.object({
+            singleApp: z.unknown(),
+            targetType: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+  }).partial().optional(),
   uninstallAppsDisabled: z.boolean().optional(),
   unmuteMicrophoneDisabled: z.boolean().optional(),
   usageLog: z.object({
     enabledLogTypes: z.array(z.string()),
     uploadOnCellularAllowed: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   usbFileTransferDisabled: z.boolean().optional(),
   usbMassStorageEnabled: z.boolean().optional(),
   version: z.string().optional(),
@@ -2152,7 +2198,7 @@ const StateSchema = z.object({
   workAccountSetupConfig: z.object({
     authenticationType: z.string(),
     requiredAccountEmail: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -3749,7 +3795,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3983,6 +4029,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

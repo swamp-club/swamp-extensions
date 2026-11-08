@@ -239,7 +239,7 @@ const StateSchema = z.object({
     frequency: z.string(),
     startTime: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -358,7 +358,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Audit Manager AuditSchedules. Registered at `@swamp/gcp/auditmanager/auditschedules`. */
 export const model = {
   type: "@swamp/gcp/auditmanager/auditschedules",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -373,6 +373,11 @@ export const model = {
     {
       toVersion: "2026.11.05.1",
       description: "Added: parameterOverrides",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

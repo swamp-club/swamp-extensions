@@ -242,11 +242,13 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
-  conditions: z.array(z.object({
-    code: z.number(),
-    details: z.array(z.record(z.string(), z.unknown())),
-    message: z.string(),
-  })).optional(),
+  conditions: z.array(
+    z.object({
+      code: z.number(),
+      details: z.array(z.record(z.string(), z.unknown())),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
   controlPlaneIp: z.string().optional(),
   createTime: z.string().optional(),
   degraded: z.boolean().optional(),
@@ -254,11 +256,11 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   domainConfig: z.object({
     domain: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   gatewayConfig: z.object({
     http2Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   network: z.string().optional(),
@@ -267,7 +269,7 @@ const StateSchema = z.object({
     clusterHostname: z.string(),
     enablePrivateEndpoint: z.boolean(),
     serviceAttachmentUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
   subnetwork: z.string().optional(),
   tags: z.record(z.string(), z.unknown()).optional(),
@@ -377,7 +379,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workstations WorkstationClusters. Registered at `@swamp/gcp/workstations/workstationclusters`. */
 export const model = {
   type: "@swamp/gcp/workstations/workstationclusters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -531,6 +533,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

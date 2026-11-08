@@ -211,20 +211,20 @@ const StateSchema = z.object({
     position: z.object({
       line: z.string(),
       path: z.string(),
-    }),
+    }).partial(),
     reply: z.string(),
     resolved: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   comment: z.object({
     body: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   name: z.string(),
   review: z.object({
     actionType: z.string(),
     body: z.string(),
     effectiveCommitSha: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -311,7 +311,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/securesourcemanager/repositories-pullrequests-pullrequestcomments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -450,6 +450,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

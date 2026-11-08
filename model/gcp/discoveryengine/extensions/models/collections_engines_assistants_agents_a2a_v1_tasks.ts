@@ -92,75 +92,85 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  artifacts: z.array(z.object({
-    artifactId: z.string(),
-    description: z.string(),
-    extensions: z.array(z.string()),
-    metadata: z.record(z.string(), z.unknown()),
-    name: z.string(),
-    parts: z.array(z.object({
-      data: z.object({
-        data: z.unknown(),
-      }),
-      file: z.object({
-        fileWithBytes: z.unknown(),
-        fileWithUri: z.unknown(),
-        mimeType: z.unknown(),
-        name: z.unknown(),
-      }),
+  artifacts: z.array(
+    z.object({
+      artifactId: z.string(),
+      description: z.string(),
+      extensions: z.array(z.string()),
       metadata: z.record(z.string(), z.unknown()),
-      text: z.string(),
-    })),
-  })).optional(),
+      name: z.string(),
+      parts: z.array(
+        z.object({
+          data: z.object({
+            data: z.unknown(),
+          }).partial(),
+          file: z.object({
+            fileWithBytes: z.unknown(),
+            fileWithUri: z.unknown(),
+            mimeType: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+          metadata: z.record(z.string(), z.unknown()),
+          text: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   contextId: z.string().optional(),
-  history: z.array(z.object({
-    content: z.array(z.object({
-      data: z.object({
-        data: z.unknown(),
-      }),
-      file: z.object({
-        fileWithBytes: z.unknown(),
-        fileWithUri: z.unknown(),
-        mimeType: z.unknown(),
-        name: z.unknown(),
-      }),
-      metadata: z.record(z.string(), z.unknown()),
-      text: z.string(),
-    })),
-    contextId: z.string(),
-    extensions: z.array(z.string()),
-    messageId: z.string(),
-    metadata: z.record(z.string(), z.unknown()),
-    role: z.string(),
-    taskId: z.string(),
-  })).optional(),
-  id: z.string().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-  status: z.object({
-    message: z.object({
-      content: z.array(z.object({
-        data: z.object({
-          data: z.unknown(),
-        }),
-        file: z.object({
-          fileWithBytes: z.unknown(),
-          fileWithUri: z.unknown(),
-          mimeType: z.unknown(),
-          name: z.unknown(),
-        }),
-        metadata: z.record(z.string(), z.unknown()),
-        text: z.string(),
-      })),
+  history: z.array(
+    z.object({
+      content: z.array(
+        z.object({
+          data: z.object({
+            data: z.unknown(),
+          }).partial(),
+          file: z.object({
+            fileWithBytes: z.unknown(),
+            fileWithUri: z.unknown(),
+            mimeType: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+          metadata: z.record(z.string(), z.unknown()),
+          text: z.string(),
+        }).partial(),
+      ),
       contextId: z.string(),
       extensions: z.array(z.string()),
       messageId: z.string(),
       metadata: z.record(z.string(), z.unknown()),
       role: z.string(),
       taskId: z.string(),
-    }),
+    }).partial(),
+  ).optional(),
+  id: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  status: z.object({
+    message: z.object({
+      content: z.array(
+        z.object({
+          data: z.object({
+            data: z.unknown(),
+          }).partial(),
+          file: z.object({
+            fileWithBytes: z.unknown(),
+            fileWithUri: z.unknown(),
+            mimeType: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+          metadata: z.record(z.string(), z.unknown()),
+          text: z.string(),
+        }).partial(),
+      ),
+      contextId: z.string(),
+      extensions: z.array(z.string()),
+      messageId: z.string(),
+      metadata: z.record(z.string(), z.unknown()),
+      role: z.string(),
+      taskId: z.string(),
+    }).partial(),
     state: z.string(),
     timestamp: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -205,7 +215,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/discoveryengine/collections-engines-assistants-agents-a2a-v1-tasks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -339,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

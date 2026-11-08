@@ -53,6 +53,16 @@ const TagSchema = z.object({
   ),
 });
 
+const IdentityCenterStateSchema = z.object({
+  InstanceArn: z.string(),
+  ApplicationArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -79,17 +89,17 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   IdentitySource: z.object({
-    IdentityCenter: IdentityCenterSchema,
-  }).optional(),
+    IdentityCenter: IdentityCenterStateSchema,
+  }).partial().optional(),
   ApplicationArn: z.string(),
   Status: z.string().optional(),
   TenantId: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -124,7 +134,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AccountAccess Application. Registered at `@swamp/aws/accountaccess/application`. */
 export const model = {
   type: "@swamp/aws/accountaccess/application",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -148,6 +158,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

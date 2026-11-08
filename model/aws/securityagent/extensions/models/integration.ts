@@ -106,6 +106,40 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
+const GitHubInputStateSchema = z.object({
+  Code: z.string(),
+  State: z.string(),
+  OrganizationName: z.string(),
+  TargetUrl: z.string(),
+  InstallationId: z.string(),
+}).partial();
+
+const GitLabInputStateSchema = z.object({
+  AccessToken: z.string(),
+  TokenType: z.string(),
+  TargetUrl: z.string(),
+  GroupId: z.string(),
+}).partial();
+
+const BitbucketInputStateSchema = z.object({
+  InstallationId: z.string(),
+  Workspace: z.string(),
+  Code: z.string(),
+  State: z.string(),
+}).partial();
+
+const ConfluenceInputStateSchema = z.object({
+  InstallationId: z.string(),
+  Code: z.string(),
+  State: z.string(),
+  SiteUrl: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -160,20 +194,20 @@ const StateSchema = z.object({
   Provider: z.string().optional(),
   ProviderType: z.string().optional(),
   ProviderInput: z.object({
-    Github: GitHubInputSchema,
-    Gitlab: GitLabInputSchema,
-    Bitbucket: BitbucketInputSchema,
-    Confluence: ConfluenceInputSchema,
-  }).optional(),
+    Github: GitHubInputStateSchema,
+    Gitlab: GitLabInputStateSchema,
+    Bitbucket: BitbucketInputStateSchema,
+    Confluence: ConfluenceInputStateSchema,
+  }).partial().optional(),
   DisplayName: z.string().optional(),
   KmsKeyId: z.string().optional(),
   InstallationId: z.string().optional(),
   TargetUrl: z.string().optional(),
   PrivateConnectionName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -232,7 +266,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent Integration. Registered at `@swamp/aws/securityagent/integration`. */
 export const model = {
   type: "@swamp/aws/securityagent/integration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -251,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

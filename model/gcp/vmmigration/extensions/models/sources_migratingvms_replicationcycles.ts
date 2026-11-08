@@ -126,40 +126,46 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   progressPercent: z.number().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
-  steps: z.array(z.object({
-    endTime: z.string(),
-    initializingReplication: z.object({}),
-    postProcessing: z.object({}),
-    replicating: z.object({
-      lastThirtyMinutesAverageBytesPerSecond: z.string(),
-      lastTwoMinutesAverageBytesPerSecond: z.string(),
-      replicatedBytes: z.string(),
-      totalBytes: z.string(),
-    }),
-    startTime: z.string(),
-  })).optional(),
+  steps: z.array(
+    z.object({
+      endTime: z.string(),
+      initializingReplication: z.object({}).partial(),
+      postProcessing: z.object({}).partial(),
+      replicating: z.object({
+        lastThirtyMinutesAverageBytesPerSecond: z.string(),
+        lastTwoMinutesAverageBytesPerSecond: z.string(),
+        replicatedBytes: z.string(),
+        totalBytes: z.string(),
+      }).partial(),
+      startTime: z.string(),
+    }).partial(),
+  ).optional(),
   totalPauseDuration: z.string().optional(),
-  warnings: z.array(z.object({
-    actionItem: z.object({
-      locale: z.string(),
-      message: z.string(),
-    }),
-    code: z.string(),
-    helpLinks: z.array(z.object({
-      description: z.string(),
-      url: z.string(),
-    })),
-    warningMessage: z.object({
-      locale: z.string(),
-      message: z.string(),
-    }),
-    warningTime: z.string(),
-  })).optional(),
+  warnings: z.array(
+    z.object({
+      actionItem: z.object({
+        locale: z.string(),
+        message: z.string(),
+      }).partial(),
+      code: z.string(),
+      helpLinks: z.array(
+        z.object({
+          description: z.string(),
+          url: z.string(),
+        }).partial(),
+      ),
+      warningMessage: z.object({
+        locale: z.string(),
+        message: z.string(),
+      }).partial(),
+      warningTime: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -206,7 +212,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VM Migration Sources.MigratingVms.ReplicationCycles. Registered at `@swamp/gcp/vmmigration/sources-migratingvms-replicationcycles`. */
 export const model = {
   type: "@swamp/gcp/vmmigration/sources-migratingvms-replicationcycles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -335,6 +341,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

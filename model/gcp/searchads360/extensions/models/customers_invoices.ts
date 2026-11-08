@@ -99,67 +99,79 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  accountBudgetSummaries: z.array(z.object({
-    accountBudget: z.string(),
-    accountBudgetName: z.string(),
-    billableActivityDateRange: z.object({
-      endDate: z.string(),
-      startDate: z.string(),
-    }),
-    billedAmountMicros: z.string(),
-    campaignSummaries: z.array(z.object({
-      amountMicros: z.string(),
-      campaignDescription: z.string(),
-      quantity: z.string(),
-      unitOfMeasure: z.string(),
-    })),
-    customer: z.string(),
-    customerDescriptiveName: z.string(),
-    invalidActivityAmountMicros: z.string(),
-    invalidActivitySummaries: z.array(z.object({
-      amountMicros: z.string(),
-      originalAccountBudgetName: z.string(),
-      originalInvoiceId: z.string(),
-      originalMonthOfService: z.string(),
-      originalPurchaseOrderNumber: z.string(),
-      originalYearOfService: z.string(),
-    })),
-    overdeliveryAmountMicros: z.string(),
-    purchaseOrderNumber: z.string(),
-    servedAmountMicros: z.string(),
-    subtotalAmountMicros: z.string(),
-    taxAmountMicros: z.string(),
-    totalAmountMicros: z.string(),
-  })).optional(),
-  accountSummaries: z.array(z.object({
-    adjustmentSummaries: z.array(z.object({
-      adjustmentDescription: z.string(),
-      amountMicros: z.string(),
-    })),
-    billingCorrectionSubtotalAmountMicros: z.string(),
-    billingCorrectionTaxAmountMicros: z.string(),
-    billingCorrectionTotalAmountMicros: z.string(),
-    couponAdjustmentSubtotalAmountMicros: z.string(),
-    couponAdjustmentTaxAmountMicros: z.string(),
-    couponAdjustmentTotalAmountMicros: z.string(),
-    customer: z.string(),
-    excessCreditAdjustmentSubtotalAmountMicros: z.string(),
-    excessCreditAdjustmentTaxAmountMicros: z.string(),
-    excessCreditAdjustmentTotalAmountMicros: z.string(),
-    exportChargeSubtotalAmountMicros: z.string(),
-    exportChargeTaxAmountMicros: z.string(),
-    exportChargeTotalAmountMicros: z.string(),
-    regulatoryCostSummaries: z.array(z.object({
-      amountMicros: z.string(),
-      regulatoryFeeType: z.string(),
-    })),
-    regulatoryCostsSubtotalAmountMicros: z.string(),
-    regulatoryCostsTaxAmountMicros: z.string(),
-    regulatoryCostsTotalAmountMicros: z.string(),
-    subtotalAmountMicros: z.string(),
-    taxAmountMicros: z.string(),
-    totalAmountMicros: z.string(),
-  })).optional(),
+  accountBudgetSummaries: z.array(
+    z.object({
+      accountBudget: z.string(),
+      accountBudgetName: z.string(),
+      billableActivityDateRange: z.object({
+        endDate: z.string(),
+        startDate: z.string(),
+      }).partial(),
+      billedAmountMicros: z.string(),
+      campaignSummaries: z.array(
+        z.object({
+          amountMicros: z.string(),
+          campaignDescription: z.string(),
+          quantity: z.string(),
+          unitOfMeasure: z.string(),
+        }).partial(),
+      ),
+      customer: z.string(),
+      customerDescriptiveName: z.string(),
+      invalidActivityAmountMicros: z.string(),
+      invalidActivitySummaries: z.array(
+        z.object({
+          amountMicros: z.string(),
+          originalAccountBudgetName: z.string(),
+          originalInvoiceId: z.string(),
+          originalMonthOfService: z.string(),
+          originalPurchaseOrderNumber: z.string(),
+          originalYearOfService: z.string(),
+        }).partial(),
+      ),
+      overdeliveryAmountMicros: z.string(),
+      purchaseOrderNumber: z.string(),
+      servedAmountMicros: z.string(),
+      subtotalAmountMicros: z.string(),
+      taxAmountMicros: z.string(),
+      totalAmountMicros: z.string(),
+    }).partial(),
+  ).optional(),
+  accountSummaries: z.array(
+    z.object({
+      adjustmentSummaries: z.array(
+        z.object({
+          adjustmentDescription: z.string(),
+          amountMicros: z.string(),
+        }).partial(),
+      ),
+      billingCorrectionSubtotalAmountMicros: z.string(),
+      billingCorrectionTaxAmountMicros: z.string(),
+      billingCorrectionTotalAmountMicros: z.string(),
+      couponAdjustmentSubtotalAmountMicros: z.string(),
+      couponAdjustmentTaxAmountMicros: z.string(),
+      couponAdjustmentTotalAmountMicros: z.string(),
+      customer: z.string(),
+      excessCreditAdjustmentSubtotalAmountMicros: z.string(),
+      excessCreditAdjustmentTaxAmountMicros: z.string(),
+      excessCreditAdjustmentTotalAmountMicros: z.string(),
+      exportChargeSubtotalAmountMicros: z.string(),
+      exportChargeTaxAmountMicros: z.string(),
+      exportChargeTotalAmountMicros: z.string(),
+      regulatoryCostSummaries: z.array(
+        z.object({
+          amountMicros: z.string(),
+          regulatoryFeeType: z.string(),
+        }).partial(),
+      ),
+      regulatoryCostsSubtotalAmountMicros: z.string(),
+      regulatoryCostsTaxAmountMicros: z.string(),
+      regulatoryCostsTotalAmountMicros: z.string(),
+      subtotalAmountMicros: z.string(),
+      taxAmountMicros: z.string(),
+      totalAmountMicros: z.string(),
+    }).partial(),
+  ).optional(),
   adjustmentsSubtotalAmountMicros: z.string().optional(),
   adjustmentsTaxAmountMicros: z.string().optional(),
   adjustmentsTotalAmountMicros: z.string().optional(),
@@ -183,7 +195,7 @@ const StateSchema = z.object({
   serviceDateRange: z.object({
     endDate: z.string(),
     startDate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   subtotalAmountMicros: z.string().optional(),
   taxAmountMicros: z.string().optional(),
   totalAmountMicros: z.string().optional(),
@@ -231,7 +243,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Ads 360 Reporting Customers.Invoices. Registered at `@swamp/gcp/searchads360/customers-invoices`. */
 export const model = {
   type: "@swamp/gcp/searchads360/customers-invoices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -250,6 +262,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

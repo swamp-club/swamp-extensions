@@ -276,42 +276,48 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   meshes: z.array(z.string()).optional(),
   name: z.string(),
-  rules: z.array(z.object({
-    action: z.object({
-      destinations: z.array(z.object({
-        serviceName: z.unknown(),
-        weight: z.unknown(),
-      })),
-      faultInjectionPolicy: z.object({
-        abort: z.object({
-          httpStatus: z.unknown(),
-          percentage: z.unknown(),
-        }),
-        delay: z.object({
-          fixedDelay: z.unknown(),
-          percentage: z.unknown(),
-        }),
-      }),
-      idleTimeout: z.string(),
-      retryPolicy: z.object({
-        numRetries: z.number(),
-        retryConditions: z.array(z.unknown()),
-      }),
-      statefulSessionAffinity: z.object({
-        cookieTtl: z.string(),
-      }),
-      timeout: z.string(),
-    }),
-    matches: z.array(z.object({
-      headers: z.array(z.unknown()),
-      method: z.object({
-        caseSensitive: z.unknown(),
-        grpcMethod: z.unknown(),
-        grpcService: z.unknown(),
-        type: z.unknown(),
-      }),
-    })),
-  })).optional(),
+  rules: z.array(
+    z.object({
+      action: z.object({
+        destinations: z.array(
+          z.object({
+            serviceName: z.unknown(),
+            weight: z.unknown(),
+          }).partial(),
+        ),
+        faultInjectionPolicy: z.object({
+          abort: z.object({
+            httpStatus: z.unknown(),
+            percentage: z.unknown(),
+          }).partial(),
+          delay: z.object({
+            fixedDelay: z.unknown(),
+            percentage: z.unknown(),
+          }).partial(),
+        }).partial(),
+        idleTimeout: z.string(),
+        retryPolicy: z.object({
+          numRetries: z.number(),
+          retryConditions: z.array(z.unknown()),
+        }).partial(),
+        statefulSessionAffinity: z.object({
+          cookieTtl: z.string(),
+        }).partial(),
+        timeout: z.string(),
+      }).partial(),
+      matches: z.array(
+        z.object({
+          headers: z.array(z.unknown()),
+          method: z.object({
+            caseSensitive: z.unknown(),
+            grpcMethod: z.unknown(),
+            grpcService: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   selfLink: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -462,7 +468,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services GrpcRoutes. Registered at `@swamp/gcp/networkservices/grpcroutes`. */
 export const model = {
   type: "@swamp/gcp/networkservices/grpcroutes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -606,6 +612,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

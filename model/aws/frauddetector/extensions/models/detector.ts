@@ -165,6 +165,73 @@ const ModelSchema = z.object({
   Arn: z.string().optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const OutcomeStateSchema = z.object({
+  Arn: z.string(),
+  Inline: z.boolean(),
+  Name: z.string(),
+  Description: z.string(),
+  Tags: z.array(TagStateSchema),
+  CreatedTime: z.string(),
+  LastUpdatedTime: z.string(),
+}).partial();
+
+const RuleStateSchema = z.object({
+  RuleId: z.string(),
+  RuleVersion: z.string(),
+  DetectorId: z.string(),
+  Expression: z.string(),
+  Language: z.string(),
+  Outcomes: z.array(OutcomeStateSchema),
+  Arn: z.string(),
+  Description: z.string(),
+  Tags: z.array(TagStateSchema),
+  CreatedTime: z.string(),
+  LastUpdatedTime: z.string(),
+}).partial();
+
+const EventVariableStateSchema = z.object({
+  Arn: z.string(),
+  Inline: z.boolean(),
+  Name: z.string(),
+  DataSource: z.string(),
+  DataType: z.string(),
+  DefaultValue: z.string(),
+  VariableType: z.string(),
+  Description: z.string(),
+  Tags: z.array(TagStateSchema),
+  CreatedTime: z.string(),
+  LastUpdatedTime: z.string(),
+}).partial();
+
+const LabelStateSchema = z.object({
+  Arn: z.string(),
+  Inline: z.boolean(),
+  Name: z.string(),
+  Description: z.string(),
+  Tags: z.array(TagStateSchema),
+  CreatedTime: z.string(),
+  LastUpdatedTime: z.string(),
+}).partial();
+
+const EntityTypeStateSchema = z.object({
+  Arn: z.string(),
+  Inline: z.boolean(),
+  Name: z.string(),
+  Description: z.string(),
+  Tags: z.array(TagStateSchema),
+  CreatedTime: z.string(),
+  LastUpdatedTime: z.string(),
+}).partial();
+
+const ModelStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -217,28 +284,28 @@ const StateSchema = z.object({
   DetectorVersionStatus: z.string().optional(),
   DetectorVersionId: z.string().optional(),
   RuleExecutionMode: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Description: z.string().optional(),
-  Rules: z.array(RuleSchema).optional(),
+  Rules: z.array(RuleStateSchema).optional(),
   EventType: z.object({
     Name: z.string(),
     Inline: z.boolean(),
-    Tags: z.array(TagSchema),
+    Tags: z.array(TagStateSchema),
     Description: z.string(),
-    EventVariables: z.array(EventVariableSchema),
-    Labels: z.array(LabelSchema),
-    EntityTypes: z.array(EntityTypeSchema),
+    EventVariables: z.array(EventVariableStateSchema),
+    Labels: z.array(LabelStateSchema),
+    EntityTypes: z.array(EntityTypeStateSchema),
     Arn: z.string(),
     CreatedTime: z.string(),
     LastUpdatedTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string(),
   CreatedTime: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
-  AssociatedModels: z.array(ModelSchema).optional(),
+  AssociatedModels: z.array(ModelStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -296,7 +363,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FraudDetector Detector. Registered at `@swamp/aws/frauddetector/detector`. */
 export const model = {
   type: "@swamp/aws/frauddetector/detector",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -360,6 +427,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

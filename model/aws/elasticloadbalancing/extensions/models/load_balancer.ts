@@ -103,6 +103,43 @@ const TagSchema = z.object({
   ),
 });
 
+const AppCookieStickinessPolicyStateSchema = z.object({
+  CookieName: z.string(),
+  PolicyName: z.string(),
+}).partial();
+
+const LBCookieStickinessPolicyStateSchema = z.object({
+  CookieExpirationPeriod: z.string(),
+  PolicyName: z.string(),
+}).partial();
+
+const ListenersStateSchema = z.object({
+  PolicyNames: z.array(z.string()),
+  InstancePort: z.string(),
+  LoadBalancerPort: z.string(),
+  Protocol: z.string(),
+  SSLCertificateId: z.string(),
+  InstanceProtocol: z.string(),
+}).partial();
+
+const PolicyItemStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const PoliciesStateSchema = z.object({
+  Attributes: z.array(PolicyItemStateSchema),
+  PolicyType: z.string(),
+  LoadBalancerPorts: z.array(z.string()),
+  PolicyName: z.string(),
+  InstancePorts: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -209,17 +246,17 @@ const StateSchema = z.object({
     S3BucketName: z.string(),
     EmitInterval: z.number(),
     S3BucketPrefix: z.string(),
-  }).optional(),
-  AppCookieStickinessPolicy: z.array(AppCookieStickinessPolicySchema)
+  }).partial().optional(),
+  AppCookieStickinessPolicy: z.array(AppCookieStickinessPolicyStateSchema)
     .optional(),
   AvailabilityZones: z.array(z.string()).optional(),
   ConnectionDrainingPolicy: z.object({
     Enabled: z.boolean(),
     Timeout: z.number(),
-  }).optional(),
+  }).partial().optional(),
   ConnectionSettings: z.object({
     IdleTimeout: z.number(),
-  }).optional(),
+  }).partial().optional(),
   CrossZone: z.boolean().optional(),
   HealthCheck: z.object({
     Target: z.string(),
@@ -227,26 +264,27 @@ const StateSchema = z.object({
     Timeout: z.string(),
     HealthyThreshold: z.string(),
     Interval: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Instances: z.array(z.string()).optional(),
-  LBCookieStickinessPolicy: z.array(LBCookieStickinessPolicySchema).optional(),
-  Listeners: z.array(ListenersSchema).optional(),
+  LBCookieStickinessPolicy: z.array(LBCookieStickinessPolicyStateSchema)
+    .optional(),
+  Listeners: z.array(ListenersStateSchema).optional(),
   LoadBalancerName: z.string(),
-  Policies: z.array(PoliciesSchema).optional(),
+  Policies: z.array(PoliciesStateSchema).optional(),
   Scheme: z.string().optional(),
   SecurityGroups: z.array(z.string()).optional(),
   Subnets: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CanonicalHostedZoneName: z.string().optional(),
   CanonicalHostedZoneNameID: z.string().optional(),
   DNSName: z.string().optional(),
   SourceSecurityGroup: z.object({
     GroupName: z.string(),
     OwnerAlias: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -359,7 +397,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticLoadBalancing LoadBalancer. Registered at `@swamp/aws/elasticloadbalancing/load-balancer`. */
 export const model = {
   type: "@swamp/aws/elasticloadbalancing/load-balancer",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -383,6 +421,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

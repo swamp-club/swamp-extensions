@@ -118,89 +118,113 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   accessRestrictions: z.array(z.string()).optional(),
-  additionalTargetKeyNames: z.array(z.object({
-    key: z.string(),
-    keyDescription: z.string(),
-  })).optional(),
+  additionalTargetKeyNames: z.array(
+    z.object({
+      key: z.string(),
+      keyDescription: z.string(),
+    }).partial(),
+  ).optional(),
   categoryTitle: z.string().optional(),
   definition: z.object({
     editionDeprecated: z.string(),
-    enumType: z.array(z.object({
-      name: z.string(),
-      value: z.array(z.object({
-        name: z.unknown(),
-        number: z.unknown(),
-      })),
-      visibility: z.string(),
-    })),
-    messageType: z.array(z.object({
-      enumType: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-        visibility: z.unknown(),
-      })),
-      field: z.array(z.object({
-        defaultValue: z.unknown(),
-        jsonName: z.unknown(),
-        label: z.unknown(),
-        name: z.unknown(),
-        number: z.unknown(),
-        oneofIndex: z.unknown(),
-        proto3Optional: z.unknown(),
-        type: z.unknown(),
-        typeName: z.unknown(),
-      })),
-      name: z.string(),
-      nestedType: z.array(z.record(z.string(), z.unknown())),
-      oneofDecl: z.array(z.object({
-        name: z.unknown(),
-      })),
-      visibility: z.string(),
-    })),
+    enumType: z.array(
+      z.object({
+        name: z.string(),
+        value: z.array(
+          z.object({
+            name: z.unknown(),
+            number: z.unknown(),
+          }).partial(),
+        ),
+        visibility: z.string(),
+      }).partial(),
+    ),
+    messageType: z.array(
+      z.object({
+        enumType: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+            visibility: z.unknown(),
+          }).partial(),
+        ),
+        field: z.array(
+          z.object({
+            defaultValue: z.unknown(),
+            jsonName: z.unknown(),
+            label: z.unknown(),
+            name: z.unknown(),
+            number: z.unknown(),
+            oneofIndex: z.unknown(),
+            proto3Optional: z.unknown(),
+            type: z.unknown(),
+            typeName: z.unknown(),
+          }).partial(),
+        ),
+        name: z.string(),
+        nestedType: z.array(z.record(z.string(), z.unknown())),
+        oneofDecl: z.array(
+          z.object({
+            name: z.unknown(),
+          }).partial(),
+        ),
+        visibility: z.string(),
+      }).partial(),
+    ),
     name: z.string(),
     optionDependency: z.array(z.string()),
     package: z.string(),
     syntax: z.string(),
-  }).optional(),
-  fieldDescriptions: z.array(z.object({
-    defaultValue: z.string(),
-    description: z.string(),
-    field: z.string(),
-    fieldConstraints: z.object({
-      numericRangeConstraint: z.object({
-        maximum: z.string(),
-        minimum: z.string(),
-      }),
-      uploadedFileConstraints: z.object({
-        sizeLimitBytes: z.string(),
-        supportedContentTypes: z.array(z.unknown()),
-      }),
-    }),
-    fieldDependencies: z.array(z.object({
-      sourceField: z.string(),
-      sourceFieldValue: z.string(),
-    })),
-    fieldDescription: z.string(),
-    inputConstraint: z.string(),
-    knownValueDescriptions: z.array(z.object({
+  }).partial().optional(),
+  fieldDescriptions: z.array(
+    z.object({
+      defaultValue: z.string(),
       description: z.string(),
-      fieldDependencies: z.array(z.unknown()),
-      value: z.string(),
-    })),
-    name: z.string(),
-    nestedFieldDescriptions: z.array(z.record(z.string(), z.unknown())),
-    requiredItems: z.array(z.object({
-      fieldConditions: z.array(z.unknown()),
-      requiredFields: z.array(z.unknown()),
-    })),
-  })).optional(),
+      field: z.string(),
+      fieldConstraints: z.object({
+        numericRangeConstraint: z.object({
+          maximum: z.string(),
+          minimum: z.string(),
+        }).partial(),
+        uploadedFileConstraints: z.object({
+          sizeLimitBytes: z.string(),
+          supportedContentTypes: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+      fieldDependencies: z.array(
+        z.object({
+          sourceField: z.string(),
+          sourceFieldValue: z.string(),
+        }).partial(),
+      ),
+      fieldDescription: z.string(),
+      inputConstraint: z.string(),
+      knownValueDescriptions: z.array(
+        z.object({
+          description: z.string(),
+          fieldDependencies: z.array(z.unknown()),
+          value: z.string(),
+        }).partial(),
+      ),
+      name: z.string(),
+      nestedFieldDescriptions: z.array(z.record(z.string(), z.unknown())),
+      requiredItems: z.array(
+        z.object({
+          fieldConditions: z.array(z.unknown()),
+          requiredFields: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   name: z.string(),
-  notices: z.array(z.object({
-    acknowledgementRequired: z.boolean(),
-    field: z.string(),
-    noticeMessage: z.string(),
-    noticeValue: z.string(),
-  })).optional(),
+  notices: z.array(
+    z.object({
+      acknowledgementRequired: z.boolean(),
+      field: z.string(),
+      noticeMessage: z.string(),
+      noticeValue: z.string(),
+    }).partial(),
+  ).optional(),
   policyApiLifecycle: z.object({
     deprecatedInFavorOf: z.array(z.string()),
     description: z.string(),
@@ -208,10 +232,10 @@ const StateSchema = z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     policyApiLifecycleStage: z.string(),
     scheduledToDeprecatePolicies: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   policyDescription: z.string().optional(),
   schemaName: z.string().optional(),
   supportUri: z.string().optional(),
@@ -260,7 +284,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Policy Customers.PolicySchemas. Registered at `@swamp/gcp/chromepolicy/customers-policyschemas`. */
 export const model = {
   type: "@swamp/gcp/chromepolicy/customers-policyschemas",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -389,6 +413,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

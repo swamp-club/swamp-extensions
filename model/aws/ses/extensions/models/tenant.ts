@@ -57,6 +57,19 @@ const ReputationPolicySchema = z.object({
   ).describe("The ARN of an SES-managed reputation policy."),
 });
 
+const ResourceAssociationStateSchema = z.object({
+  ResourceArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ReputationPolicyStateSchema = z.object({
+  ReputationEntityPolicy: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -98,18 +111,18 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Arn: z.string().optional(),
   TenantName: z.string(),
-  ResourceAssociations: z.array(ResourceAssociationSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  ResourceAssociations: z.array(ResourceAssociationStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   SuppressionAttributes: z.object({
     SuppressionScope: z.string(),
     SuppressedReasons: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   ReputationEntity: z.object({
-    Policy: ReputationPolicySchema,
-  }).optional(),
+    Policy: ReputationPolicyStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -160,7 +173,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES Tenant. Registered at `@swamp/aws/ses/tenant`. */
 export const model = {
   type: "@swamp/aws/ses/tenant",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -224,6 +237,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

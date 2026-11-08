@@ -115,75 +115,79 @@ const StateSchema = z.object({
     appInstallSource: z.string(),
     appInstallTime: z.string(),
     appType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   appLaunchEvent: z.object({
     appId: z.string(),
     appLaunchSource: z.string(),
     appType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   appUninstallEvent: z.object({
     appId: z.string(),
     appType: z.string(),
     appUninstallSource: z.string(),
-  }).optional(),
-  audioSevereUnderrunEvent: z.object({}).optional(),
+  }).partial().optional(),
+  audioSevereUnderrunEvent: z.object({}).partial().optional(),
   device: z.object({
     deviceId: z.string(),
     orgUnitId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   eventType: z.string().optional(),
   externalDisplaysEvent: z.object({
-    externalDisplayData: z.array(z.object({
-      displayName: z.string(),
-      edidVersion: z.string(),
-      refreshRate: z.string(),
-      resolutionHorizontal: z.number(),
-      resolutionVertical: z.number(),
-      serialNumber: z.number(),
-    })),
-  }).optional(),
+    externalDisplayData: z.array(
+      z.object({
+        displayName: z.string(),
+        edidVersion: z.string(),
+        refreshRate: z.string(),
+        resolutionHorizontal: z.number(),
+        resolutionVertical: z.number(),
+        serialNumber: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   httpsLatencyChangeEvent: z.object({
     httpsLatencyRoutineData: z.object({
       latency: z.string(),
       problem: z.string(),
-    }),
+    }).partial(),
     httpsLatencyState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   networkStateChangeEvent: z.object({
     connectionState: z.string(),
     guid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   osCrashEvent: z.object({
     crashId: z.string(),
     crashType: z.string(),
     sessionType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reportTime: z.string().optional(),
   usbPeripheralsEvent: z.object({
-    usbPeripheralReport: z.array(z.object({
-      categories: z.array(z.string()),
-      classId: z.number(),
-      firmwareVersion: z.string(),
-      name: z.string(),
-      pid: z.number(),
-      subclassId: z.number(),
-      vendor: z.string(),
-      vid: z.number(),
-    })),
-  }).optional(),
+    usbPeripheralReport: z.array(
+      z.object({
+        categories: z.array(z.string()),
+        classId: z.number(),
+        firmwareVersion: z.string(),
+        name: z.string(),
+        pid: z.number(),
+        subclassId: z.number(),
+        vendor: z.string(),
+        vid: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   user: z.object({
     email: z.string(),
     orgUnitId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   vpnConnectionStateChangeEvent: z.object({
     connectionState: z.string(),
     guid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   wifiSignalStrengthEvent: z.object({
     guid: z.string(),
     signalStrengthDbm: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -227,7 +231,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.Telemetry.Events. Registered at `@swamp/gcp/chromemanagement/customers-telemetry-events`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-telemetry-events",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -351,6 +355,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

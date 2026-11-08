@@ -117,20 +117,24 @@ const StateSchema = z.object({
   EncryptionConfig: z.object({
     KmsKeyArn: z.string(),
     RoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Schema: z.object({
-    Attributes: z.array(z.object({
-      AttributeName: z.string(),
-      AttributeType: z.string(),
-    })),
-  }).optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-  })).optional(),
+    Attributes: z.array(
+      z.object({
+        AttributeName: z.string(),
+        AttributeType: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -212,7 +216,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Forecast Dataset. Registered at `@swamp/aws/forecast/dataset`. */
 export const model = {
   type: "@swamp/aws/forecast/dataset",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -276,6 +280,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

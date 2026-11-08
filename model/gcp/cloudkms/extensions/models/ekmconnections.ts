@@ -215,22 +215,26 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   keyManagementMode: z.string().optional(),
   name: z.string(),
-  serviceResolvers: z.array(z.object({
-    endpointFilter: z.string(),
-    hostname: z.string(),
-    serverCertificates: z.array(z.object({
-      issuer: z.string(),
-      notAfterTime: z.string(),
-      notBeforeTime: z.string(),
-      parsed: z.boolean(),
-      rawDer: z.string(),
-      serialNumber: z.string(),
-      sha256Fingerprint: z.string(),
-      subject: z.string(),
-      subjectAlternativeDnsNames: z.array(z.unknown()),
-    })),
-    serviceDirectoryService: z.string(),
-  })).optional(),
+  serviceResolvers: z.array(
+    z.object({
+      endpointFilter: z.string(),
+      hostname: z.string(),
+      serverCertificates: z.array(
+        z.object({
+          issuer: z.string(),
+          notAfterTime: z.string(),
+          notBeforeTime: z.string(),
+          parsed: z.boolean(),
+          rawDer: z.string(),
+          serialNumber: z.string(),
+          sha256Fingerprint: z.string(),
+          subject: z.string(),
+          subjectAlternativeDnsNames: z.array(z.unknown()),
+        }).partial(),
+      ),
+      serviceDirectoryService: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -331,7 +335,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Key Management Service (KMS) EkmConnections. Registered at `@swamp/gcp/cloudkms/ekmconnections`. */
 export const model = {
   type: "@swamp/gcp/cloudkms/ekmconnections",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -504,6 +508,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

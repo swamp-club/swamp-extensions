@@ -48,6 +48,16 @@ const TagFieldSpecificationSchema = z.object({
   TagKeys: z.array(z.string()),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const TagFieldSpecificationStateSchema = z.object({
+  ResourceType: z.string(),
+  TagKeys: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -128,17 +138,17 @@ const StateSchema = z.object({
   MaxAggregationInterval: z.number().optional(),
   ResourceId: z.string().optional(),
   ResourceType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TrafficType: z.string().optional(),
   DestinationOptions: z.object({
     FileFormat: z.string(),
     HiveCompatiblePartitions: z.boolean(),
     PerHourPartition: z.boolean(),
-  }).optional(),
-  TagFieldSpecifications: z.array(TagFieldSpecificationSchema).optional(),
+  }).partial().optional(),
+  TagFieldSpecifications: z.array(TagFieldSpecificationStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -218,7 +228,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 FlowLog. Registered at `@swamp/aws/ec2/flow-log`. */
 export const model = {
   type: "@swamp/aws/ec2/flow-log",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -287,6 +297,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

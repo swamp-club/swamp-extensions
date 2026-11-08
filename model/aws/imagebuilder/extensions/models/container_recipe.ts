@@ -99,6 +99,34 @@ const InstanceBlockDeviceMappingSchema = z.object({
   ).optional(),
 });
 
+const ComponentParameterStateSchema = z.object({
+  Name: z.string(),
+  Value: z.array(z.string()),
+}).partial();
+
+const ComponentConfigurationStateSchema = z.object({
+  ComponentArn: z.string(),
+  Parameters: z.array(ComponentParameterStateSchema),
+}).partial();
+
+const EbsInstanceBlockDeviceSpecificationStateSchema = z.object({
+  Encrypted: z.boolean(),
+  DeleteOnTermination: z.boolean(),
+  Iops: z.number(),
+  KmsKeyId: z.string(),
+  SnapshotId: z.string(),
+  Throughput: z.number(),
+  VolumeSize: z.number(),
+  VolumeType: z.string(),
+}).partial();
+
+const InstanceBlockDeviceMappingStateSchema = z.object({
+  DeviceName: z.string(),
+  VirtualName: z.string(),
+  NoDevice: z.string(),
+  Ebs: EbsInstanceBlockDeviceSpecificationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -175,11 +203,11 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   Version: z.string().optional(),
-  Components: z.array(ComponentConfigurationSchema).optional(),
+  Components: z.array(ComponentConfigurationStateSchema).optional(),
   InstanceConfiguration: z.object({
     Image: z.string(),
-    BlockDeviceMappings: z.array(InstanceBlockDeviceMappingSchema),
-  }).optional(),
+    BlockDeviceMappings: z.array(InstanceBlockDeviceMappingStateSchema),
+  }).partial().optional(),
   DockerfileTemplateData: z.string().optional(),
   DockerfileTemplateUri: z.string().optional(),
   PlatformOverride: z.string().optional(),
@@ -188,7 +216,7 @@ const StateSchema = z.object({
   TargetRepository: z.object({
     Service: z.string(),
     RepositoryName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KmsKeyId: z.string().optional(),
   ParentImage: z.string().optional(),
   WorkingDirectory: z.string().optional(),
@@ -198,10 +226,10 @@ const StateSchema = z.object({
     Major: z.string(),
     Minor: z.string(),
     Patch: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -283,7 +311,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder ContainerRecipe. Registered at `@swamp/aws/imagebuilder/container-recipe`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/container-recipe",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -347,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -131,13 +131,15 @@ const StateSchema = z.object({
     locale: z.string(),
     model: z.string(),
     version: z.string(),
-  }).optional(),
-  screens: z.array(z.object({
-    fileReference: z.string(),
-    locale: z.string(),
-    model: z.string(),
-    version: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  screens: z.array(
+    z.object({
+      fileReference: z.string(),
+      locale: z.string(),
+      model: z.string(),
+      version: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -180,7 +182,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tool Results Histories.Executions.Clusters. Registered at `@swamp/gcp/toolresults/histories-executions-clusters`. */
 export const model = {
   type: "@swamp/gcp/toolresults/histories-executions-clusters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -319,6 +321,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

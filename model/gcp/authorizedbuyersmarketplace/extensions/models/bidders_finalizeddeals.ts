@@ -113,19 +113,21 @@ const StateSchema = z.object({
       maxAdDurationMs: z.string(),
       programmaticCreativeSource: z.string(),
       skippableAdType: z.string(),
-    }),
+    }).partial(),
     dealType: z.string(),
     deliveryControl: z.object({
       companionDeliveryType: z.string(),
       creativeRotationType: z.string(),
       deliveryRateType: z.string(),
-      frequencyCap: z.array(z.object({
-        maxImpressions: z.number(),
-        timeUnitType: z.string(),
-        timeUnitsCount: z.number(),
-      })),
+      frequencyCap: z.array(
+        z.object({
+          maxImpressions: z.number(),
+          timeUnitType: z.string(),
+          timeUnitsCount: z.number(),
+        }).partial(),
+      ),
       roadblockingType: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     displayName: z.string(),
     eligibleSeatIds: z.array(z.string()),
@@ -133,7 +135,7 @@ const StateSchema = z.object({
       currencyCode: z.string(),
       nanos: z.number(),
       units: z.string(),
-    }),
+    }).partial(),
     flightEndTime: z.string(),
     flightStartTime: z.string(),
     mediaPlanner: z.object({
@@ -141,7 +143,7 @@ const StateSchema = z.object({
       ancestorNames: z.array(z.string()),
       displayName: z.string(),
       name: z.string(),
-    }),
+    }).partial(),
     name: z.string(),
     preferredDealTerms: z.object({
       fixedPrice: z.object({
@@ -149,123 +151,129 @@ const StateSchema = z.object({
           currencyCode: z.string(),
           nanos: z.number(),
           units: z.string(),
-        }),
+        }).partial(),
         type: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     privateAuctionTerms: z.object({
       floorPrice: z.object({
         amount: z.object({
           currencyCode: z.string(),
           nanos: z.number(),
           units: z.string(),
-        }),
+        }).partial(),
         type: z.string(),
-      }),
+      }).partial(),
       openAuctionAllowed: z.boolean(),
-    }),
+    }).partial(),
     programmaticGuaranteedTerms: z.object({
       fixedPrice: z.object({
         amount: z.object({
           currencyCode: z.string(),
           nanos: z.number(),
           units: z.string(),
-        }),
+        }).partial(),
         type: z.string(),
-      }),
+      }).partial(),
       guaranteedLooks: z.string(),
       impressionCap: z.string(),
       minimumDailyLooks: z.string(),
       percentShareOfVoice: z.string(),
       reservationType: z.string(),
-    }),
+    }).partial(),
     proposalRevision: z.string(),
     publisherProfile: z.string(),
     sellerTimeZone: z.object({
       id: z.string(),
       version: z.string(),
-    }),
+    }).partial(),
     targeting: z.object({
       daypartTargeting: z.object({
-        dayParts: z.array(z.object({
-          dayOfWeek: z.unknown(),
-          endTime: z.unknown(),
-          startTime: z.unknown(),
-        })),
+        dayParts: z.array(
+          z.object({
+            dayOfWeek: z.unknown(),
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+        ),
         timeZoneType: z.string(),
-      }),
+      }).partial(),
       excludedSensitiveCategoryIds: z.array(z.string()),
       geoTargeting: z.object({
         excludedCriteriaIds: z.array(z.string()),
         targetedCriteriaIds: z.array(z.string()),
-      }),
+      }).partial(),
       inventorySizeTargeting: z.object({
-        excludedInventorySizes: z.array(z.object({
-          height: z.unknown(),
-          type: z.unknown(),
-          width: z.unknown(),
-        })),
-        targetedInventorySizes: z.array(z.object({
-          height: z.unknown(),
-          type: z.unknown(),
-          width: z.unknown(),
-        })),
-      }),
+        excludedInventorySizes: z.array(
+          z.object({
+            height: z.unknown(),
+            type: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+        ),
+        targetedInventorySizes: z.array(
+          z.object({
+            height: z.unknown(),
+            type: z.unknown(),
+            width: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       inventoryTypeTargeting: z.object({
         inventoryTypes: z.array(z.string()),
-      }),
+      }).partial(),
       placementTargeting: z.object({
         mobileApplicationTargeting: z.object({
           firstPartyTargeting: z.object({
             excludedAppIds: z.unknown(),
             targetedAppIds: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         uriTargeting: z.object({
           excludedUris: z.array(z.unknown()),
           targetedUris: z.array(z.unknown()),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       technologyTargeting: z.object({
         deviceCapabilityTargeting: z.object({
           excludedCriteriaIds: z.array(z.unknown()),
           targetedCriteriaIds: z.array(z.unknown()),
-        }),
+        }).partial(),
         deviceCategoryTargeting: z.object({
           excludedCriteriaIds: z.array(z.unknown()),
           targetedCriteriaIds: z.array(z.unknown()),
-        }),
+        }).partial(),
         operatingSystemTargeting: z.object({
           operatingSystemCriteria: z.object({
             excludedCriteriaIds: z.unknown(),
             targetedCriteriaIds: z.unknown(),
-          }),
+          }).partial(),
           operatingSystemVersionCriteria: z.object({
             excludedCriteriaIds: z.unknown(),
             targetedCriteriaIds: z.unknown(),
-          }),
-        }),
-      }),
+          }).partial(),
+        }).partial(),
+      }).partial(),
       userListTargeting: z.object({
         excludedCriteriaIds: z.array(z.string()),
         targetedCriteriaIds: z.array(z.string()),
-      }),
+      }).partial(),
       verticalTargeting: z.object({
         excludedCriteriaIds: z.array(z.string()),
         targetedCriteriaIds: z.array(z.string()),
-      }),
+      }).partial(),
       videoTargeting: z.object({
         excludedPositionTypes: z.array(z.string()),
         targetedPositionTypes: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dealPausingInfo: z.object({
     pauseReason: z.string(),
     pauseRole: z.string(),
     pausingConsented: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   dealServingStatus: z.string().optional(),
   name: z.string(),
   readyToServe: z.boolean().optional(),
@@ -276,7 +284,7 @@ const StateSchema = z.object({
     bids7Days: z.string(),
     filteredBidRate7Days: z.number(),
     mustBidRateCurrentMonth: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -320,7 +328,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Authorized Buyers Marketplace Bidders.FinalizedDeals. Registered at `@swamp/gcp/authorizedbuyersmarketplace/bidders-finalizeddeals`. */
 export const model = {
   type: "@swamp/gcp/authorizedbuyersmarketplace/bidders-finalizeddeals",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -449,6 +457,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

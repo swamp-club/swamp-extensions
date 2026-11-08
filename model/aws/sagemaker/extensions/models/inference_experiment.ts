@@ -107,6 +107,37 @@ const TagSchema = z.object({
   ),
 });
 
+const CaptureContentTypeHeaderStateSchema = z.object({
+  CsvContentTypes: z.array(z.string()),
+  JsonContentTypes: z.array(z.string()),
+}).partial();
+
+const RealTimeInferenceConfigStateSchema = z.object({
+  InstanceType: z.string(),
+  InstanceCount: z.number(),
+}).partial();
+
+const ModelInfrastructureConfigStateSchema = z.object({
+  InfrastructureType: z.string(),
+  RealTimeInferenceConfig: RealTimeInferenceConfigStateSchema,
+}).partial();
+
+const ModelVariantConfigStateSchema = z.object({
+  ModelName: z.string(),
+  VariantName: z.string(),
+  InfrastructureConfig: ModelInfrastructureConfigStateSchema,
+}).partial();
+
+const ShadowModelVariantConfigStateSchema = z.object({
+  ShadowModelVariantName: z.string(),
+  SamplingPercentage: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -227,23 +258,23 @@ const StateSchema = z.object({
     EndpointName: z.string(),
     EndpointConfigName: z.string(),
     EndpointStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Schedule: z.object({
     StartTime: z.string(),
     EndTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KmsKey: z.string().optional(),
   DataStorageConfig: z.object({
     Destination: z.string(),
     KmsKey: z.string(),
-    ContentType: CaptureContentTypeHeaderSchema,
-  }).optional(),
-  ModelVariants: z.array(ModelVariantConfigSchema).optional(),
+    ContentType: CaptureContentTypeHeaderStateSchema,
+  }).partial().optional(),
+  ModelVariants: z.array(ModelVariantConfigStateSchema).optional(),
   ShadowModeConfig: z.object({
     SourceModelVariantName: z.string(),
-    ShadowModelVariants: z.array(ShadowModelVariantConfigSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    ShadowModelVariants: z.array(ShadowModelVariantConfigStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CreationTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
   Status: z.string().optional(),
@@ -251,7 +282,7 @@ const StateSchema = z.object({
   DesiredState: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -372,7 +403,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker InferenceExperiment. Registered at `@swamp/aws/sagemaker/inference-experiment`. */
 export const model = {
   type: "@swamp/aws/sagemaker/inference-experiment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -436,6 +467,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

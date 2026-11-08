@@ -47,6 +47,11 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -210,13 +215,13 @@ const StateSchema = z.object({
       DatabaseName: z.string(),
       SslMode: z.string(),
       CertificateArn: z.string(),
-    }),
+    }).partial(),
     MySqlSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
       SslMode: z.string(),
       CertificateArn: z.string(),
-    }),
+    }).partial(),
     OracleSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
@@ -228,7 +233,7 @@ const StateSchema = z.object({
       SecretsManagerOracleAsmAccessRoleArn: z.string(),
       SecretsManagerSecurityDbEncryptionSecretId: z.string(),
       SecretsManagerSecurityDbEncryptionAccessRoleArn: z.string(),
-    }),
+    }).partial(),
     MicrosoftSqlServerSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
@@ -237,25 +242,25 @@ const StateSchema = z.object({
       CertificateArn: z.string(),
       S3Path: z.string(),
       S3AccessRoleArn: z.string(),
-    }),
+    }).partial(),
     RedshiftSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
       DatabaseName: z.string(),
-    }),
+    }).partial(),
     MariaDbSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
       SslMode: z.string(),
       CertificateArn: z.string(),
-    }),
+    }).partial(),
     DocDbSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
       DatabaseName: z.string(),
       SslMode: z.string(),
       CertificateArn: z.string(),
-    }),
+    }).partial(),
     MongoDbSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
@@ -265,7 +270,7 @@ const StateSchema = z.object({
       AuthType: z.string(),
       AuthSource: z.string(),
       AuthMechanism: z.string(),
-    }),
+    }).partial(),
     IbmDb2LuwSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
@@ -274,14 +279,14 @@ const StateSchema = z.object({
       CertificateArn: z.string(),
       EncryptionAlgorithm: z.number(),
       SecurityMechanism: z.number(),
-    }),
+    }).partial(),
     IbmDb2zOsSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
       DatabaseName: z.string(),
       SslMode: z.string(),
       CertificateArn: z.string(),
-    }),
+    }).partial(),
     SybaseAseSettings: z.object({
       ServerName: z.string(),
       Port: z.number(),
@@ -289,12 +294,12 @@ const StateSchema = z.object({
       EncryptPassword: z.boolean(),
       SslMode: z.string(),
       CertificateArn: z.string(),
-    }),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    }).partial(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -457,7 +462,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS DataProvider. Registered at `@swamp/aws/dms/data-provider`. */
 export const model = {
   type: "@swamp/aws/dms/data-provider",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -531,6 +536,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

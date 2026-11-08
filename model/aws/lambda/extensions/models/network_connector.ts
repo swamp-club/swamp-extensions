@@ -64,6 +64,18 @@ const TagSchema = z.object({
   Key: z.string().min(1).max(128).describe("The key name of the tag."),
 });
 
+const VpcEgressConfigurationStateSchema = z.object({
+  AssociatedComputeResourceTypes: z.array(z.string()),
+  NetworkProtocol: z.string(),
+  SubnetIds: z.array(z.string()),
+  SecurityGroupIds: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -108,18 +120,18 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Configuration: z.object({
-    VpcEgressConfiguration: VpcEgressConfigurationSchema,
-  }).optional(),
+    VpcEgressConfiguration: VpcEgressConfigurationStateSchema,
+  }).partial().optional(),
   OperatorRole: z.string().optional(),
   LatestVersion: z.number().optional(),
   State: z.string().optional(),
   LatestVersionArn: z.string().optional(),
   Arn: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Name: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -172,7 +184,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda NetworkConnector. Registered at `@swamp/aws/lambda/network-connector`. */
 export const model = {
   type: "@swamp/aws/lambda/network-connector",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -211,6 +223,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

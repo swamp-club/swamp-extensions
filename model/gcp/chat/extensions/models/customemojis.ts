@@ -182,7 +182,7 @@ const StateSchema = z.object({
   payload: z.object({
     fileContent: z.string(),
     filename: z.string(),
-  }).optional(),
+  }).partial().optional(),
   temporaryImageUri: z.string().optional(),
   uid: z.string().optional(),
 }).passthrough();
@@ -237,7 +237,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat CustomEmojis. Registered at `@swamp/gcp/chat/customemojis`. */
 export const model = {
   type: "@swamp/gcp/chat/customemojis",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -381,6 +381,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

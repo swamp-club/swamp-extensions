@@ -105,7 +105,7 @@ const StateSchema = z.object({
     name: z.string(),
     runtimeMinimumCoreCount: z.number(),
     shape: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -149,7 +149,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud FlexComponents. Registered at `@swamp/gcp/oracledatabase/flexcomponents`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/flexcomponents",
-  version: "2026.11.03.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

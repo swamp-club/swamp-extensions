@@ -171,155 +171,177 @@ const StateSchema = z.object({
   cloudLoggingDetails: z.object({
     cloudLoggingSeverity: z.string(),
     enableCloudLogging: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
-  directSubExecutions: z.array(z.object({
-    cloudKmsKey: z.string(),
-    cloudLoggingDetails: z.object({
-      cloudLoggingSeverity: z.string(),
-      enableCloudLogging: z.boolean(),
-    }),
-    createTime: z.string(),
-    directSubExecutions: z.array(z.record(z.string(), z.unknown())),
-    eventExecutionDetails: z.object({
-      cancelReason: z.string(),
-      eventAttemptStats: z.array(z.object({
-        endTime: z.unknown(),
-        startTime: z.unknown(),
-      })),
-      eventExecutionSnapshot: z.array(z.object({
-        checkpointTaskNumber: z.unknown(),
-        clientId: z.unknown(),
-        conditionResults: z.unknown(),
-        diffParams: z.unknown(),
-        eventExecutionInfoId: z.unknown(),
-        eventExecutionSnapshotId: z.unknown(),
-        eventExecutionSnapshotMetadata: z.unknown(),
-        eventParams: z.unknown(),
-        exceedMaxSize: z.unknown(),
-        snapshotTime: z.unknown(),
-        taskExecutionDetails: z.unknown(),
-        taskName: z.unknown(),
-        workflowName: z.unknown(),
-      })),
-      eventExecutionSnapshotsSize: z.string(),
-      eventExecutionState: z.string(),
-      eventRetriesFromBeginningCount: z.number(),
-      logFilePath: z.string(),
-      networkAddress: z.string(),
-      nextExecutionTime: z.string(),
-      ryeLockUnheldCount: z.number(),
-    }),
-    executionDetails: z.object({
-      attemptStats: z.array(z.object({
-        endTime: z.unknown(),
-        startTime: z.unknown(),
-      })),
-      eventExecutionSnapshotsSize: z.string(),
-      executionSnapshots: z.array(z.object({
-        checkpointTaskNumber: z.unknown(),
-        executionSnapshotMetadata: z.unknown(),
-        params: z.unknown(),
-        taskExecutionDetails: z.unknown(),
-      })),
-      state: z.string(),
-    }),
-    executionMethod: z.string(),
-    integrationVersionState: z.string(),
-    name: z.string(),
-    replayInfo: z.object({
-      originalExecutionInfoId: z.string(),
-      replayMode: z.string(),
-      replayReason: z.string(),
-      replayedExecutionInfoIds: z.array(z.string()),
-    }),
-    requestParameters: z.record(z.string(), z.unknown()),
-    requestParams: z.array(z.object({
-      dataType: z.string(),
-      key: z.string(),
-      masked: z.boolean(),
-      value: z.object({
-        booleanArray: z.unknown(),
-        booleanValue: z.unknown(),
-        doubleArray: z.unknown(),
-        doubleValue: z.unknown(),
-        intArray: z.unknown(),
-        intValue: z.unknown(),
-        jsonValue: z.unknown(),
-        protoArray: z.unknown(),
-        protoValue: z.unknown(),
-        serializedObjectValue: z.unknown(),
-        stringArray: z.unknown(),
-        stringValue: z.unknown(),
-      }),
-    })),
-    responseParameters: z.record(z.string(), z.unknown()),
-    responseParams: z.array(z.object({
-      dataType: z.string(),
-      key: z.string(),
-      masked: z.boolean(),
-      value: z.object({
-        booleanArray: z.unknown(),
-        booleanValue: z.unknown(),
-        doubleArray: z.unknown(),
-        doubleValue: z.unknown(),
-        intArray: z.unknown(),
-        intValue: z.unknown(),
-        jsonValue: z.unknown(),
-        protoArray: z.unknown(),
-        protoValue: z.unknown(),
-        serializedObjectValue: z.unknown(),
-        stringArray: z.unknown(),
-        stringValue: z.unknown(),
-      }),
-    })),
-    snapshotNumber: z.string(),
-    triggerId: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  directSubExecutions: z.array(
+    z.object({
+      cloudKmsKey: z.string(),
+      cloudLoggingDetails: z.object({
+        cloudLoggingSeverity: z.string(),
+        enableCloudLogging: z.boolean(),
+      }).partial(),
+      createTime: z.string(),
+      directSubExecutions: z.array(z.record(z.string(), z.unknown())),
+      eventExecutionDetails: z.object({
+        cancelReason: z.string(),
+        eventAttemptStats: z.array(
+          z.object({
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+        ),
+        eventExecutionSnapshot: z.array(
+          z.object({
+            checkpointTaskNumber: z.unknown(),
+            clientId: z.unknown(),
+            conditionResults: z.unknown(),
+            diffParams: z.unknown(),
+            eventExecutionInfoId: z.unknown(),
+            eventExecutionSnapshotId: z.unknown(),
+            eventExecutionSnapshotMetadata: z.unknown(),
+            eventParams: z.unknown(),
+            exceedMaxSize: z.unknown(),
+            snapshotTime: z.unknown(),
+            taskExecutionDetails: z.unknown(),
+            taskName: z.unknown(),
+            workflowName: z.unknown(),
+          }).partial(),
+        ),
+        eventExecutionSnapshotsSize: z.string(),
+        eventExecutionState: z.string(),
+        eventRetriesFromBeginningCount: z.number(),
+        logFilePath: z.string(),
+        networkAddress: z.string(),
+        nextExecutionTime: z.string(),
+        ryeLockUnheldCount: z.number(),
+      }).partial(),
+      executionDetails: z.object({
+        attemptStats: z.array(
+          z.object({
+            endTime: z.unknown(),
+            startTime: z.unknown(),
+          }).partial(),
+        ),
+        eventExecutionSnapshotsSize: z.string(),
+        executionSnapshots: z.array(
+          z.object({
+            checkpointTaskNumber: z.unknown(),
+            executionSnapshotMetadata: z.unknown(),
+            params: z.unknown(),
+            taskExecutionDetails: z.unknown(),
+          }).partial(),
+        ),
+        state: z.string(),
+      }).partial(),
+      executionMethod: z.string(),
+      integrationVersionState: z.string(),
+      name: z.string(),
+      replayInfo: z.object({
+        originalExecutionInfoId: z.string(),
+        replayMode: z.string(),
+        replayReason: z.string(),
+        replayedExecutionInfoIds: z.array(z.string()),
+      }).partial(),
+      requestParameters: z.record(z.string(), z.unknown()),
+      requestParams: z.array(
+        z.object({
+          dataType: z.string(),
+          key: z.string(),
+          masked: z.boolean(),
+          value: z.object({
+            booleanArray: z.unknown(),
+            booleanValue: z.unknown(),
+            doubleArray: z.unknown(),
+            doubleValue: z.unknown(),
+            intArray: z.unknown(),
+            intValue: z.unknown(),
+            jsonValue: z.unknown(),
+            protoArray: z.unknown(),
+            protoValue: z.unknown(),
+            serializedObjectValue: z.unknown(),
+            stringArray: z.unknown(),
+            stringValue: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      responseParameters: z.record(z.string(), z.unknown()),
+      responseParams: z.array(
+        z.object({
+          dataType: z.string(),
+          key: z.string(),
+          masked: z.boolean(),
+          value: z.object({
+            booleanArray: z.unknown(),
+            booleanValue: z.unknown(),
+            doubleArray: z.unknown(),
+            doubleValue: z.unknown(),
+            intArray: z.unknown(),
+            intValue: z.unknown(),
+            jsonValue: z.unknown(),
+            protoArray: z.unknown(),
+            protoValue: z.unknown(),
+            serializedObjectValue: z.unknown(),
+            stringArray: z.unknown(),
+            stringValue: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      snapshotNumber: z.string(),
+      triggerId: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   eventExecutionDetails: z.object({
     cancelReason: z.string(),
-    eventAttemptStats: z.array(z.object({
-      endTime: z.string(),
-      startTime: z.string(),
-    })),
-    eventExecutionSnapshot: z.array(z.object({
-      checkpointTaskNumber: z.string(),
-      clientId: z.string(),
-      conditionResults: z.array(z.object({
-        currentTaskNumber: z.unknown(),
-        nextTaskNumber: z.unknown(),
-        result: z.unknown(),
-      })),
-      diffParams: z.object({
-        parameters: z.array(z.unknown()),
-      }),
-      eventExecutionInfoId: z.string(),
-      eventExecutionSnapshotId: z.string(),
-      eventExecutionSnapshotMetadata: z.object({
-        ancestorIterationNumbers: z.array(z.unknown()),
-        ancestorTaskNumbers: z.array(z.unknown()),
-        eventAttemptNum: z.number(),
-        integrationName: z.string(),
-        taskAttemptNum: z.number(),
-        taskLabel: z.string(),
+    eventAttemptStats: z.array(
+      z.object({
+        endTime: z.string(),
+        startTime: z.string(),
+      }).partial(),
+    ),
+    eventExecutionSnapshot: z.array(
+      z.object({
+        checkpointTaskNumber: z.string(),
+        clientId: z.string(),
+        conditionResults: z.array(
+          z.object({
+            currentTaskNumber: z.unknown(),
+            nextTaskNumber: z.unknown(),
+            result: z.unknown(),
+          }).partial(),
+        ),
+        diffParams: z.object({
+          parameters: z.array(z.unknown()),
+        }).partial(),
+        eventExecutionInfoId: z.string(),
+        eventExecutionSnapshotId: z.string(),
+        eventExecutionSnapshotMetadata: z.object({
+          ancestorIterationNumbers: z.array(z.unknown()),
+          ancestorTaskNumbers: z.array(z.unknown()),
+          eventAttemptNum: z.number(),
+          integrationName: z.string(),
+          taskAttemptNum: z.number(),
+          taskLabel: z.string(),
+          taskName: z.string(),
+          taskNumber: z.string(),
+        }).partial(),
+        eventParams: z.object({
+          parameters: z.array(z.unknown()),
+        }).partial(),
+        exceedMaxSize: z.boolean(),
+        snapshotTime: z.string(),
+        taskExecutionDetails: z.array(
+          z.object({
+            skippedOnFailure: z.unknown(),
+            taskAttemptStats: z.unknown(),
+            taskExecutionState: z.unknown(),
+            taskNumber: z.unknown(),
+          }).partial(),
+        ),
         taskName: z.string(),
-        taskNumber: z.string(),
-      }),
-      eventParams: z.object({
-        parameters: z.array(z.unknown()),
-      }),
-      exceedMaxSize: z.boolean(),
-      snapshotTime: z.string(),
-      taskExecutionDetails: z.array(z.object({
-        skippedOnFailure: z.unknown(),
-        taskAttemptStats: z.unknown(),
-        taskExecutionState: z.unknown(),
-        taskNumber: z.unknown(),
-      })),
-      taskName: z.string(),
-      workflowName: z.string(),
-    })),
+        workflowName: z.string(),
+      }).partial(),
+    ),
     eventExecutionSnapshotsSize: z.string(),
     eventExecutionState: z.string(),
     eventRetriesFromBeginningCount: z.number(),
@@ -327,34 +349,40 @@ const StateSchema = z.object({
     networkAddress: z.string(),
     nextExecutionTime: z.string(),
     ryeLockUnheldCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   executionDetails: z.object({
-    attemptStats: z.array(z.object({
-      endTime: z.string(),
-      startTime: z.string(),
-    })),
+    attemptStats: z.array(
+      z.object({
+        endTime: z.string(),
+        startTime: z.string(),
+      }).partial(),
+    ),
     eventExecutionSnapshotsSize: z.string(),
-    executionSnapshots: z.array(z.object({
-      checkpointTaskNumber: z.string(),
-      executionSnapshotMetadata: z.object({
-        ancestorIterationNumbers: z.array(z.unknown()),
-        ancestorTaskNumbers: z.array(z.unknown()),
-        executionAttempt: z.number(),
-        integrationName: z.string(),
-        task: z.string(),
-        taskAttempt: z.number(),
-        taskLabel: z.string(),
-        taskNumber: z.string(),
-      }),
-      params: z.record(z.string(), z.unknown()),
-      taskExecutionDetails: z.array(z.object({
-        taskAttemptStats: z.unknown(),
-        taskExecutionState: z.unknown(),
-        taskNumber: z.unknown(),
-      })),
-    })),
+    executionSnapshots: z.array(
+      z.object({
+        checkpointTaskNumber: z.string(),
+        executionSnapshotMetadata: z.object({
+          ancestorIterationNumbers: z.array(z.unknown()),
+          ancestorTaskNumbers: z.array(z.unknown()),
+          executionAttempt: z.number(),
+          integrationName: z.string(),
+          task: z.string(),
+          taskAttempt: z.number(),
+          taskLabel: z.string(),
+          taskNumber: z.string(),
+        }).partial(),
+        params: z.record(z.string(), z.unknown()),
+        taskExecutionDetails: z.array(
+          z.object({
+            taskAttemptStats: z.unknown(),
+            taskExecutionState: z.unknown(),
+            taskNumber: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   executionMethod: z.string().optional(),
   integrationVersionState: z.string().optional(),
   name: z.string(),
@@ -363,71 +391,75 @@ const StateSchema = z.object({
     replayMode: z.string(),
     replayReason: z.string(),
     replayedExecutionInfoIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   requestParameters: z.record(z.string(), z.unknown()).optional(),
-  requestParams: z.array(z.object({
-    dataType: z.string(),
-    key: z.string(),
-    masked: z.boolean(),
-    value: z.object({
-      booleanArray: z.object({
-        booleanValues: z.array(z.unknown()),
-      }),
-      booleanValue: z.boolean(),
-      doubleArray: z.object({
-        doubleValues: z.array(z.unknown()),
-      }),
-      doubleValue: z.number(),
-      intArray: z.object({
-        intValues: z.array(z.unknown()),
-      }),
-      intValue: z.string(),
-      jsonValue: z.string(),
-      protoArray: z.object({
-        protoValues: z.array(z.unknown()),
-      }),
-      protoValue: z.record(z.string(), z.unknown()),
-      serializedObjectValue: z.object({
-        objectValue: z.string(),
-      }),
-      stringArray: z.object({
-        stringValues: z.array(z.unknown()),
-      }),
-      stringValue: z.string(),
-    }),
-  })).optional(),
+  requestParams: z.array(
+    z.object({
+      dataType: z.string(),
+      key: z.string(),
+      masked: z.boolean(),
+      value: z.object({
+        booleanArray: z.object({
+          booleanValues: z.array(z.unknown()),
+        }).partial(),
+        booleanValue: z.boolean(),
+        doubleArray: z.object({
+          doubleValues: z.array(z.unknown()),
+        }).partial(),
+        doubleValue: z.number(),
+        intArray: z.object({
+          intValues: z.array(z.unknown()),
+        }).partial(),
+        intValue: z.string(),
+        jsonValue: z.string(),
+        protoArray: z.object({
+          protoValues: z.array(z.unknown()),
+        }).partial(),
+        protoValue: z.record(z.string(), z.unknown()),
+        serializedObjectValue: z.object({
+          objectValue: z.string(),
+        }).partial(),
+        stringArray: z.object({
+          stringValues: z.array(z.unknown()),
+        }).partial(),
+        stringValue: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   responseParameters: z.record(z.string(), z.unknown()).optional(),
-  responseParams: z.array(z.object({
-    dataType: z.string(),
-    key: z.string(),
-    masked: z.boolean(),
-    value: z.object({
-      booleanArray: z.object({
-        booleanValues: z.array(z.unknown()),
-      }),
-      booleanValue: z.boolean(),
-      doubleArray: z.object({
-        doubleValues: z.array(z.unknown()),
-      }),
-      doubleValue: z.number(),
-      intArray: z.object({
-        intValues: z.array(z.unknown()),
-      }),
-      intValue: z.string(),
-      jsonValue: z.string(),
-      protoArray: z.object({
-        protoValues: z.array(z.unknown()),
-      }),
-      protoValue: z.record(z.string(), z.unknown()),
-      serializedObjectValue: z.object({
-        objectValue: z.string(),
-      }),
-      stringArray: z.object({
-        stringValues: z.array(z.unknown()),
-      }),
-      stringValue: z.string(),
-    }),
-  })).optional(),
+  responseParams: z.array(
+    z.object({
+      dataType: z.string(),
+      key: z.string(),
+      masked: z.boolean(),
+      value: z.object({
+        booleanArray: z.object({
+          booleanValues: z.array(z.unknown()),
+        }).partial(),
+        booleanValue: z.boolean(),
+        doubleArray: z.object({
+          doubleValues: z.array(z.unknown()),
+        }).partial(),
+        doubleValue: z.number(),
+        intArray: z.object({
+          intValues: z.array(z.unknown()),
+        }).partial(),
+        intValue: z.string(),
+        jsonValue: z.string(),
+        protoArray: z.object({
+          protoValues: z.array(z.unknown()),
+        }).partial(),
+        protoValue: z.record(z.string(), z.unknown()),
+        serializedObjectValue: z.object({
+          objectValue: z.string(),
+        }).partial(),
+        stringArray: z.object({
+          stringValues: z.array(z.unknown()),
+        }).partial(),
+        stringValue: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   snapshotNumber: z.string().optional(),
   triggerId: z.string().optional(),
   updateTime: z.string().optional(),
@@ -477,7 +509,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Products.Integrations.Executions. Registered at `@swamp/gcp/integrations/products-integrations-executions`. */
 export const model = {
   type: "@swamp/gcp/integrations/products-integrations-executions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -562,6 +594,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

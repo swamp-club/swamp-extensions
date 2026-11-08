@@ -447,84 +447,92 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   basePlanId: z.string().optional(),
   offerId: z.string().optional(),
-  offerTags: z.array(z.object({
-    tag: z.string(),
-  })).optional(),
+  offerTags: z.array(
+    z.object({
+      tag: z.string(),
+    }).partial(),
+  ).optional(),
   otherRegionsConfig: z.object({
     otherRegionsNewSubscriberAvailability: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   packageName: z.string().optional(),
-  phases: z.array(z.object({
-    duration: z.string(),
-    otherRegionsConfig: z.object({
-      absoluteDiscounts: z.object({
-        eurPrice: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-        usdPrice: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-      }),
-      free: z.object({}),
-      otherRegionsPrices: z.object({
-        eurPrice: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-        usdPrice: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-      }),
-      relativeDiscount: z.number(),
-    }),
-    recurrenceCount: z.number(),
-    regionalConfigs: z.array(z.object({
-      absoluteDiscount: z.object({
-        currencyCode: z.unknown(),
-        nanos: z.unknown(),
-        units: z.unknown(),
-      }),
-      free: z.object({}),
-      price: z.object({
-        currencyCode: z.unknown(),
-        nanos: z.unknown(),
-        units: z.unknown(),
-      }),
-      regionCode: z.string(),
-      relativeDiscount: z.number(),
-    })),
-  })).optional(),
+  phases: z.array(
+    z.object({
+      duration: z.string(),
+      otherRegionsConfig: z.object({
+        absoluteDiscounts: z.object({
+          eurPrice: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          usdPrice: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+        }).partial(),
+        free: z.object({}).partial(),
+        otherRegionsPrices: z.object({
+          eurPrice: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          usdPrice: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+        }).partial(),
+        relativeDiscount: z.number(),
+      }).partial(),
+      recurrenceCount: z.number(),
+      regionalConfigs: z.array(
+        z.object({
+          absoluteDiscount: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          free: z.object({}).partial(),
+          price: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          regionCode: z.string(),
+          relativeDiscount: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   productId: z.string().optional(),
-  regionalConfigs: z.array(z.object({
-    newSubscriberAvailability: z.boolean(),
-    regionCode: z.string(),
-  })).optional(),
+  regionalConfigs: z.array(
+    z.object({
+      newSubscriberAvailability: z.boolean(),
+      regionCode: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   targeting: z.object({
     acquisitionRule: z.object({
       scope: z.object({
-        anySubscriptionInApp: z.object({}),
+        anySubscriptionInApp: z.object({}).partial(),
         specificSubscriptionInApp: z.string(),
-        thisSubscription: z.object({}),
-      }),
-    }),
+        thisSubscription: z.object({}).partial(),
+      }).partial(),
+    }).partial(),
     upgradeRule: z.object({
       billingPeriodDuration: z.string(),
       oncePerUser: z.boolean(),
       scope: z.object({
-        anySubscriptionInApp: z.object({}),
+        anySubscriptionInApp: z.object({}).partial(),
         specificSubscriptionInApp: z.string(),
-        thisSubscription: z.object({}),
-      }),
-    }),
-  }).optional(),
+        thisSubscription: z.object({}).partial(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -770,7 +778,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/androidpublisher/monetization-subscriptions-baseplans-offers",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -924,6 +932,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

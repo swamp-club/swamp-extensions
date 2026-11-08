@@ -81,6 +81,29 @@ const EventBridgeDestinationSchema = z.object({
   ),
 });
 
+const DimensionConfigurationStateSchema = z.object({
+  DimensionValueSource: z.string(),
+  DefaultDimensionValue: z.string(),
+  DimensionName: z.string(),
+}).partial();
+
+const CloudWatchDestinationStateSchema = z.object({
+  DimensionConfigurations: z.array(DimensionConfigurationStateSchema),
+}).partial();
+
+const KinesisFirehoseDestinationStateSchema = z.object({
+  IAMRoleARN: z.string(),
+  DeliveryStreamARN: z.string(),
+}).partial();
+
+const SnsDestinationStateSchema = z.object({
+  TopicARN: z.string(),
+}).partial();
+
+const EventBridgeDestinationStateSchema = z.object({
+  EventBusArn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -132,14 +155,14 @@ const StateSchema = z.object({
     Name: z.string(),
     Enabled: z.boolean(),
     MatchingEventTypes: z.array(z.string()),
-    CloudWatchDestination: CloudWatchDestinationSchema,
-    KinesisFirehoseDestination: KinesisFirehoseDestinationSchema,
-    SnsDestination: SnsDestinationSchema,
-    EventBridgeDestination: EventBridgeDestinationSchema,
-  }).optional(),
+    CloudWatchDestination: CloudWatchDestinationStateSchema,
+    KinesisFirehoseDestination: KinesisFirehoseDestinationStateSchema,
+    SnsDestination: SnsDestinationStateSchema,
+    EventBridgeDestination: EventBridgeDestinationStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -194,7 +217,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES ConfigurationSetEventDestination. Registered at `@swamp/aws/ses/configuration-set-event-destination`. */
 export const model = {
   type: "@swamp/aws/ses/configuration-set-event-destination",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -268,6 +291,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -157,9 +157,9 @@ const StateSchema = z.object({
       cluster: z.string(),
       host: z.string(),
       subBlock: z.string(),
-    }),
+    }).partial(),
     runningInstances: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   zone: z.string().optional(),
 }).passthrough();
 
@@ -207,7 +207,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Hosts. Registered at `@swamp/gcp/compute/hosts`. */
 export const model = {
   type: "@swamp/gcp/compute/hosts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -241,6 +241,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

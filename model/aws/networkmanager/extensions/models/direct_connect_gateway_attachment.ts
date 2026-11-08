@@ -47,6 +47,11 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -112,24 +117,24 @@ const StateSchema = z.object({
   AttachmentPolicyRuleNumber: z.number().optional(),
   SegmentName: z.string().optional(),
   ProposedSegmentChange: z.object({
-    Tags: z.array(TagSchema),
+    Tags: z.array(TagStateSchema),
     AttachmentPolicyRuleNumber: z.number(),
     SegmentName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   NetworkFunctionGroupName: z.string().optional(),
   ProposedNetworkFunctionGroupChange: z.object({
-    Tags: z.array(TagSchema),
+    Tags: z.array(TagStateSchema),
     AttachmentPolicyRuleNumber: z.number(),
     NetworkFunctionGroupName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RoutingPolicyLabel: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   LastModificationErrors: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -192,7 +197,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager DirectConnectGatewayAttachment. Registered at `@swamp/aws/networkmanager/direct-connect-gateway-attachment`. */
 export const model = {
   type: "@swamp/aws/networkmanager/direct-connect-gateway-attachment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -266,6 +271,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

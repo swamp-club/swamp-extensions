@@ -231,100 +231,116 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   agentCoachingContext: z.object({
-    instructions: z.array(z.object({
-      agentAction: z.string(),
-      condition: z.string(),
-      displayDetails: z.string(),
-      displayName: z.string(),
-      duplicateCheckResult: z.object({
-        duplicateSuggestions: z.array(z.unknown()),
-      }),
-      systemAction: z.string(),
-      triggeringEvent: z.string(),
-    })),
+    instructions: z.array(
+      z.object({
+        agentAction: z.string(),
+        condition: z.string(),
+        displayDetails: z.string(),
+        displayName: z.string(),
+        duplicateCheckResult: z.object({
+          duplicateSuggestions: z.array(z.unknown()),
+        }).partial(),
+        systemAction: z.string(),
+        triggeringEvent: z.string(),
+      }).partial(),
+    ),
     outputLanguageCode: z.string(),
     overarchingGuidance: z.string(),
     version: z.string(),
-  }).optional(),
-  cesAppSpecs: z.array(z.object({
-    cesApp: z.string(),
-    confirmationRequirement: z.string(),
-    proactiveEnabled: z.boolean(),
-    reactiveEnabled: z.boolean(),
-  })).optional(),
-  cesToolSpecs: z.array(z.object({
-    cesTool: z.string(),
-    confirmationRequirement: z.string(),
-    parameterOverrides: z.array(z.object({
-      contextReferenceKey: z.string(),
-      fieldPath: z.string(),
-      parameterName: z.string(),
-    })),
-    proactiveEnabled: z.boolean(),
-    reactiveEnabled: z.boolean(),
-  })).optional(),
+  }).partial().optional(),
+  cesAppSpecs: z.array(
+    z.object({
+      cesApp: z.string(),
+      confirmationRequirement: z.string(),
+      proactiveEnabled: z.boolean(),
+      reactiveEnabled: z.boolean(),
+    }).partial(),
+  ).optional(),
+  cesToolSpecs: z.array(
+    z.object({
+      cesTool: z.string(),
+      confirmationRequirement: z.string(),
+      parameterOverrides: z.array(
+        z.object({
+          contextReferenceKey: z.string(),
+          fieldPath: z.string(),
+          parameterName: z.string(),
+        }).partial(),
+      ),
+      proactiveEnabled: z.boolean(),
+      reactiveEnabled: z.boolean(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   freeFormContext: z.object({
     text: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inferenceParameter: z.object({
     maxOutputTokens: z.number(),
     temperature: z.number(),
     topK: z.number(),
     topP: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   publishedModel: z.string().optional(),
   suggestionDedupingConfig: z.object({
     enableDeduping: z.boolean(),
     similarityThreshold: z.number(),
-  }).optional(),
+  }).partial().optional(),
   summarizationContext: z.object({
-    fewShotExamples: z.array(z.object({
-      conversationContext: z.object({
-        messageEntries: z.array(z.unknown()),
-      }),
-      extraInfo: z.record(z.string(), z.unknown()),
-      output: z.object({
-        agentCoachingSuggestion: z.object({
-          agentActionSuggestions: z.unknown(),
-          applicableInstructions: z.unknown(),
-          sampleResponses: z.unknown(),
-        }),
-        freeFormSuggestion: z.object({
-          response: z.unknown(),
-        }),
-        summarySuggestion: z.object({
-          summarySections: z.unknown(),
-        }),
-        toolCallInfo: z.array(z.unknown()),
-      }),
-      summarizationSectionList: z.object({
-        summarizationSections: z.array(z.unknown()),
-      }),
-    })),
+    fewShotExamples: z.array(
+      z.object({
+        conversationContext: z.object({
+          messageEntries: z.array(z.unknown()),
+        }).partial(),
+        extraInfo: z.record(z.string(), z.unknown()),
+        output: z.object({
+          agentCoachingSuggestion: z.object({
+            agentActionSuggestions: z.unknown(),
+            applicableInstructions: z.unknown(),
+            sampleResponses: z.unknown(),
+          }).partial(),
+          freeFormSuggestion: z.object({
+            response: z.unknown(),
+          }).partial(),
+          summarySuggestion: z.object({
+            summarySections: z.unknown(),
+          }).partial(),
+          toolCallInfo: z.array(z.unknown()),
+        }).partial(),
+        summarizationSectionList: z.object({
+          summarizationSections: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    ),
     outputLanguageCode: z.string(),
-    summarizationSections: z.array(z.object({
-      definition: z.string(),
-      key: z.string(),
-      type: z.string(),
-    })),
+    summarizationSections: z.array(
+      z.object({
+        definition: z.string(),
+        key: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tools: z.array(z.string()).optional(),
-  toolsetTools: z.array(z.object({
-    confirmationRequirement: z.string(),
-    operationId: z.string(),
-    parameterOverrides: z.array(z.object({
-      contextReferenceKey: z.string(),
-      fieldPath: z.string(),
-      parameterName: z.string(),
-    })),
-    proactiveEnabled: z.boolean(),
-    reactiveEnabled: z.boolean(),
-    toolset: z.string(),
-  })).optional(),
+  toolsetTools: z.array(
+    z.object({
+      confirmationRequirement: z.string(),
+      operationId: z.string(),
+      parameterOverrides: z.array(
+        z.object({
+          contextReferenceKey: z.string(),
+          fieldPath: z.string(),
+          parameterName: z.string(),
+        }).partial(),
+      ),
+      proactiveEnabled: z.boolean(),
+      reactiveEnabled: z.boolean(),
+      toolset: z.string(),
+    }).partial(),
+  ).optional(),
   triggerEvent: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -494,7 +510,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Generators. Registered at `@swamp/gcp/dialogflow/generators`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/generators",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -531,6 +547,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

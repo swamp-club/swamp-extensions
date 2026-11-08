@@ -92,29 +92,37 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  edges: z.array(z.object({
-    destination: z.string(),
-    source: z.string(),
-  })).optional(),
+  edges: z.array(
+    z.object({
+      destination: z.string(),
+      source: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
-  pathNodes: z.array(z.object({
-    associatedFindings: z.array(z.object({
-      canonicalFinding: z.string(),
-      findingCategory: z.string(),
-      name: z.string(),
-    })),
-    attackSteps: z.array(z.object({
-      description: z.string(),
+  pathNodes: z.array(
+    z.object({
+      associatedFindings: z.array(
+        z.object({
+          canonicalFinding: z.string(),
+          findingCategory: z.string(),
+          name: z.string(),
+        }).partial(),
+      ),
+      attackSteps: z.array(
+        z.object({
+          description: z.string(),
+          displayName: z.string(),
+          labels: z.record(z.string(), z.unknown()),
+          type: z.string(),
+          uuid: z.string(),
+        }).partial(),
+      ),
       displayName: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-      type: z.string(),
+      resource: z.string(),
+      resourceType: z.string(),
       uuid: z.string(),
-    })),
-    displayName: z.string(),
-    resource: z.string(),
-    resourceType: z.string(),
-    uuid: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -158,7 +166,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center Simulations.AttackPaths. Registered at `@swamp/gcp/securitycenter/simulations-attackpaths`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/simulations-attackpaths",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -292,6 +300,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

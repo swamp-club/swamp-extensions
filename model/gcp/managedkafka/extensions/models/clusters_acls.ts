@@ -185,12 +185,14 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  aclEntries: z.array(z.object({
-    host: z.string(),
-    operation: z.string(),
-    permissionType: z.string(),
-    principal: z.string(),
-  })).optional(),
+  aclEntries: z.array(
+    z.object({
+      host: z.string(),
+      operation: z.string(),
+      permissionType: z.string(),
+      principal: z.string(),
+    }).partial(),
+  ).optional(),
   etag: z.string().optional(),
   name: z.string(),
   patternType: z.string().optional(),
@@ -263,7 +265,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka Clusters.Acls. Registered at `@swamp/gcp/managedkafka/clusters-acls`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/clusters-acls",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -397,6 +399,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

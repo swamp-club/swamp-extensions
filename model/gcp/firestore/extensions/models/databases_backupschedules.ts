@@ -177,13 +177,13 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   createTime: z.string().optional(),
-  dailyRecurrence: z.object({}).optional(),
+  dailyRecurrence: z.object({}).partial().optional(),
   name: z.string(),
   retention: z.string().optional(),
   updateTime: z.string().optional(),
   weeklyRecurrence: z.object({
     day: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -249,7 +249,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firestore Databases.BackupSchedules. Registered at `@swamp/gcp/firestore/databases-backupschedules`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-backupschedules",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -393,6 +393,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

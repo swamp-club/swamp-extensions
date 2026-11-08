@@ -200,21 +200,23 @@ const StateSchema = z.object({
   llmModelSettings: z.object({
     model: z.string(),
     promptText: z.string(),
-  }).optional(),
+  }).partial().optional(),
   modelParameter: z.object({
     maxDecodeSteps: z.number(),
     temperature: z.number(),
     topK: z.number(),
     topP: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  placeholders: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-  })).optional(),
+  placeholders: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   promptText: z.object({
     text: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -281,7 +283,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.Generators. Registered at `@swamp/gcp/dialogflow/agents-generators`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-generators",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -415,6 +417,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

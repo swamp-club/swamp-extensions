@@ -58,6 +58,19 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value of the tag."),
 });
 
+const PITPolicyRuleStateSchema = z.object({
+  RuleID: z.number(),
+  Units: z.string(),
+  Interval: z.number(),
+  RetentionDuration: z.number(),
+  Enabled: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -143,13 +156,13 @@ const StateSchema = z.object({
   DataPlaneRouting: z.string().optional(),
   CreatePublicIP: z.boolean().optional(),
   StagingAreaTags: z.record(z.string(), z.unknown()).optional(),
-  PitPolicy: z.array(PITPolicyRuleSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  PitPolicy: z.array(PITPolicyRuleStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   AutoReplicateNewDisks: z.boolean().optional(),
   InternetProtocol: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -230,7 +243,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DRS ReplicationConfigurationTemplate. Registered at `@swamp/aws/drs/replication-configuration-template`. */
 export const model = {
   type: "@swamp/aws/drs/replication-configuration-template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -244,6 +257,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -142,7 +142,7 @@ const StateSchema = z.object({
     Bucket: z.string(),
     Version: z.string(),
     Key: z.string(),
-  }).optional(),
+  }).partial().optional(),
   BasePath: z.string().optional(),
   CredentialsArn: z.string().optional(),
   CorsConfiguration: z.object({
@@ -152,7 +152,7 @@ const StateSchema = z.object({
     AllowHeaders: z.array(z.string()),
     MaxAge: z.number(),
     AllowMethods: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   RouteKey: z.string().optional(),
   Target: z.string().optional(),
   FailOnWarnings: z.boolean().optional(),
@@ -170,7 +170,7 @@ const StateSchema = z.object({
   IpAddressType: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -277,7 +277,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 Api. Registered at `@swamp/aws/apigatewayv2/api`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/api",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -351,6 +351,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

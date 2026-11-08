@@ -373,7 +373,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   analyticsDataSharingEnabled: z.boolean().optional(),
   customViewabilityMetric: z.object({
     configuration: z.object({
@@ -381,10 +381,10 @@ const StateSchema = z.object({
       timeMillis: z.number(),
       timePercent: z.number(),
       viewabilityPercent: z.number(),
-    }),
+    }).partial(),
     id: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   exposureToConversionEnabled: z.boolean().optional(),
   firstDayOfWeek: z.string().optional(),
   id: z.string(),
@@ -395,32 +395,36 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inAppAttributionTrackingEnabled: z.boolean().optional(),
   kind: z.string().optional(),
   lookbackConfiguration: z.object({
     clickDuration: z.number(),
     postImpressionActivitiesDuration: z.number(),
-  }).optional(),
+  }).partial().optional(),
   naturalSearchConversionAttributionOption: z.string().optional(),
   omnitureSettings: z.object({
     omnitureCostDataEnabled: z.boolean(),
     omnitureIntegrationEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   subaccountId: z.string().optional(),
   tagSettings: z.object({
     dynamicTagEnabled: z.boolean(),
     imageTagEnabled: z.boolean(),
-  }).optional(),
-  thirdPartyAuthenticationTokens: z.array(z.object({
-    name: z.string(),
-    value: z.string(),
-  })).optional(),
-  userDefinedVariableConfigurations: z.array(z.object({
-    dataType: z.string(),
-    reportName: z.string(),
-    variableType: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  thirdPartyAuthenticationTokens: z.array(
+    z.object({
+      name: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
+  userDefinedVariableConfigurations: z.array(
+    z.object({
+      dataType: z.string(),
+      reportName: z.string(),
+      variableType: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -702,7 +706,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 FloodlightConfigurations. Registered at `@swamp/gcp/dfareporting/floodlightconfigurations`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/floodlightconfigurations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -841,6 +845,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -339,6 +339,298 @@ const TagSchema = z.object({
   Value: z.string(),
 });
 
+const CloudwatchAlarmActionStateSchema = z.object({
+  StateValue: z.string(),
+  AlarmName: z.string(),
+  StateReason: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const CloudwatchLogsActionStateSchema = z.object({
+  LogGroupName: z.string(),
+  RoleArn: z.string(),
+  BatchMode: z.boolean(),
+}).partial();
+
+const CloudwatchMetricActionStateSchema = z.object({
+  MetricName: z.string(),
+  MetricValue: z.string(),
+  MetricNamespace: z.string(),
+  MetricUnit: z.string(),
+  RoleArn: z.string(),
+  MetricTimestamp: z.string(),
+}).partial();
+
+const DynamoDBActionStateSchema = z.object({
+  TableName: z.string(),
+  PayloadField: z.string(),
+  RangeKeyField: z.string(),
+  HashKeyField: z.string(),
+  RangeKeyValue: z.string(),
+  RangeKeyType: z.string(),
+  HashKeyType: z.string(),
+  HashKeyValue: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const PutItemInputStateSchema = z.object({
+  TableName: z.string(),
+}).partial();
+
+const DynamoDBv2ActionStateSchema = z.object({
+  PutItem: PutItemInputStateSchema,
+  RoleArn: z.string(),
+}).partial();
+
+const ElasticsearchActionStateSchema = z.object({
+  Type: z.string(),
+  Index: z.string(),
+  Id: z.string(),
+  Endpoint: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const FirehoseActionStateSchema = z.object({
+  DeliveryStreamName: z.string(),
+  RoleArn: z.string(),
+  Separator: z.string(),
+  BatchMode: z.boolean(),
+}).partial();
+
+const HttpActionHeaderStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const SigV4AuthorizationStateSchema = z.object({
+  ServiceName: z.string(),
+  SigningRegion: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const HttpAuthorizationStateSchema = z.object({
+  Sigv4: SigV4AuthorizationStateSchema,
+}).partial();
+
+const BatchConfigStateSchema = z.object({
+  MaxBatchOpenMs: z.number(),
+  MaxBatchSize: z.number(),
+  MaxBatchSizeBytes: z.number(),
+  BatchAcrossTopics: z.boolean(),
+}).partial();
+
+const HttpActionStateSchema = z.object({
+  ConfirmationUrl: z.string(),
+  Headers: z.array(HttpActionHeaderStateSchema),
+  Url: z.string(),
+  Auth: HttpAuthorizationStateSchema,
+  EnableBatching: z.boolean(),
+  BatchConfig: BatchConfigStateSchema,
+}).partial();
+
+const InfluxDBBatchConfigStateSchema = z.object({
+  MaxBatchSize: z.number(),
+  MaxBatchOpenMs: z.number(),
+  MaxBatchSizeBytes: z.number(),
+  BatchAcrossTopics: z.boolean(),
+}).partial();
+
+const InfluxDBActionStateSchema = z.object({
+  DestinationArn: z.string(),
+  RoleArn: z.string(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  Organization: z.string(),
+  TimestampUnit: z.string(),
+  Tags: z.record(z.string(), z.unknown()),
+  BatchConfig: InfluxDBBatchConfigStateSchema,
+}).partial();
+
+const IotAnalyticsActionStateSchema = z.object({
+  RoleArn: z.string(),
+  ChannelName: z.string(),
+  BatchMode: z.boolean(),
+}).partial();
+
+const IotEventsActionStateSchema = z.object({
+  InputName: z.string(),
+  RoleArn: z.string(),
+  MessageId: z.string(),
+  BatchMode: z.boolean(),
+}).partial();
+
+const AssetPropertyVariantStateSchema = z.object({
+  StringValue: z.string(),
+  DoubleValue: z.string(),
+  BooleanValue: z.string(),
+  IntegerValue: z.string(),
+}).partial();
+
+const AssetPropertyTimestampStateSchema = z.object({
+  TimeInSeconds: z.string(),
+  OffsetInNanos: z.string(),
+}).partial();
+
+const AssetPropertyValueStateSchema = z.object({
+  Value: AssetPropertyVariantStateSchema,
+  Timestamp: AssetPropertyTimestampStateSchema,
+  Quality: z.string(),
+}).partial();
+
+const PutAssetPropertyValueEntryStateSchema = z.object({
+  PropertyAlias: z.string(),
+  PropertyValues: z.array(AssetPropertyValueStateSchema),
+  AssetId: z.string(),
+  EntryId: z.string(),
+  PropertyId: z.string(),
+}).partial();
+
+const IotSiteWiseActionStateSchema = z.object({
+  RoleArn: z.string(),
+  PutAssetPropertyValueEntries: z.array(PutAssetPropertyValueEntryStateSchema),
+}).partial();
+
+const KafkaActionHeaderStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const KafkaActionStateSchema = z.object({
+  DestinationArn: z.string(),
+  Topic: z.string(),
+  Key: z.string(),
+  Partition: z.string(),
+  ClientProperties: z.record(z.string(), z.unknown()),
+  Headers: z.array(KafkaActionHeaderStateSchema),
+}).partial();
+
+const KinesisActionStateSchema = z.object({
+  PartitionKey: z.string(),
+  StreamName: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const LambdaActionStateSchema = z.object({
+  FunctionArn: z.string(),
+}).partial();
+
+const TimestampStateSchema = z.object({
+  Value: z.string(),
+  Unit: z.string(),
+}).partial();
+
+const LocationActionStateSchema = z.object({
+  RoleArn: z.string(),
+  TrackerName: z.string(),
+  DeviceId: z.string(),
+  Latitude: z.string(),
+  Longitude: z.string(),
+  Timestamp: TimestampStateSchema,
+}).partial();
+
+const OpenSearchActionStateSchema = z.object({
+  Type: z.string(),
+  Index: z.string(),
+  Id: z.string(),
+  Endpoint: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const UserPropertyStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const RepublishActionHeadersStateSchema = z.object({
+  PayloadFormatIndicator: z.string(),
+  ContentType: z.string(),
+  ResponseTopic: z.string(),
+  CorrelationData: z.string(),
+  MessageExpiry: z.string(),
+  UserProperties: z.array(UserPropertyStateSchema),
+}).partial();
+
+const RepublishActionStateSchema = z.object({
+  Qos: z.number(),
+  Topic: z.string(),
+  RoleArn: z.string(),
+  Headers: RepublishActionHeadersStateSchema,
+}).partial();
+
+const S3ActionStateSchema = z.object({
+  BucketName: z.string(),
+  Key: z.string(),
+  RoleArn: z.string(),
+  CannedAcl: z.string(),
+}).partial();
+
+const SnsActionStateSchema = z.object({
+  TargetArn: z.string(),
+  MessageFormat: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const SqsActionStateSchema = z.object({
+  RoleArn: z.string(),
+  UseBase64: z.boolean(),
+  QueueUrl: z.string(),
+}).partial();
+
+const StepFunctionsActionStateSchema = z.object({
+  ExecutionNamePrefix: z.string(),
+  StateMachineName: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const TimestreamDimensionStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TimestreamTimestampStateSchema = z.object({
+  Value: z.string(),
+  Unit: z.string(),
+}).partial();
+
+const TimestreamActionStateSchema = z.object({
+  RoleArn: z.string(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  Dimensions: z.array(TimestreamDimensionStateSchema),
+  Timestamp: TimestreamTimestampStateSchema,
+}).partial();
+
+const ActionStateSchema = z.object({
+  CloudwatchAlarm: CloudwatchAlarmActionStateSchema,
+  CloudwatchLogs: CloudwatchLogsActionStateSchema,
+  CloudwatchMetric: CloudwatchMetricActionStateSchema,
+  DynamoDB: DynamoDBActionStateSchema,
+  DynamoDBv2: DynamoDBv2ActionStateSchema,
+  Elasticsearch: ElasticsearchActionStateSchema,
+  Firehose: FirehoseActionStateSchema,
+  Http: HttpActionStateSchema,
+  InfluxDB: InfluxDBActionStateSchema,
+  IotAnalytics: IotAnalyticsActionStateSchema,
+  IotEvents: IotEventsActionStateSchema,
+  IotSiteWise: IotSiteWiseActionStateSchema,
+  Kafka: KafkaActionStateSchema,
+  Kinesis: KinesisActionStateSchema,
+  Lambda: LambdaActionStateSchema,
+  Location: LocationActionStateSchema,
+  OpenSearch: OpenSearchActionStateSchema,
+  Republish: RepublishActionStateSchema,
+  S3: S3ActionStateSchema,
+  Sns: SnsActionStateSchema,
+  Sqs: SqsActionStateSchema,
+  StepFunctions: StepFunctionsActionStateSchema,
+  Timestream: TimestreamActionStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -369,16 +661,16 @@ const StateSchema = z.object({
   RuleName: z.string(),
   TopicRulePayload: z.object({
     RuleDisabled: z.boolean(),
-    ErrorAction: ActionSchema,
+    ErrorAction: ActionStateSchema,
     Description: z.string(),
     AwsIotSqlVersion: z.string(),
-    Actions: z.array(ActionSchema),
+    Actions: z.array(ActionStateSchema),
     Sql: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -416,7 +708,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT TopicRule. Registered at `@swamp/aws/iot/topic-rule`. */
 export const model = {
   type: "@swamp/aws/iot/topic-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -490,6 +782,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

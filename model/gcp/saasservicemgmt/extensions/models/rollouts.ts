@@ -237,8 +237,8 @@ const StateSchema = z.object({
     action: z.string(),
     runParams: z.object({
       retryFailedOperations: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   effectiveUnitFilter: z.string().optional(),
@@ -257,11 +257,13 @@ const StateSchema = z.object({
   stateTransitionTime: z.string().optional(),
   stats: z.object({
     estimatedTotalUnitCount: z.string(),
-    operationsByState: z.array(z.object({
-      count: z.number(),
-      group: z.string(),
-    })),
-  }).optional(),
+    operationsByState: z.array(
+      z.object({
+        count: z.number(),
+        group: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   uid: z.string().optional(),
   unitFilter: z.string().optional(),
   updateTime: z.string().optional(),
@@ -352,7 +354,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager Rollouts. Registered at `@swamp/gcp/saasservicemgmt/rollouts`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/rollouts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -507,6 +509,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

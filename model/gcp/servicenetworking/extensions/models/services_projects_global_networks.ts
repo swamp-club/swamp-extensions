@@ -83,11 +83,13 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  cloudsqlConfigs: z.array(z.object({
-    service: z.string(),
-    umbrellaNetwork: z.string(),
-    umbrellaProject: z.string(),
-  })).optional(),
+  cloudsqlConfigs: z.array(
+    z.object({
+      service: z.string(),
+      umbrellaNetwork: z.string(),
+      umbrellaProject: z.string(),
+    }).partial(),
+  ).optional(),
   consumerExportCustomRoutes: z.boolean().optional(),
   consumerExportSubnetRoutesWithPublicIp: z.boolean().optional(),
   consumerImportCustomRoutes: z.boolean().optional(),
@@ -98,11 +100,13 @@ const StateSchema = z.object({
   producerImportCustomRoutes: z.boolean().optional(),
   producerImportSubnetRoutesWithPublicIp: z.boolean().optional(),
   producerNetwork: z.string().optional(),
-  reservedRanges: z.array(z.object({
-    address: z.string(),
-    ipPrefixLength: z.number(),
-    name: z.string(),
-  })).optional(),
+  reservedRanges: z.array(
+    z.object({
+      address: z.string(),
+      ipPrefixLength: z.number(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   usedIpRanges: z.array(z.string()).optional(),
   vpcScReferenceArchitectureEnabled: z.boolean().optional(),
 }).passthrough();
@@ -145,7 +149,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Service Networking Services.Projects.Global.Networks. Registered at `@swamp/gcp/servicenetworking/services-projects-global-networks`. */
 export const model = {
   type: "@swamp/gcp/servicenetworking/services-projects-global-networks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -264,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

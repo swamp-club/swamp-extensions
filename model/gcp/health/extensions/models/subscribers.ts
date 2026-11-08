@@ -183,14 +183,16 @@ const StateSchema = z.object({
   endpointAuthorization: z.object({
     secret: z.string(),
     secretSet: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   endpointUri: z.string().optional(),
   name: z.string(),
   state: z.string().optional(),
-  subscriberConfigs: z.array(z.object({
-    dataTypes: z.array(z.string()),
-    subscriptionCreatePolicy: z.string(),
-  })).optional(),
+  subscriberConfigs: z.array(
+    z.object({
+      dataTypes: z.array(z.string()),
+      subscriptionCreatePolicy: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -270,7 +272,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Health Subscribers. Registered at `@swamp/gcp/health/subscribers`. */
 export const model = {
   type: "@swamp/gcp/health/subscribers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -294,6 +296,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

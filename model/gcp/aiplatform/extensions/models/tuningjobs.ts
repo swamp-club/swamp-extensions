@@ -889,35 +889,37 @@ const StateSchema = z.object({
   description: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endTime: z.string().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
-  evaluateDatasetRuns: z.array(z.object({
-    checkpointId: z.string(),
-    error: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    evaluateDatasetResponse: z.object({
-      aggregationOutput: z.object({
-        aggregationResults: z.array(z.unknown()),
-        dataset: z.object({
-          bigquerySource: z.unknown(),
-          gcsSource: z.unknown(),
-        }),
-      }),
-      outputInfo: z.object({
-        gcsOutputDirectory: z.string(),
-      }),
-    }),
-    evaluationRun: z.string(),
-    operationName: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  evaluateDatasetRuns: z.array(
+    z.object({
+      checkpointId: z.string(),
+      error: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      evaluateDatasetResponse: z.object({
+        aggregationOutput: z.object({
+          aggregationResults: z.array(z.unknown()),
+          dataset: z.object({
+            bigquerySource: z.unknown(),
+            gcsSource: z.unknown(),
+          }).partial(),
+        }).partial(),
+        outputInfo: z.object({
+          gcsOutputDirectory: z.string(),
+        }).partial(),
+      }).partial(),
+      evaluationRun: z.string(),
+      operationName: z.string(),
+    }).partial(),
+  ).optional(),
   experiment: z.string().optional(),
   gcsMetricsUri: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -926,7 +928,7 @@ const StateSchema = z.object({
     baseModel: z.string(),
     checkpointId: z.string(),
     tunedModelName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   preferenceOptimizationSpec: z.object({
     exportLastCheckpointOnly: z.boolean(),
     hyperParameters: z.object({
@@ -934,10 +936,10 @@ const StateSchema = z.object({
       beta: z.number(),
       epochCount: z.string(),
       learningRateMultiplier: z.number(),
-    }),
+    }).partial(),
     trainingDatasetUri: z.string(),
     validationDatasetUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   serviceAccount: z.string().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
@@ -958,7 +960,7 @@ const StateSchema = z.object({
             mode: z.unknown(),
             sourceText: z.unknown(),
             wordTimestamp: z.unknown(),
-          }),
+          }).partial(),
           candidateCount: z.number(),
           enableAffectiveDialog: z.boolean(),
           frequencyPenalty: z.number(),
@@ -968,7 +970,7 @@ const StateSchema = z.object({
             imageSize: z.unknown(),
             personGeneration: z.unknown(),
             prominentPeople: z.unknown(),
-          }),
+          }).partial(),
           logprobs: z.number(),
           maxOutputTokens: z.number(),
           mediaResolution: z.string(),
@@ -1004,52 +1006,54 @@ const StateSchema = z.object({
             required: z.unknown(),
             title: z.unknown(),
             type: z.unknown(),
-          }),
+          }).partial(),
           routingConfig: z.object({
             autoMode: z.unknown(),
             manualMode: z.unknown(),
-          }),
+          }).partial(),
           seed: z.number(),
           speechConfig: z.object({
             languageCode: z.unknown(),
             multiSpeakerVoiceConfig: z.unknown(),
             voiceConfig: z.unknown(),
-          }),
+          }).partial(),
           stopSequences: z.array(z.unknown()),
           temperature: z.number(),
           thinkingConfig: z.object({
             includeThoughts: z.unknown(),
             thinkingBudget: z.unknown(),
             thinkingLevel: z.unknown(),
-          }),
+          }).partial(),
           topK: z.number(),
           topP: z.number(),
           translationConfig: z.object({
             echoTargetLanguage: z.unknown(),
             targetLanguageCode: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         samplingCount: z.number(),
-      }),
-      datasetCustomMetrics: z.array(z.object({
-        aggregationFunction: z.string(),
-        displayName: z.string(),
-      })),
+      }).partial(),
+      datasetCustomMetrics: z.array(
+        z.object({
+          aggregationFunction: z.string(),
+          displayName: z.string(),
+        }).partial(),
+      ),
       inferenceGenerationConfig: z.object({
         audioTimestamp: z.boolean(),
         audioTranscriptionConfig: z.object({
           adaptationPhrases: z.array(z.unknown()),
           customVocabulary: z.array(z.unknown()),
           diarization: z.boolean(),
-          languageAuto: z.object({}),
+          languageAuto: z.object({}).partial(),
           languageCodes: z.array(z.unknown()),
           languageHints: z.object({
             languageCodes: z.unknown(),
-          }),
+          }).partial(),
           mode: z.string(),
           sourceText: z.string(),
           wordTimestamp: z.boolean(),
-        }),
+        }).partial(),
         candidateCount: z.number(),
         enableAffectiveDialog: z.boolean(),
         frequencyPenalty: z.number(),
@@ -1058,21 +1062,23 @@ const StateSchema = z.object({
           imageOutputOptions: z.object({
             compressionQuality: z.unknown(),
             mimeType: z.unknown(),
-          }),
+          }).partial(),
           imageSize: z.string(),
           personGeneration: z.string(),
           prominentPeople: z.string(),
-        }),
+        }).partial(),
         logprobs: z.number(),
         maxOutputTokens: z.number(),
         mediaResolution: z.string(),
         presencePenalty: z.number(),
-        responseFormat: z.array(z.object({
-          audio: z.unknown(),
-          image: z.unknown(),
-          text: z.unknown(),
-          video: z.unknown(),
-        })),
+        responseFormat: z.array(
+          z.object({
+            audio: z.unknown(),
+            image: z.unknown(),
+            text: z.unknown(),
+            video: z.unknown(),
+          }).partial(),
+        ),
         responseJsonSchema: z.string(),
         responseLogprobs: z.boolean(),
         responseMimeType: z.string(),
@@ -1103,127 +1109,133 @@ const StateSchema = z.object({
           required: z.array(z.unknown()),
           title: z.string(),
           type: z.string(),
-        }),
+        }).partial(),
         routingConfig: z.object({
           autoMode: z.object({
             modelRoutingPreference: z.unknown(),
-          }),
+          }).partial(),
           manualMode: z.object({
             modelName: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         seed: z.number(),
         speechConfig: z.object({
           languageCode: z.string(),
           multiSpeakerVoiceConfig: z.object({
             speakerVoiceConfigs: z.unknown(),
-          }),
+          }).partial(),
           voiceConfig: z.object({
             prebuiltVoiceConfig: z.unknown(),
             replicatedVoiceConfig: z.unknown(),
             voice: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         stopSequences: z.array(z.string()),
         temperature: z.number(),
         thinkingConfig: z.object({
           includeThoughts: z.boolean(),
           thinkingBudget: z.number(),
           thinkingLevel: z.string(),
-        }),
+        }).partial(),
         topK: z.number(),
         topP: z.number(),
         translationConfig: z.object({
           echoTargetLanguage: z.boolean(),
           targetLanguageCode: z.string(),
-        }),
-      }),
-      metrics: z.array(z.object({
-        aggregationMetrics: z.array(z.unknown()),
-        bleuSpec: z.object({
-          useEffectiveOrder: z.unknown(),
-        }),
-        computationBasedMetricSpec: z.object({
-          parameters: z.unknown(),
-          type: z.unknown(),
-        }),
-        customCodeExecutionSpec: z.object({
-          evaluationFunction: z.unknown(),
-        }),
-        exactMatchSpec: z.object({}),
-        llmBasedMetricSpec: z.object({
-          additionalConfig: z.unknown(),
-          judgeAutoraterConfig: z.unknown(),
-          metricPromptTemplate: z.unknown(),
-          predefinedRubricGenerationSpec: z.unknown(),
-          resultParserConfig: z.unknown(),
-          rubricGenerationSpec: z.unknown(),
-          rubricGroupKey: z.unknown(),
-          systemInstruction: z.unknown(),
-        }),
-        metadata: z.object({
-          otherMetadata: z.unknown(),
-          scoreRange: z.unknown(),
-          title: z.unknown(),
-        }),
-        pairwiseMetricSpec: z.object({
-          baselineResponseFieldName: z.unknown(),
-          candidateResponseFieldName: z.unknown(),
-          customOutputFormatConfig: z.unknown(),
-          metricPromptTemplate: z.unknown(),
-          systemInstruction: z.unknown(),
-        }),
-        pointwiseMetricSpec: z.object({
-          customOutputFormatConfig: z.unknown(),
-          metricPromptTemplate: z.unknown(),
-          systemInstruction: z.unknown(),
-        }),
-        predefinedMetricSpec: z.object({
-          metricSpecName: z.unknown(),
-          metricSpecParameters: z.unknown(),
-        }),
-        rougeSpec: z.object({
-          rougeType: z.unknown(),
-          splitSummaries: z.unknown(),
-          useStemmer: z.unknown(),
-        }),
-      })),
+        }).partial(),
+      }).partial(),
+      metrics: z.array(
+        z.object({
+          aggregationMetrics: z.array(z.unknown()),
+          bleuSpec: z.object({
+            useEffectiveOrder: z.unknown(),
+          }).partial(),
+          computationBasedMetricSpec: z.object({
+            parameters: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          customCodeExecutionSpec: z.object({
+            evaluationFunction: z.unknown(),
+          }).partial(),
+          exactMatchSpec: z.object({}).partial(),
+          llmBasedMetricSpec: z.object({
+            additionalConfig: z.unknown(),
+            judgeAutoraterConfig: z.unknown(),
+            metricPromptTemplate: z.unknown(),
+            predefinedRubricGenerationSpec: z.unknown(),
+            resultParserConfig: z.unknown(),
+            rubricGenerationSpec: z.unknown(),
+            rubricGroupKey: z.unknown(),
+            systemInstruction: z.unknown(),
+          }).partial(),
+          metadata: z.object({
+            otherMetadata: z.unknown(),
+            scoreRange: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+          pairwiseMetricSpec: z.object({
+            baselineResponseFieldName: z.unknown(),
+            candidateResponseFieldName: z.unknown(),
+            customOutputFormatConfig: z.unknown(),
+            metricPromptTemplate: z.unknown(),
+            systemInstruction: z.unknown(),
+          }).partial(),
+          pointwiseMetricSpec: z.object({
+            customOutputFormatConfig: z.unknown(),
+            metricPromptTemplate: z.unknown(),
+            systemInstruction: z.unknown(),
+          }).partial(),
+          predefinedMetricSpec: z.object({
+            metricSpecName: z.unknown(),
+            metricSpecParameters: z.unknown(),
+          }).partial(),
+          rougeSpec: z.object({
+            rougeType: z.unknown(),
+            splitSummaries: z.unknown(),
+            useStemmer: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       outputConfig: z.object({
         gcsDestination: z.object({
           outputUriPrefix: z.string(),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     exportLastCheckpointOnly: z.boolean(),
     hyperParameters: z.object({
       adapterSize: z.string(),
       epochCount: z.string(),
       learningRateMultiplier: z.number(),
-    }),
+    }).partial(),
     trainingDatasetUri: z.string(),
     validationDatasetUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tunedModel: z.object({
-    checkpoints: z.array(z.object({
-      checkpointId: z.string(),
-      endpoint: z.string(),
-      epoch: z.string(),
-      step: z.string(),
-    })),
+    checkpoints: z.array(
+      z.object({
+        checkpointId: z.string(),
+        endpoint: z.string(),
+        epoch: z.string(),
+        step: z.string(),
+      }).partial(),
+    ),
     endpoint: z.string(),
     model: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tunedModelDisplayName: z.string().optional(),
   tuningDataStats: z.object({
     preferenceOptimizationDataStats: z.object({
       droppedExampleIndices: z.array(z.string()),
       droppedExampleReasons: z.array(z.string()),
       scoreVariancePerExampleDistribution: z.object({
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          left: z.unknown(),
-          right: z.unknown(),
-        })),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            left: z.unknown(),
+            right: z.unknown(),
+          }).partial(),
+        ),
         max: z.number(),
         mean: z.number(),
         median: z.number(),
@@ -1231,13 +1243,15 @@ const StateSchema = z.object({
         p5: z.number(),
         p95: z.number(),
         sum: z.number(),
-      }),
+      }).partial(),
       scoresDistribution: z.object({
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          left: z.unknown(),
-          right: z.unknown(),
-        })),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            left: z.unknown(),
+            right: z.unknown(),
+          }).partial(),
+        ),
         max: z.number(),
         mean: z.number(),
         median: z.number(),
@@ -1245,20 +1259,24 @@ const StateSchema = z.object({
         p5: z.number(),
         p95: z.number(),
         sum: z.number(),
-      }),
+      }).partial(),
       totalBillableTokenCount: z.string(),
       tuningDatasetExampleCount: z.string(),
       tuningStepCount: z.string(),
-      userDatasetExamples: z.array(z.object({
-        completions: z.array(z.unknown()),
-        contents: z.array(z.unknown()),
-      })),
+      userDatasetExamples: z.array(
+        z.object({
+          completions: z.array(z.unknown()),
+          contents: z.array(z.unknown()),
+        }).partial(),
+      ),
       userInputTokenDistribution: z.object({
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          left: z.unknown(),
-          right: z.unknown(),
-        })),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            left: z.unknown(),
+            right: z.unknown(),
+          }).partial(),
+        ),
         max: z.number(),
         mean: z.number(),
         median: z.number(),
@@ -1266,13 +1284,15 @@ const StateSchema = z.object({
         p5: z.number(),
         p95: z.number(),
         sum: z.number(),
-      }),
+      }).partial(),
       userOutputTokenDistribution: z.object({
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          left: z.unknown(),
-          right: z.unknown(),
-        })),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            left: z.unknown(),
+            right: z.unknown(),
+          }).partial(),
+        ),
         max: z.number(),
         mean: z.number(),
         median: z.number(),
@@ -1280,8 +1300,8 @@ const StateSchema = z.object({
         p5: z.number(),
         p95: z.number(),
         sum: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     supervisedTuningDataStats: z.object({
       droppedExampleReasons: z.array(z.string()),
       totalBillableCharacterCount: z.string(),
@@ -1291,17 +1311,21 @@ const StateSchema = z.object({
       truncatedExampleIndices: z.array(z.string()),
       tuningDatasetExampleCount: z.string(),
       tuningStepCount: z.string(),
-      userDatasetExamples: z.array(z.object({
-        parts: z.array(z.unknown()),
-        role: z.string(),
-      })),
+      userDatasetExamples: z.array(
+        z.object({
+          parts: z.array(z.unknown()),
+          role: z.string(),
+        }).partial(),
+      ),
       userInputTokenDistribution: z.object({
         billableSum: z.string(),
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          left: z.unknown(),
-          right: z.unknown(),
-        })),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            left: z.unknown(),
+            right: z.unknown(),
+          }).partial(),
+        ),
         max: z.number(),
         mean: z.number(),
         median: z.number(),
@@ -1309,14 +1333,16 @@ const StateSchema = z.object({
         p5: z.number(),
         p95: z.number(),
         sum: z.string(),
-      }),
+      }).partial(),
       userMessagePerExampleDistribution: z.object({
         billableSum: z.string(),
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          left: z.unknown(),
-          right: z.unknown(),
-        })),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            left: z.unknown(),
+            right: z.unknown(),
+          }).partial(),
+        ),
         max: z.number(),
         mean: z.number(),
         median: z.number(),
@@ -1324,14 +1350,16 @@ const StateSchema = z.object({
         p5: z.number(),
         p95: z.number(),
         sum: z.string(),
-      }),
+      }).partial(),
       userOutputTokenDistribution: z.object({
         billableSum: z.string(),
-        buckets: z.array(z.object({
-          count: z.unknown(),
-          left: z.unknown(),
-          right: z.unknown(),
-        })),
+        buckets: z.array(
+          z.object({
+            count: z.unknown(),
+            left: z.unknown(),
+            right: z.unknown(),
+          }).partial(),
+        ),
         max: z.number(),
         mean: z.number(),
         median: z.number(),
@@ -1339,9 +1367,9 @@ const StateSchema = z.object({
         p5: z.number(),
         p95: z.number(),
         sum: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -2142,7 +2170,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform TuningJobs. Registered at `@swamp/gcp/aiplatform/tuningjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/tuningjobs",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2379,6 +2407,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

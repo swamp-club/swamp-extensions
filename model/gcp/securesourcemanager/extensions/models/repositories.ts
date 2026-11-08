@@ -223,18 +223,18 @@ const StateSchema = z.object({
     gitignores: z.array(z.string()),
     license: z.string(),
     readme: z.string(),
-  }).optional(),
+  }).partial().optional(),
   instance: z.string().optional(),
   name: z.string(),
   scanConfig: z.object({
     secretScanConfig: z.object({
       enabled: z.boolean(),
       inspectTemplate: z.string(),
-    }),
+    }).partial(),
     vulnerabilityScanConfig: z.object({
       enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   serviceAccount: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -242,7 +242,7 @@ const StateSchema = z.object({
     api: z.string(),
     gitHttps: z.string(),
     html: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -328,7 +328,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Secure Source Manager Repositories. Registered at `@swamp/gcp/securesourcemanager/repositories`. */
 export const model = {
   type: "@swamp/gcp/securesourcemanager/repositories",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -508,6 +508,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

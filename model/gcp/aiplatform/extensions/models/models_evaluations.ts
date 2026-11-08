@@ -123,54 +123,58 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   dataItemSchemaUri: z.string().optional(),
   displayName: z.string().optional(),
-  explanationSpecs: z.array(z.object({
-    explanationSpec: z.object({
-      metadata: z.object({
-        featureAttributionsSchemaUri: z.string(),
-        inputs: z.record(z.string(), z.unknown()),
-        latentSpaceSource: z.string(),
-        outputs: z.record(z.string(), z.unknown()),
-      }),
-      parameters: z.object({
-        examples: z.object({
-          exampleGcsSource: z.unknown(),
-          nearestNeighborSearchConfig: z.unknown(),
-          neighborCount: z.unknown(),
-          presets: z.unknown(),
-        }),
-        integratedGradientsAttribution: z.object({
-          blurBaselineConfig: z.unknown(),
-          smoothGradConfig: z.unknown(),
-          stepCount: z.unknown(),
-        }),
-        outputIndices: z.array(z.unknown()),
-        sampledShapleyAttribution: z.object({
-          pathCount: z.unknown(),
-        }),
-        topK: z.number(),
-        xraiAttribution: z.object({
-          blurBaselineConfig: z.unknown(),
-          smoothGradConfig: z.unknown(),
-          stepCount: z.unknown(),
-        }),
-      }),
-    }),
-    explanationType: z.string(),
-  })).optional(),
+  explanationSpecs: z.array(
+    z.object({
+      explanationSpec: z.object({
+        metadata: z.object({
+          featureAttributionsSchemaUri: z.string(),
+          inputs: z.record(z.string(), z.unknown()),
+          latentSpaceSource: z.string(),
+          outputs: z.record(z.string(), z.unknown()),
+        }).partial(),
+        parameters: z.object({
+          examples: z.object({
+            exampleGcsSource: z.unknown(),
+            nearestNeighborSearchConfig: z.unknown(),
+            neighborCount: z.unknown(),
+            presets: z.unknown(),
+          }).partial(),
+          integratedGradientsAttribution: z.object({
+            blurBaselineConfig: z.unknown(),
+            smoothGradConfig: z.unknown(),
+            stepCount: z.unknown(),
+          }).partial(),
+          outputIndices: z.array(z.unknown()),
+          sampledShapleyAttribution: z.object({
+            pathCount: z.unknown(),
+          }).partial(),
+          topK: z.number(),
+          xraiAttribution: z.object({
+            blurBaselineConfig: z.unknown(),
+            smoothGradConfig: z.unknown(),
+            stepCount: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      explanationType: z.string(),
+    }).partial(),
+  ).optional(),
   metadata: z.string().optional(),
   metrics: z.string().optional(),
   metricsSchemaUri: z.string().optional(),
   modelExplanation: z.object({
-    meanAttributions: z.array(z.object({
-      approximationError: z.number(),
-      baselineOutputValue: z.number(),
-      featureAttributions: z.string(),
-      instanceOutputValue: z.number(),
-      outputDisplayName: z.string(),
-      outputIndex: z.array(z.number()),
-      outputName: z.string(),
-    })),
-  }).optional(),
+    meanAttributions: z.array(
+      z.object({
+        approximationError: z.number(),
+        baselineOutputValue: z.number(),
+        featureAttributions: z.string(),
+        instanceOutputValue: z.number(),
+        outputDisplayName: z.string(),
+        outputIndex: z.array(z.number()),
+        outputName: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   sliceDimensions: z.array(z.string()).optional(),
 }).passthrough();
@@ -219,7 +223,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Models.Evaluations. Registered at `@swamp/gcp/aiplatform/models-evaluations`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/models-evaluations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -383,6 +387,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

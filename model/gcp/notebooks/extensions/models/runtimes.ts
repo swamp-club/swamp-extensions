@@ -416,19 +416,19 @@ const StateSchema = z.object({
     accessType: z.string(),
     proxyUri: z.string(),
     runtimeOwner: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   healthState: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   metrics: z.object({
     systemMetrics: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   migrated: z.boolean().optional(),
   name: z.string(),
   runtimeMigrationEligibility: z.object({
     errors: z.array(z.string()),
     warnings: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   softwareConfig: z.object({
     customGpuDriverPath: z.string(),
     disableTerminal: z.boolean(),
@@ -436,17 +436,19 @@ const StateSchema = z.object({
     idleShutdown: z.boolean(),
     idleShutdownTimeout: z.number(),
     installGpuDriver: z.boolean(),
-    kernels: z.array(z.object({
-      repository: z.string(),
-      tag: z.string(),
-    })),
+    kernels: z.array(
+      z.object({
+        repository: z.string(),
+        tag: z.string(),
+      }).partial(),
+    ),
     mixerDisabled: z.boolean(),
     notebookUpgradeSchedule: z.string(),
     postStartupScript: z.string(),
     postStartupScriptBehavior: z.string(),
     upgradeable: z.boolean(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
   virtualMachine: z.object({
@@ -456,19 +458,23 @@ const StateSchema = z.object({
       acceleratorConfig: z.object({
         coreCount: z.string(),
         type: z.string(),
-      }),
-      bootImage: z.object({}),
-      containerImages: z.array(z.object({
-        repository: z.string(),
-        tag: z.string(),
-      })),
+      }).partial(),
+      bootImage: z.object({}).partial(),
+      containerImages: z.array(
+        z.object({
+          repository: z.string(),
+          tag: z.string(),
+        }).partial(),
+      ),
       dataDisk: z.object({
         autoDelete: z.boolean(),
         boot: z.boolean(),
         deviceName: z.string(),
-        guestOsFeatures: z.array(z.object({
-          type: z.unknown(),
-        })),
+        guestOsFeatures: z.array(
+          z.object({
+            type: z.unknown(),
+          }).partial(),
+        ),
         index: z.number(),
         initializeParams: z.object({
           description: z.string(),
@@ -476,17 +482,17 @@ const StateSchema = z.object({
           diskSizeGb: z.string(),
           diskType: z.string(),
           labels: z.record(z.string(), z.unknown()),
-        }),
+        }).partial(),
         interface: z.string(),
         kind: z.string(),
         licenses: z.array(z.string()),
         mode: z.string(),
         source: z.string(),
         type: z.string(),
-      }),
+      }).partial(),
       encryptionConfig: z.object({
         kmsKey: z.string(),
-      }),
+      }).partial(),
       guestAttributes: z.record(z.string(), z.unknown()),
       internalIpOnly: z.boolean(),
       labels: z.record(z.string(), z.unknown()),
@@ -499,12 +505,12 @@ const StateSchema = z.object({
         enableIntegrityMonitoring: z.boolean(),
         enableSecureBoot: z.boolean(),
         enableVtpm: z.boolean(),
-      }),
+      }).partial(),
       subnet: z.string(),
       tags: z.array(z.string()),
       zone: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -782,7 +788,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Notebooks Runtimes. Registered at `@swamp/gcp/notebooks/runtimes`. */
 export const model = {
   type: "@swamp/gcp/notebooks/runtimes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -875,6 +881,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

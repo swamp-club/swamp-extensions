@@ -65,6 +65,19 @@ const TargetAddressSchema = z.object({
   ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TargetAddressStateSchema = z.object({
+  Ip: z.string(),
+  Ipv6: z.string(),
+  Port: z.string(),
+  Protocol: z.string(),
+  ServerNameIndication: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -109,13 +122,13 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   RuleType: z.string().optional(),
   DelegationRecord: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  TargetIps: z.array(TargetAddressSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  TargetIps: z.array(TargetAddressStateSchema).optional(),
   Arn: z.string().optional(),
   ResolverRuleId: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -164,7 +177,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Resolver ResolverRule. Registered at `@swamp/aws/route53resolver/resolver-rule`. */
 export const model = {
   type: "@swamp/aws/route53resolver/resolver-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -228,6 +241,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

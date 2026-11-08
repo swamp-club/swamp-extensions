@@ -536,6 +536,269 @@ const StreamDeliveryResourceSchema = z.object({
   Kinesis: KinesisResourceSchema.optional(),
 });
 
+const StringValidationStateSchema = z.object({
+  AllowedValues: z.array(z.string()),
+}).partial();
+
+const StringListValidationStateSchema = z.object({
+  AllowedValues: z.array(z.string()),
+  MaxItems: z.number(),
+}).partial();
+
+const NumberValidationStateSchema = z.object({
+  MinValue: z.number(),
+  MaxValue: z.number(),
+}).partial();
+
+const ValidationStateSchema = z.object({
+  StringValidation: StringValidationStateSchema,
+  StringListValidation: StringListValidationStateSchema,
+  NumberValidation: NumberValidationStateSchema,
+}).partial();
+
+const LlmExtractionConfigStateSchema = z.object({
+  LlmExtractionInstruction: z.string(),
+  Definition: z.string(),
+  Validation: ValidationStateSchema,
+}).partial();
+
+const ExtractionConfigStateSchema = z.object({
+  LlmExtractionConfig: LlmExtractionConfigStateSchema,
+}).partial();
+
+const MetadataSchemaEntryStateSchema = z.object({
+  Key: z.string(),
+  Type: z.string(),
+  ExtractionType: z.string(),
+  ExtractionConfig: ExtractionConfigStateSchema,
+}).partial();
+
+const MemoryRecordSchemaStateSchema = z.object({
+  MetadataSchema: z.array(MetadataSchemaEntryStateSchema),
+}).partial();
+
+const SemanticMemoryStrategyStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Namespaces: z.array(z.string()),
+  NamespaceTemplates: z.array(z.string()),
+  MemoryRecordSchema: MemoryRecordSchemaStateSchema,
+  RecordExpirySpecification: z.record(z.string(), z.unknown()),
+  RecordExpiryDurationDays: z.number(),
+  StrategyId: z.string(),
+  Type: z.string(),
+  Status: z.string(),
+  CreatedAt: z.string(),
+  UpdatedAt: z.string(),
+}).partial();
+
+const SummaryMemoryStrategyStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Namespaces: z.array(z.string()),
+  NamespaceTemplates: z.array(z.string()),
+  MemoryRecordSchema: MemoryRecordSchemaStateSchema,
+  RecordExpirySpecification: z.record(z.string(), z.unknown()),
+  RecordExpiryDurationDays: z.number(),
+  StrategyId: z.string(),
+  Type: z.string(),
+  Status: z.string(),
+  CreatedAt: z.string(),
+  UpdatedAt: z.string(),
+}).partial();
+
+const UserPreferenceMemoryStrategyStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Namespaces: z.array(z.string()),
+  NamespaceTemplates: z.array(z.string()),
+  MemoryRecordSchema: MemoryRecordSchemaStateSchema,
+  RecordExpirySpecification: z.record(z.string(), z.unknown()),
+  RecordExpiryDurationDays: z.number(),
+  StrategyId: z.string(),
+  Type: z.string(),
+  Status: z.string(),
+  CreatedAt: z.string(),
+  UpdatedAt: z.string(),
+}).partial();
+
+const SemanticOverrideExtractionConfigurationInputStateSchema = z.object({
+  AppendToPrompt: z.string(),
+  ModelId: z.string(),
+}).partial();
+
+const SemanticOverrideConsolidationConfigurationInputStateSchema = z.object({
+  AppendToPrompt: z.string(),
+  ModelId: z.string(),
+}).partial();
+
+const SemanticOverrideStateSchema = z.object({
+  Extraction: SemanticOverrideExtractionConfigurationInputStateSchema,
+  Consolidation: SemanticOverrideConsolidationConfigurationInputStateSchema,
+}).partial();
+
+const SummaryOverrideConsolidationConfigurationInputStateSchema = z.object({
+  AppendToPrompt: z.string(),
+  ModelId: z.string(),
+}).partial();
+
+const SummaryOverrideStateSchema = z.object({
+  Consolidation: SummaryOverrideConsolidationConfigurationInputStateSchema,
+}).partial();
+
+const UserPreferenceOverrideExtractionConfigurationInputStateSchema = z.object({
+  AppendToPrompt: z.string(),
+  ModelId: z.string(),
+}).partial();
+
+const UserPreferenceOverrideConsolidationConfigurationInputStateSchema = z
+  .object({
+    AppendToPrompt: z.string(),
+    ModelId: z.string(),
+  }).partial();
+
+const UserPreferenceOverrideStateSchema = z.object({
+  Extraction: UserPreferenceOverrideExtractionConfigurationInputStateSchema,
+  Consolidation:
+    UserPreferenceOverrideConsolidationConfigurationInputStateSchema,
+}).partial();
+
+const MessageBasedTriggerInputStateSchema = z.object({
+  MessageCount: z.number(),
+}).partial();
+
+const TokenBasedTriggerInputStateSchema = z.object({
+  TokenCount: z.number(),
+}).partial();
+
+const TimeBasedTriggerInputStateSchema = z.object({
+  IdleSessionTimeout: z.number(),
+}).partial();
+
+const TriggerConditionInputStateSchema = z.object({
+  MessageBasedTrigger: MessageBasedTriggerInputStateSchema,
+  TokenBasedTrigger: TokenBasedTriggerInputStateSchema,
+  TimeBasedTrigger: TimeBasedTriggerInputStateSchema,
+}).partial();
+
+const InvocationConfigurationInputStateSchema = z.object({
+  TopicArn: z.string(),
+  PayloadDeliveryBucketName: z.string(),
+}).partial();
+
+const SelfManagedConfigurationStateSchema = z.object({
+  TriggerConditions: z.array(TriggerConditionInputStateSchema),
+  InvocationConfiguration: InvocationConfigurationInputStateSchema,
+  HistoricalContextWindowSize: z.number(),
+}).partial();
+
+const EpisodicOverrideExtractionConfigurationInputStateSchema = z.object({
+  AppendToPrompt: z.string(),
+  ModelId: z.string(),
+}).partial();
+
+const EpisodicOverrideConsolidationConfigurationInputStateSchema = z.object({
+  AppendToPrompt: z.string(),
+  ModelId: z.string(),
+}).partial();
+
+const EpisodicOverrideReflectionConfigurationInputStateSchema = z.object({
+  AppendToPrompt: z.string(),
+  ModelId: z.string(),
+  Namespaces: z.array(z.string()),
+  NamespaceTemplates: z.array(z.string()),
+  MemoryRecordSchema: MemoryRecordSchemaStateSchema,
+}).partial();
+
+const EpisodicOverrideStateSchema = z.object({
+  Extraction: EpisodicOverrideExtractionConfigurationInputStateSchema,
+  Consolidation: EpisodicOverrideConsolidationConfigurationInputStateSchema,
+  Reflection: EpisodicOverrideReflectionConfigurationInputStateSchema,
+}).partial();
+
+const CustomConfigurationInputStateSchema = z.object({
+  SemanticOverride: SemanticOverrideStateSchema,
+  SummaryOverride: SummaryOverrideStateSchema,
+  UserPreferenceOverride: UserPreferenceOverrideStateSchema,
+  SelfManagedConfiguration: SelfManagedConfigurationStateSchema,
+  EpisodicOverride: EpisodicOverrideStateSchema,
+}).partial();
+
+const CustomMemoryStrategyStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Namespaces: z.array(z.string()),
+  NamespaceTemplates: z.array(z.string()),
+  Configuration: CustomConfigurationInputStateSchema,
+  MemoryRecordSchema: MemoryRecordSchemaStateSchema,
+  RecordExpirySpecification: z.record(z.string(), z.unknown()),
+  RecordExpiryDurationDays: z.number(),
+  StrategyId: z.string(),
+  Type: z.string(),
+  Status: z.string(),
+  CreatedAt: z.string(),
+  UpdatedAt: z.string(),
+}).partial();
+
+const EpisodicReflectionConfigurationInputStateSchema = z.object({
+  Namespaces: z.array(z.string()),
+  NamespaceTemplates: z.array(z.string()),
+  MemoryRecordSchema: MemoryRecordSchemaStateSchema,
+}).partial();
+
+const EpisodicMemoryStrategyStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Namespaces: z.array(z.string()),
+  NamespaceTemplates: z.array(z.string()),
+  ReflectionConfiguration: EpisodicReflectionConfigurationInputStateSchema,
+  MemoryRecordSchema: MemoryRecordSchemaStateSchema,
+  RecordExpirySpecification: z.record(z.string(), z.unknown()),
+  RecordExpiryDurationDays: z.number(),
+  StrategyId: z.string(),
+  Type: z.string(),
+  Status: z.string(),
+  CreatedAt: z.string(),
+  UpdatedAt: z.string(),
+}).partial();
+
+const MemoryStrategyStateSchema = z.object({
+  SemanticMemoryStrategy: SemanticMemoryStrategyStateSchema,
+  SummaryMemoryStrategy: SummaryMemoryStrategyStateSchema,
+  UserPreferenceMemoryStrategy: UserPreferenceMemoryStrategyStateSchema,
+  CustomMemoryStrategy: CustomMemoryStrategyStateSchema,
+  EpisodicMemoryStrategy: EpisodicMemoryStrategyStateSchema,
+}).partial();
+
+const IndexedKeyStateSchema = z.object({
+  Key: z.string(),
+  Type: z.string(),
+}).partial();
+
+const NamespaceKeyValidationStateSchema = z.object({
+  AllowedValues: z.array(z.string()),
+  RegexPattern: z.string(),
+}).partial();
+
+const NamespaceKeyEntryStateSchema = z.object({
+  Key: z.string(),
+  Validation: NamespaceKeyValidationStateSchema,
+}).partial();
+
+const ContentConfigurationStateSchema = z.object({
+  Type: z.string(),
+  Level: z.string(),
+}).partial();
+
+const KinesisResourceStateSchema = z.object({
+  DataStreamArn: z.string(),
+  ContentConfigurations: z.array(ContentConfigurationStateSchema),
+}).partial();
+
+const StreamDeliveryResourceStateSchema = z.object({
+  Kinesis: KinesisResourceStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -600,16 +863,16 @@ const StateSchema = z.object({
   FailureReason: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
-  MemoryStrategies: z.array(MemoryStrategySchema).optional(),
-  IndexedKeys: z.array(IndexedKeySchema).optional(),
-  NamespaceKeys: z.array(NamespaceKeyEntrySchema).optional(),
+  MemoryStrategies: z.array(MemoryStrategyStateSchema).optional(),
+  IndexedKeys: z.array(IndexedKeyStateSchema).optional(),
+  NamespaceKeys: z.array(NamespaceKeyEntryStateSchema).optional(),
   StreamDeliveryResources: z.object({
-    Resources: z.array(StreamDeliveryResourceSchema),
-  }).optional(),
+    Resources: z.array(StreamDeliveryResourceStateSchema),
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -672,7 +935,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Memory. Registered at `@swamp/aws/bedrockagentcore/memory`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/memory",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -761,6 +1024,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

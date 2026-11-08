@@ -377,56 +377,62 @@ const StateSchema = z.object({
         minutes: z.number(),
         nanos: z.number(),
         seconds: z.number(),
-      }),
+      }).partial(),
       timeZone: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     fileInputType: z.string(),
     fileName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   input: z.string().optional(),
   localInventoryDataSource: z.object({
     contentLanguage: z.string(),
     feedLabel: z.string(),
-  }).optional(),
-  merchantReviewDataSource: z.object({}).optional(),
+  }).partial().optional(),
+  merchantReviewDataSource: z.object({}).partial().optional(),
   name: z.string(),
   primaryProductDataSource: z.object({
     channel: z.string(),
     contentLanguage: z.string(),
     countries: z.array(z.string()),
     defaultRule: z.object({
-      takeFromDataSources: z.array(z.object({
-        primaryDataSourceName: z.string(),
-        self: z.boolean(),
-        supplementalDataSourceName: z.string(),
-      })),
-    }),
-    destinations: z.array(z.object({
-      destination: z.string(),
-      state: z.string(),
-    })),
+      takeFromDataSources: z.array(
+        z.object({
+          primaryDataSourceName: z.string(),
+          self: z.boolean(),
+          supplementalDataSourceName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+    destinations: z.array(
+      z.object({
+        destination: z.string(),
+        state: z.string(),
+      }).partial(),
+    ),
     feedLabel: z.string(),
     legacyLocal: z.boolean(),
-  }).optional(),
-  productReviewDataSource: z.object({}).optional(),
+  }).partial().optional(),
+  productReviewDataSource: z.object({}).partial().optional(),
   promotionDataSource: z.object({
     contentLanguage: z.string(),
     targetCountry: z.string(),
-  }).optional(),
+  }).partial().optional(),
   regionalInventoryDataSource: z.object({
     contentLanguage: z.string(),
     feedLabel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   supplementalProductDataSource: z.object({
     contentLanguage: z.string(),
     feedLabel: z.string(),
-    referencingPrimaryDataSources: z.array(z.object({
-      primaryDataSourceName: z.string(),
-      self: z.boolean(),
-      supplementalDataSourceName: z.string(),
-    })),
-  }).optional(),
+    referencingPrimaryDataSources: z.array(
+      z.object({
+        primaryDataSourceName: z.string(),
+        self: z.boolean(),
+        supplementalDataSourceName: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -670,7 +676,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.DataSources. Registered at `@swamp/gcp/merchantapi/accounts-datasources`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-datasources",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -699,6 +705,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

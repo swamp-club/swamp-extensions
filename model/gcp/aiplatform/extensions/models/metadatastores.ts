@@ -167,15 +167,15 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   dataplexConfig: z.object({
     enabledPipelinesLineage: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   state: z.object({
     diskUtilizationBytes: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -237,7 +237,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform MetadataStores. Registered at `@swamp/gcp/aiplatform/metadatastores`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/metadatastores",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -404,6 +404,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

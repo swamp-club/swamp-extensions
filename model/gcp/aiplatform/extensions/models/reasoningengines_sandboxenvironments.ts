@@ -193,7 +193,7 @@ const StateSchema = z.object({
     routingToken: z.string(),
     sandboxInternalIp: z.string(),
     serviceAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   expireTime: z.string().optional(),
@@ -206,9 +206,9 @@ const StateSchema = z.object({
     codeExecutionEnvironment: z.object({
       codeLanguage: z.string(),
       machineConfig: z.string(),
-    }),
-    shellEnvironment: z.object({}),
-  }).optional(),
+    }).partial(),
+    shellEnvironment: z.object({}).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   ttl: z.string().optional(),
   updateTime: z.string().optional(),
@@ -296,7 +296,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.SandboxEnvironments. Registered at `@swamp/gcp/aiplatform/reasoningengines-sandboxenvironments`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sandboxenvironments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -484,6 +484,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

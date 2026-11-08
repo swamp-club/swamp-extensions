@@ -130,16 +130,18 @@ const StateSchema = z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   subscribedBuyers: z.array(z.string()).optional(),
   subscribedClients: z.array(z.string()).optional(),
-  subscribedMediaPlanners: z.array(z.object({
-    accountId: z.string(),
-    ancestorNames: z.array(z.string()),
-    displayName: z.string(),
-    name: z.string(),
-  })).optional(),
+  subscribedMediaPlanners: z.array(
+    z.object({
+      accountId: z.string(),
+      ancestorNames: z.array(z.string()),
+      displayName: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -184,7 +186,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Authorized Buyers Marketplace Buyers.AuctionPackages. Registered at `@swamp/gcp/authorizedbuyersmarketplace/buyers-auctionpackages`. */
 export const model = {
   type: "@swamp/gcp/authorizedbuyersmarketplace/buyers-auctionpackages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -303,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

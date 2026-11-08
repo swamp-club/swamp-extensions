@@ -60,6 +60,23 @@ const TagSchema = z.object({
   Value: z.string().describe("The value for the tag."),
 });
 
+const NodeInterfaceMappingStateSchema = z.object({
+  LogicalInterfaceName: z.string(),
+  NetworkInterfaceMode: z.string(),
+  PhysicalInterfaceName: z.string(),
+}).partial();
+
+const SdiSourceMappingStateSchema = z.object({
+  CardNumber: z.number(),
+  ChannelNumber: z.number(),
+  SdiSource: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -101,14 +118,14 @@ const StateSchema = z.object({
   Id: z.string().optional(),
   InstanceArn: z.string().optional(),
   Name: z.string().optional(),
-  NodeInterfaceMappings: z.array(NodeInterfaceMappingSchema).optional(),
+  NodeInterfaceMappings: z.array(NodeInterfaceMappingStateSchema).optional(),
   Role: z.string().optional(),
   State: z.string().optional(),
-  SdiSourceMappings: z.array(SdiSourceMappingSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  SdiSourceMappings: z.array(SdiSourceMappingStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -152,7 +169,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive Node. Registered at `@swamp/aws/medialive/node`. */
 export const model = {
   type: "@swamp/aws/medialive/node",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -176,6 +193,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

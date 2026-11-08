@@ -544,43 +544,47 @@ const StateSchema = z.object({
     layer7DdosDefenseConfig: z.object({
       enable: z.boolean(),
       ruleVisibility: z.string(),
-      thresholdConfigs: z.array(z.object({
-        autoDeployConfidenceThreshold: z.number(),
-        autoDeployExpirationSec: z.number(),
-        autoDeployImpactedBaselineThreshold: z.number(),
-        autoDeployLoadThreshold: z.number(),
-        detectionAbsoluteQps: z.number(),
-        detectionLoadThreshold: z.number(),
-        detectionRelativeToBaselineQps: z.number(),
-        name: z.string(),
-        trafficGranularityConfigs: z.array(z.unknown()),
-      })),
-    }),
-  }).optional(),
+      thresholdConfigs: z.array(
+        z.object({
+          autoDeployConfidenceThreshold: z.number(),
+          autoDeployExpirationSec: z.number(),
+          autoDeployImpactedBaselineThreshold: z.number(),
+          autoDeployLoadThreshold: z.number(),
+          detectionAbsoluteQps: z.number(),
+          detectionLoadThreshold: z.number(),
+          detectionRelativeToBaselineQps: z.number(),
+          name: z.string(),
+          trafficGranularityConfigs: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   advancedOptionsConfig: z.object({
     jsonCustomConfig: z.object({
       contentTypes: z.array(z.string()),
-    }),
+    }).partial(),
     jsonParsing: z.string(),
     logLevel: z.string(),
     requestBodyInspectionSize: z.string(),
     userIpRequestHeaders: z.array(z.string()),
-  }).optional(),
-  associations: z.array(z.object({
-    attachmentId: z.string(),
-    displayName: z.string(),
-    excludedFolders: z.array(z.string()),
-    excludedProjects: z.array(z.string()),
-    name: z.string(),
-    securityPolicyId: z.string(),
-    shortName: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  associations: z.array(
+    z.object({
+      attachmentId: z.string(),
+      displayName: z.string(),
+      excludedFolders: z.array(z.string()),
+      excludedProjects: z.array(z.string()),
+      name: z.string(),
+      securityPolicyId: z.string(),
+      shortName: z.string(),
+    }).partial(),
+  ).optional(),
   creationTimestamp: z.string().optional(),
   ddosProtectionConfig: z.object({
     ddosAdaptiveProtection: z.string(),
     ddosImpactedBaselineThreshold: z.number(),
     ddosProtection: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   fingerprint: z.string().optional(),
   id: z.string().optional(),
@@ -591,100 +595,112 @@ const StateSchema = z.object({
   parent: z.string().optional(),
   recaptchaOptionsConfig: z.object({
     redirectSiteKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   region: z.string().optional(),
-  rules: z.array(z.object({
-    action: z.string(),
-    description: z.string(),
-    headerAction: z.object({
-      requestHeadersToAdds: z.array(z.object({
-        headerName: z.unknown(),
-        headerValue: z.unknown(),
-      })),
-    }),
-    kind: z.string(),
-    match: z.object({
-      config: z.object({
-        srcIpRanges: z.array(z.unknown()),
-      }),
-      expr: z.object({
-        description: z.string(),
-        expression: z.string(),
-        location: z.string(),
-        title: z.string(),
-      }),
-      exprOptions: z.object({
-        recaptchaOptions: z.object({
-          actionTokenSiteKeys: z.unknown(),
-          sessionTokenSiteKeys: z.unknown(),
-        }),
-      }),
-      versionedExpr: z.string(),
-    }),
-    networkMatch: z.object({
-      destIpRanges: z.array(z.string()),
-      destPorts: z.array(z.string()),
-      ipProtocols: z.array(z.string()),
-      srcAsns: z.array(z.number()),
-      srcIpRanges: z.array(z.string()),
-      srcPorts: z.array(z.string()),
-      srcRegionCodes: z.array(z.string()),
-      userDefinedFields: z.array(z.object({
-        name: z.unknown(),
-        values: z.unknown(),
-      })),
-    }),
-    preconfiguredWafConfig: z.object({
-      exclusions: z.array(z.object({
-        requestBodiesToExclude: z.unknown(),
-        requestCookiesToExclude: z.unknown(),
-        requestHeadersToExclude: z.unknown(),
-        requestQueryParamsToExclude: z.unknown(),
-        requestUrisToExclude: z.unknown(),
-        targetRuleIds: z.unknown(),
-        targetRuleSet: z.unknown(),
-      })),
-    }),
-    preview: z.boolean(),
-    priority: z.number(),
-    rateLimitOptions: z.object({
-      banDurationSec: z.number(),
-      banThreshold: z.object({
-        count: z.number(),
-        intervalSec: z.number(),
-      }),
-      conformAction: z.string(),
-      enforceOnKey: z.string(),
-      enforceOnKeyConfigs: z.array(z.object({
-        enforceOnKeyName: z.unknown(),
-        enforceOnKeyType: z.unknown(),
-      })),
-      enforceOnKeyName: z.string(),
-      exceedAction: z.string(),
-      exceedRedirectOptions: z.object({
+  rules: z.array(
+    z.object({
+      action: z.string(),
+      description: z.string(),
+      headerAction: z.object({
+        requestHeadersToAdds: z.array(
+          z.object({
+            headerName: z.unknown(),
+            headerValue: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      kind: z.string(),
+      match: z.object({
+        config: z.object({
+          srcIpRanges: z.array(z.unknown()),
+        }).partial(),
+        expr: z.object({
+          description: z.string(),
+          expression: z.string(),
+          location: z.string(),
+          title: z.string(),
+        }).partial(),
+        exprOptions: z.object({
+          recaptchaOptions: z.object({
+            actionTokenSiteKeys: z.unknown(),
+            sessionTokenSiteKeys: z.unknown(),
+          }).partial(),
+        }).partial(),
+        versionedExpr: z.string(),
+      }).partial(),
+      networkMatch: z.object({
+        destIpRanges: z.array(z.string()),
+        destPorts: z.array(z.string()),
+        ipProtocols: z.array(z.string()),
+        srcAsns: z.array(z.number()),
+        srcIpRanges: z.array(z.string()),
+        srcPorts: z.array(z.string()),
+        srcRegionCodes: z.array(z.string()),
+        userDefinedFields: z.array(
+          z.object({
+            name: z.unknown(),
+            values: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      preconfiguredWafConfig: z.object({
+        exclusions: z.array(
+          z.object({
+            requestBodiesToExclude: z.unknown(),
+            requestCookiesToExclude: z.unknown(),
+            requestHeadersToExclude: z.unknown(),
+            requestQueryParamsToExclude: z.unknown(),
+            requestUrisToExclude: z.unknown(),
+            targetRuleIds: z.unknown(),
+            targetRuleSet: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      preview: z.boolean(),
+      priority: z.number(),
+      rateLimitOptions: z.object({
+        banDurationSec: z.number(),
+        banThreshold: z.object({
+          count: z.number(),
+          intervalSec: z.number(),
+        }).partial(),
+        conformAction: z.string(),
+        enforceOnKey: z.string(),
+        enforceOnKeyConfigs: z.array(
+          z.object({
+            enforceOnKeyName: z.unknown(),
+            enforceOnKeyType: z.unknown(),
+          }).partial(),
+        ),
+        enforceOnKeyName: z.string(),
+        exceedAction: z.string(),
+        exceedRedirectOptions: z.object({
+          target: z.string(),
+          type: z.string(),
+        }).partial(),
+        rateLimitThreshold: z.object({
+          count: z.number(),
+          intervalSec: z.number(),
+        }).partial(),
+      }).partial(),
+      redirectOptions: z.object({
         target: z.string(),
         type: z.string(),
-      }),
-      rateLimitThreshold: z.object({
-        count: z.number(),
-        intervalSec: z.number(),
-      }),
-    }),
-    redirectOptions: z.object({
-      target: z.string(),
-      type: z.string(),
-    }),
-  })).optional(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   selfLink: z.string().optional(),
   shortName: z.string().optional(),
   type: z.string().optional(),
-  userDefinedFields: z.array(z.object({
-    base: z.string(),
-    mask: z.string(),
-    name: z.string(),
-    offset: z.number(),
-    size: z.number(),
-  })).optional(),
+  userDefinedFields: z.array(
+    z.object({
+      base: z.string(),
+      mask: z.string(),
+      name: z.string(),
+      offset: z.number(),
+      size: z.number(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1079,7 +1095,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine SecurityPolicies. Registered at `@swamp/gcp/compute/securitypolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/securitypolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1273,6 +1289,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -229,22 +229,24 @@ const StateSchema = z.object({
   agentSpec: z.object({
     content: z.record(z.string(), z.unknown()),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   endpointSpec: z.object({
     content: z.record(z.string(), z.unknown()),
     type: z.string(),
-  }).optional(),
-  interfaces: z.array(z.object({
-    protocolBinding: z.string(),
-    url: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  interfaces: z.array(
+    z.object({
+      protocolBinding: z.string(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   mcpServerSpec: z.object({
     content: z.record(z.string(), z.unknown()),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   registryResource: z.string().optional(),
   updateTime: z.string().optional(),
@@ -344,7 +346,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Services. Registered at `@swamp/gcp/agentregistry/services`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/services",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -503,6 +505,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

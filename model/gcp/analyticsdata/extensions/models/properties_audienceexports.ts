@@ -144,9 +144,11 @@ const StateSchema = z.object({
   audienceDisplayName: z.string().optional(),
   beginCreatingTime: z.string().optional(),
   creationQuotaTokensCharged: z.number().optional(),
-  dimensions: z.array(z.object({
-    dimensionName: z.string(),
-  })).optional(),
+  dimensions: z.array(
+    z.object({
+      dimensionName: z.string(),
+    }).partial(),
+  ).optional(),
   errorMessage: z.string().optional(),
   name: z.string(),
   percentageCompleted: z.number().optional(),
@@ -205,7 +207,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Analytics Data Properties.AudienceExports. Registered at `@swamp/gcp/analyticsdata/properties-audienceexports`. */
 export const model = {
   type: "@swamp/gcp/analyticsdata/properties-audienceexports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -329,6 +331,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

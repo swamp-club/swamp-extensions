@@ -335,6 +335,169 @@ const LakehousePropertiesInputSchema = z.object({
   ).optional(),
 });
 
+const ConnectionConfigurationStateSchema = z.object({
+  Classification: z.string(),
+  Properties: z.record(z.string(), z.unknown()),
+}).partial();
+
+const AthenaPropertiesInputStateSchema = z.object({
+  WorkgroupName: z.string(),
+}).partial();
+
+const PhysicalConnectionRequirementsStateSchema = z.object({
+  SubnetId: z.string(),
+  SubnetIdList: z.array(z.string()),
+  SecurityGroupIdList: z.array(z.string()),
+  AvailabilityZone: z.string(),
+}).partial();
+
+const OAuth2ClientApplicationStateSchema = z.object({
+  UserManagedClientApplicationClientId: z.string(),
+  AWSManagedClientApplicationReference: z.string(),
+}).partial();
+
+const AuthorizationCodePropertiesStateSchema = z.object({
+  AuthorizationCode: z.string(),
+  RedirectUri: z.string(),
+}).partial();
+
+const GlueOAuth2CredentialsStateSchema = z.object({
+  UserManagedClientApplicationClientSecret: z.string(),
+  AccessToken: z.string(),
+  RefreshToken: z.string(),
+  JwtToken: z.string(),
+}).partial();
+
+const OAuth2PropertiesStateSchema = z.object({
+  OAuth2GrantType: z.string(),
+  OAuth2ClientApplication: OAuth2ClientApplicationStateSchema,
+  TokenUrl: z.string(),
+  TokenUrlParametersMap: z.record(z.string(), z.unknown()),
+  AuthorizationCodeProperties: AuthorizationCodePropertiesStateSchema,
+  OAuth2Credentials: GlueOAuth2CredentialsStateSchema,
+}).partial();
+
+const BasicAuthenticationCredentialsStateSchema = z.object({
+  UserName: z.string(),
+  Password: z.string(),
+}).partial();
+
+const AuthenticationConfigurationInputStateSchema = z.object({
+  AuthenticationType: z.string(),
+  OAuth2Properties: OAuth2PropertiesStateSchema,
+  SecretArn: z.string(),
+  KmsKeyArn: z.string(),
+  BasicAuthenticationCredentials: BasicAuthenticationCredentialsStateSchema,
+  CustomAuthenticationCredentials: z.record(z.string(), z.unknown()),
+}).partial();
+
+const GlueConnectionInputStateSchema = z.object({
+  ConnectionProperties: z.record(z.string(), z.unknown()),
+  PhysicalConnectionRequirements: PhysicalConnectionRequirementsStateSchema,
+  Name: z.string(),
+  Description: z.string(),
+  ConnectionType: z.string(),
+  MatchCriteria: z.string(),
+  ValidateCredentials: z.boolean(),
+  ValidateForComputeEnvironments: z.array(z.string()),
+  SparkProperties: z.record(z.string(), z.unknown()),
+  AthenaProperties: z.record(z.string(), z.unknown()),
+  PythonProperties: z.record(z.string(), z.unknown()),
+  AuthenticationConfiguration: AuthenticationConfigurationInputStateSchema,
+}).partial();
+
+const GluePropertiesInputStateSchema = z.object({
+  GlueConnectionInput: GlueConnectionInputStateSchema,
+}).partial();
+
+const HyperPodPropertiesInputStateSchema = z.object({
+  ClusterName: z.string(),
+}).partial();
+
+const IamPropertiesInputStateSchema = z.object({
+  GlueLineageSyncEnabled: z.boolean(),
+  RoleArn: z.string(),
+}).partial();
+
+const UsernamePasswordStateSchema = z.object({
+  Password: z.string(),
+  Username: z.string(),
+}).partial();
+
+const LineageSyncScheduleStateSchema = z.object({
+  Schedule: z.string(),
+}).partial();
+
+const RedshiftLineageSyncConfigurationInputStateSchema = z.object({
+  Enabled: z.boolean(),
+  Schedule: LineageSyncScheduleStateSchema,
+}).partial();
+
+const RedshiftPropertiesInputStateSchema = z.object({
+  Storage: z.object({
+    ClusterName: z.string(),
+    WorkgroupName: z.string(),
+  }).partial(),
+  DatabaseName: z.string(),
+  Host: z.string(),
+  Port: z.number(),
+  Credentials: z.object({
+    SecretArn: z.string(),
+    UsernamePassword: UsernamePasswordStateSchema,
+  }).partial(),
+  LineageSync: RedshiftLineageSyncConfigurationInputStateSchema,
+}).partial();
+
+const SparkEmrPropertiesInputStateSchema = z.object({
+  ComputeArn: z.string(),
+  InstanceProfileArn: z.string(),
+  JavaVirtualEnv: z.string(),
+  LogUri: z.string(),
+  PythonVirtualEnv: z.string(),
+  RuntimeRole: z.string(),
+  TrustedCertificatesS3Uri: z.string(),
+  ManagedEndpointArn: z.string(),
+}).partial();
+
+const AmazonQPropertiesInputStateSchema = z.object({
+  IsEnabled: z.boolean(),
+  AuthMode: z.string(),
+  ProfileArn: z.string(),
+}).partial();
+
+const SparkGlueArgsStateSchema = z.object({
+  Connection: z.string(),
+}).partial();
+
+const SparkGluePropertiesInputStateSchema = z.object({
+  AdditionalArgs: SparkGlueArgsStateSchema,
+  GlueConnectionName: z.string(),
+  GlueVersion: z.string(),
+  IdleTimeout: z.number(),
+  JavaVirtualEnv: z.string(),
+  NumberOfWorkers: z.number(),
+  PythonVirtualEnv: z.string(),
+  WorkerType: z.string(),
+}).partial();
+
+const S3PropertiesInputStateSchema = z.object({
+  S3Uri: z.string(),
+  S3AccessGrantLocationId: z.string(),
+  RegisterS3AccessGrantLocation: z.boolean(),
+}).partial();
+
+const MlflowPropertiesInputStateSchema = z.object({
+  TrackingServerArn: z.string(),
+}).partial();
+
+const WorkflowsMwaaPropertiesInputStateSchema = z.object({
+  MwaaEnvironmentName: z.string(),
+}).partial();
+
+const LakehousePropertiesInputStateSchema = z.object({
+  GlueLineageSyncEnabled: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -433,8 +596,8 @@ const StateSchema = z.object({
     AwsAccountId: z.string(),
     AwsRegion: z.string(),
     IamConnectionId: z.string(),
-  }).optional(),
-  Configurations: z.array(ConnectionConfigurationSchema).optional(),
+  }).partial().optional(),
+  Configurations: z.array(ConnectionConfigurationStateSchema).optional(),
   ConnectionId: z.string(),
   Description: z.string().optional(),
   DomainId: z.string(),
@@ -448,25 +611,25 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   ProjectId: z.string().optional(),
   Props: z.object({
-    AthenaProperties: AthenaPropertiesInputSchema,
-    GlueProperties: GluePropertiesInputSchema,
-    HyperPodProperties: HyperPodPropertiesInputSchema,
-    IamProperties: IamPropertiesInputSchema,
-    RedshiftProperties: RedshiftPropertiesInputSchema,
-    SparkEmrProperties: SparkEmrPropertiesInputSchema,
-    AmazonQProperties: AmazonQPropertiesInputSchema,
-    SparkGlueProperties: SparkGluePropertiesInputSchema,
-    S3Properties: S3PropertiesInputSchema,
-    MlflowProperties: MlflowPropertiesInputSchema,
-    WorkflowsMwaaProperties: WorkflowsMwaaPropertiesInputSchema,
+    AthenaProperties: AthenaPropertiesInputStateSchema,
+    GlueProperties: GluePropertiesInputStateSchema,
+    HyperPodProperties: HyperPodPropertiesInputStateSchema,
+    IamProperties: IamPropertiesInputStateSchema,
+    RedshiftProperties: RedshiftPropertiesInputStateSchema,
+    SparkEmrProperties: SparkEmrPropertiesInputStateSchema,
+    AmazonQProperties: AmazonQPropertiesInputStateSchema,
+    SparkGlueProperties: SparkGluePropertiesInputStateSchema,
+    S3Properties: S3PropertiesInputStateSchema,
+    MlflowProperties: MlflowPropertiesInputStateSchema,
+    WorkflowsMwaaProperties: WorkflowsMwaaPropertiesInputStateSchema,
     WorkflowsServerlessProperties: z.record(z.string(), z.unknown()),
-    LakehouseProperties: LakehousePropertiesInputSchema,
-  }).optional(),
+    LakehouseProperties: LakehousePropertiesInputStateSchema,
+  }).partial().optional(),
   Type: z.string().optional(),
   Scope: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -569,7 +732,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone Connection. Registered at `@swamp/aws/datazone/connection`. */
 export const model = {
   type: "@swamp/aws/datazone/connection",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -658,6 +821,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -96,32 +96,38 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  backupConfigsDetails: z.array(z.object({
-    applicableResource: z.string(),
-    backupConfigSource: z.string(),
-    backupConfigSourceDisplayName: z.string(),
-    backupDrPlanConfig: z.object({
-      backupDrPlanRules: z.array(z.object({
-        lastSuccessfulBackupTime: z.unknown(),
-        ruleId: z.unknown(),
-      })),
-    }),
-    backupDrTemplateConfig: z.object({
-      firstPartyManagementUri: z.string(),
-      thirdPartyManagementUri: z.string(),
-    }),
-    backupLocations: z.array(z.object({
-      locationId: z.string(),
+  backupConfigsDetails: z.array(
+    z.object({
+      applicableResource: z.string(),
+      backupConfigSource: z.string(),
+      backupConfigSourceDisplayName: z.string(),
+      backupDrPlanConfig: z.object({
+        backupDrPlanRules: z.array(
+          z.object({
+            lastSuccessfulBackupTime: z.unknown(),
+            ruleId: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      backupDrTemplateConfig: z.object({
+        firstPartyManagementUri: z.string(),
+        thirdPartyManagementUri: z.string(),
+      }).partial(),
+      backupLocations: z.array(
+        z.object({
+          locationId: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
+      backupVault: z.string(),
+      latestSuccessfulBackupTime: z.string(),
+      pitrSettings: z.object({
+        retentionDays: z.number(),
+      }).partial(),
+      state: z.string(),
       type: z.string(),
-    })),
-    backupVault: z.string(),
-    latestSuccessfulBackupTime: z.string(),
-    pitrSettings: z.object({
-      retentionDays: z.number(),
-    }),
-    state: z.string(),
-    type: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   backupConfigured: z.boolean().optional(),
   name: z.string(),
   targetResource: z.string().optional(),
@@ -173,7 +179,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service ResourceBackupConfigs. Registered at `@swamp/gcp/backupdr/resourcebackupconfigs`. */
 export const model = {
   type: "@swamp/gcp/backupdr/resourcebackupconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -332,6 +338,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

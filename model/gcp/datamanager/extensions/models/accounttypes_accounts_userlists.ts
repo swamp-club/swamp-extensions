@@ -284,32 +284,32 @@ const StateSchema = z.object({
     contactIdInfo: z.object({
       dataSourceType: z.string(),
       matchRatePercentage: z.number(),
-    }),
+    }).partial(),
     mobileIdInfo: z.object({
       appId: z.string(),
       dataSourceType: z.string(),
       keySpace: z.string(),
-    }),
+    }).partial(),
     pairIdInfo: z.object({
       advertiserIdentifierCount: z.string(),
       cleanRoomIdentifier: z.string(),
       matchRatePercentage: z.number(),
       publisherId: z.string(),
       publisherName: z.string(),
-    }),
+    }).partial(),
     partnerAudienceInfo: z.object({
       commercePartner: z.string(),
       partnerAudienceSource: z.string(),
-    }),
+    }).partial(),
     pseudonymousIdInfo: z.object({
       billableRecordCount: z.string(),
       syncStatus: z.string(),
-    }),
+    }).partial(),
     uploadKeyTypes: z.array(z.string()),
     userIdInfo: z.object({
       dataSourceType: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   integrationCode: z.string().optional(),
   membershipDuration: z.string().optional(),
   membershipStatus: z.string().optional(),
@@ -320,11 +320,11 @@ const StateSchema = z.object({
     gmailMembersCount: z.string(),
     searchNetworkMembersCount: z.string(),
     youtubeMembersCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetNetworkInfo: z.object({
     eligibleForDisplay: z.boolean(),
     eligibleForSearch: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -467,7 +467,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Data Manager AccountTypes.Accounts.UserLists. Registered at `@swamp/gcp/datamanager/accounttypes-accounts-userlists`. */
 export const model = {
   type: "@swamp/gcp/datamanager/accounttypes-accounts-userlists",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -636,6 +636,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

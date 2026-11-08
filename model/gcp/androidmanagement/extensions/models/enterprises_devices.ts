@@ -842,64 +842,78 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   apiLevel: z.number().optional(),
-  applicationReports: z.array(z.object({
-    applicationSource: z.string(),
-    displayName: z.string(),
-    events: z.array(z.object({
-      createTime: z.string(),
-      eventType: z.string(),
-    })),
-    installerPackageName: z.string(),
-    keyedAppStates: z.array(z.object({
-      createTime: z.string(),
-      data: z.string(),
-      key: z.string(),
-      lastUpdateTime: z.string(),
-      message: z.string(),
-      severity: z.string(),
-    })),
-    packageName: z.string(),
-    packageSha256Hash: z.string(),
-    signingKeyCertFingerprints: z.array(z.string()),
-    signingKeyCerts: z.array(z.object({
-      signingKeyCertFingerprintSha256: z.string(),
-    })),
-    state: z.string(),
-    userFacingType: z.string(),
-    versionCode: z.number(),
-    versionName: z.string(),
-  })).optional(),
-  appliedPasswordPolicies: z.array(z.object({
-    maximumFailedPasswordsForWipe: z.number(),
-    passwordExpirationTimeout: z.string(),
-    passwordHistoryLength: z.number(),
-    passwordMinimumLength: z.number(),
-    passwordMinimumLetters: z.number(),
-    passwordMinimumLowerCase: z.number(),
-    passwordMinimumNonLetter: z.number(),
-    passwordMinimumNumeric: z.number(),
-    passwordMinimumSymbols: z.number(),
-    passwordMinimumUpperCase: z.number(),
-    passwordQuality: z.string(),
-    passwordScope: z.string(),
-    requirePasswordUnlock: z.string(),
-    unifiedLockSettings: z.string(),
-  })).optional(),
+  applicationReports: z.array(
+    z.object({
+      applicationSource: z.string(),
+      displayName: z.string(),
+      events: z.array(
+        z.object({
+          createTime: z.string(),
+          eventType: z.string(),
+        }).partial(),
+      ),
+      installerPackageName: z.string(),
+      keyedAppStates: z.array(
+        z.object({
+          createTime: z.string(),
+          data: z.string(),
+          key: z.string(),
+          lastUpdateTime: z.string(),
+          message: z.string(),
+          severity: z.string(),
+        }).partial(),
+      ),
+      packageName: z.string(),
+      packageSha256Hash: z.string(),
+      signingKeyCertFingerprints: z.array(z.string()),
+      signingKeyCerts: z.array(
+        z.object({
+          signingKeyCertFingerprintSha256: z.string(),
+        }).partial(),
+      ),
+      state: z.string(),
+      userFacingType: z.string(),
+      versionCode: z.number(),
+      versionName: z.string(),
+    }).partial(),
+  ).optional(),
+  appliedPasswordPolicies: z.array(
+    z.object({
+      maximumFailedPasswordsForWipe: z.number(),
+      passwordExpirationTimeout: z.string(),
+      passwordHistoryLength: z.number(),
+      passwordMinimumLength: z.number(),
+      passwordMinimumLetters: z.number(),
+      passwordMinimumLowerCase: z.number(),
+      passwordMinimumNonLetter: z.number(),
+      passwordMinimumNumeric: z.number(),
+      passwordMinimumSymbols: z.number(),
+      passwordMinimumUpperCase: z.number(),
+      passwordQuality: z.string(),
+      passwordScope: z.string(),
+      requirePasswordUnlock: z.string(),
+      unifiedLockSettings: z.string(),
+    }).partial(),
+  ).optional(),
   appliedPolicyName: z.string().optional(),
   appliedPolicyVersion: z.string().optional(),
   appliedState: z.string().optional(),
   commonCriteriaModeInfo: z.object({
     commonCriteriaModeStatus: z.string(),
     policySignatureVerificationStatus: z.string(),
-  }).optional(),
-  defaultApplicationInfo: z.array(z.object({
-    defaultApplicationSettingAttempts: z.array(z.object({
-      attemptOutcome: z.string(),
+  }).partial().optional(),
+  defaultApplicationInfo: z.array(
+    z.object({
+      defaultApplicationSettingAttempts: z.array(
+        z.object({
+          attemptOutcome: z.string(),
+          packageName: z.string(),
+        }).partial(),
+      ),
+      defaultApplicationType: z.string(),
       packageName: z.string(),
-    })),
-    defaultApplicationType: z.string(),
-    packageName: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   deviceSettings: z.object({
     adbEnabled: z.boolean(),
     developmentSettingsEnabled: z.boolean(),
@@ -908,24 +922,26 @@ const StateSchema = z.object({
     isEncrypted: z.boolean(),
     unknownSourcesEnabled: z.boolean(),
     verifyAppsEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   disabledReason: z.object({
     defaultMessage: z.string(),
     localizedMessages: z.record(z.string(), z.unknown()),
-  }).optional(),
-  displays: z.array(z.object({
-    density: z.number(),
-    displayId: z.number(),
-    height: z.number(),
-    name: z.string(),
-    refreshRate: z.number(),
-    state: z.string(),
-    width: z.number(),
-  })).optional(),
+  }).partial().optional(),
+  displays: z.array(
+    z.object({
+      density: z.number(),
+      displayId: z.number(),
+      height: z.number(),
+      name: z.string(),
+      refreshRate: z.number(),
+      state: z.string(),
+      width: z.number(),
+    }).partial(),
+  ).optional(),
   dpcMigrationInfo: z.object({
     additionalData: z.string(),
     previousDpc: z.string(),
-  }).optional(),
+  }).partial().optional(),
   enrollmentTime: z.string().optional(),
   enrollmentTokenData: z.string().optional(),
   enrollmentTokenName: z.string().optional(),
@@ -937,9 +953,11 @@ const StateSchema = z.object({
     cpuThrottlingTemperatures: z.array(z.number()),
     deviceBasebandVersion: z.string(),
     enterpriseSpecificId: z.string(),
-    euiccChipInfo: z.array(z.object({
-      eid: z.string(),
-    })),
+    euiccChipInfo: z.array(
+      z.object({
+        eid: z.string(),
+      }).partial(),
+    ),
     gpuShutdownTemperatures: z.array(z.number()),
     gpuThrottlingTemperatures: z.array(z.number()),
     hardware: z.string(),
@@ -948,82 +966,96 @@ const StateSchema = z.object({
     serialNumber: z.string(),
     skinShutdownTemperatures: z.array(z.number()),
     skinThrottlingTemperatures: z.array(z.number()),
-  }).optional(),
-  hardwareStatusSamples: z.array(z.object({
-    batteryTemperatures: z.array(z.number()),
-    cpuTemperatures: z.array(z.number()),
-    cpuUsages: z.array(z.number()),
-    createTime: z.string(),
-    fanSpeeds: z.array(z.number()),
-    gpuTemperatures: z.array(z.number()),
-    skinTemperatures: z.array(z.number()),
-  })).optional(),
+  }).partial().optional(),
+  hardwareStatusSamples: z.array(
+    z.object({
+      batteryTemperatures: z.array(z.number()),
+      cpuTemperatures: z.array(z.number()),
+      cpuUsages: z.array(z.number()),
+      createTime: z.string(),
+      fanSpeeds: z.array(z.number()),
+      gpuTemperatures: z.array(z.number()),
+      skinTemperatures: z.array(z.number()),
+    }).partial(),
+  ).optional(),
   lastPolicyComplianceReportTime: z.string().optional(),
   lastPolicySyncTime: z.string().optional(),
   lastStatusReportTime: z.string().optional(),
   managementMode: z.string().optional(),
-  memoryEvents: z.array(z.object({
-    byteCount: z.string(),
-    createTime: z.string(),
-    eventType: z.string(),
-  })).optional(),
+  memoryEvents: z.array(
+    z.object({
+      byteCount: z.string(),
+      createTime: z.string(),
+      eventType: z.string(),
+    }).partial(),
+  ).optional(),
   memoryInfo: z.object({
     totalInternalStorage: z.string(),
     totalRam: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   networkInfo: z.object({
     imei: z.string(),
     meid: z.string(),
     networkOperatorName: z.string(),
-    telephonyInfos: z.array(z.object({
-      activationState: z.string(),
-      carrierName: z.string(),
-      configMode: z.string(),
-      iccId: z.string(),
-      phoneNumber: z.string(),
-    })),
+    telephonyInfos: z.array(
+      z.object({
+        activationState: z.string(),
+        carrierName: z.string(),
+        configMode: z.string(),
+        iccId: z.string(),
+        phoneNumber: z.string(),
+      }).partial(),
+    ),
     wifiMacAddress: z.string(),
-  }).optional(),
-  nonComplianceDetails: z.array(z.object({
-    currentValue: z.string(),
-    fieldPath: z.string(),
-    installationFailureReason: z.string(),
-    nonComplianceReason: z.string(),
-    packageName: z.string(),
-    settingName: z.string(),
-    specificNonComplianceContext: z.object({
-      defaultApplicationContext: z.object({
-        defaultApplicationScope: z.string(),
-      }),
-      oncWifiContext: z.object({
-        wifiGuid: z.string(),
-      }),
-      passwordPoliciesContext: z.object({
-        passwordPolicyScope: z.string(),
-      }),
-    }),
-    specificNonComplianceReason: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  nonComplianceDetails: z.array(
+    z.object({
+      currentValue: z.string(),
+      fieldPath: z.string(),
+      installationFailureReason: z.string(),
+      nonComplianceReason: z.string(),
+      packageName: z.string(),
+      settingName: z.string(),
+      specificNonComplianceContext: z.object({
+        defaultApplicationContext: z.object({
+          defaultApplicationScope: z.string(),
+        }).partial(),
+        oncWifiContext: z.object({
+          wifiGuid: z.string(),
+        }).partial(),
+        passwordPoliciesContext: z.object({
+          passwordPolicyScope: z.string(),
+        }).partial(),
+      }).partial(),
+      specificNonComplianceReason: z.string(),
+    }).partial(),
+  ).optional(),
   ownership: z.string().optional(),
   policyCompliant: z.boolean().optional(),
   policyName: z.string().optional(),
-  powerManagementEvents: z.array(z.object({
-    batteryLevel: z.number(),
-    createTime: z.string(),
-    eventType: z.string(),
-  })).optional(),
+  powerManagementEvents: z.array(
+    z.object({
+      batteryLevel: z.number(),
+      createTime: z.string(),
+      eventType: z.string(),
+    }).partial(),
+  ).optional(),
   previousDeviceNames: z.array(z.string()).optional(),
   securityPosture: z.object({
     devicePosture: z.string(),
-    postureDetails: z.array(z.object({
-      advice: z.array(z.object({
-        defaultMessage: z.unknown(),
-        localizedMessages: z.unknown(),
-      })),
-      securityRisk: z.string(),
-    })),
-  }).optional(),
+    postureDetails: z.array(
+      z.object({
+        advice: z.array(
+          z.object({
+            defaultMessage: z.unknown(),
+            localizedMessages: z.unknown(),
+          }).partial(),
+        ),
+        securityRisk: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   softwareInfo: z.object({
     androidBuildNumber: z.string(),
     androidBuildTime: z.string(),
@@ -1038,13 +1070,13 @@ const StateSchema = z.object({
     systemUpdateInfo: z.object({
       updateReceivedTime: z.string(),
       updateStatus: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   systemProperties: z.record(z.string(), z.unknown()).optional(),
   user: z.object({
     accountIdentifier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   userName: z.string().optional(),
 }).passthrough();
 
@@ -1777,7 +1809,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Devices. Registered at `@swamp/gcp/androidmanagement/enterprises-devices`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-devices",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1941,6 +1973,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

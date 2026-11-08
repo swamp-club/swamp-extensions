@@ -262,7 +262,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   associationInfo: z.object({
     baseEntitlement: z.string(),
-  }).optional(),
+  }).partial().optional(),
   billingAccount: z.string().optional(),
   commitmentSettings: z.object({
     endTime: z.string(),
@@ -271,39 +271,41 @@ const StateSchema = z.object({
       paymentCycle: z.object({
         duration: z.number(),
         periodType: z.string(),
-      }),
+      }).partial(),
       paymentPlan: z.string(),
       resizeUnitCount: z.boolean(),
-    }),
+    }).partial(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   name: z.string(),
   offer: z.string().optional(),
-  parameters: z.array(z.object({
-    editable: z.boolean(),
-    name: z.string(),
-    value: z.object({
-      boolValue: z.boolean(),
-      doubleValue: z.number(),
-      int64Value: z.string(),
-      protoValue: z.record(z.string(), z.unknown()),
-      stringValue: z.string(),
-    }),
-  })).optional(),
+  parameters: z.array(
+    z.object({
+      editable: z.boolean(),
+      name: z.string(),
+      value: z.object({
+        boolValue: z.boolean(),
+        doubleValue: z.number(),
+        int64Value: z.string(),
+        protoValue: z.record(z.string(), z.unknown()),
+        stringValue: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   priceReferenceId: z.string().optional(),
   provisionedService: z.object({
     productId: z.string(),
     provisioningId: z.string(),
     skuId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   provisioningState: z.string().optional(),
   purchaseOrderId: z.string().optional(),
   suspensionReasons: z.array(z.string()).optional(),
   trialSettings: z.object({
     endTime: z.string(),
     trial: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -478,7 +480,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Channel Accounts.Customers.Entitlements. Registered at `@swamp/gcp/cloudchannel/accounts-customers-entitlements`. */
 export const model = {
   type: "@swamp/gcp/cloudchannel/accounts-customers-entitlements",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -612,6 +614,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

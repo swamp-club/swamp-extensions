@@ -178,6 +178,72 @@ const TagSchema = z.object({
   ),
 });
 
+const ConstraintsResourceStateSchema = z.object({
+  S3Uri: z.string(),
+}).partial();
+
+const EndpointInputStateSchema = z.object({
+  EndpointName: z.string(),
+  LocalPath: z.string(),
+  S3DataDistributionType: z.string(),
+  S3InputMode: z.string(),
+  FeaturesAttribute: z.string(),
+  InferenceAttribute: z.string(),
+  ProbabilityAttribute: z.string(),
+}).partial();
+
+const CsvStateSchema = z.object({
+  Header: z.boolean(),
+}).partial();
+
+const JsonStateSchema = z.object({
+  Line: z.boolean(),
+}).partial();
+
+const DatasetFormatStateSchema = z.object({
+  Csv: CsvStateSchema,
+  Json: JsonStateSchema,
+  Parquet: z.boolean(),
+}).partial();
+
+const BatchTransformInputStateSchema = z.object({
+  DataCapturedDestinationS3Uri: z.string(),
+  DatasetFormat: DatasetFormatStateSchema,
+  LocalPath: z.string(),
+  S3DataDistributionType: z.string(),
+  S3InputMode: z.string(),
+  FeaturesAttribute: z.string(),
+  InferenceAttribute: z.string(),
+  ProbabilityAttribute: z.string(),
+}).partial();
+
+const S3OutputStateSchema = z.object({
+  LocalPath: z.string(),
+  S3UploadMode: z.string(),
+  S3Uri: z.string(),
+}).partial();
+
+const MonitoringOutputStateSchema = z.object({
+  S3Output: S3OutputStateSchema,
+}).partial();
+
+const ClusterConfigStateSchema = z.object({
+  InstanceCount: z.number(),
+  InstanceType: z.string(),
+  VolumeKmsKeyId: z.string(),
+  VolumeSizeInGB: z.number(),
+}).partial();
+
+const VpcConfigStateSchema = z.object({
+  SecurityGroupIds: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -280,39 +346,39 @@ const StateSchema = z.object({
   JobDefinitionName: z.string().optional(),
   ModelExplainabilityBaselineConfig: z.object({
     BaseliningJobName: z.string(),
-    ConstraintsResource: ConstraintsResourceSchema,
-  }).optional(),
+    ConstraintsResource: ConstraintsResourceStateSchema,
+  }).partial().optional(),
   ModelExplainabilityAppSpecification: z.object({
     ImageUri: z.string(),
     ConfigUri: z.string(),
     Environment: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   ModelExplainabilityJobInput: z.object({
-    EndpointInput: EndpointInputSchema,
-    BatchTransformInput: BatchTransformInputSchema,
-  }).optional(),
+    EndpointInput: EndpointInputStateSchema,
+    BatchTransformInput: BatchTransformInputStateSchema,
+  }).partial().optional(),
   ModelExplainabilityJobOutputConfig: z.object({
     KmsKeyId: z.string(),
-    MonitoringOutputs: z.array(MonitoringOutputSchema),
-  }).optional(),
+    MonitoringOutputs: z.array(MonitoringOutputStateSchema),
+  }).partial().optional(),
   JobResources: z.object({
-    ClusterConfig: ClusterConfigSchema,
-  }).optional(),
+    ClusterConfig: ClusterConfigStateSchema,
+  }).partial().optional(),
   NetworkConfig: z.object({
     EnableInterContainerTrafficEncryption: z.boolean(),
     EnableNetworkIsolation: z.boolean(),
-    VpcConfig: VpcConfigSchema,
-  }).optional(),
+    VpcConfig: VpcConfigStateSchema,
+  }).partial().optional(),
   EndpointName: z.string().optional(),
   RoleArn: z.string().optional(),
   StoppingCondition: z.object({
     MaxRuntimeInSeconds: z.number(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CreationTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -420,7 +486,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ModelExplainabilityJobDefinition. Registered at `@swamp/aws/sagemaker/model-explainability-job-definition`. */
 export const model = {
   type: "@swamp/aws/sagemaker/model-explainability-job-definition",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -484,6 +550,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

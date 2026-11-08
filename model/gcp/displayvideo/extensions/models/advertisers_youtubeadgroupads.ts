@@ -125,10 +125,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   adGroupAdId: z.string().optional(),
   adGroupId: z.string().optional(),
-  adUrls: z.array(z.object({
-    type: z.string(),
-    url: z.string(),
-  })).optional(),
+  adUrls: z.array(
+    z.object({
+      type: z.string(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   advertiserId: z.string().optional(),
   audioAd: z.object({
     displayUrl: z.string(),
@@ -138,8 +140,8 @@ const StateSchema = z.object({
       id: z.string(),
       unavailableReason: z.string(),
       videoAssetId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   bumperAd: z.object({
     commonInStreamAttribute: z.object({
       actionButtonLabel: z.string(),
@@ -150,9 +152,9 @@ const StateSchema = z.object({
         fullSize: z.object({
           heightPixels: z.number(),
           widthPixels: z.number(),
-        }),
+        }).partial(),
         mimeType: z.string(),
-      }),
+      }).partial(),
       displayUrl: z.string(),
       finalUrl: z.string(),
       trackingUrl: z.string(),
@@ -160,13 +162,13 @@ const StateSchema = z.object({
         id: z.string(),
         unavailableReason: z.string(),
         videoAssetId: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   displayVideoSourceAd: z.object({
     creativeId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   entityStatus: z.string().optional(),
   inStreamAd: z.object({
     commonInStreamAttribute: z.object({
@@ -178,9 +180,9 @@ const StateSchema = z.object({
         fullSize: z.object({
           heightPixels: z.number(),
           widthPixels: z.number(),
-        }),
+        }).partial(),
         mimeType: z.string(),
-      }),
+      }).partial(),
       displayUrl: z.string(),
       finalUrl: z.string(),
       trackingUrl: z.string(),
@@ -188,21 +190,23 @@ const StateSchema = z.object({
         id: z.string(),
         unavailableReason: z.string(),
         videoAssetId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     customParameters: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   mastheadAd: z.object({
     autoplayVideoDuration: z.string(),
     autoplayVideoStartMillisecond: z.string(),
     callToActionButtonLabel: z.string(),
     callToActionFinalUrl: z.string(),
     callToActionTrackingUrl: z.string(),
-    companionYoutubeVideos: z.array(z.object({
-      id: z.string(),
-      unavailableReason: z.string(),
-      videoAssetId: z.string(),
-    })),
+    companionYoutubeVideos: z.array(
+      z.object({
+        id: z.string(),
+        unavailableReason: z.string(),
+        videoAssetId: z.string(),
+      }).partial(),
+    ),
     description: z.string(),
     headline: z.string(),
     showChannelArt: z.boolean(),
@@ -210,9 +214,9 @@ const StateSchema = z.object({
       id: z.string(),
       unavailableReason: z.string(),
       videoAssetId: z.string(),
-    }),
+    }).partial(),
     videoAspectRatio: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   nonSkippableAd: z.object({
     commonInStreamAttribute: z.object({
@@ -224,9 +228,9 @@ const StateSchema = z.object({
         fullSize: z.object({
           heightPixels: z.number(),
           widthPixels: z.number(),
-        }),
+        }).partial(),
         mimeType: z.string(),
-      }),
+      }).partial(),
       displayUrl: z.string(),
       finalUrl: z.string(),
       trackingUrl: z.string(),
@@ -234,10 +238,10 @@ const StateSchema = z.object({
         id: z.string(),
         unavailableReason: z.string(),
         videoAssetId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     customParameters: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   videoDiscoverAd: z.object({
     description1: z.string(),
     description2: z.string(),
@@ -247,20 +251,22 @@ const StateSchema = z.object({
       id: z.string(),
       unavailableReason: z.string(),
       videoAssetId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   videoPerformanceAd: z.object({
     actionButtonLabels: z.array(z.string()),
     businessName: z.string(),
-    companionBanners: z.array(z.object({
-      assetId: z.string(),
-      fileSize: z.string(),
-      fullSize: z.object({
-        heightPixels: z.number(),
-        widthPixels: z.number(),
-      }),
-      mimeType: z.string(),
-    })),
+    companionBanners: z.array(
+      z.object({
+        assetId: z.string(),
+        fileSize: z.string(),
+        fullSize: z.object({
+          heightPixels: z.number(),
+          widthPixels: z.number(),
+        }).partial(),
+        mimeType: z.string(),
+      }).partial(),
+    ),
     customParameters: z.record(z.string(), z.unknown()),
     descriptions: z.array(z.string()),
     displayUrlBreadcrumb1: z.string(),
@@ -274,17 +280,19 @@ const StateSchema = z.object({
       fullSize: z.object({
         heightPixels: z.number(),
         widthPixels: z.number(),
-      }),
+      }).partial(),
       mimeType: z.string(),
-    }),
+    }).partial(),
     longHeadlines: z.array(z.string()),
     trackingUrl: z.string(),
-    videos: z.array(z.object({
-      id: z.string(),
-      unavailableReason: z.string(),
-      videoAssetId: z.string(),
-    })),
-  }).optional(),
+    videos: z.array(
+      z.object({
+        id: z.string(),
+        unavailableReason: z.string(),
+        videoAssetId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -328,7 +336,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.YoutubeAdGroupAds. Registered at `@swamp/gcp/displayvideo/advertisers-youtubeadgroupads`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-youtubeadgroupads",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -352,6 +360,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

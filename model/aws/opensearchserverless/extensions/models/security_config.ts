@@ -114,7 +114,7 @@ const StateSchema = z.object({
     GroupAttribute: z.string(),
     OpenSearchServerlessEntityId: z.string(),
     SessionTimeout: z.number(),
-  }).optional(),
+  }).partial().optional(),
   IamIdentityCenterOptions: z.object({
     InstanceArn: z.string(),
     ApplicationArn: z.string(),
@@ -122,15 +122,15 @@ const StateSchema = z.object({
     ApplicationDescription: z.string(),
     UserAttribute: z.string(),
     GroupAttribute: z.string(),
-  }).optional(),
+  }).partial().optional(),
   IamFederationOptions: z.object({
     GroupAttribute: z.string(),
     UserAttribute: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Type: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -208,7 +208,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearchServerless SecurityConfig. Registered at `@swamp/aws/opensearchserverless/security-config`. */
 export const model = {
   type: "@swamp/aws/opensearchserverless/security-config",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -272,6 +272,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

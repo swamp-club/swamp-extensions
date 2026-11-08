@@ -42,6 +42,10 @@ const IncludedPropertySchema = z.object({
   Name: z.string().min(1).max(1011),
 });
 
+const IncludedPropertyStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -70,15 +74,15 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Filters: z.object({
     FilterString: z.string(),
-  }).optional(),
-  IncludedProperties: z.array(IncludedPropertySchema).optional(),
+  }).partial().optional(),
+  IncludedProperties: z.array(IncludedPropertyStateSchema).optional(),
   Scope: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   ViewArn: z.string(),
   ViewName: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -114,7 +118,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ResourceExplorer2 View. Registered at `@swamp/aws/resourceexplorer2/view`. */
 export const model = {
   type: "@swamp/aws/resourceexplorer2/view",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +182,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

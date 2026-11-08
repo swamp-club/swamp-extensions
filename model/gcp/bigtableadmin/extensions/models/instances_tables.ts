@@ -925,10 +925,10 @@ const StateSchema = z.object({
     keepHotDuration: z.string(),
     locations: z.array(z.string()),
     retentionPeriod: z.string(),
-  }).optional(),
+  }).partial().optional(),
   changeStreamConfig: z.object({
     retentionPeriod: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clusterStates: z.record(z.string(), z.unknown()).optional(),
   columnFamilies: z.record(z.string(), z.unknown()).optional(),
   deletionProtection: z.boolean().optional(),
@@ -938,7 +938,7 @@ const StateSchema = z.object({
     keepHotDuration: z.string(),
     locations: z.array(z.string()),
     retentionPeriod: z.string(),
-  }).optional(),
+  }).partial().optional(),
   granularity: z.string().optional(),
   name: z.string(),
   restoreInfo: z.object({
@@ -948,80 +948,82 @@ const StateSchema = z.object({
       sourceBackup: z.string(),
       sourceTable: z.string(),
       startTime: z.string(),
-    }),
+    }).partial(),
     sourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   rowKeySchema: z.object({
     encoding: z.object({
       delimitedBytes: z.object({
         delimiter: z.string(),
-      }),
-      orderedCodeBytes: z.object({}),
-      singleton: z.object({}),
-    }),
-    fields: z.array(z.object({
-      fieldName: z.string(),
-      type: z.object({
-        aggregateType: z.object({
-          hllppUniqueCount: z.unknown(),
-          inputType: z.unknown(),
-          max: z.unknown(),
-          min: z.unknown(),
-          stateType: z.unknown(),
-          sum: z.unknown(),
-        }),
-        arrayType: z.object({
-          elementType: z.unknown(),
-        }),
-        boolType: z.object({
-          encoding: z.unknown(),
-        }),
-        bytesType: z.object({
-          encoding: z.unknown(),
-        }),
-        dateType: z.object({}),
-        enumType: z.object({
-          enumName: z.unknown(),
-          schemaBundleId: z.unknown(),
-        }),
-        float32Type: z.object({}),
-        float64Type: z.object({}),
-        geographyType: z.object({}),
-        int32Type: z.object({
-          encoding: z.unknown(),
-        }),
-        int64Type: z.object({
-          encoding: z.unknown(),
-        }),
-        mapType: z.object({
-          keyType: z.unknown(),
-          valueType: z.unknown(),
-        }),
-        protoType: z.object({
-          messageName: z.unknown(),
-          schemaBundleId: z.unknown(),
-        }),
-        stringType: z.object({
-          encoding: z.unknown(),
-        }),
-        structType: z.record(z.string(), z.unknown()),
-        timestampType: z.object({
-          encoding: z.unknown(),
-        }),
-      }),
-    })),
-  }).optional(),
+      }).partial(),
+      orderedCodeBytes: z.object({}).partial(),
+      singleton: z.object({}).partial(),
+    }).partial(),
+    fields: z.array(
+      z.object({
+        fieldName: z.string(),
+        type: z.object({
+          aggregateType: z.object({
+            hllppUniqueCount: z.unknown(),
+            inputType: z.unknown(),
+            max: z.unknown(),
+            min: z.unknown(),
+            stateType: z.unknown(),
+            sum: z.unknown(),
+          }).partial(),
+          arrayType: z.object({
+            elementType: z.unknown(),
+          }).partial(),
+          boolType: z.object({
+            encoding: z.unknown(),
+          }).partial(),
+          bytesType: z.object({
+            encoding: z.unknown(),
+          }).partial(),
+          dateType: z.object({}).partial(),
+          enumType: z.object({
+            enumName: z.unknown(),
+            schemaBundleId: z.unknown(),
+          }).partial(),
+          float32Type: z.object({}).partial(),
+          float64Type: z.object({}).partial(),
+          geographyType: z.object({}).partial(),
+          int32Type: z.object({
+            encoding: z.unknown(),
+          }).partial(),
+          int64Type: z.object({
+            encoding: z.unknown(),
+          }).partial(),
+          mapType: z.object({
+            keyType: z.unknown(),
+            valueType: z.unknown(),
+          }).partial(),
+          protoType: z.object({
+            messageName: z.unknown(),
+            schemaBundleId: z.unknown(),
+          }).partial(),
+          stringType: z.object({
+            encoding: z.unknown(),
+          }).partial(),
+          structType: z.record(z.string(), z.unknown()),
+          timestampType: z.object({
+            encoding: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   stats: z.object({
     averageCellsPerColumn: z.number(),
     averageColumnsPerRow: z.number(),
     logicalDataBytes: z.string(),
     rowCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tieredStorageConfig: z.object({
     infrequentAccess: z.object({
       includeIfOlderThan: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1817,7 +1819,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Tables. Registered at `@swamp/gcp/bigtableadmin/instances-tables`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-tables",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2026,6 +2028,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

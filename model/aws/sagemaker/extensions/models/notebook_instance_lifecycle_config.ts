@@ -47,6 +47,15 @@ const TagSchema = z.object({
   Value: z.string().describe("The value of the tag."),
 });
 
+const NotebookInstanceLifecycleHookStateSchema = z.object({
+  Content: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -78,14 +87,14 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  OnStart: z.array(NotebookInstanceLifecycleHookSchema).optional(),
+  OnStart: z.array(NotebookInstanceLifecycleHookStateSchema).optional(),
   NotebookInstanceLifecycleConfigArn: z.string(),
   NotebookInstanceLifecycleConfigName: z.string().optional(),
-  OnCreate: z.array(NotebookInstanceLifecycleHookSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  OnCreate: z.array(NotebookInstanceLifecycleHookStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -126,7 +135,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker NotebookInstanceLifecycleConfig. Registered at `@swamp/aws/sagemaker/notebook-instance-lifecycle-config`. */
 export const model = {
   type: "@swamp/aws/sagemaker/notebook-instance-lifecycle-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -135,6 +144,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

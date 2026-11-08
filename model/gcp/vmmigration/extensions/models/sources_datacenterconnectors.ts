@@ -182,21 +182,21 @@ const StateSchema = z.object({
       releaseNotesUri: z.string(),
       uri: z.string(),
       version: z.string(),
-    }),
+    }).partial(),
     newDeployableAppliance: z.object({
       critical: z.boolean(),
       releaseNotesUri: z.string(),
       uri: z.string(),
       version: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   bucket: z.string().optional(),
   createTime: z.string().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   registrationId: z.string().optional(),
   serviceAccount: z.string().optional(),
@@ -208,12 +208,12 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     previousVersion: z.string(),
     startTime: z.string(),
     state: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   version: z.string().optional(),
 }).passthrough();
 
@@ -276,7 +276,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VM Migration Sources.DatacenterConnectors. Registered at `@swamp/gcp/vmmigration/sources-datacenterconnectors`. */
 export const model = {
   type: "@swamp/gcp/vmmigration/sources-datacenterconnectors",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -418,6 +418,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

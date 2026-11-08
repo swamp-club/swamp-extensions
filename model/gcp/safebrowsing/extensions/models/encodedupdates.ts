@@ -85,60 +85,66 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  listUpdateResponses: z.array(z.object({
-    additions: z.array(z.object({
-      compressionType: z.string(),
-      rawHashes: z.object({
-        prefixSize: z.unknown(),
-        rawHashes: z.unknown(),
-      }),
-      rawIndices: z.object({
-        indices: z.unknown(),
-      }),
-      riceHashes: z.object({
-        encodedData: z.unknown(),
-        firstValue: z.unknown(),
-        numEntries: z.unknown(),
-        riceParameter: z.unknown(),
-      }),
-      riceIndices: z.object({
-        encodedData: z.unknown(),
-        firstValue: z.unknown(),
-        numEntries: z.unknown(),
-        riceParameter: z.unknown(),
-      }),
-    })),
-    checksum: z.object({
-      sha256: z.string(),
-    }),
-    newClientState: z.string(),
-    platformType: z.string(),
-    removals: z.array(z.object({
-      compressionType: z.string(),
-      rawHashes: z.object({
-        prefixSize: z.unknown(),
-        rawHashes: z.unknown(),
-      }),
-      rawIndices: z.object({
-        indices: z.unknown(),
-      }),
-      riceHashes: z.object({
-        encodedData: z.unknown(),
-        firstValue: z.unknown(),
-        numEntries: z.unknown(),
-        riceParameter: z.unknown(),
-      }),
-      riceIndices: z.object({
-        encodedData: z.unknown(),
-        firstValue: z.unknown(),
-        numEntries: z.unknown(),
-        riceParameter: z.unknown(),
-      }),
-    })),
-    responseType: z.string(),
-    threatEntryType: z.string(),
-    threatType: z.string(),
-  })).optional(),
+  listUpdateResponses: z.array(
+    z.object({
+      additions: z.array(
+        z.object({
+          compressionType: z.string(),
+          rawHashes: z.object({
+            prefixSize: z.unknown(),
+            rawHashes: z.unknown(),
+          }).partial(),
+          rawIndices: z.object({
+            indices: z.unknown(),
+          }).partial(),
+          riceHashes: z.object({
+            encodedData: z.unknown(),
+            firstValue: z.unknown(),
+            numEntries: z.unknown(),
+            riceParameter: z.unknown(),
+          }).partial(),
+          riceIndices: z.object({
+            encodedData: z.unknown(),
+            firstValue: z.unknown(),
+            numEntries: z.unknown(),
+            riceParameter: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      checksum: z.object({
+        sha256: z.string(),
+      }).partial(),
+      newClientState: z.string(),
+      platformType: z.string(),
+      removals: z.array(
+        z.object({
+          compressionType: z.string(),
+          rawHashes: z.object({
+            prefixSize: z.unknown(),
+            rawHashes: z.unknown(),
+          }).partial(),
+          rawIndices: z.object({
+            indices: z.unknown(),
+          }).partial(),
+          riceHashes: z.object({
+            encodedData: z.unknown(),
+            firstValue: z.unknown(),
+            numEntries: z.unknown(),
+            riceParameter: z.unknown(),
+          }).partial(),
+          riceIndices: z.object({
+            encodedData: z.unknown(),
+            firstValue: z.unknown(),
+            numEntries: z.unknown(),
+            riceParameter: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      responseType: z.string(),
+      threatEntryType: z.string(),
+      threatType: z.string(),
+    }).partial(),
+  ).optional(),
   minimumWaitDuration: z.string().optional(),
 }).passthrough();
 
@@ -180,7 +186,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Safe Browsing EncodedUpdates. Registered at `@swamp/gcp/safebrowsing/encodedupdates`. */
 export const model = {
   type: "@swamp/gcp/safebrowsing/encodedupdates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -199,6 +205,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

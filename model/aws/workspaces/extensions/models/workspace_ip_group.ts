@@ -48,6 +48,16 @@ const TagSchema = z.object({
   Value: z.string().describe("The value of the tag."),
 });
 
+const IpRuleItemStateSchema = z.object({
+  IpRule: z.string(),
+  RuleDesc: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -78,11 +88,11 @@ const StateSchema = z.object({
   GroupId: z.string().optional(),
   GroupName: z.string().optional(),
   GroupDesc: z.string().optional(),
-  UserRules: z.array(IpRuleItemSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  UserRules: z.array(IpRuleItemStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -118,7 +128,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WorkSpaces WorkspaceIpGroup. Registered at `@swamp/aws/workspaces/workspace-ip-group`. */
 export const model = {
   type: "@swamp/aws/workspaces/workspace-ip-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -142,6 +152,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

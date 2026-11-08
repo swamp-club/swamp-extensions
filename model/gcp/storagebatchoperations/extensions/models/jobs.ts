@@ -366,16 +366,18 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   bucketList: z.object({
-    buckets: z.array(z.object({
-      bucket: z.string(),
-      manifest: z.object({
-        manifestLocation: z.string(),
-      }),
-      prefixList: z.object({
-        includedObjectPrefixes: z.array(z.unknown()),
-      }),
-    })),
-  }).optional(),
+    buckets: z.array(
+      z.object({
+        bucket: z.string(),
+        manifest: z.object({
+          manifestLocation: z.string(),
+        }).partial(),
+        prefixList: z.object({
+          includedObjectPrefixes: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   completeTime: z.string().optional(),
   counters: z.object({
     failedObjectCount: z.string(),
@@ -386,26 +388,30 @@ const StateSchema = z.object({
     totalBytesFound: z.string(),
     totalBytesTransformed: z.string(),
     totalObjectCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deleteObject: z.object({
     permanentObjectDeletionEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   dryRun: z.boolean().optional(),
-  errorSummaries: z.array(z.object({
-    errorCode: z.string(),
-    errorCount: z.string(),
-    errorLogEntries: z.array(z.object({
-      errorDetails: z.array(z.unknown()),
-      objectUri: z.string(),
-    })),
-  })).optional(),
+  errorSummaries: z.array(
+    z.object({
+      errorCode: z.string(),
+      errorCount: z.string(),
+      errorLogEntries: z.array(
+        z.object({
+          errorDetails: z.array(z.unknown()),
+          objectUri: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   isMultiBucketJob: z.boolean().optional(),
   loggingConfig: z.object({
     logActionStates: z.array(z.string()),
     logActions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   projectSource: z.object({
     bucketFilters: z.object({
@@ -413,7 +419,7 @@ const StateSchema = z.object({
       expression: z.string(),
       location: z.string(),
       title: z.string(),
-    }),
+    }).partial(),
     dryRunJobId: z.string(),
     insightsDatasetConfig: z.string(),
     objectFilters: z.object({
@@ -421,14 +427,14 @@ const StateSchema = z.object({
       expression: z.string(),
       location: z.string(),
       title: z.string(),
-    }),
+    }).partial(),
     project: z.string(),
     snapshotTime: z.string(),
     targetLocations: z.object({
       locations: z.array(z.string()),
       snapshotTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   putMetadata: z.object({
     cacheControl: z.string(),
     contentDisposition: z.string(),
@@ -440,34 +446,36 @@ const StateSchema = z.object({
     objectRetention: z.object({
       retainUntilTime: z.string(),
       retentionMode: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   putObjectHold: z.object({
     eventBasedHold: z.string(),
     temporaryHold: z.string(),
-  }).optional(),
+  }).partial().optional(),
   rewriteObject: z.object({
     kmsKey: z.string(),
     storageClass: z.string(),
-  }).optional(),
+  }).partial().optional(),
   scheduleTime: z.string().optional(),
   setObjectAcls: z.object({
     accessControlsUpdates: z.object({
-      grants: z.array(z.object({
-        entity: z.string(),
-        role: z.string(),
-      })),
+      grants: z.array(
+        z.object({
+          entity: z.string(),
+          role: z.string(),
+        }).partial(),
+      ),
       removeEntities: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateObjectCustomContext: z.object({
     clearAll: z.boolean(),
     customContextUpdates: z.object({
       keysToClear: z.array(z.string()),
       updates: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -719,7 +727,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage Batch Operations Jobs. Registered at `@swamp/gcp/storagebatchoperations/jobs`. */
 export const model = {
   type: "@swamp/gcp/storagebatchoperations/jobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -901,6 +909,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

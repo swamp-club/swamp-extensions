@@ -109,28 +109,28 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceImage: z.object({
     creationTime: z.object({
       nanos: z.number(),
       seconds: z.string(),
-    }),
+    }).partial(),
     output: z.object({
       fileUri: z.string(),
-    }),
+    }).partial(),
     testCase: z.object({
       className: z.string(),
       name: z.string(),
       testSuiteName: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   stepId: z.string().optional(),
   thumbnail: z.object({
     contentType: z.string(),
     data: z.string(),
     heightPx: z.number(),
     widthPx: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -174,7 +174,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tool Results Histories.Executions.Steps.Thumbnails. Registered at `@swamp/gcp/toolresults/histories-executions-steps-thumbnails`. */
 export const model = {
   type: "@swamp/gcp/toolresults/histories-executions-steps-thumbnails",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -303,6 +303,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

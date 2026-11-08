@@ -349,10 +349,12 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  componentUpgrades: z.array(z.object({
-    componentType: z.string(),
-    state: z.string(),
-  })).optional(),
+  componentUpgrades: z.array(
+    z.object({
+      componentType: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   endTime: z.string().optional(),
@@ -361,46 +363,50 @@ const StateSchema = z.object({
   name: z.string(),
   schedule: z.object({
     constraints: z.object({
-      disallowedIntervals: z.array(z.object({
-        endDay: z.string(),
-        endTime: z.object({
-          hours: z.unknown(),
-          minutes: z.unknown(),
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-        startDay: z.string(),
-        startTime: z.object({
-          hours: z.unknown(),
-          minutes: z.unknown(),
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-      })),
+      disallowedIntervals: z.array(
+        z.object({
+          endDay: z.string(),
+          endTime: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          startDay: z.string(),
+          startTime: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       minHoursDay: z.number(),
       minHoursWeek: z.number(),
       rescheduleDateRange: z.object({
         endTime: z.string(),
         startTime: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     editWindow: z.object({
       endTime: z.string(),
       startTime: z.string(),
-    }),
+    }).partial(),
     lastEditor: z.string(),
     startTime: z.string(),
-    weeklyWindows: z.array(z.object({
-      dayOfWeek: z.string(),
-      duration: z.string(),
-      startTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
-  }).optional(),
+    weeklyWindows: z.array(
+      z.object({
+        dayOfWeek: z.string(),
+        duration: z.string(),
+        startTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   startVersion: z.string().optional(),
   state: z.string().optional(),
   targetVersion: z.string().optional(),
@@ -665,7 +671,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VMware Engine PrivateClouds.Upgrades. Registered at `@swamp/gcp/vmwareengine/privateclouds-upgrades`. */
 export const model = {
   type: "@swamp/gcp/vmwareengine/privateclouds-upgrades",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -814,6 +820,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

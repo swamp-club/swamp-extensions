@@ -73,7 +73,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   SSESpecification: z.object({
     SSEEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ClusterDiscoveryEndpointURL: z.string().optional(),
   Description: z.string().optional(),
   ReplicationFactor: z.number().optional(),
@@ -93,7 +93,7 @@ const StateSchema = z.object({
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -138,10 +138,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DAX Cluster. Registered at `@swamp/aws/dax/cluster`. */
 export const model = {
   type: "@swamp/aws/dax/cluster",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

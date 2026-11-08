@@ -261,15 +261,17 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  categoryHierarchies: z.array(z.object({
-    categories: z.array(z.string()),
-  })).optional(),
+  categoryHierarchies: z.array(
+    z.object({
+      categories: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   description: z.string().optional(),
   id: z.string().optional(),
   itemAttributes: z.object({
     categoricalFeatures: z.record(z.string(), z.unknown()),
     numericalFeatures: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   itemGroupId: z.string().optional(),
   languageCode: z.string().optional(),
   productMetadata: z.object({
@@ -280,18 +282,20 @@ const StateSchema = z.object({
     exactPrice: z.object({
       displayPrice: z.number(),
       originalPrice: z.number(),
-    }),
-    images: z.array(z.object({
-      height: z.number(),
-      uri: z.string(),
-      width: z.number(),
-    })),
+    }).partial(),
+    images: z.array(
+      z.object({
+        height: z.number(),
+        uri: z.string(),
+        width: z.number(),
+      }).partial(),
+    ),
     priceRange: z.object({
       max: z.number(),
       min: z.number(),
-    }),
+    }).partial(),
     stockState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tags: z.array(z.string()).optional(),
   title: z.string().optional(),
 }).passthrough();
@@ -435,7 +439,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Recommendations AI (Beta) Catalogs.CatalogItems. Registered at `@swamp/gcp/recommendationengine/catalogs-catalogitems`. */
 export const model = {
   type: "@swamp/gcp/recommendationengine/catalogs-catalogitems",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -931,6 +935,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

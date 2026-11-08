@@ -621,19 +621,21 @@ const StateSchema = z.object({
     maxAdDurationMs: z.string(),
     programmaticCreativeSource: z.string(),
     skippableAdType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dealType: z.string().optional(),
   deliveryControl: z.object({
     companionDeliveryType: z.string(),
     creativeRotationType: z.string(),
     deliveryRateType: z.string(),
-    frequencyCap: z.array(z.object({
-      maxImpressions: z.number(),
-      timeUnitType: z.string(),
-      timeUnitsCount: z.number(),
-    })),
+    frequencyCap: z.array(
+      z.object({
+        maxImpressions: z.number(),
+        timeUnitType: z.string(),
+        timeUnitsCount: z.number(),
+      }).partial(),
+    ),
     roadblockingType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   eligibleSeatIds: z.array(z.string()).optional(),
@@ -641,7 +643,7 @@ const StateSchema = z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   flightEndTime: z.string().optional(),
   flightStartTime: z.string().optional(),
   mediaPlanner: z.object({
@@ -649,7 +651,7 @@ const StateSchema = z.object({
     ancestorNames: z.array(z.string()),
     displayName: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   preferredDealTerms: z.object({
     fixedPrice: z.object({
@@ -657,126 +659,132 @@ const StateSchema = z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
+      }).partial(),
       type: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   privateAuctionTerms: z.object({
     floorPrice: z.object({
       amount: z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
+      }).partial(),
       type: z.string(),
-    }),
+    }).partial(),
     openAuctionAllowed: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   programmaticGuaranteedTerms: z.object({
     fixedPrice: z.object({
       amount: z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
+      }).partial(),
       type: z.string(),
-    }),
+    }).partial(),
     guaranteedLooks: z.string(),
     impressionCap: z.string(),
     minimumDailyLooks: z.string(),
     percentShareOfVoice: z.string(),
     reservationType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   proposalRevision: z.string().optional(),
   publisherProfile: z.string().optional(),
   sellerTimeZone: z.object({
     id: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targeting: z.object({
     daypartTargeting: z.object({
-      dayParts: z.array(z.object({
-        dayOfWeek: z.string(),
-        endTime: z.object({
-          hours: z.unknown(),
-          minutes: z.unknown(),
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-        startTime: z.object({
-          hours: z.unknown(),
-          minutes: z.unknown(),
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-      })),
+      dayParts: z.array(
+        z.object({
+          dayOfWeek: z.string(),
+          endTime: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          startTime: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       timeZoneType: z.string(),
-    }),
+    }).partial(),
     excludedSensitiveCategoryIds: z.array(z.string()),
     geoTargeting: z.object({
       excludedCriteriaIds: z.array(z.string()),
       targetedCriteriaIds: z.array(z.string()),
-    }),
+    }).partial(),
     inventorySizeTargeting: z.object({
-      excludedInventorySizes: z.array(z.object({
-        height: z.string(),
-        type: z.string(),
-        width: z.string(),
-      })),
-      targetedInventorySizes: z.array(z.object({
-        height: z.string(),
-        type: z.string(),
-        width: z.string(),
-      })),
-    }),
+      excludedInventorySizes: z.array(
+        z.object({
+          height: z.string(),
+          type: z.string(),
+          width: z.string(),
+        }).partial(),
+      ),
+      targetedInventorySizes: z.array(
+        z.object({
+          height: z.string(),
+          type: z.string(),
+          width: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     inventoryTypeTargeting: z.object({
       inventoryTypes: z.array(z.string()),
-    }),
+    }).partial(),
     placementTargeting: z.object({
       mobileApplicationTargeting: z.object({
         firstPartyTargeting: z.object({
           excludedAppIds: z.array(z.unknown()),
           targetedAppIds: z.array(z.unknown()),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       uriTargeting: z.object({
         excludedUris: z.array(z.string()),
         targetedUris: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     technologyTargeting: z.object({
       deviceCapabilityTargeting: z.object({
         excludedCriteriaIds: z.array(z.string()),
         targetedCriteriaIds: z.array(z.string()),
-      }),
+      }).partial(),
       deviceCategoryTargeting: z.object({
         excludedCriteriaIds: z.array(z.string()),
         targetedCriteriaIds: z.array(z.string()),
-      }),
+      }).partial(),
       operatingSystemTargeting: z.object({
         operatingSystemCriteria: z.object({
           excludedCriteriaIds: z.array(z.unknown()),
           targetedCriteriaIds: z.array(z.unknown()),
-        }),
+        }).partial(),
         operatingSystemVersionCriteria: z.object({
           excludedCriteriaIds: z.array(z.unknown()),
           targetedCriteriaIds: z.array(z.unknown()),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     userListTargeting: z.object({
       excludedCriteriaIds: z.array(z.string()),
       targetedCriteriaIds: z.array(z.string()),
-    }),
+    }).partial(),
     verticalTargeting: z.object({
       excludedCriteriaIds: z.array(z.string()),
       targetedCriteriaIds: z.array(z.string()),
-    }),
+    }).partial(),
     videoTargeting: z.object({
       excludedPositionTypes: z.array(z.string()),
       targetedPositionTypes: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -1299,7 +1307,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Authorized Buyers Marketplace Buyers.Proposals.Deals. Registered at `@swamp/gcp/authorizedbuyersmarketplace/buyers-proposals-deals`. */
 export const model = {
   type: "@swamp/gcp/authorizedbuyersmarketplace/buyers-proposals-deals",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1433,6 +1441,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

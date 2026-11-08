@@ -154,6 +154,20 @@ const ComponentVariantSchema = z.object({
   Overrides: z.record(z.string(), z.record(z.string(), z.string())).optional(),
 });
 
+const ComponentChildStateSchema = z.object({
+  ComponentType: z.string(),
+  Name: z.string(),
+  Properties: z.record(z.string(), z.unknown()),
+  Children: z.array(z.record(z.string(), z.unknown())),
+  Events: z.record(z.string(), z.unknown()),
+  SourceId: z.string(),
+}).partial();
+
+const ComponentVariantStateSchema = z.object({
+  VariantValues: z.record(z.string(), z.unknown()),
+  Overrides: z.record(z.string(), z.unknown()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -191,7 +205,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   AppId: z.string(),
   BindingProperties: z.record(z.string(), z.unknown()).optional(),
-  Children: z.array(ComponentChildSchema).optional(),
+  Children: z.array(ComponentChildStateSchema).optional(),
   CollectionProperties: z.record(z.string(), z.unknown()).optional(),
   ComponentType: z.string().optional(),
   CreatedAt: z.string().optional(),
@@ -205,10 +219,10 @@ const StateSchema = z.object({
   SchemaVersion: z.string().optional(),
   SourceId: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
-  Variants: z.array(ComponentVariantSchema).optional(),
+  Variants: z.array(ComponentVariantStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -253,7 +267,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AmplifyUIBuilder Component. Registered at `@swamp/aws/amplifyuibuilder/component`. */
 export const model = {
   type: "@swamp/aws/amplifyuibuilder/component",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -319,6 +333,11 @@ export const model = {
       toVersion: "2026.10.25.1",
       description:
         "Added: BindingProperties, CollectionProperties, Events, Properties",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

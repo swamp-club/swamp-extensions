@@ -47,6 +47,11 @@ const IpAddressesSchema = z.object({
   ).describe("The IpV6 address for the network and node component.").optional(),
 });
 
+const IpAddressesStateSchema = z.object({
+  IpV4Addresses: z.array(z.string()),
+  IpV6Addresses: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -90,17 +95,19 @@ const StateSchema = z.object({
   FleetId: z.string().optional(),
   HostProperties: z.object({
     HostName: z.string(),
-    IpAddresses: IpAddressesSchema,
-  }).optional(),
+    IpAddresses: IpAddressesStateSchema,
+  }).partial().optional(),
   Status: z.string().optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-  })).optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+    }).partial(),
+  ).optional(),
   WorkerId: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -146,7 +153,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Deadline Worker. Registered at `@swamp/aws/deadline/worker`. */
 export const model = {
   type: "@swamp/aws/deadline/worker",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -160,6 +167,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

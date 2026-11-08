@@ -59,6 +59,17 @@ const TagSchema = z.object({
   ),
 });
 
+const IpAddressRequestStateSchema = z.object({
+  Ip: z.string(),
+  Ipv6: z.string(),
+  SubnetId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -120,7 +131,7 @@ const StateSchema = z.object({
   Direction: z.string().optional(),
   HostVPCId: z.string().optional(),
   IpAddressCount: z.string().optional(),
-  IpAddresses: z.array(IpAddressRequestSchema).optional(),
+  IpAddresses: z.array(IpAddressRequestStateSchema).optional(),
   Name: z.string().optional(),
   OutpostArn: z.string().optional(),
   PreferredInstanceType: z.string().optional(),
@@ -132,10 +143,10 @@ const StateSchema = z.object({
   ResolverEndpointId: z.string(),
   ResolverEndpointType: z.string().optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -202,7 +213,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Resolver ResolverEndpoint. Registered at `@swamp/aws/route53resolver/resolver-endpoint`. */
 export const model = {
   type: "@swamp/aws/route53resolver/resolver-endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +282,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

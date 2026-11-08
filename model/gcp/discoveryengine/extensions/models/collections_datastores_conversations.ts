@@ -222,31 +222,33 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   endTime: z.string().optional(),
-  messages: z.array(z.object({
-    createTime: z.string(),
-    reply: z.object({
-      summary: z.object({
-        safetyAttributes: z.object({
-          categories: z.unknown(),
-          scores: z.unknown(),
-        }),
-        summarySkippedReasons: z.array(z.unknown()),
-        summaryText: z.string(),
-        summaryWithMetadata: z.object({
-          citationMetadata: z.unknown(),
-          references: z.unknown(),
-          summary: z.unknown(),
-        }),
-      }),
-    }),
-    userInput: z.object({
-      context: z.object({
-        activeDocument: z.string(),
-        contextDocuments: z.array(z.unknown()),
-      }),
-      input: z.string(),
-    }),
-  })).optional(),
+  messages: z.array(
+    z.object({
+      createTime: z.string(),
+      reply: z.object({
+        summary: z.object({
+          safetyAttributes: z.object({
+            categories: z.unknown(),
+            scores: z.unknown(),
+          }).partial(),
+          summarySkippedReasons: z.array(z.unknown()),
+          summaryText: z.string(),
+          summaryWithMetadata: z.object({
+            citationMetadata: z.unknown(),
+            references: z.unknown(),
+            summary: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+      userInput: z.object({
+        context: z.object({
+          activeDocument: z.string(),
+          contextDocuments: z.array(z.unknown()),
+        }).partial(),
+        input: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   startTime: z.string().optional(),
   state: z.string().optional(),
@@ -346,7 +348,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.DataStores.Conversations. Registered at `@swamp/gcp/discoveryengine/collections-datastores-conversations`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-datastores-conversations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -490,6 +492,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

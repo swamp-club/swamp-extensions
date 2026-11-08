@@ -380,30 +380,34 @@ const StateSchema = z.object({
     filter: z.string(),
     summaryFieldEnd: z.number(),
     summaryFieldStart: z.number(),
-    summaryFields: z.array(z.object({
-      field: z.string(),
-    })),
-  }).optional(),
+    summaryFields: z.array(
+      z.object({
+        field: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   opsAnalyticsQuery: z.object({
     queryBuilder: z.object({
-      fieldSources: z.array(z.object({
-        aliasRef: z.string(),
-        columnType: z.string(),
-        field: z.string(),
-        isJson: z.boolean(),
-        parentPath: z.string(),
-        projectedField: z.object({
-          alias: z.unknown(),
-          cast: z.unknown(),
-          field: z.unknown(),
-          operation: z.unknown(),
-          regexExtraction: z.unknown(),
-          sqlAggregationFunction: z.unknown(),
-          truncationGranularity: z.unknown(),
-          virtualField: z.unknown(),
-        }),
-      })),
+      fieldSources: z.array(
+        z.object({
+          aliasRef: z.string(),
+          columnType: z.string(),
+          field: z.string(),
+          isJson: z.boolean(),
+          parentPath: z.string(),
+          projectedField: z.object({
+            alias: z.unknown(),
+            cast: z.unknown(),
+            field: z.unknown(),
+            operation: z.unknown(),
+            regexExtraction: z.unknown(),
+            sqlAggregationFunction: z.unknown(),
+            truncationGranularity: z.unknown(),
+            virtualField: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       filter: z.object({
         childPredicates: z.array(z.record(z.string(), z.unknown())),
         leafPredicate: z.object({
@@ -415,7 +419,7 @@ const StateSchema = z.object({
             isJson: z.unknown(),
             parentPath: z.unknown(),
             projectedField: z.unknown(),
-          }),
+          }).partial(),
           fieldSourceValue: z.object({
             aliasRef: z.unknown(),
             columnType: z.unknown(),
@@ -423,29 +427,31 @@ const StateSchema = z.object({
             isJson: z.unknown(),
             parentPath: z.unknown(),
             projectedField: z.unknown(),
-          }),
+          }).partial(),
           isNegation: z.boolean(),
           literalValue: z.string(),
-        }),
+        }).partial(),
         operatorType: z.string(),
-      }),
+      }).partial(),
       limit: z.string(),
-      orderBys: z.array(z.object({
-        fieldSource: z.object({
-          aliasRef: z.unknown(),
-          columnType: z.unknown(),
-          field: z.unknown(),
-          isJson: z.unknown(),
-          parentPath: z.unknown(),
-          projectedField: z.unknown(),
-        }),
-        sortOrderDirection: z.string(),
-      })),
+      orderBys: z.array(
+        z.object({
+          fieldSource: z.object({
+            aliasRef: z.unknown(),
+            columnType: z.unknown(),
+            field: z.unknown(),
+            isJson: z.unknown(),
+            parentPath: z.unknown(),
+            projectedField: z.unknown(),
+          }).partial(),
+          sortOrderDirection: z.string(),
+        }).partial(),
+      ),
       resourceNames: z.array(z.string()),
       searchTerm: z.string(),
-    }),
+    }).partial(),
     sqlQueryText: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   visibility: z.string().optional(),
 }).passthrough();
@@ -698,7 +704,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Logging SavedQueries. Registered at `@swamp/gcp/logging/savedqueries`. */
 export const model = {
   type: "@swamp/gcp/logging/savedqueries",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -892,6 +898,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

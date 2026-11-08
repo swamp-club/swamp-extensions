@@ -174,6 +174,94 @@ const HorizontalPodAutoscalerControllerConfigSchema = z.object({
   ).optional(),
 });
 
+const ProviderStateSchema = z.object({
+  KeyArn: z.string(),
+}).partial();
+
+const EncryptionConfigStateSchema = z.object({
+  Provider: ProviderStateSchema,
+  Resources: z.array(z.string()),
+}).partial();
+
+const GatewayApiCrdsStateSchema = z.object({
+  Managed: z.boolean(),
+}).partial();
+
+const GatewayApiStateSchema = z.object({
+  Crds: GatewayApiCrdsStateSchema,
+}).partial();
+
+const ElasticLoadBalancingStateSchema = z.object({
+  Enabled: z.boolean(),
+  GatewayApi: GatewayApiStateSchema,
+}).partial();
+
+const LoggingTypeConfigStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const ClusterLoggingStateSchema = z.object({
+  EnabledTypes: z.array(LoggingTypeConfigStateSchema),
+}).partial();
+
+const ControlPlanePlacementStateSchema = z.object({
+  GroupName: z.string(),
+  SpreadLevel: z.string(),
+}).partial();
+
+const EtcdPlacementStateSchema = z.object({
+  SpreadLevel: z.string(),
+}).partial();
+
+const RemoteNodeNetworkStateSchema = z.object({
+  Cidrs: z.array(z.string()),
+}).partial();
+
+const RemotePodNetworkStateSchema = z.object({
+  Cidrs: z.array(z.string()),
+}).partial();
+
+const BlockStorageStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ActiveCertificateAuthorityStateSchema = z.object({
+  Id: z.string(),
+  ActivatedBy: z.string(),
+}).partial();
+
+const ServiceNodePortRangeStateSchema = z.object({
+  MinPort: z.number(),
+  MaxPort: z.number(),
+}).partial();
+
+const ResourceWeightStateSchema = z.object({
+  Name: z.string(),
+  Weight: z.number(),
+}).partial();
+
+const ScoringStrategyStateSchema = z.object({
+  Type: z.string(),
+  Resources: z.array(ResourceWeightStateSchema),
+}).partial();
+
+const NodeResourcesFitConfigStateSchema = z.object({
+  ScoringStrategy: ScoringStrategyStateSchema,
+}).partial();
+
+const PodGcControllerConfigStateSchema = z.object({
+  TerminatedPodGcThreshold: z.number(),
+}).partial();
+
+const HorizontalPodAutoscalerControllerConfigStateSchema = z.object({
+  HorizontalPodAutoscalerSyncPeriod: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -374,16 +462,16 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  EncryptionConfig: z.array(EncryptionConfigSchema).optional(),
+  EncryptionConfig: z.array(EncryptionConfigStateSchema).optional(),
   KubernetesNetworkConfig: z.object({
     ServiceIpv4Cidr: z.string(),
     ServiceIpv6Cidr: z.string(),
     IpFamily: z.string(),
-    ElasticLoadBalancing: ElasticLoadBalancingSchema,
-  }).optional(),
+    ElasticLoadBalancing: ElasticLoadBalancingStateSchema,
+  }).partial().optional(),
   Logging: z.object({
-    ClusterLogging: ClusterLoggingSchema,
-  }).optional(),
+    ClusterLogging: ClusterLoggingStateSchema,
+  }).partial().optional(),
   Name: z.string(),
   Id: z.string().optional(),
   ResourcesVpcConfig: z.object({
@@ -393,51 +481,48 @@ const StateSchema = z.object({
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
     ControlPlaneEgressMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   OutpostConfig: z.object({
     OutpostArns: z.array(z.string()),
     ControlPlaneInstanceType: z.string(),
-    ControlPlanePlacement: ControlPlanePlacementSchema,
+    ControlPlanePlacement: ControlPlanePlacementStateSchema,
     EtcdInstanceType: z.string(),
-    EtcdPlacement: EtcdPlacementSchema,
-  }).optional(),
+    EtcdPlacement: EtcdPlacementStateSchema,
+  }).partial().optional(),
   AccessConfig: z.object({
     BootstrapClusterCreatorAdminPermissions: z.boolean(),
     AuthenticationMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   UpgradePolicy: z.object({
     SupportType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RemoteNetworkConfig: z.object({
-    RemoteNodeNetworks: z.array(RemoteNodeNetworkSchema),
-    RemotePodNetworks: z.array(RemotePodNetworkSchema),
-  }).optional(),
+    RemoteNodeNetworks: z.array(RemoteNodeNetworkStateSchema),
+    RemotePodNetworks: z.array(RemotePodNetworkStateSchema),
+  }).partial().optional(),
   ComputeConfig: z.object({
     Enabled: z.boolean(),
     NodeRoleArn: z.string(),
     NodePools: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   StorageConfig: z.object({
-    BlockStorage: BlockStorageSchema,
-  }).optional(),
+    BlockStorage: BlockStorageStateSchema,
+  }).partial().optional(),
   RoleArn: z.string().optional(),
   Version: z.string().optional(),
   Force: z.boolean().optional(),
   RollbackConfig: z.object({
     TimeoutMinutes: z.number(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Arn: z.string().optional(),
   Endpoint: z.string().optional(),
   CertificateAuthorityData: z.string().optional(),
   ActiveCertificateAuthorityId: z.string().optional(),
   CertificateAuthority: z.object({
     Data: z.string(),
-    Active: z.object({
-      Id: z.string(),
-      ActivatedBy: z.string(),
-    }),
-  }).optional(),
+    Active: ActiveCertificateAuthorityStateSchema,
+  }).partial().optional(),
   ClusterSecurityGroupId: z.string().optional(),
   EncryptionConfigKeyArn: z.string().optional(),
   OpenIdConnectIssuerUrl: z.string().optional(),
@@ -445,25 +530,25 @@ const StateSchema = z.object({
   DeletionProtection: z.boolean().optional(),
   ZonalShiftConfig: z.object({
     Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ControlPlaneScalingConfig: z.object({
     Tier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KubeApiServerConfig: z.object({
     EventTtl: z.string(),
-    ServiceNodePortRange: ServiceNodePortRangeSchema,
-  }).optional(),
+    ServiceNodePortRange: ServiceNodePortRangeStateSchema,
+  }).partial().optional(),
   KubeSchedulerConfig: z.object({
-    NodeResourcesFit: NodeResourcesFitConfigSchema,
-  }).optional(),
+    NodeResourcesFit: NodeResourcesFitConfigStateSchema,
+  }).partial().optional(),
   KubeControllerManagerConfig: z.object({
-    PodGcControllerConfig: PodGcControllerConfigSchema,
+    PodGcControllerConfig: PodGcControllerConfigStateSchema,
     HorizontalPodAutoscalerControllerConfig:
-      HorizontalPodAutoscalerControllerConfigSchema,
-  }).optional(),
+      HorizontalPodAutoscalerControllerConfigStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -675,7 +760,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Cluster. Registered at `@swamp/aws/eks/cluster`. */
 export const model = {
   type: "@swamp/aws/eks/cluster",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -790,6 +875,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

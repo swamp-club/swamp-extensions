@@ -118,6 +118,50 @@ const VoiceEnhancementConfigSchema = z.object({
     .describe("The Voice Enhancement Mode setting."),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const UserProficiencyStateSchema = z.object({
+  AttributeName: z.string(),
+  AttributeValue: z.string(),
+  Level: z.number(),
+}).partial();
+
+const AutoAcceptConfigStateSchema = z.object({
+  Channel: z.string(),
+  AutoAccept: z.boolean(),
+  AgentFirstCallbackAutoAccept: z.boolean(),
+}).partial();
+
+const AfterContactWorkConfigStateSchema = z.object({
+  AfterContactWorkTimeLimit: z.number(),
+  AfterContactWorkMode: z.string(),
+}).partial();
+
+const AfterContactWorkConfigPerChannelStateSchema = z.object({
+  Channel: z.string(),
+  AfterContactWorkConfig: AfterContactWorkConfigStateSchema,
+  AgentFirstCallbackAfterContactWorkConfig: AfterContactWorkConfigStateSchema,
+}).partial();
+
+const PhoneNumberConfigStateSchema = z.object({
+  Channel: z.string(),
+  PhoneType: z.string(),
+  PhoneNumber: z.string(),
+}).partial();
+
+const PersistentConnectionConfigStateSchema = z.object({
+  Channel: z.string(),
+  PersistentConnection: z.boolean(),
+}).partial();
+
+const VoiceEnhancementConfigStateSchema = z.object({
+  Channel: z.string(),
+  VoiceEnhancementMode: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -234,28 +278,29 @@ const StateSchema = z.object({
     Email: z.string(),
     SecondaryEmail: z.string(),
     Mobile: z.string(),
-  }).optional(),
+  }).partial().optional(),
   PhoneConfig: z.object({
     AfterContactWorkTimeLimit: z.number(),
     AutoAccept: z.boolean(),
     DeskPhoneNumber: z.string(),
     PhoneType: z.string(),
     PersistentConnection: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   SecurityProfileArns: z.array(z.string()).optional(),
   UserArn: z.string(),
-  Tags: z.array(TagSchema).optional(),
-  UserProficiencies: z.array(UserProficiencySchema).optional(),
-  AutoAcceptConfigs: z.array(AutoAcceptConfigSchema).optional(),
-  AfterContactWorkConfigs: z.array(AfterContactWorkConfigPerChannelSchema)
+  Tags: z.array(TagStateSchema).optional(),
+  UserProficiencies: z.array(UserProficiencyStateSchema).optional(),
+  AutoAcceptConfigs: z.array(AutoAcceptConfigStateSchema).optional(),
+  AfterContactWorkConfigs: z.array(AfterContactWorkConfigPerChannelStateSchema)
     .optional(),
-  PhoneNumberConfigs: z.array(PhoneNumberConfigSchema).optional(),
-  PersistentConnectionConfigs: z.array(PersistentConnectionConfigSchema)
+  PhoneNumberConfigs: z.array(PhoneNumberConfigStateSchema).optional(),
+  PersistentConnectionConfigs: z.array(PersistentConnectionConfigStateSchema)
     .optional(),
-  VoiceEnhancementConfigs: z.array(VoiceEnhancementConfigSchema).optional(),
+  VoiceEnhancementConfigs: z.array(VoiceEnhancementConfigStateSchema)
+    .optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -369,7 +414,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect User. Registered at `@swamp/aws/connect/user`. */
 export const model = {
   type: "@swamp/aws/connect/user",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -443,6 +488,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

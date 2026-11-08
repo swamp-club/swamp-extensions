@@ -53,6 +53,15 @@ const TagCollectionSchema = z.object({
   ).optional(),
 });
 
+const CloudFormationCollectionFilterStateSchema = z.object({
+  StackNames: z.array(z.string()),
+}).partial();
+
+const TagCollectionStateSchema = z.object({
+  AppBoundaryKey: z.string(),
+  TagValues: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -83,13 +92,13 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ResourceCollectionFilter: z.object({
-    CloudFormation: CloudFormationCollectionFilterSchema,
-    Tags: z.array(TagCollectionSchema),
-  }).optional(),
+    CloudFormation: CloudFormationCollectionFilterStateSchema,
+    Tags: z.array(TagCollectionStateSchema),
+  }).partial().optional(),
   ResourceCollectionType: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -128,7 +137,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DevOpsGuru ResourceCollection. Registered at `@swamp/aws/devopsguru/resource-collection`. */
 export const model = {
   type: "@swamp/aws/devopsguru/resource-collection",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +201,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

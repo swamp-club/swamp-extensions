@@ -52,6 +52,19 @@ const TagsEntrySchema = z.object({
   Value: z.string(),
 });
 
+const UserStateSchema = z.object({
+  ReplicationUser: z.boolean(),
+  ConsoleAccess: z.boolean(),
+  Username: z.string(),
+  Groups: z.array(z.string()),
+  Password: z.string(),
+}).partial();
+
+const TagsEntryStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -161,17 +174,17 @@ const StateSchema = z.object({
     RoleBase: z.string(),
     ServiceAccountPassword: z.string(),
     RoleSearchSubtree: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   StorageType: z.string().optional(),
   StorageSize: z.number().optional(),
   EncryptionOptions: z.object({
     KmsKeyId: z.string(),
     UseAwsOwnedKey: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   Configuration: z.object({
     Revision: z.number(),
     Id: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ConfigurationRevision: z.string().optional(),
   ConfigurationId: z.string().optional(),
   DataReplicationMode: z.string().optional(),
@@ -180,9 +193,9 @@ const StateSchema = z.object({
     DayOfWeek: z.string(),
     TimeOfDay: z.string(),
     TimeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AutoMinorVersionUpgrade: z.boolean().optional(),
-  Users: z.array(UserSchema).optional(),
+  Users: z.array(UserStateSchema).optional(),
   StompEndpoints: z.array(z.string()).optional(),
   MqttEndpoints: z.array(z.string()).optional(),
   AmqpEndpoints: z.array(z.string()).optional(),
@@ -192,15 +205,15 @@ const StateSchema = z.object({
   Logs: z.object({
     Audit: z.boolean(),
     General: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   SecurityGroups: z.array(z.string()).optional(),
   SubnetIds: z.array(z.string()).optional(),
   IpAddresses: z.array(z.string()).optional(),
-  Tags: z.array(TagsEntrySchema).optional(),
+  Tags: z.array(TagsEntryStateSchema).optional(),
   ResourceShareArns: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -297,7 +310,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AmazonMQ Broker. Registered at `@swamp/aws/amazonmq/broker`. */
 export const model = {
   type: "@swamp/aws/amazonmq/broker",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -376,6 +389,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -254,31 +254,37 @@ const StateSchema = z.object({
   externalConfig: z.object({
     allowedCidrBlocks: z.array(z.string()),
     ipAddress: z.string(),
-  }).optional(),
+  }).partial().optional(),
   googleManagedServerCredential: z.object({
     asymmetricAlgorithm: z.string(),
     fingerprint: z.string(),
-  }).optional(),
+  }).partial().optional(),
   internalConfig: z.object({
-    consumerAcceptList: z.array(z.object({
-      connectionLimit: z.string(),
-      project: z.string(),
-    })),
-    consumerRejectList: z.array(z.object({
-      project: z.string(),
-    })),
-    pscEndpoints: z.array(z.object({
-      endpoint: z.string(),
-      network: z.string(),
-      status: z.string(),
-    })),
+    consumerAcceptList: z.array(
+      z.object({
+        connectionLimit: z.string(),
+        project: z.string(),
+      }).partial(),
+    ),
+    consumerRejectList: z.array(
+      z.object({
+        project: z.string(),
+      }).partial(),
+    ),
+    pscEndpoints: z.array(
+      z.object({
+        endpoint: z.string(),
+        network: z.string(),
+        status: z.string(),
+      }).partial(),
+    ),
     serviceAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   loggingConfig: z.object({
     enabled: z.boolean(),
     verbosity: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -397,7 +403,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud FTP Servers. Registered at `@swamp/gcp/ftp/servers`. */
 export const model = {
   type: "@swamp/gcp/ftp/servers",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.13.1",
@@ -427,6 +433,11 @@ export const model = {
     {
       toVersion: "2026.11.05.1",
       description: "Added: loggingConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

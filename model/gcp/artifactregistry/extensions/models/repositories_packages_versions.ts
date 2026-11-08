@@ -200,16 +200,20 @@ const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
-  fingerprints: z.array(z.object({
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
+  fingerprints: z.array(
+    z.object({
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  relatedTags: z.array(z.object({
-    name: z.string(),
-    version: z.string(),
-  })).optional(),
+  relatedTags: z.array(
+    z.object({
+      name: z.string(),
+      version: z.string(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -289,7 +293,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Artifact Registry Repositories.Packages.Versions. Registered at `@swamp/gcp/artifactregistry/repositories-packages-versions`. */
 export const model = {
   type: "@swamp/gcp/artifactregistry/repositories-packages-versions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -423,6 +427,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

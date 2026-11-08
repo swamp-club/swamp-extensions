@@ -258,7 +258,10 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   EntityId: z.string(),
   EntityName: z.string().optional(),
-  Status: StatusSchema.optional(),
+  Status: z.object({
+    State: z.string(),
+    Error: z.record(z.string(), z.unknown()),
+  }).partial().optional(),
   HasChildEntities: z.boolean().optional(),
   ParentEntityId: z.string().optional(),
   Arn: z.string().optional(),
@@ -271,7 +274,7 @@ const StateSchema = z.object({
   CompositeComponents: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -333,7 +336,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTTwinMaker Entity. Registered at `@swamp/aws/iottwinmaker/entity`. */
 export const model = {
   type: "@swamp/aws/iottwinmaker/entity",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -407,6 +410,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

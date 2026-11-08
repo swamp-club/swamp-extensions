@@ -69,6 +69,21 @@ const ReplicationRuleSchema = z.object({
   ),
 });
 
+const RepositoryFilterStateSchema = z.object({
+  Filter: z.string(),
+  FilterType: z.string(),
+}).partial();
+
+const ReplicationDestinationStateSchema = z.object({
+  Region: z.string(),
+  RegistryId: z.string(),
+}).partial();
+
+const ReplicationRuleStateSchema = z.object({
+  RepositoryFilters: z.array(RepositoryFilterStateSchema),
+  Destinations: z.array(ReplicationDestinationStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -94,12 +109,12 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ReplicationConfiguration: z.object({
-    Rules: z.array(ReplicationRuleSchema),
-  }).optional(),
+    Rules: z.array(ReplicationRuleStateSchema),
+  }).partial().optional(),
   RegistryId: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -133,7 +148,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECR ReplicationConfiguration. Registered at `@swamp/aws/ecr/replication-configuration`. */
 export const model = {
   type: "@swamp/aws/ecr/replication-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -197,6 +212,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -259,28 +259,30 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   actionConfirmationRequirement: z.record(z.string(), z.unknown()).optional(),
   connectorSpec: z.object({
-    actions: z.array(z.object({
-      connectionActionId: z.string(),
-      entityOperation: z.object({
-        entityId: z.string(),
-        operation: z.string(),
-      }),
-      inputFields: z.array(z.string()),
-      outputFields: z.array(z.string()),
-    })),
+    actions: z.array(
+      z.object({
+        connectionActionId: z.string(),
+        entityOperation: z.object({
+          entityId: z.string(),
+          operation: z.string(),
+        }).partial(),
+        inputFields: z.array(z.string()),
+        outputFields: z.array(z.string()),
+      }).partial(),
+    ),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   extensionSpec: z.object({
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   functionSpec: z.object({
     inputSchema: z.record(z.string(), z.unknown()),
     methodType: z.string(),
     outputSchema: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   openApiSpec: z.object({
     authentication: z.object({
@@ -289,11 +291,11 @@ const StateSchema = z.object({
         keyName: z.string(),
         requestLocation: z.string(),
         secretVersionForApiKey: z.string(),
-      }),
+      }).partial(),
       bearerTokenConfig: z.object({
         secretVersionForToken: z.string(),
         token: z.string(),
-      }),
+      }).partial(),
       oauthConfig: z.object({
         clientId: z.string(),
         clientSecret: z.string(),
@@ -301,22 +303,24 @@ const StateSchema = z.object({
         scopes: z.array(z.string()),
         secretVersionForClientSecret: z.string(),
         tokenEndpoint: z.string(),
-      }),
+      }).partial(),
       serviceAgentAuthConfig: z.object({
         serviceAgentAuth: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     serviceDirectoryConfig: z.object({
       service: z.string(),
-    }),
+    }).partial(),
     textSchema: z.string(),
     tlsConfig: z.object({
-      caCerts: z.array(z.object({
-        cert: z.string(),
-        displayName: z.string(),
-      })),
-    }),
-  }).optional(),
+      caCerts: z.array(
+        z.object({
+          cert: z.string(),
+          displayName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   toolKey: z.string().optional(),
@@ -460,7 +464,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Tools. Registered at `@swamp/gcp/dialogflow/tools`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/tools",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -479,6 +483,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

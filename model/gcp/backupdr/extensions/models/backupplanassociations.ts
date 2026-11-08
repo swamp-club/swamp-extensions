@@ -195,35 +195,37 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   alloydbClusterBackupPlanAssociationProperties: z.object({
     clusterUid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   autoProtectionPolicyBinding: z.string().optional(),
   backupPlan: z.string().optional(),
   backupPlanRevisionId: z.string().optional(),
   backupPlanRevisionName: z.string().optional(),
   cloudSqlInstanceBackupPlanAssociationProperties: z.object({
     instanceCreateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dataSource: z.string().optional(),
   filestoreInstanceBackupPlanAssociationProperties: z.object({
     instanceCreateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   netappVolumeBackupPlanAssociationProperties: z.object({
     sourceResourceCreateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resource: z.string().optional(),
   resourceType: z.string().optional(),
-  rulesConfigInfo: z.array(z.object({
-    lastBackupError: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    lastBackupState: z.string(),
-    lastSuccessfulBackupConsistencyTime: z.string(),
-    ruleId: z.string(),
-  })).optional(),
+  rulesConfigInfo: z.array(
+    z.object({
+      lastBackupError: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      lastBackupState: z.string(),
+      lastSuccessfulBackupConsistencyTime: z.string(),
+      ruleId: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -284,7 +286,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupPlanAssociations. Registered at `@swamp/gcp/backupdr/backupplanassociations`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupplanassociations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -450,6 +452,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

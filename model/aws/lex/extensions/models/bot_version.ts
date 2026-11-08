@@ -52,6 +52,15 @@ const BotVersionLocaleSpecificationSchema = z.object({
   ),
 });
 
+const BotVersionLocaleDetailsStateSchema = z.object({
+  SourceBotVersion: z.string(),
+}).partial();
+
+const BotVersionLocaleSpecificationStateSchema = z.object({
+  LocaleId: z.string(),
+  BotVersionLocaleDetails: BotVersionLocaleDetailsStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -83,11 +92,12 @@ const StateSchema = z.object({
   BotId: z.string(),
   BotVersion: z.string(),
   Description: z.string().optional(),
-  BotVersionLocaleSpecification: z.array(BotVersionLocaleSpecificationSchema)
-    .optional(),
+  BotVersionLocaleSpecification: z.array(
+    BotVersionLocaleSpecificationStateSchema,
+  ).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -125,7 +135,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lex BotVersion. Registered at `@swamp/aws/lex/bot-version`. */
 export const model = {
   type: "@swamp/aws/lex/bot-version",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -189,6 +199,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

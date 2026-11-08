@@ -86,11 +86,13 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  categories: z.array(z.object({
-    industryCategory: z.string(),
-    locationCategory: z.string(),
-    typeCategory: z.string(),
-  })).optional(),
+  categories: z.array(
+    z.object({
+      industryCategory: z.string(),
+      locationCategory: z.string(),
+      typeCategory: z.string(),
+    }).partial(),
+  ).optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   example: z.string().optional(),
@@ -98,17 +100,19 @@ const StateSchema = z.object({
   locationSupport: z.object({
     locations: z.array(z.string()),
     regionalizationScope: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   sensitivityScore: z.object({
     score: z.string(),
-  }).optional(),
+  }).partial().optional(),
   specificInfoTypes: z.array(z.string()).optional(),
   supportedBy: z.array(z.string()).optional(),
-  versions: z.array(z.object({
-    description: z.string(),
-    version: z.string(),
-  })).optional(),
+  versions: z.array(
+    z.object({
+      description: z.string(),
+      version: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -149,7 +153,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) InfoTypes. Registered at `@swamp/gcp/dlp/infotypes`. */
 export const model = {
   type: "@swamp/gcp/dlp/infotypes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -273,6 +277,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

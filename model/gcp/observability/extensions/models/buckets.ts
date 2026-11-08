@@ -172,7 +172,7 @@ const StateSchema = z.object({
     kmsKey: z.string(),
     kmsKeyVersion: z.string(),
     serviceAccountId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   description: z.string().optional(),
@@ -243,7 +243,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Observability Buckets. Registered at `@swamp/gcp/observability/buckets`. */
 export const model = {
   type: "@swamp/gcp/observability/buckets",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -382,6 +382,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

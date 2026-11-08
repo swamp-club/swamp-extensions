@@ -53,6 +53,15 @@ const AccessControlAttributeSchema = z.object({
   Value: AccessControlAttributeValueSchema,
 });
 
+const AccessControlAttributeValueStateSchema = z.object({
+  Source: z.array(z.string()),
+}).partial();
+
+const AccessControlAttributeStateSchema = z.object({
+  Key: z.string(),
+  Value: AccessControlAttributeValueStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -84,12 +93,13 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   InstanceArn: z.string(),
   InstanceAccessControlAttributeConfiguration: z.object({
-    AccessControlAttributes: z.array(AccessControlAttributeSchema),
-  }).optional(),
-  AccessControlAttributes: z.array(AccessControlAttributeSchema).optional(),
+    AccessControlAttributes: z.array(AccessControlAttributeStateSchema),
+  }).partial().optional(),
+  AccessControlAttributes: z.array(AccessControlAttributeStateSchema)
+    .optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -130,7 +140,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSO InstanceAccessControlAttributeConfiguration. Registered at `@swamp/aws/sso/instance-access-control-attribute-configuration`. */
 export const model = {
   type: "@swamp/aws/sso/instance-access-control-attribute-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -199,6 +209,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

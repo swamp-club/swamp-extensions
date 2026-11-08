@@ -80,6 +80,29 @@ const HandlerConfigSchema = z.object({
   Integration: IntegrationSchema,
 });
 
+const AuthModeStateSchema = z.object({
+  AuthType: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const LambdaConfigStateSchema = z.object({
+  InvokeType: z.string(),
+}).partial();
+
+const IntegrationStateSchema = z.object({
+  DataSourceName: z.string(),
+  LambdaConfig: LambdaConfigStateSchema,
+}).partial();
+
+const HandlerConfigStateSchema = z.object({
+  Behavior: z.string(),
+  Integration: IntegrationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -126,19 +149,19 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ApiId: z.string().optional(),
   Name: z.string().optional(),
-  SubscribeAuthModes: z.array(AuthModeSchema).optional(),
-  PublishAuthModes: z.array(AuthModeSchema).optional(),
+  SubscribeAuthModes: z.array(AuthModeStateSchema).optional(),
+  PublishAuthModes: z.array(AuthModeStateSchema).optional(),
   CodeHandlers: z.string().optional(),
   CodeS3Location: z.string().optional(),
   ChannelNamespaceArn: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   HandlerConfigs: z.object({
-    OnPublish: HandlerConfigSchema,
-    OnSubscribe: HandlerConfigSchema,
-  }).optional(),
+    OnPublish: HandlerConfigStateSchema,
+    OnSubscribe: HandlerConfigStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -192,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync ChannelNamespace. Registered at `@swamp/aws/appsync/channel-namespace`. */
 export const model = {
   type: "@swamp/aws/appsync/channel-namespace",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -256,6 +279,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

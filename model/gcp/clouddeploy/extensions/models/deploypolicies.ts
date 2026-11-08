@@ -282,28 +282,32 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  rules: z.array(z.object({
-    rolloutRestriction: z.object({
-      actions: z.array(z.string()),
-      id: z.string(),
-      invokers: z.array(z.string()),
-      timeWindows: z.object({
-        oneTimeWindows: z.array(z.unknown()),
-        timeZone: z.string(),
-        weeklyWindows: z.array(z.unknown()),
-      }),
-    }),
-  })).optional(),
-  selectors: z.array(z.object({
-    deliveryPipeline: z.object({
-      id: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-    }),
-    target: z.object({
-      id: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-    }),
-  })).optional(),
+  rules: z.array(
+    z.object({
+      rolloutRestriction: z.object({
+        actions: z.array(z.string()),
+        id: z.string(),
+        invokers: z.array(z.string()),
+        timeWindows: z.object({
+          oneTimeWindows: z.array(z.unknown()),
+          timeZone: z.string(),
+          weeklyWindows: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  selectors: z.array(
+    z.object({
+      deliveryPipeline: z.object({
+        id: z.string(),
+        labels: z.record(z.string(), z.unknown()),
+      }).partial(),
+      target: z.object({
+        id: z.string(),
+        labels: z.record(z.string(), z.unknown()),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   suspended: z.boolean().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -430,7 +434,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deploy DeployPolicies. Registered at `@swamp/gcp/clouddeploy/deploypolicies`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/deploypolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -600,6 +604,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

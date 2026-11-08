@@ -314,166 +314,174 @@ const StateSchema = z.object({
   creationTime: z.string().optional(),
   displayName: z.string().optional(),
   lastTestResult: z.object({
-    conversationTurns: z.array(z.object({
-      userInput: z.object({
-        enableSentimentAnalysis: z.boolean(),
-        injectedParameters: z.record(z.string(), z.unknown()),
-        input: z.object({
-          audio: z.unknown(),
-          dtmf: z.unknown(),
-          event: z.unknown(),
-          intent: z.unknown(),
-          languageCode: z.unknown(),
-          text: z.unknown(),
-          toolCallResult: z.unknown(),
-        }),
-        isWebhookEnabled: z.boolean(),
-      }),
-      virtualAgentOutput: z.object({
-        currentPage: z.object({
-          advancedSettings: z.unknown(),
-          description: z.unknown(),
-          displayName: z.unknown(),
-          entryFulfillment: z.unknown(),
-          eventHandlers: z.unknown(),
-          form: z.unknown(),
-          knowledgeConnectorSettings: z.unknown(),
-          name: z.unknown(),
-          transitionRouteGroups: z.unknown(),
-          transitionRoutes: z.unknown(),
-        }),
-        diagnosticInfo: z.record(z.string(), z.unknown()),
-        differences: z.array(z.unknown()),
-        sessionParameters: z.record(z.string(), z.unknown()),
-        status: z.object({
-          code: z.unknown(),
-          details: z.unknown(),
-          message: z.unknown(),
-        }),
-        textResponses: z.array(z.unknown()),
-        triggeredIntent: z.object({
-          description: z.unknown(),
-          displayName: z.unknown(),
-          dtmfPattern: z.unknown(),
-          isFallback: z.unknown(),
-          labels: z.unknown(),
-          name: z.unknown(),
-          parameters: z.unknown(),
-          priority: z.unknown(),
-          trainingPhrases: z.unknown(),
-        }),
-      }),
-    })),
+    conversationTurns: z.array(
+      z.object({
+        userInput: z.object({
+          enableSentimentAnalysis: z.boolean(),
+          injectedParameters: z.record(z.string(), z.unknown()),
+          input: z.object({
+            audio: z.unknown(),
+            dtmf: z.unknown(),
+            event: z.unknown(),
+            intent: z.unknown(),
+            languageCode: z.unknown(),
+            text: z.unknown(),
+            toolCallResult: z.unknown(),
+          }).partial(),
+          isWebhookEnabled: z.boolean(),
+        }).partial(),
+        virtualAgentOutput: z.object({
+          currentPage: z.object({
+            advancedSettings: z.unknown(),
+            description: z.unknown(),
+            displayName: z.unknown(),
+            entryFulfillment: z.unknown(),
+            eventHandlers: z.unknown(),
+            form: z.unknown(),
+            knowledgeConnectorSettings: z.unknown(),
+            name: z.unknown(),
+            transitionRouteGroups: z.unknown(),
+            transitionRoutes: z.unknown(),
+          }).partial(),
+          diagnosticInfo: z.record(z.string(), z.unknown()),
+          differences: z.array(z.unknown()),
+          sessionParameters: z.record(z.string(), z.unknown()),
+          status: z.object({
+            code: z.unknown(),
+            details: z.unknown(),
+            message: z.unknown(),
+          }).partial(),
+          textResponses: z.array(z.unknown()),
+          triggeredIntent: z.object({
+            description: z.unknown(),
+            displayName: z.unknown(),
+            dtmfPattern: z.unknown(),
+            isFallback: z.unknown(),
+            labels: z.unknown(),
+            name: z.unknown(),
+            parameters: z.unknown(),
+            priority: z.unknown(),
+            trainingPhrases: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
     environment: z.string(),
     name: z.string(),
     testResult: z.string(),
     testTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   notes: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  testCaseConversationTurns: z.array(z.object({
-    userInput: z.object({
-      enableSentimentAnalysis: z.boolean(),
-      injectedParameters: z.record(z.string(), z.unknown()),
-      input: z.object({
-        audio: z.object({
-          audio: z.unknown(),
-          config: z.unknown(),
-        }),
-        dtmf: z.object({
-          digits: z.unknown(),
-          finishDigit: z.unknown(),
-        }),
-        event: z.object({
-          event: z.unknown(),
-        }),
-        intent: z.object({
-          intent: z.unknown(),
-        }),
-        languageCode: z.string(),
-        text: z.object({
-          text: z.unknown(),
-        }),
-        toolCallResult: z.object({
-          action: z.unknown(),
-          error: z.unknown(),
-          outputParameters: z.unknown(),
-          tool: z.unknown(),
-        }),
-      }),
-      isWebhookEnabled: z.boolean(),
-    }),
-    virtualAgentOutput: z.object({
-      currentPage: z.object({
-        advancedSettings: z.object({
-          audioExportGcsDestination: z.unknown(),
-          dtmfSettings: z.unknown(),
-          loggingSettings: z.unknown(),
-          speechSettings: z.unknown(),
-        }),
-        description: z.string(),
-        displayName: z.string(),
-        entryFulfillment: z.object({
-          advancedSettings: z.unknown(),
-          codeBlockFunction: z.unknown(),
-          conditionalCases: z.unknown(),
-          enableGenerativeFallback: z.unknown(),
-          generators: z.unknown(),
-          messages: z.unknown(),
-          returnPartialResponses: z.unknown(),
-          setParameterActions: z.unknown(),
-          tag: z.unknown(),
-          webhook: z.unknown(),
-        }),
-        eventHandlers: z.array(z.unknown()),
-        form: z.object({
-          parameters: z.unknown(),
-        }),
-        knowledgeConnectorSettings: z.object({
-          dataStoreConnections: z.unknown(),
-          enabled: z.unknown(),
-          targetFlow: z.unknown(),
-          targetPage: z.unknown(),
-          triggerFulfillment: z.unknown(),
-        }),
-        name: z.string(),
-        transitionRouteGroups: z.array(z.unknown()),
-        transitionRoutes: z.array(z.unknown()),
-      }),
-      diagnosticInfo: z.record(z.string(), z.unknown()),
-      differences: z.array(z.object({
-        description: z.unknown(),
-        type: z.unknown(),
-      })),
-      sessionParameters: z.record(z.string(), z.unknown()),
-      status: z.object({
-        code: z.number(),
-        details: z.array(z.unknown()),
-        message: z.string(),
-      }),
-      textResponses: z.array(z.object({
-        allowPlaybackInterruption: z.unknown(),
-        text: z.unknown(),
-      })),
-      triggeredIntent: z.object({
-        description: z.string(),
-        displayName: z.string(),
-        dtmfPattern: z.string(),
-        isFallback: z.boolean(),
-        labels: z.record(z.string(), z.unknown()),
-        name: z.string(),
-        parameters: z.array(z.unknown()),
-        priority: z.number(),
-        trainingPhrases: z.array(z.unknown()),
-      }),
-    }),
-  })).optional(),
+  testCaseConversationTurns: z.array(
+    z.object({
+      userInput: z.object({
+        enableSentimentAnalysis: z.boolean(),
+        injectedParameters: z.record(z.string(), z.unknown()),
+        input: z.object({
+          audio: z.object({
+            audio: z.unknown(),
+            config: z.unknown(),
+          }).partial(),
+          dtmf: z.object({
+            digits: z.unknown(),
+            finishDigit: z.unknown(),
+          }).partial(),
+          event: z.object({
+            event: z.unknown(),
+          }).partial(),
+          intent: z.object({
+            intent: z.unknown(),
+          }).partial(),
+          languageCode: z.string(),
+          text: z.object({
+            text: z.unknown(),
+          }).partial(),
+          toolCallResult: z.object({
+            action: z.unknown(),
+            error: z.unknown(),
+            outputParameters: z.unknown(),
+            tool: z.unknown(),
+          }).partial(),
+        }).partial(),
+        isWebhookEnabled: z.boolean(),
+      }).partial(),
+      virtualAgentOutput: z.object({
+        currentPage: z.object({
+          advancedSettings: z.object({
+            audioExportGcsDestination: z.unknown(),
+            dtmfSettings: z.unknown(),
+            loggingSettings: z.unknown(),
+            speechSettings: z.unknown(),
+          }).partial(),
+          description: z.string(),
+          displayName: z.string(),
+          entryFulfillment: z.object({
+            advancedSettings: z.unknown(),
+            codeBlockFunction: z.unknown(),
+            conditionalCases: z.unknown(),
+            enableGenerativeFallback: z.unknown(),
+            generators: z.unknown(),
+            messages: z.unknown(),
+            returnPartialResponses: z.unknown(),
+            setParameterActions: z.unknown(),
+            tag: z.unknown(),
+            webhook: z.unknown(),
+          }).partial(),
+          eventHandlers: z.array(z.unknown()),
+          form: z.object({
+            parameters: z.unknown(),
+          }).partial(),
+          knowledgeConnectorSettings: z.object({
+            dataStoreConnections: z.unknown(),
+            enabled: z.unknown(),
+            targetFlow: z.unknown(),
+            targetPage: z.unknown(),
+            triggerFulfillment: z.unknown(),
+          }).partial(),
+          name: z.string(),
+          transitionRouteGroups: z.array(z.unknown()),
+          transitionRoutes: z.array(z.unknown()),
+        }).partial(),
+        diagnosticInfo: z.record(z.string(), z.unknown()),
+        differences: z.array(
+          z.object({
+            description: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+        sessionParameters: z.record(z.string(), z.unknown()),
+        status: z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+        textResponses: z.array(
+          z.object({
+            allowPlaybackInterruption: z.unknown(),
+            text: z.unknown(),
+          }).partial(),
+        ),
+        triggeredIntent: z.object({
+          description: z.string(),
+          displayName: z.string(),
+          dtmfPattern: z.string(),
+          isFallback: z.boolean(),
+          labels: z.record(z.string(), z.unknown()),
+          name: z.string(),
+          parameters: z.array(z.unknown()),
+          priority: z.number(),
+          trainingPhrases: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   testConfig: z.object({
     flow: z.string(),
     page: z.string(),
     trackingParameters: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -683,7 +691,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.TestCases. Registered at `@swamp/gcp/dialogflow/agents-testcases`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-testcases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -842,6 +850,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

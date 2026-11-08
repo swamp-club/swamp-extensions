@@ -85,23 +85,27 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  matches: z.array(z.object({
-    cacheDuration: z.string(),
-    platformType: z.string(),
-    threat: z.object({
-      digest: z.string(),
-      hash: z.string(),
-      url: z.string(),
-    }),
-    threatEntryMetadata: z.object({
-      entries: z.array(z.object({
-        key: z.unknown(),
-        value: z.unknown(),
-      })),
-    }),
-    threatEntryType: z.string(),
-    threatType: z.string(),
-  })).optional(),
+  matches: z.array(
+    z.object({
+      cacheDuration: z.string(),
+      platformType: z.string(),
+      threat: z.object({
+        digest: z.string(),
+        hash: z.string(),
+        url: z.string(),
+      }).partial(),
+      threatEntryMetadata: z.object({
+        entries: z.array(
+          z.object({
+            key: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      threatEntryType: z.string(),
+      threatType: z.string(),
+    }).partial(),
+  ).optional(),
   minimumWaitDuration: z.string().optional(),
   negativeCacheDuration: z.string().optional(),
 }).passthrough();
@@ -144,7 +148,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Safe Browsing EncodedFullHashes. Registered at `@swamp/gcp/safebrowsing/encodedfullhashes`. */
 export const model = {
   type: "@swamp/gcp/safebrowsing/encodedfullhashes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -163,6 +167,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -345,31 +345,37 @@ const StateSchema = z.object({
       detectedGvlIds: z.array(z.string()),
       detectedProviderIds: z.array(z.string()),
       unidentifiedProviderDomains: z.array(z.string()),
-    }),
+    }).partial(),
     chinaPolicyCompliance: z.object({
       status: z.string(),
-      topics: z.array(z.object({
-        evidences: z.array(z.unknown()),
-        helpCenterUrl: z.string(),
-        missingCertificate: z.boolean(),
-        policyTopic: z.string(),
-      })),
-    }),
+      topics: z.array(
+        z.object({
+          evidences: z.array(z.unknown()),
+          helpCenterUrl: z.string(),
+          missingCertificate: z.boolean(),
+          policyTopic: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     dealsPolicyCompliance: z.object({
       status: z.string(),
-      topics: z.array(z.object({
-        evidences: z.array(z.unknown()),
-        helpCenterUrl: z.string(),
-        missingCertificate: z.boolean(),
-        policyTopic: z.string(),
-      })),
-    }),
-    detectedAdvertisers: z.array(z.object({
-      advertiserId: z.string(),
-      advertiserName: z.string(),
-      brandId: z.string(),
-      brandName: z.string(),
-    })),
+      topics: z.array(
+        z.object({
+          evidences: z.array(z.unknown()),
+          helpCenterUrl: z.string(),
+          missingCertificate: z.boolean(),
+          policyTopic: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+    detectedAdvertisers: z.array(
+      z.object({
+        advertiserId: z.string(),
+        advertiserName: z.string(),
+        brandId: z.string(),
+        brandName: z.string(),
+      }).partial(),
+    ),
     detectedAttributes: z.array(z.string()),
     detectedCategories: z.array(z.string()),
     detectedCategoriesTaxonomy: z.string(),
@@ -382,32 +388,38 @@ const StateSchema = z.object({
     lastStatusUpdate: z.string(),
     networkPolicyCompliance: z.object({
       status: z.string(),
-      topics: z.array(z.object({
-        evidences: z.array(z.unknown()),
-        helpCenterUrl: z.string(),
-        missingCertificate: z.boolean(),
-        policyTopic: z.string(),
-      })),
-    }),
+      topics: z.array(
+        z.object({
+          evidences: z.array(z.unknown()),
+          helpCenterUrl: z.string(),
+          missingCertificate: z.boolean(),
+          policyTopic: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     platformPolicyCompliance: z.object({
       status: z.string(),
-      topics: z.array(z.object({
-        evidences: z.array(z.unknown()),
-        helpCenterUrl: z.string(),
-        missingCertificate: z.boolean(),
-        policyTopic: z.string(),
-      })),
-    }),
+      topics: z.array(
+        z.object({
+          evidences: z.array(z.unknown()),
+          helpCenterUrl: z.string(),
+          missingCertificate: z.boolean(),
+          policyTopic: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     russiaPolicyCompliance: z.object({
       status: z.string(),
-      topics: z.array(z.object({
-        evidences: z.array(z.unknown()),
-        helpCenterUrl: z.string(),
-        missingCertificate: z.boolean(),
-        policyTopic: z.string(),
-      })),
-    }),
-  }).optional(),
+      topics: z.array(
+        z.object({
+          evidences: z.array(z.unknown()),
+          helpCenterUrl: z.string(),
+          missingCertificate: z.boolean(),
+          policyTopic: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   dealIds: z.array(z.string()).optional(),
   declaredAttributes: z.array(z.string()).optional(),
   declaredClickThroughUrls: z.array(z.string()).optional(),
@@ -417,7 +429,7 @@ const StateSchema = z.object({
     height: z.number(),
     snippet: z.string(),
     width: z.number(),
-  }).optional(),
+  }).partial().optional(),
   impressionTrackingUrls: z.array(z.string()).optional(),
   name: z.string(),
   native: z.object({
@@ -426,7 +438,7 @@ const StateSchema = z.object({
       height: z.number(),
       url: z.string(),
       width: z.number(),
-    }),
+    }).partial(),
     body: z.string(),
     callToAction: z.string(),
     clickLinkUrl: z.string(),
@@ -436,17 +448,17 @@ const StateSchema = z.object({
       height: z.number(),
       url: z.string(),
       width: z.number(),
-    }),
+    }).partial(),
     logo: z.object({
       height: z.number(),
       url: z.string(),
       width: z.number(),
-    }),
+    }).partial(),
     priceDisplayText: z.string(),
     starRating: z.number(),
     videoUrl: z.string(),
     videoVastXml: z.string(),
-  }).optional(),
+  }).partial().optional(),
   renderUrl: z.string().optional(),
   restrictedCategories: z.array(z.string()).optional(),
   version: z.number().optional(),
@@ -455,16 +467,18 @@ const StateSchema = z.object({
       duration: z.string(),
       isValidVast: z.boolean(),
       isVpaid: z.boolean(),
-      mediaFiles: z.array(z.object({
-        bitrate: z.string(),
-        mimeType: z.string(),
-      })),
+      mediaFiles: z.array(
+        z.object({
+          bitrate: z.string(),
+          mimeType: z.string(),
+        }).partial(),
+      ),
       skipOffset: z.string(),
       vastVersion: z.string(),
-    }),
+    }).partial(),
     videoUrl: z.string(),
     videoVastXml: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -684,7 +698,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Real-time Bidding Buyers.Creatives. Registered at `@swamp/gcp/realtimebidding/buyers-creatives`. */
 export const model = {
   type: "@swamp/gcp/realtimebidding/buyers-creatives",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -880,6 +894,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

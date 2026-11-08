@@ -105,9 +105,9 @@ const StateSchema = z.object({
           values: z.object({
             allowedValues: z.unknown(),
             deniedValues: z.unknown(),
-          }),
-        }),
-      }),
+          }).partial(),
+        }).partial(),
+      }).partial(),
       suggestedPolicy: z.object({
         constraint: z.string(),
         inherit: z.boolean(),
@@ -120,11 +120,11 @@ const StateSchema = z.object({
           values: z.object({
             allowedValues: z.unknown(),
             deniedValues: z.unknown(),
-          }),
-        }),
-      }),
-    }),
-  }).optional(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
@@ -171,7 +171,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads Workloads.Updates. Registered at `@swamp/gcp/assuredworkloads/workloads-updates`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/workloads-updates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -295,6 +295,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

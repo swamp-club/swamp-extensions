@@ -201,16 +201,16 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   pscInterfaceConfig: z.object({
     networkAttachment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reservedPublicIpConfig: z.object({
     egressPublicIps: z.array(z.string()),
     natIpsCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   state: z.string().optional(),
@@ -218,7 +218,7 @@ const StateSchema = z.object({
   vpcPeeringConfig: z.object({
     subnet: z.string(),
     vpcName: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -297,7 +297,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration PrivateConnections. Registered at `@swamp/gcp/datamigration/privateconnections`. */
 export const model = {
   type: "@swamp/gcp/datamigration/privateconnections",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -465,6 +465,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

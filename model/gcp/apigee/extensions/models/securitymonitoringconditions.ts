@@ -214,12 +214,14 @@ const StateSchema = z.object({
   apiHubGateway: z.string().optional(),
   createTime: z.string().optional(),
   include: z.object({
-    resources: z.array(z.object({
-      name: z.string(),
-      type: z.string(),
-    })),
-  }).optional(),
-  includeAllResources: z.object({}).optional(),
+    resources: z.array(
+      z.object({
+        name: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  includeAllResources: z.object({}).partial().optional(),
   name: z.string(),
   profile: z.string().optional(),
   riskAssessmentType: z.string().optional(),
@@ -308,7 +310,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee SecurityMonitoringConditions. Registered at `@swamp/gcp/apigee/securitymonitoringconditions`. */
 export const model = {
   type: "@swamp/gcp/apigee/securitymonitoringconditions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -442,6 +444,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

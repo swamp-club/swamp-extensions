@@ -120,6 +120,57 @@ const MLSyntheticDataParametersSchema = z.object({
   ColumnClassification: ColumnClassificationDetailsSchema,
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const AnalysisParameterStateSchema = z.object({
+  DefaultValue: z.string(),
+  Name: z.string(),
+  Type: z.string(),
+}).partial();
+
+const S3LocationStateSchema = z.object({
+  Bucket: z.string(),
+  Key: z.string(),
+}).partial();
+
+const AnalysisTemplateArtifactStateSchema = z.object({
+  Location: S3LocationStateSchema,
+}).partial();
+
+const AnalysisTemplateArtifactsStateSchema = z.object({
+  EntryPoint: AnalysisTemplateArtifactStateSchema,
+  AdditionalArtifacts: z.array(AnalysisTemplateArtifactStateSchema),
+  RoleArn: z.string(),
+}).partial();
+
+const HashStateSchema = z.object({
+  Sha256: z.string(),
+}).partial();
+
+const AnalysisTemplateArtifactMetadataStateSchema = z.object({
+  EntryPointHash: HashStateSchema,
+  AdditionalArtifactHashes: z.array(HashStateSchema),
+}).partial();
+
+const SyntheticDataColumnPropertiesStateSchema = z.object({
+  ColumnName: z.string(),
+  ColumnType: z.string(),
+  IsPredictiveValue: z.boolean(),
+}).partial();
+
+const ColumnClassificationDetailsStateSchema = z.object({
+  ColumnMapping: z.array(SyntheticDataColumnPropertiesStateSchema),
+}).partial();
+
+const MLSyntheticDataParametersStateSchema = z.object({
+  Epsilon: z.number(),
+  MaxMembershipInferenceAttackScore: z.number(),
+  ColumnClassification: ColumnClassificationDetailsStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -180,8 +231,8 @@ const StateSchema = z.object({
   Arn: z.string().optional(),
   CollaborationArn: z.string().optional(),
   CollaborationIdentifier: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  AnalysisParameters: z.array(AnalysisParameterSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  AnalysisParameters: z.array(AnalysisParameterStateSchema).optional(),
   AnalysisTemplateIdentifier: z.string(),
   Description: z.string().optional(),
   MembershipArn: z.string().optional(),
@@ -189,24 +240,24 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Schema: z.object({
     ReferencedTables: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Source: z.object({
     Text: z.string(),
-    Artifacts: AnalysisTemplateArtifactsSchema,
-  }).optional(),
+    Artifacts: AnalysisTemplateArtifactsStateSchema,
+  }).partial().optional(),
   SourceMetadata: z.object({
-    Artifacts: AnalysisTemplateArtifactMetadataSchema,
-  }).optional(),
+    Artifacts: AnalysisTemplateArtifactMetadataStateSchema,
+  }).partial().optional(),
   Format: z.string().optional(),
   ErrorMessageConfiguration: z.object({
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SyntheticDataParameters: z.object({
-    MlSyntheticDataParameters: MLSyntheticDataParametersSchema,
-  }).optional(),
+    MlSyntheticDataParameters: MLSyntheticDataParametersStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -273,7 +324,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms AnalysisTemplate. Registered at `@swamp/aws/cleanrooms/analysis-template`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/analysis-template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -337,6 +388,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

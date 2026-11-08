@@ -103,6 +103,35 @@ const ContextKeySelectorSchema = z.object({
     ),
 });
 
+const AdvancedFieldSelectorStateSchema = z.object({
+  Field: z.string(),
+  Equals: z.array(z.string()),
+  StartsWith: z.array(z.string()),
+  EndsWith: z.array(z.string()),
+  NotEquals: z.array(z.string()),
+  NotStartsWith: z.array(z.string()),
+  NotEndsWith: z.array(z.string()),
+}).partial();
+
+const AdvancedEventSelectorStateSchema = z.object({
+  Name: z.string(),
+  FieldSelectors: z.array(AdvancedFieldSelectorStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const InsightSelectorStateSchema = z.object({
+  InsightType: z.string(),
+}).partial();
+
+const ContextKeySelectorStateSchema = z.object({
+  Type: z.string(),
+  Equals: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -165,7 +194,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  AdvancedEventSelectors: z.array(AdvancedEventSelectorSchema).optional(),
+  AdvancedEventSelectors: z.array(AdvancedEventSelectorStateSchema).optional(),
   CreatedTimestamp: z.string().optional(),
   EventDataStoreArn: z.string(),
   FederationEnabled: z.boolean().optional(),
@@ -179,15 +208,15 @@ const StateSchema = z.object({
   TerminationProtectionEnabled: z.boolean().optional(),
   UpdatedTimestamp: z.string().optional(),
   KmsKeyId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  InsightSelectors: z.array(InsightSelectorSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  InsightSelectors: z.array(InsightSelectorStateSchema).optional(),
   InsightsDestination: z.string().optional(),
   MaxEventSize: z.string().optional(),
-  ContextKeySelectors: z.array(ContextKeySelectorSchema).optional(),
+  ContextKeySelectors: z.array(ContextKeySelectorStateSchema).optional(),
   IngestionEnabled: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -259,7 +288,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudTrail EventDataStore. Registered at `@swamp/aws/cloudtrail/event-data-store`. */
 export const model = {
   type: "@swamp/aws/cloudtrail/event-data-store",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -318,6 +347,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

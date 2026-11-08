@@ -506,7 +506,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   accessSettings: z.object({
     allowlistedMediaPlanners: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   curationFeeVisibility: z.string().optional(),
   description: z.string().optional(),
@@ -515,12 +515,12 @@ const StateSchema = z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   floorPriceCpm: z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   millipercentOfMediaFee: z.string().optional(),
   name: z.string(),
   state: z.string().optional(),
@@ -528,13 +528,15 @@ const StateSchema = z.object({
     geoTargeting: z.object({
       excludedCriteriaIds: z.array(z.string()),
       targetedCriteriaIds: z.array(z.string()),
-    }),
+    }).partial(),
     includedAcceleratedMobilePageType: z.string(),
-    includedAdSizes: z.array(z.object({
-      height: z.string(),
-      type: z.string(),
-      width: z.string(),
-    })),
+    includedAdSizes: z.array(
+      z.object({
+        height: z.string(),
+        type: z.string(),
+        width: z.string(),
+      }).partial(),
+    ),
     includedAuthorizedSellerStatuses: z.array(z.string()),
     includedCreativeFormat: z.string(),
     includedDataSegments: z.array(z.string()),
@@ -547,7 +549,7 @@ const StateSchema = z.object({
     languageTargeting: z.object({
       selectionType: z.string(),
       values: z.array(z.string()),
-    }),
+    }).partial(),
     minimumPredictedClickThroughRatePercentageMillis: z.string(),
     minimumPredictedViewabilityPercentage: z.string(),
     placementTargeting: z.object({
@@ -555,34 +557,34 @@ const StateSchema = z.object({
       mobileAppTargeting: z.object({
         selectionType: z.string(),
         values: z.array(z.string()),
-      }),
+      }).partial(),
       uriTargeting: z.object({
         selectionType: z.string(),
         values: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     publisherProvidedSignalsTargeting: z.object({
       audienceTargeting: z.object({
         excludedTaxonomyIds: z.array(z.string()),
         targetedTaxonomyIds: z.array(z.string()),
-      }),
+      }).partial(),
       contentTargeting: z.object({
         excludedTaxonomyIds: z.array(z.string()),
         targetedTaxonomyIds: z.array(z.string()),
-      }),
+      }).partial(),
       videoAndAudioSignalsTargeting: z.object({
         selectionType: z.string(),
         values: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     publisherTargeting: z.object({
       selectionType: z.string(),
       values: z.array(z.string()),
-    }),
+    }).partial(),
     verticalTargeting: z.object({
       excludedCriteriaIds: z.array(z.string()),
       targetedCriteriaIds: z.array(z.string()),
-    }),
+    }).partial(),
     videoTargeting: z.object({
       includedContentDeliveryMethod: z.string(),
       includedMaximumAdDurationTargeting: z.string(),
@@ -591,15 +593,15 @@ const StateSchema = z.object({
       includedPlayerSizeTargeting: z.object({
         minimumHeight: z.string(),
         minimumWidth: z.string(),
-      }),
+      }).partial(),
       includedPositionTypes: z.array(z.string()),
       minimumPredictedCompletionRatePercentage: z.string(),
       plcmtTargeting: z.object({
         selectionType: z.string(),
         videoPlcmtTypes: z.array(z.string()),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -999,7 +1001,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Curation Partners Curators.CuratedPackages. Registered at `@swamp/gcp/curationpartners/curators-curatedpackages`. */
 export const model = {
   type: "@swamp/gcp/curationpartners/curators-curatedpackages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -1008,6 +1010,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

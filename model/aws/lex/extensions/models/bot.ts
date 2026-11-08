@@ -772,6 +772,593 @@ const ConversationLogSettingsSchema = z.object({
   AudioLogSettings: z.array(AudioLogSettingSchema).optional(),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const BedrockModelSpecificationStateSchema = z.object({
+  ModelArn: z.string(),
+  BedrockTraceStatus: z.string(),
+  BedrockModelCustomPrompt: z.string(),
+  BedrockGuardrailConfiguration: z.object({
+    BedrockGuardrailVersion: z.string(),
+    BedrockGuardrailIdentifier: z.string(),
+  }).partial(),
+}).partial();
+
+const IntentDisambiguationSettingsStateSchema = z.object({
+  MaxDisambiguationIntents: z.number(),
+  Enabled: z.boolean(),
+  CustomDisambiguationMessage: z.string(),
+}).partial();
+
+const GenerativeAISettingsStateSchema = z.object({
+  RuntimeSettings: z.object({
+    SlotResolutionImprovementSpecification: z.object({
+      Enabled: z.boolean(),
+      BedrockModelSpecification: BedrockModelSpecificationStateSchema,
+    }).partial(),
+    NluImprovementSpecification: z.object({
+      AssistedNluMode: z.string(),
+      IntentDisambiguationSettings: IntentDisambiguationSettingsStateSchema,
+      Enabled: z.boolean(),
+    }).partial(),
+  }).partial(),
+  BuildtimeSettings: z.object({
+    DescriptiveBotBuilderSpecification: z.object({
+      Enabled: z.boolean(),
+      BedrockModelSpecification: BedrockModelSpecificationStateSchema,
+    }).partial(),
+    SampleUtteranceGenerationSpecification: z.object({
+      Enabled: z.boolean(),
+      BedrockModelSpecification: BedrockModelSpecificationStateSchema,
+    }).partial(),
+  }).partial(),
+}).partial();
+
+const CustomVocabularyItemStateSchema = z.object({
+  DisplayAs: z.string(),
+  Phrase: z.string(),
+  Weight: z.number(),
+}).partial();
+
+const CustomVocabularyStateSchema = z.object({
+  CustomVocabularyItems: z.array(CustomVocabularyItemStateSchema),
+}).partial();
+
+const DeepgramSpeechModelConfigStateSchema = z.object({
+  ApiTokenSecretArn: z.string(),
+  ModelId: z.string(),
+}).partial();
+
+const SpeechModelConfigStateSchema = z.object({
+  DeepgramConfig: DeepgramSpeechModelConfigStateSchema,
+}).partial();
+
+const SpeechRecognitionSettingsStateSchema = z.object({
+  SpeechModelPreference: z.string(),
+  SpeechModelConfig: SpeechModelConfigStateSchema,
+}).partial();
+
+const SampleValueStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const SlotTypeValueStateSchema = z.object({
+  Synonyms: z.array(SampleValueStateSchema),
+  SampleValue: SampleValueStateSchema,
+}).partial();
+
+const AdvancedRecognitionSettingStateSchema = z.object({
+  AudioRecognitionStrategy: z.string(),
+}).partial();
+
+const SlotValueRegexFilterStateSchema = z.object({
+  Pattern: z.string(),
+}).partial();
+
+const SlotValueSelectionSettingStateSchema = z.object({
+  AdvancedRecognitionSetting: AdvancedRecognitionSettingStateSchema,
+  RegexFilter: SlotValueRegexFilterStateSchema,
+  ResolutionStrategy: z.string(),
+}).partial();
+
+const SubSlotTypeCompositionStateSchema = z.object({
+  SlotTypeName: z.string(),
+  SlotTypeId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const CompositeSlotTypeSettingStateSchema = z.object({
+  SubSlots: z.array(SubSlotTypeCompositionStateSchema),
+}).partial();
+
+const GrammarSlotTypeSourceStateSchema = z.object({
+  KmsKeyArn: z.string(),
+  S3BucketName: z.string(),
+  S3ObjectKey: z.string(),
+}).partial();
+
+const GrammarSlotTypeSettingStateSchema = z.object({
+  Source: GrammarSlotTypeSourceStateSchema,
+}).partial();
+
+const ExternalSourceSettingStateSchema = z.object({
+  GrammarSlotTypeSetting: GrammarSlotTypeSettingStateSchema,
+}).partial();
+
+const SlotTypeStateSchema = z.object({
+  SlotTypeValues: z.array(SlotTypeValueStateSchema),
+  Description: z.string(),
+  ParentSlotTypeSignature: z.string(),
+  ValueSelectionSetting: SlotValueSelectionSettingStateSchema,
+  CompositeSlotTypeSetting: CompositeSlotTypeSettingStateSchema,
+  ExternalSourceSetting: ExternalSourceSettingStateSchema,
+  Name: z.string(),
+}).partial();
+
+const UnifiedSpeechSettingsStateSchema = z.object({
+  SpeechFoundationModel: z.object({
+    ModelArn: z.string(),
+    VoiceId: z.string(),
+  }).partial(),
+}).partial();
+
+const AudioFillerSettingsStateSchema = z.object({
+  Enabled: z.boolean(),
+  AudioType: z.string(),
+  MinimumPlayDurationInMilliseconds: z.number(),
+  ResponseDeliveryDelayInMilliseconds: z.number(),
+  StartDelayInMilliseconds: z.number(),
+}).partial();
+
+const QInConnectIntentConfigurationStateSchema = z.object({
+  QInConnectAssistantConfiguration: z.object({
+    AssistantArn: z.string(),
+  }).partial(),
+}).partial();
+
+const CustomPayloadStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const ButtonStateSchema = z.object({
+  Value: z.string(),
+  Text: z.string(),
+}).partial();
+
+const ImageResponseCardStateSchema = z.object({
+  Subtitle: z.string(),
+  Title: z.string(),
+  ImageUrl: z.string(),
+  Buttons: z.array(ButtonStateSchema),
+}).partial();
+
+const PlainTextMessageStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const SSMLMessageStateSchema = z.object({
+  Value: z.string(),
+}).partial();
+
+const MessageStateSchema = z.object({
+  CustomPayload: CustomPayloadStateSchema,
+  ImageResponseCard: ImageResponseCardStateSchema,
+  PlainTextMessage: PlainTextMessageStateSchema,
+  SSMLMessage: SSMLMessageStateSchema,
+}).partial();
+
+const MessageGroupStateSchema = z.object({
+  Message: MessageStateSchema,
+  Variations: z.array(MessageStateSchema),
+}).partial();
+
+const ResponseSpecificationStateSchema = z.object({
+  MessageGroupsList: z.array(MessageGroupStateSchema),
+  AllowInterrupt: z.boolean(),
+}).partial();
+
+const DialogActionStateSchema = z.object({
+  Type: z.string(),
+  SlotToElicit: z.string(),
+  SuppressNextMessage: z.boolean(),
+}).partial();
+
+const SessionAttributeStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const SlotValueStateSchema = z.object({
+  InterpretedValue: z.string(),
+}).partial();
+
+const SlotValueOverrideStateSchema = z.object({
+  Shape: z.string(),
+  Value: SlotValueStateSchema,
+  Values: z.array(z.record(z.string(), z.unknown())),
+}).partial();
+
+const SlotValueOverrideMapStateSchema = z.object({
+  SlotName: z.string(),
+  SlotValueOverride: SlotValueOverrideStateSchema,
+}).partial();
+
+const IntentOverrideStateSchema = z.object({
+  Slots: z.array(SlotValueOverrideMapStateSchema),
+  Name: z.string(),
+}).partial();
+
+const DialogStateStateSchema = z.object({
+  DialogAction: DialogActionStateSchema,
+  SessionAttributes: z.array(SessionAttributeStateSchema),
+  Intent: IntentOverrideStateSchema,
+}).partial();
+
+const DefaultConditionalBranchStateSchema = z.object({
+  Response: ResponseSpecificationStateSchema,
+  NextStep: DialogStateStateSchema,
+}).partial();
+
+const ConditionStateSchema = z.object({
+  ExpressionString: z.string(),
+}).partial();
+
+const ConditionalBranchStateSchema = z.object({
+  Condition: ConditionStateSchema,
+  Response: ResponseSpecificationStateSchema,
+  Name: z.string(),
+  NextStep: DialogStateStateSchema,
+}).partial();
+
+const ConditionalSpecificationStateSchema = z.object({
+  DefaultBranch: DefaultConditionalBranchStateSchema,
+  IsActive: z.boolean(),
+  ConditionalBranches: z.array(ConditionalBranchStateSchema),
+}).partial();
+
+const PostDialogCodeHookInvocationSpecificationStateSchema = z.object({
+  SuccessResponse: ResponseSpecificationStateSchema,
+  FailureConditional: ConditionalSpecificationStateSchema,
+  TimeoutNextStep: DialogStateStateSchema,
+  SuccessConditional: ConditionalSpecificationStateSchema,
+  TimeoutResponse: ResponseSpecificationStateSchema,
+  SuccessNextStep: DialogStateStateSchema,
+  FailureResponse: ResponseSpecificationStateSchema,
+  FailureNextStep: DialogStateStateSchema,
+  TimeoutConditional: ConditionalSpecificationStateSchema,
+}).partial();
+
+const DialogCodeHookInvocationSettingStateSchema = z.object({
+  EnableCodeHookInvocation: z.boolean(),
+  InvocationLabel: z.string(),
+  IsActive: z.boolean(),
+  PostCodeHookSpecification:
+    PostDialogCodeHookInvocationSpecificationStateSchema,
+}).partial();
+
+const InitialResponseSettingStateSchema = z.object({
+  CodeHook: DialogCodeHookInvocationSettingStateSchema,
+  InitialResponse: ResponseSpecificationStateSchema,
+  Conditional: ConditionalSpecificationStateSchema,
+  NextStep: DialogStateStateSchema,
+}).partial();
+
+const BedrockAgentIntentConfigurationStateSchema = z.object({
+  BedrockAgentConfiguration: z.object({
+    BedrockAgentId: z.string(),
+    BedrockAgentAliasId: z.string(),
+  }).partial(),
+  BedrockAgentIntentKnowledgeBaseConfiguration: z.object({
+    BedrockModelConfiguration: BedrockModelSpecificationStateSchema,
+    BedrockKnowledgeBaseArn: z.string(),
+  }).partial(),
+}).partial();
+
+const PostFulfillmentStatusSpecificationStateSchema = z.object({
+  SuccessResponse: ResponseSpecificationStateSchema,
+  FailureConditional: ConditionalSpecificationStateSchema,
+  TimeoutNextStep: DialogStateStateSchema,
+  SuccessConditional: ConditionalSpecificationStateSchema,
+  TimeoutResponse: ResponseSpecificationStateSchema,
+  SuccessNextStep: DialogStateStateSchema,
+  FailureResponse: ResponseSpecificationStateSchema,
+  FailureNextStep: DialogStateStateSchema,
+  TimeoutConditional: ConditionalSpecificationStateSchema,
+}).partial();
+
+const FulfillmentUpdateResponseSpecificationStateSchema = z.object({
+  MessageGroups: z.array(MessageGroupStateSchema),
+  AllowInterrupt: z.boolean(),
+  FrequencyInSeconds: z.number(),
+}).partial();
+
+const FulfillmentStartResponseSpecificationStateSchema = z.object({
+  DelayInSeconds: z.number(),
+  MessageGroups: z.array(MessageGroupStateSchema),
+  AllowInterrupt: z.boolean(),
+}).partial();
+
+const FulfillmentUpdatesSpecificationStateSchema = z.object({
+  UpdateResponse: FulfillmentUpdateResponseSpecificationStateSchema,
+  Active: z.boolean(),
+  TimeoutInSeconds: z.number(),
+  StartResponse: FulfillmentStartResponseSpecificationStateSchema,
+}).partial();
+
+const FulfillmentCodeHookSettingStateSchema = z.object({
+  PostFulfillmentStatusSpecification:
+    PostFulfillmentStatusSpecificationStateSchema,
+  FulfillmentUpdatesSpecification: FulfillmentUpdatesSpecificationStateSchema,
+  IsActive: z.boolean(),
+  Enabled: z.boolean(),
+}).partial();
+
+const PromptSpecificationStateSchema = z.object({
+  MaxRetries: z.number(),
+  MessageGroupsList: z.array(MessageGroupStateSchema),
+  PromptAttemptsSpecification: z.record(z.string(), z.unknown()),
+  AllowInterrupt: z.boolean(),
+  MessageSelectionStrategy: z.string(),
+}).partial();
+
+const ElicitationCodeHookInvocationSettingStateSchema = z.object({
+  EnableCodeHookInvocation: z.boolean(),
+  InvocationLabel: z.string(),
+}).partial();
+
+const IntentConfirmationSettingStateSchema = z.object({
+  PromptSpecification: PromptSpecificationStateSchema,
+  ConfirmationResponse: ResponseSpecificationStateSchema,
+  DeclinationConditional: ConditionalSpecificationStateSchema,
+  FailureConditional: ConditionalSpecificationStateSchema,
+  ConfirmationConditional: ConditionalSpecificationStateSchema,
+  IsActive: z.boolean(),
+  FailureResponse: ResponseSpecificationStateSchema,
+  CodeHook: DialogCodeHookInvocationSettingStateSchema,
+  DeclinationNextStep: DialogStateStateSchema,
+  ElicitationCodeHook: ElicitationCodeHookInvocationSettingStateSchema,
+  ConfirmationNextStep: DialogStateStateSchema,
+  FailureNextStep: DialogStateStateSchema,
+  DeclinationResponse: ResponseSpecificationStateSchema,
+}).partial();
+
+const StillWaitingResponseSpecificationStateSchema = z.object({
+  MessageGroupsList: z.array(MessageGroupStateSchema),
+  TimeoutInSeconds: z.number(),
+  AllowInterrupt: z.boolean(),
+  FrequencyInSeconds: z.number(),
+}).partial();
+
+const WaitAndContinueSpecificationStateSchema = z.object({
+  WaitingResponse: ResponseSpecificationStateSchema,
+  StillWaitingResponse: StillWaitingResponseSpecificationStateSchema,
+  IsActive: z.boolean(),
+  ContinueResponse: ResponseSpecificationStateSchema,
+}).partial();
+
+const SlotCaptureSettingStateSchema = z.object({
+  CaptureConditional: ConditionalSpecificationStateSchema,
+  FailureConditional: ConditionalSpecificationStateSchema,
+  CaptureResponse: ResponseSpecificationStateSchema,
+  CaptureNextStep: DialogStateStateSchema,
+  FailureResponse: ResponseSpecificationStateSchema,
+  CodeHook: DialogCodeHookInvocationSettingStateSchema,
+  FailureNextStep: DialogStateStateSchema,
+  ElicitationCodeHook: ElicitationCodeHookInvocationSettingStateSchema,
+}).partial();
+
+const SampleUtteranceStateSchema = z.object({
+  Utterance: z.string(),
+}).partial();
+
+const SlotDefaultValueStateSchema = z.object({
+  DefaultValue: z.string(),
+}).partial();
+
+const SlotDefaultValueSpecificationStateSchema = z.object({
+  DefaultValueList: z.array(SlotDefaultValueStateSchema),
+}).partial();
+
+const SlotValueElicitationSettingStateSchema = z.object({
+  PromptSpecification: PromptSpecificationStateSchema,
+  WaitAndContinueSpecification: WaitAndContinueSpecificationStateSchema,
+  SlotConstraint: z.string(),
+  SlotCaptureSetting: SlotCaptureSettingStateSchema,
+  SampleUtterances: z.array(SampleUtteranceStateSchema),
+  DefaultValueSpecification: SlotDefaultValueSpecificationStateSchema,
+}).partial();
+
+const SubSlotSettingStateSchema = z.object({
+  Expression: z.string(),
+  SlotSpecifications: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ObfuscationSettingStateSchema = z.object({
+  ObfuscationSettingType: z.string(),
+}).partial();
+
+const MultipleValuesSettingStateSchema = z.object({
+  AllowMultipleValues: z.boolean(),
+}).partial();
+
+const SlotStateSchema = z.object({
+  Description: z.string(),
+  SlotTypeName: z.string(),
+  ValueElicitationSetting: SlotValueElicitationSettingStateSchema,
+  SubSlotSetting: SubSlotSettingStateSchema,
+  ObfuscationSetting: ObfuscationSettingStateSchema,
+  Name: z.string(),
+  MultipleValuesSetting: MultipleValuesSettingStateSchema,
+}).partial();
+
+const QnAKendraConfigurationStateSchema = z.object({
+  QueryFilterString: z.string(),
+  QueryFilterStringEnabled: z.boolean(),
+  KendraIndex: z.string(),
+  ExactResponse: z.boolean(),
+}).partial();
+
+const QnAIntentConfigurationStateSchema = z.object({
+  BedrockModelConfiguration: BedrockModelSpecificationStateSchema,
+  DataSourceConfiguration: z.object({
+    BedrockKnowledgeStoreConfiguration: z.object({
+      BKBExactResponseFields: z.object({
+        AnswerField: z.string(),
+      }).partial(),
+      ExactResponse: z.boolean(),
+      BedrockKnowledgeBaseArn: z.string(),
+    }).partial(),
+    KendraConfiguration: QnAKendraConfigurationStateSchema,
+    OpensearchConfiguration: z.object({
+      IndexName: z.string(),
+      DomainEndpoint: z.string(),
+      ExactResponseFields: z.object({
+        QuestionField: z.string(),
+        AnswerField: z.string(),
+      }).partial(),
+      ExactResponse: z.boolean(),
+      IncludeFields: z.array(z.string()),
+    }).partial(),
+  }).partial(),
+}).partial();
+
+const DialogCodeHookSettingStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const InputContextStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const KendraConfigurationStateSchema = z.object({
+  QueryFilterString: z.string(),
+  QueryFilterStringEnabled: z.boolean(),
+  KendraIndex: z.string(),
+}).partial();
+
+const IntentClosingSettingStateSchema = z.object({
+  IsActive: z.boolean(),
+  ClosingResponse: ResponseSpecificationStateSchema,
+  Conditional: ConditionalSpecificationStateSchema,
+  NextStep: DialogStateStateSchema,
+}).partial();
+
+const OutputContextStateSchema = z.object({
+  TurnsToLive: z.number(),
+  TimeToLiveInSeconds: z.number(),
+  Name: z.string(),
+}).partial();
+
+const SlotPriorityStateSchema = z.object({
+  Priority: z.number(),
+  SlotName: z.string(),
+}).partial();
+
+const IntentStateSchema = z.object({
+  QInConnectIntentConfiguration: QInConnectIntentConfigurationStateSchema,
+  Description: z.string(),
+  ParentIntentSignature: z.string(),
+  InitialResponseSetting: InitialResponseSettingStateSchema,
+  BedrockAgentIntentConfiguration: BedrockAgentIntentConfigurationStateSchema,
+  FulfillmentCodeHook: FulfillmentCodeHookSettingStateSchema,
+  IntentConfirmationSetting: IntentConfirmationSettingStateSchema,
+  Name: z.string(),
+  Slots: z.array(SlotStateSchema),
+  QnAIntentConfiguration: QnAIntentConfigurationStateSchema,
+  DialogCodeHook: DialogCodeHookSettingStateSchema,
+  InputContexts: z.array(InputContextStateSchema),
+  KendraConfiguration: KendraConfigurationStateSchema,
+  IntentClosingSetting: IntentClosingSettingStateSchema,
+  DisplayName: z.string(),
+  OutputContexts: z.array(OutputContextStateSchema),
+  SlotPriorities: z.array(SlotPriorityStateSchema),
+  SampleUtterances: z.array(SampleUtteranceStateSchema),
+}).partial();
+
+const VoiceSettingsStateSchema = z.object({
+  VoiceId: z.string(),
+  Engine: z.string(),
+}).partial();
+
+const BotLocaleStateSchema = z.object({
+  NluConfidenceThreshold: z.number(),
+  LocaleId: z.string(),
+  Description: z.string(),
+  GenerativeAISettings: GenerativeAISettingsStateSchema,
+  CustomVocabulary: CustomVocabularyStateSchema,
+  SpeechRecognitionSettings: SpeechRecognitionSettingsStateSchema,
+  SlotTypes: z.array(SlotTypeStateSchema),
+  UnifiedSpeechSettings: UnifiedSpeechSettingsStateSchema,
+  AudioFillerSettings: AudioFillerSettingsStateSchema,
+  SpeechDetectionSensitivity: z.string(),
+  Intents: z.array(IntentStateSchema),
+  VoiceSettings: VoiceSettingsStateSchema,
+}).partial();
+
+const BotMemberStateSchema = z.object({
+  BotMemberName: z.string(),
+  BotMemberAliasName: z.string(),
+  BotMemberId: z.string(),
+  BotMemberVersion: z.string(),
+  BotMemberAliasId: z.string(),
+}).partial();
+
+const LambdaCodeHookStateSchema = z.object({
+  LambdaArn: z.string(),
+  CodeHookInterfaceVersion: z.string(),
+}).partial();
+
+const CodeHookSpecificationStateSchema = z.object({
+  LambdaCodeHook: LambdaCodeHookStateSchema,
+}).partial();
+
+const BotAliasLocaleSettingsStateSchema = z.object({
+  CodeHookSpecification: CodeHookSpecificationStateSchema,
+  Enabled: z.boolean(),
+}).partial();
+
+const BotAliasLocaleSettingsItemStateSchema = z.object({
+  LocaleId: z.string(),
+  BotAliasLocaleSetting: BotAliasLocaleSettingsStateSchema,
+}).partial();
+
+const CloudWatchLogGroupLogDestinationStateSchema = z.object({
+  CloudWatchLogGroupArn: z.string(),
+  LogPrefix: z.string(),
+}).partial();
+
+const TextLogDestinationStateSchema = z.object({
+  CloudWatch: CloudWatchLogGroupLogDestinationStateSchema,
+}).partial();
+
+const TextLogSettingStateSchema = z.object({
+  Destination: TextLogDestinationStateSchema,
+  Enabled: z.boolean(),
+}).partial();
+
+const S3BucketLogDestinationStateSchema = z.object({
+  KmsKeyArn: z.string(),
+  LogPrefix: z.string(),
+  S3BucketArn: z.string(),
+}).partial();
+
+const AudioLogDestinationStateSchema = z.object({
+  S3Bucket: S3BucketLogDestinationStateSchema,
+}).partial();
+
+const AudioLogSettingStateSchema = z.object({
+  Destination: AudioLogDestinationStateSchema,
+  Enabled: z.boolean(),
+}).partial();
+
+const ConversationLogSettingsStateSchema = z.object({
+  TextLogSettings: z.array(TextLogSettingStateSchema),
+  AudioLogSettings: z.array(AudioLogSettingStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -842,40 +1429,40 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   ErrorLogSettings: z.object({
     Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   RoleArn: z.string().optional(),
   BotType: z.string().optional(),
   Name: z.string().optional(),
-  BotTags: z.array(TagSchema).optional(),
-  TestBotAliasTags: z.array(TagSchema).optional(),
+  BotTags: z.array(TagStateSchema).optional(),
+  TestBotAliasTags: z.array(TagStateSchema).optional(),
   AutoBuildBotLocales: z.boolean().optional(),
-  BotLocales: z.array(BotLocaleSchema).optional(),
+  BotLocales: z.array(BotLocaleStateSchema).optional(),
   IdleSessionTTLInSeconds: z.number().optional(),
   BotFileS3Location: z.object({
     S3ObjectVersion: z.string(),
     S3Bucket: z.string(),
     S3ObjectKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Replication: z.object({
     ReplicaRegions: z.array(z.string()),
-  }).optional(),
-  BotMembers: z.array(BotMemberSchema).optional(),
+  }).partial().optional(),
+  BotMembers: z.array(BotMemberStateSchema).optional(),
   TestBotAliasSettings: z.object({
     Description: z.string(),
-    BotAliasLocaleSettings: z.array(BotAliasLocaleSettingsItemSchema),
-    ConversationLogSettings: ConversationLogSettingsSchema,
+    BotAliasLocaleSettings: z.array(BotAliasLocaleSettingsItemStateSchema),
+    ConversationLogSettings: ConversationLogSettingsStateSchema,
     SentimentAnalysisSettings: z.object({
       DetectSentiment: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   Id: z.string(),
   Arn: z.string().optional(),
   DataPrivacy: z.object({
     ChildDirected: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -952,7 +1539,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lex Bot. Registered at `@swamp/aws/lex/bot`. */
 export const model = {
   type: "@swamp/aws/lex/bot",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1036,6 +1623,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

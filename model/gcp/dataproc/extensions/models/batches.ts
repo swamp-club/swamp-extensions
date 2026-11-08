@@ -345,7 +345,7 @@ const StateSchema = z.object({
     executionConfig: z.object({
       authenticationConfig: z.object({
         userWorkloadAuthenticationType: z.string(),
-      }),
+      }).partial(),
       idleTtl: z.string(),
       kmsKey: z.string(),
       networkTags: z.array(z.string()),
@@ -355,14 +355,14 @@ const StateSchema = z.object({
       stagingBucket: z.string(),
       subnetworkUri: z.string(),
       ttl: z.string(),
-    }),
+    }).partial(),
     peripheralsConfig: z.object({
       metastoreService: z.string(),
       sparkHistoryServerConfig: z.object({
         dataprocCluster: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   operation: z.string().optional(),
@@ -373,7 +373,7 @@ const StateSchema = z.object({
     jarFileUris: z.array(z.string()),
     mainPythonFileUri: z.string(),
     pythonFileUris: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   pysparkNotebookBatch: z.object({
     archiveUris: z.array(z.string()),
     fileUris: z.array(z.string()),
@@ -381,21 +381,21 @@ const StateSchema = z.object({
     notebookFileUri: z.string(),
     params: z.record(z.string(), z.unknown()),
     pythonFileUris: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   runtimeConfig: z.object({
     autotuningConfig: z.object({
       scenarios: z.array(z.string()),
-    }),
+    }).partial(),
     cohort: z.string(),
     containerImage: z.string(),
     properties: z.record(z.string(), z.unknown()),
     repositoryConfig: z.object({
       pypiRepositoryConfig: z.object({
         pypiRepository: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   runtimeInfo: z.object({
     approximateUsage: z.object({
       acceleratorType: z.string(),
@@ -406,11 +406,11 @@ const StateSchema = z.object({
       milliDcuSeconds: z.string(),
       shuffleStorageGbSeconds: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     cohortInfo: z.object({
       cohort: z.string(),
       cohortSource: z.string(),
-    }),
+    }).partial(),
     currentUsage: z.object({
       acceleratorType: z.string(),
       milliAccelerator: z.string(),
@@ -422,14 +422,14 @@ const StateSchema = z.object({
       shuffleStorageGb: z.string(),
       shuffleStorageGbPremium: z.string(),
       snapshotTime: z.string(),
-    }),
+    }).partial(),
     diagnosticOutputUri: z.string(),
     endpoints: z.record(z.string(), z.unknown()),
     outputUri: z.string(),
     propertiesInfo: z.object({
       autotuningProperties: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   sparkBatch: z.object({
     archiveUris: z.array(z.string()),
     args: z.array(z.string()),
@@ -437,24 +437,26 @@ const StateSchema = z.object({
     jarFileUris: z.array(z.string()),
     mainClass: z.string(),
     mainJarFileUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sparkRBatch: z.object({
     archiveUris: z.array(z.string()),
     args: z.array(z.string()),
     fileUris: z.array(z.string()),
     mainRFileUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sparkSqlBatch: z.object({
     jarFileUris: z.array(z.string()),
     queryFileUri: z.string(),
     queryVariables: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
-  stateHistory: z.array(z.object({
-    state: z.string(),
-    stateMessage: z.string(),
-    stateStartTime: z.string(),
-  })).optional(),
+  stateHistory: z.array(
+    z.object({
+      state: z.string(),
+      stateMessage: z.string(),
+      stateStartTime: z.string(),
+    }).partial(),
+  ).optional(),
   stateMessage: z.string().optional(),
   stateTime: z.string().optional(),
   uuid: z.string().optional(),
@@ -687,7 +689,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Batches. Registered at `@swamp/gcp/dataproc/batches`. */
 export const model = {
   type: "@swamp/gcp/dataproc/batches",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -859,6 +861,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -97,6 +97,10 @@ export function generateZodSchemas(
   // Generate resource schema body (ALL properties — simplified types for what AWS returns)
   const resourceLines: string[] = [];
   const primaryIdSet = new Set(onlyProperties.primaryIdentifier);
+  const stateCtx: StateSchemaContext = {
+    namesByTitle: new Map(),
+    inProgress: new Set(),
+  };
 
   for (const [name, cfProp] of Object.entries(resourceValueProperties)) {
     const normalized = safeNormalize(cfProp as RawCfProperty);
@@ -109,7 +113,7 @@ export function generateZodSchemas(
       normalized,
       0,
       extractedSchemas,
-      seenTitles,
+      stateCtx,
       maxDepth,
     );
     let line = `  ${name}: ${expression}`;
@@ -295,15 +299,61 @@ function generateZodForProperty(
 }
 
 /**
+ * Names the AWS and GCP model generators declare themselves. A StateSchema
+ * copy must never take one of them.
+ */
+const GENERATOR_RESERVED_NAMES: ReadonlySet<string> = new Set([
+  "StateSchema",
+  "GlobalArgsSchema",
+  "InputsSchema",
+]);
+
+/**
+ * Tracks the simplified copies of titled nested objects emitted for the
+ * StateSchema, so each title is declared once per file and recursive titles
+ * terminate.
+ */
+interface StateSchemaContext {
+  /** CF title → name of its emitted StateSchema copy */
+  namesByTitle: Map<string, string>;
+  /** Titles whose copy is being built (recursion guard) */
+  inProgress: Set<string>;
+}
+
+/**
+ * Picks a name for a titled object's StateSchema copy: `<Title>StateSchema`,
+ * prefixed with underscores until it clashes with no extracted schema and no
+ * generator-reserved name.
+ */
+function uniqueStateSchemaName(
+  pascalTitle: string,
+  extractedSchemas: ExtractedSchema[],
+): string {
+  const taken = new Set(extractedSchemas.map((s) => s.name));
+  let name = `${pascalTitle}StateSchema`;
+  while (taken.has(name) || GENERATOR_RESERVED_NAMES.has(name)) {
+    name = `_${name}`;
+  }
+  return name;
+}
+
+/**
  * Generates a simplified Zod expression for resource schema properties.
  * No constraints, no enums, no patterns — just basic type shapes.
+ *
+ * Every nested object is `.partial()`: CloudControl and GCP reads omit
+ * create-only parameters and conditional feature blocks, so a CF nested
+ * `required` list does not describe what a read returns (swamp-club #2487).
+ * A titled nested object gets its own simplified copy (`<Title>StateSchema`)
+ * rather than reusing the input-side extracted schema, which carries the
+ * CF required list and creation constraints.
  */
 function generateSimplifiedZodForProperty(
   name: string,
   cfProp: CfProperty,
   depth: number,
   extractedSchemas: ExtractedSchema[],
-  seenTitles: Set<string>,
+  stateCtx: StateSchemaContext,
   maxDepth?: number,
 ): { expression: string } {
   if (maxDepth !== undefined && depth >= maxDepth) {
@@ -341,7 +391,7 @@ function generateSimplifiedZodForProperty(
         itemsNormalized,
         depth + 1,
         extractedSchemas,
-        seenTitles,
+        stateCtx,
         maxDepth,
       );
       return { expression: `z.array(${itemResult.expression})` };
@@ -356,36 +406,52 @@ function generateSimplifiedZodForProperty(
         return { expression: "z.record(z.string(), z.unknown())" };
       }
       if (prop.properties) {
-        // Check if an extracted schema already exists for this (from the input pass)
+        const properties = prop.properties as Record<string, CfProperty>;
+        // Titled nested objects become a named StateSchema copy, mirroring
+        // where the input pass extracts (depth > 0).
         const title = prop.title;
-        if (title) {
-          const schemaName = toPascalCase(title) + "Schema";
-          const existing = extractedSchemas.find((s) => s.name === schemaName);
-          if (existing) {
-            return { expression: schemaName };
+        const pascalTitle = title ? toPascalCase(title) : "";
+        if (depth > 0 && title && pascalTitle) {
+          if (stateCtx.inProgress.has(title)) {
+            return { expression: "z.unknown()" };
           }
-        }
-        // Inline object with properly indented children
-        const lines: string[] = [];
-        for (
-          const [childName, childProp] of Object.entries(
-            prop.properties as Record<string, CfProperty>,
-          )
-        ) {
-          const normalized = safeNormalize(childProp as RawCfProperty);
-          if (!normalized) continue;
-          const childResult = generateSimplifiedZodForProperty(
-            childName,
-            normalized,
+          const existing = stateCtx.namesByTitle.get(title);
+          if (existing) {
+            return { expression: existing };
+          }
+          stateCtx.inProgress.add(title);
+          const body = simplifiedObjectChildren(
+            properties,
+            "  ",
             depth + 1,
             extractedSchemas,
-            seenTitles,
+            stateCtx,
             maxDepth,
           );
-          // Use 4 spaces for nested object children to distinguish from top-level
-          lines.push(`    ${childName}: ${childResult.expression},`);
+          stateCtx.inProgress.delete(title);
+          // Named after the children are declared, so the copy follows them.
+          const schemaName = uniqueStateSchemaName(
+            pascalTitle,
+            extractedSchemas,
+          );
+          extractedSchemas.push({
+            name: schemaName,
+            declaration:
+              `const ${schemaName} = z.object({\n${body}\n}).partial();`,
+          });
+          stateCtx.namesByTitle.set(title, schemaName);
+          return { expression: schemaName };
         }
-        return { expression: `z.object({\n${lines.join("\n")}\n  })` };
+        // Inline object; 4 spaces for nested children to distinguish from top-level
+        const body = simplifiedObjectChildren(
+          properties,
+          "    ",
+          depth + 1,
+          extractedSchemas,
+          stateCtx,
+          maxDepth,
+        );
+        return { expression: `z.object({\n${body}\n  }).partial()` };
       }
       return { expression: "z.record(z.string(), z.unknown())" };
     }
@@ -402,7 +468,7 @@ function generateSimplifiedZodForProperty(
               reNormalized,
               depth,
               extractedSchemas,
-              seenTitles,
+              stateCtx,
               maxDepth,
             );
           }
@@ -413,7 +479,7 @@ function generateSimplifiedZodForProperty(
             { ...prop, type: "object" } as CfProperty,
             depth,
             extractedSchemas,
-            seenTitles,
+            stateCtx,
             maxDepth,
           );
         }
@@ -422,6 +488,38 @@ function generateSimplifiedZodForProperty(
       return { expression: "z.unknown()" };
     }
   }
+}
+
+/**
+ * Emits the children of a StateSchema object. The caller wraps the object in
+ * `.partial()`, which makes every child optional; per-child `.optional()`
+ * wrappers would add a type level per nesting depth and push
+ * `z.infer<typeof StateSchema>` past TypeScript's instantiation-depth limit on
+ * deep schemas (e.g. QuickSight dashboard definitions).
+ */
+function simplifiedObjectChildren(
+  properties: Record<string, CfProperty>,
+  indent: string,
+  depth: number,
+  extractedSchemas: ExtractedSchema[],
+  stateCtx: StateSchemaContext,
+  maxDepth?: number,
+): string {
+  const lines: string[] = [];
+  for (const [childName, childProp] of Object.entries(properties)) {
+    const normalized = safeNormalize(childProp as RawCfProperty);
+    if (!normalized) continue;
+    const { expression } = generateSimplifiedZodForProperty(
+      childName,
+      normalized,
+      depth,
+      extractedSchemas,
+      stateCtx,
+      maxDepth,
+    );
+    lines.push(`${indent}${childName}: ${expression},`);
+  }
+  return lines.join("\n");
 }
 
 function generateObjectZod(

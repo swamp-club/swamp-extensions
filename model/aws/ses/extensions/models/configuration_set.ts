@@ -56,6 +56,19 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const DashboardOptionsStateSchema = z.object({
+  EngagementMetrics: z.string(),
+}).partial();
+
+const GuardianOptionsStateSchema = z.object({
+  OptimizedSharedDelivery: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -159,18 +172,18 @@ const StateSchema = z.object({
   TrackingOptions: z.object({
     CustomRedirectDomain: z.string(),
     HttpsPolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DeliveryOptions: z.object({
     TlsPolicy: z.string(),
     SendingPoolName: z.string(),
     MaxDeliverySeconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
   ReputationOptions: z.object({
     ReputationMetricsEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   SendingOptions: z.object({
     SendingEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   SuppressionOptions: z.object({
     SuppressedReasons: z.array(z.string()),
     ValidationOptions: z.object({
@@ -178,21 +191,21 @@ const StateSchema = z.object({
         ConditionThresholdEnabled: z.string(),
         OverallConfidenceThreshold: z.object({
           ConfidenceVerdictThreshold: z.string(),
-        }),
-      }),
-    }),
-  }).optional(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   VdmOptions: z.object({
-    DashboardOptions: DashboardOptionsSchema,
-    GuardianOptions: GuardianOptionsSchema,
-  }).optional(),
+    DashboardOptions: DashboardOptionsStateSchema,
+    GuardianOptions: GuardianOptionsStateSchema,
+  }).partial().optional(),
   ArchivingOptions: z.object({
     ArchiveArn: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -304,7 +317,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES ConfigurationSet. Registered at `@swamp/aws/ses/configuration-set`. */
 export const model = {
   type: "@swamp/aws/ses/configuration-set",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -363,6 +376,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

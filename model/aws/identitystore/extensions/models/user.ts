@@ -178,48 +178,58 @@ const StateSchema = z.object({
     MiddleName: z.string(),
     HonorificPrefix: z.string(),
     HonorificSuffix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DisplayName: z.string().optional(),
   NickName: z.string().optional(),
   ProfileUrl: z.string().optional(),
-  Emails: z.array(z.object({
-    Value: z.string(),
-    Type: z.string(),
-    Primary: z.boolean(),
-  })).optional(),
-  Addresses: z.array(z.object({
-    StreetAddress: z.string(),
-    Locality: z.string(),
-    Region: z.string(),
-    PostalCode: z.string(),
-    Country: z.string(),
-    Formatted: z.string(),
-    Type: z.string(),
-    Primary: z.boolean(),
-  })).optional(),
-  PhoneNumbers: z.array(z.object({
-    Value: z.string(),
-    Type: z.string(),
-    Primary: z.boolean(),
-  })).optional(),
+  Emails: z.array(
+    z.object({
+      Value: z.string(),
+      Type: z.string(),
+      Primary: z.boolean(),
+    }).partial(),
+  ).optional(),
+  Addresses: z.array(
+    z.object({
+      StreetAddress: z.string(),
+      Locality: z.string(),
+      Region: z.string(),
+      PostalCode: z.string(),
+      Country: z.string(),
+      Formatted: z.string(),
+      Type: z.string(),
+      Primary: z.boolean(),
+    }).partial(),
+  ).optional(),
+  PhoneNumbers: z.array(
+    z.object({
+      Value: z.string(),
+      Type: z.string(),
+      Primary: z.boolean(),
+    }).partial(),
+  ).optional(),
   UserType: z.string().optional(),
   Title: z.string().optional(),
   PreferredLanguage: z.string().optional(),
   Locale: z.string().optional(),
   Timezone: z.string().optional(),
-  Photos: z.array(z.object({
-    Value: z.string(),
-    Type: z.string(),
-    Display: z.string(),
-    Primary: z.boolean(),
-  })).optional(),
+  Photos: z.array(
+    z.object({
+      Value: z.string(),
+      Type: z.string(),
+      Display: z.string(),
+      Primary: z.boolean(),
+    }).partial(),
+  ).optional(),
   Website: z.string().optional(),
   Birthdate: z.string().optional(),
-  Roles: z.array(z.object({
-    Value: z.string(),
-    Type: z.string(),
-    Primary: z.boolean(),
-  })).optional(),
+  Roles: z.array(
+    z.object({
+      Value: z.string(),
+      Type: z.string(),
+      Primary: z.boolean(),
+    }).partial(),
+  ).optional(),
   UserStatus: z.string().optional(),
   CreatedAt: z.string().optional(),
   CreatedBy: z.string().optional(),
@@ -227,7 +237,7 @@ const StateSchema = z.object({
   UpdatedBy: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -367,7 +377,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IdentityStore User. Registered at `@swamp/aws/identitystore/user`. */
 export const model = {
   type: "@swamp/aws/identitystore/user",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -381,6 +391,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -761,7 +761,7 @@ const StateSchema = z.object({
     script: z.string(),
     securityLevel: z.string(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   appEngineApis: z.boolean().optional(),
   appEngineBundledServices: z.array(z.string()).optional(),
   automaticScaling: z.object({
@@ -769,13 +769,13 @@ const StateSchema = z.object({
     cpuUtilization: z.object({
       aggregationWindowLength: z.string(),
       targetUtilization: z.number(),
-    }),
+    }).partial(),
     diskUtilization: z.object({
       targetReadBytesPerSecond: z.number(),
       targetReadOpsPerSecond: z.number(),
       targetWriteBytesPerSecond: z.number(),
       targetWriteOpsPerSecond: z.number(),
-    }),
+    }).partial(),
     maxConcurrentRequests: z.number(),
     maxIdleInstances: z.number(),
     maxPendingLatency: z.string(),
@@ -788,22 +788,22 @@ const StateSchema = z.object({
       targetReceivedPacketsPerSecond: z.number(),
       targetSentBytesPerSecond: z.number(),
       targetSentPacketsPerSecond: z.number(),
-    }),
+    }).partial(),
     requestUtilization: z.object({
       targetConcurrentRequests: z.number(),
       targetRequestCountPerSecond: z.number(),
-    }),
+    }).partial(),
     standardSchedulerSettings: z.object({
       maxInstances: z.number(),
       minInstances: z.number(),
       targetCpuUtilization: z.number(),
       targetThroughputUtilization: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   basicScaling: z.object({
     idleTimeout: z.string(),
     maxInstances: z.number(),
-  }).optional(),
+  }).partial().optional(),
   betaSettings: z.record(z.string(), z.unknown()).optional(),
   buildEnvVariables: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
@@ -813,60 +813,64 @@ const StateSchema = z.object({
     cloudBuildOptions: z.object({
       appYamlPath: z.string(),
       cloudBuildTimeout: z.string(),
-    }),
+    }).partial(),
     container: z.object({
       image: z.string(),
-    }),
+    }).partial(),
     files: z.record(z.string(), z.unknown()),
     zip: z.object({
       filesCount: z.number(),
       sourceUrl: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   diskUsageBytes: z.string().optional(),
   endpointsApiService: z.object({
     configId: z.string(),
     disableTraceSampling: z.boolean(),
     name: z.string(),
     rolloutStrategy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   entrypoint: z.object({
     shell: z.string(),
-  }).optional(),
+  }).partial().optional(),
   env: z.string().optional(),
   envVariables: z.record(z.string(), z.unknown()).optional(),
-  errorHandlers: z.array(z.object({
-    errorCode: z.string(),
-    mimeType: z.string(),
-    staticFile: z.string(),
-  })).optional(),
+  errorHandlers: z.array(
+    z.object({
+      errorCode: z.string(),
+      mimeType: z.string(),
+      staticFile: z.string(),
+    }).partial(),
+  ).optional(),
   flexibleRuntimeSettings: z.object({
     operatingSystem: z.string(),
     runtimeVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   generatedCustomerMetadata: z.record(z.string(), z.unknown()).optional(),
-  handlers: z.array(z.object({
-    apiEndpoint: z.object({
-      scriptPath: z.string(),
-    }),
-    authFailAction: z.string(),
-    login: z.string(),
-    redirectHttpResponseCode: z.string(),
-    script: z.object({
-      scriptPath: z.string(),
-    }),
-    securityLevel: z.string(),
-    staticFiles: z.object({
-      applicationReadable: z.boolean(),
-      expiration: z.string(),
-      httpHeaders: z.record(z.string(), z.unknown()),
-      mimeType: z.string(),
-      path: z.string(),
-      requireMatchingFile: z.boolean(),
-      uploadPathRegex: z.string(),
-    }),
-    urlRegex: z.string(),
-  })).optional(),
+  handlers: z.array(
+    z.object({
+      apiEndpoint: z.object({
+        scriptPath: z.string(),
+      }).partial(),
+      authFailAction: z.string(),
+      login: z.string(),
+      redirectHttpResponseCode: z.string(),
+      script: z.object({
+        scriptPath: z.string(),
+      }).partial(),
+      securityLevel: z.string(),
+      staticFiles: z.object({
+        applicationReadable: z.boolean(),
+        expiration: z.string(),
+        httpHeaders: z.record(z.string(), z.unknown()),
+        mimeType: z.string(),
+        path: z.string(),
+        requireMatchingFile: z.boolean(),
+        uploadPathRegex: z.string(),
+      }).partial(),
+      urlRegex: z.string(),
+    }).partial(),
+  ).optional(),
   healthCheck: z.object({
     checkInterval: z.string(),
     disableHealthCheck: z.boolean(),
@@ -875,14 +879,16 @@ const StateSchema = z.object({
     restartThreshold: z.number(),
     timeout: z.string(),
     unhealthyThreshold: z.number(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   inboundServices: z.array(z.string()).optional(),
   instanceClass: z.string().optional(),
-  libraries: z.array(z.object({
-    name: z.string(),
-    version: z.string(),
-  })).optional(),
+  libraries: z.array(
+    z.object({
+      name: z.string(),
+      version: z.string(),
+    }).partial(),
+  ).optional(),
   livenessCheck: z.object({
     checkInterval: z.string(),
     failureThreshold: z.number(),
@@ -891,10 +897,10 @@ const StateSchema = z.object({
     path: z.string(),
     successThreshold: z.number(),
     timeout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   manualScaling: z.object({
     instances: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   network: z.object({
     forwardedPorts: z.array(z.string()),
@@ -903,7 +909,7 @@ const StateSchema = z.object({
     name: z.string(),
     sessionAffinity: z.boolean(),
     subnetworkName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   nobuildFilesRegex: z.string().optional(),
   readinessCheck: z.object({
     appStartTimeout: z.string(),
@@ -913,18 +919,20 @@ const StateSchema = z.object({
     path: z.string(),
     successThreshold: z.number(),
     timeout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resources: z.object({
     cpu: z.number(),
     diskGb: z.number(),
     kmsKeyReference: z.string(),
     memoryGb: z.number(),
-    volumes: z.array(z.object({
-      name: z.string(),
-      sizeGb: z.number(),
-      volumeType: z.string(),
-    })),
-  }).optional(),
+    volumes: z.array(
+      z.object({
+        name: z.string(),
+        sizeGb: z.number(),
+        volumeType: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   runtime: z.string().optional(),
   runtimeApiVersion: z.string().optional(),
   runtimeChannel: z.string().optional(),
@@ -935,17 +943,19 @@ const StateSchema = z.object({
   versionUrl: z.string().optional(),
   vm: z.boolean().optional(),
   vpcAccess: z.object({
-    networkInterfaces: z.array(z.object({
-      network: z.string(),
-      subnet: z.string(),
-      tags: z.array(z.string()),
-    })),
+    networkInterfaces: z.array(
+      z.object({
+        network: z.string(),
+        subnet: z.string(),
+        tags: z.array(z.string()),
+      }).partial(),
+    ),
     vpcEgress: z.string(),
-  }).optional(),
+  }).partial().optional(),
   vpcAccessConnector: z.object({
     egressSetting: z.string(),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   zones: z.array(z.string()).optional(),
 }).passthrough();
 
@@ -1544,7 +1554,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Engine Admin Apps.Services.Versions. Registered at `@swamp/gcp/appengine/apps-services-versions`. */
 export const model = {
   type: "@swamp/gcp/appengine/apps-services-versions",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1699,6 +1709,11 @@ export const model = {
     {
       toVersion: "2026.10.29.1",
       description: "Added: vpcAccess",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

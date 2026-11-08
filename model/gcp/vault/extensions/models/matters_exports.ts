@@ -416,44 +416,46 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   cloudStorageSink: z.object({
-    files: z.array(z.object({
-      bucketName: z.string(),
-      md5Hash: z.string(),
-      objectName: z.string(),
-      size: z.string(),
-    })),
-  }).optional(),
+    files: z.array(
+      z.object({
+        bucketName: z.string(),
+        md5Hash: z.string(),
+        objectName: z.string(),
+        size: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   createTime: z.string().optional(),
   exportOptions: z.object({
     calendarOptions: z.object({
       exportFormat: z.string(),
-    }),
+    }).partial(),
     driveOptions: z.object({
       includeAccessInfo: z.boolean(),
-    }),
+    }).partial(),
     geminiInWorkspaceOptions: z.object({
       exportFormat: z.string(),
-    }),
+    }).partial(),
     geminiOptions: z.object({
       exportFormat: z.string(),
-    }),
+    }).partial(),
     groupsOptions: z.object({
       exportFormat: z.string(),
-    }),
+    }).partial(),
     hangoutsChatOptions: z.object({
       exportFormat: z.string(),
-    }),
+    }).partial(),
     mailOptions: z.object({
       exportFormat: z.string(),
       exportLinkedDriveFiles: z.boolean(),
       showConfidentialModeContent: z.boolean(),
       useNewExport: z.boolean(),
-    }),
+    }).partial(),
     region: z.string(),
     voiceOptions: z.object({
       exportFormat: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   id: z.string().optional(),
   matterId: z.string().optional(),
   name: z.string(),
@@ -461,71 +463,71 @@ const StateSchema = z.object({
   query: z.object({
     accountInfo: z.object({
       emails: z.array(z.string()),
-    }),
+    }).partial(),
     calendarOptions: z.object({
       locationQuery: z.array(z.string()),
       minusWords: z.array(z.string()),
       peopleQuery: z.array(z.string()),
       responseStatuses: z.array(z.string()),
       versionDate: z.string(),
-    }),
+    }).partial(),
     corpus: z.string(),
     dataScope: z.string(),
     driveDocumentInfo: z.object({
       documentIds: z.object({
         ids: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     driveOptions: z.object({
       clientSideEncryptedOption: z.string(),
       includeSharedDrives: z.boolean(),
       includeTeamDrives: z.boolean(),
       sharedDrivesOption: z.string(),
       versionDate: z.string(),
-    }),
+    }).partial(),
     endTime: z.string(),
-    geminiInWorkspaceOptions: z.object({}),
-    geminiOptions: z.object({}),
+    geminiInWorkspaceOptions: z.object({}).partial(),
+    geminiOptions: z.object({}).partial(),
     hangoutsChatInfo: z.object({
       roomId: z.array(z.string()),
-    }),
+    }).partial(),
     hangoutsChatOptions: z.object({
       includeRooms: z.boolean(),
-    }),
+    }).partial(),
     mailOptions: z.object({
       clientSideEncryptedOption: z.string(),
       excludeDrafts: z.boolean(),
-    }),
+    }).partial(),
     method: z.string(),
     orgUnitInfo: z.object({
       orgUnitId: z.string(),
-    }),
+    }).partial(),
     searchMethod: z.string(),
     sharedDriveInfo: z.object({
       sharedDriveIds: z.array(z.string()),
-    }),
+    }).partial(),
     sitesUrlInfo: z.object({
       urls: z.array(z.string()),
-    }),
+    }).partial(),
     startTime: z.string(),
     teamDriveInfo: z.object({
       teamDriveIds: z.array(z.string()),
-    }),
+    }).partial(),
     terms: z.string(),
     timeZone: z.string(),
     voiceOptions: z.object({
       coveredData: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   requester: z.object({
     displayName: z.string(),
     email: z.string(),
-  }).optional(),
+  }).partial().optional(),
   stats: z.object({
     exportedArtifactCount: z.string(),
     sizeInBytes: z.string(),
     totalArtifactCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.string().optional(),
 }).passthrough();
 
@@ -836,7 +838,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Vault Matters.Exports. Registered at `@swamp/gcp/vault/matters-exports`. */
 export const model = {
   type: "@swamp/gcp/vault/matters-exports",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -993,6 +995,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

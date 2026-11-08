@@ -204,16 +204,18 @@ const StateSchema = z.object({
   agentIdentity: z.string().optional(),
   agentResponseCustomization: z.object({
     denialMessage: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   dryRun: z.boolean().optional(),
   etag: z.string().optional(),
-  mcpTools: z.array(z.object({
-    mcpServer: z.string(),
-    tools: z.array(z.string()),
-  })).optional(),
+  mcpTools: z.array(
+    z.object({
+      mcpServer: z.string(),
+      tools: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   naturalLanguageConstraint: z.string().optional(),
   updateTime: z.string().optional(),
@@ -296,7 +298,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform SemanticGovernancePolicies. Registered at `@swamp/gcp/aiplatform/semanticgovernancepolicies`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/semanticgovernancepolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -335,6 +337,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

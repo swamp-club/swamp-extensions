@@ -192,11 +192,11 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     lastTriggerTime: z.string(),
     lastVerificationExecution: z.string(),
     nextTriggerTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -262,7 +262,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service RestoreVerificationPlans.Associations. Registered at `@swamp/gcp/backupdr/restoreverificationplans-associations`. */
 export const model = {
   type: "@swamp/gcp/backupdr/restoreverificationplans-associations",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

@@ -49,6 +49,11 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -158,7 +163,7 @@ const StateSchema = z.object({
     EndTimeMinute: z.number(),
     DaysOfTheWeek: z.array(z.string()),
     ApplyTimeOf: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SoftwareSetUpdateMode: z.string().optional(),
   DesiredSoftwareSetId: z.string().optional(),
   PendingSoftwareSetId: z.string().optional(),
@@ -168,11 +173,11 @@ const StateSchema = z.object({
   UpdatedAt: z.string().optional(),
   Arn: z.string().optional(),
   KmsKeyArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  DeviceCreationTags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  DeviceCreationTags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -275,7 +280,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WorkSpacesThinClient Environment. Registered at `@swamp/aws/workspacesthinclient/environment`. */
 export const model = {
   type: "@swamp/aws/workspacesthinclient/environment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -339,6 +344,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

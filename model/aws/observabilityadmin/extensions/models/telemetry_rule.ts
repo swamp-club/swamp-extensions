@@ -236,6 +236,107 @@ const TagSchema = z.object({
   ),
 });
 
+const VPCFlowLogParametersStateSchema = z.object({
+  LogFormat: z.string(),
+  TrafficType: z.string(),
+  MaxAggregationInterval: z.number(),
+}).partial();
+
+const AdvancedFieldSelectorStateSchema = z.object({
+  Field: z.string(),
+  EndsWith: z.array(z.string()),
+  Equals: z.array(z.string()),
+  NotEndsWith: z.array(z.string()),
+  NotEquals: z.array(z.string()),
+  NotStartsWith: z.array(z.string()),
+  StartsWith: z.array(z.string()),
+}).partial();
+
+const AdvancedEventSelectorStateSchema = z.object({
+  Name: z.string(),
+  FieldSelectors: z.array(AdvancedFieldSelectorStateSchema),
+}).partial();
+
+const CloudtrailParametersStateSchema = z.object({
+  AdvancedEventSelectors: z.array(AdvancedEventSelectorStateSchema),
+}).partial();
+
+const ELBLoadBalancerLoggingParametersStateSchema = z.object({
+  OutputFormat: z.string(),
+  FieldDelimiter: z.string(),
+}).partial();
+
+const SingleHeaderStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const FieldToMatchStateSchema = z.object({
+  SingleHeader: SingleHeaderStateSchema,
+  UriPath: z.string(),
+  QueryString: z.string(),
+  Method: z.string(),
+}).partial();
+
+const ActionConditionStateSchema = z.object({
+  Action: z.string(),
+}).partial();
+
+const LabelNameConditionStateSchema = z.object({
+  LabelName: z.string(),
+}).partial();
+
+const ConditionStateSchema = z.object({
+  ActionCondition: ActionConditionStateSchema,
+  LabelNameCondition: LabelNameConditionStateSchema,
+}).partial();
+
+const FilterStateSchema = z.object({
+  Behavior: z.string(),
+  Requirement: z.string(),
+  Conditions: z.array(ConditionStateSchema),
+}).partial();
+
+const LoggingFilterStateSchema = z.object({
+  Filters: z.array(FilterStateSchema),
+  DefaultBehavior: z.string(),
+}).partial();
+
+const WAFLoggingParametersStateSchema = z.object({
+  RedactedFields: z.array(FieldToMatchStateSchema),
+  LoggingFilter: LoggingFilterStateSchema,
+  LogType: z.string(),
+}).partial();
+
+const MskMonitoringParametersStateSchema = z.object({
+  EnhancedMonitoring: z.string(),
+}).partial();
+
+const TelemetryDestinationConfigurationStateSchema = z.object({
+  DestinationType: z.string(),
+  DestinationPattern: z.string(),
+  RetentionInDays: z.number(),
+  KmsKeyArn: z.string(),
+  VPCFlowLogParameters: VPCFlowLogParametersStateSchema,
+  CloudtrailParameters: CloudtrailParametersStateSchema,
+  ELBLoadBalancerLoggingParameters: ELBLoadBalancerLoggingParametersStateSchema,
+  WAFLoggingParameters: WAFLoggingParametersStateSchema,
+  MskMonitoringParameters: MskMonitoringParametersStateSchema,
+  LogDeliveryParameters: z.object({
+    LogTypes: z.array(z.string()),
+  }).partial(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const RegionStatusStateSchema = z.object({
+  Region: z.string(),
+  Status: z.string(),
+  RuleArn: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -319,22 +420,18 @@ const StateSchema = z.object({
     ResourceType: z.string(),
     TelemetryType: z.string(),
     TelemetrySourceTypes: z.array(z.string()),
-    DestinationConfiguration: TelemetryDestinationConfigurationSchema,
+    DestinationConfiguration: TelemetryDestinationConfigurationStateSchema,
     SelectionCriteria: z.string(),
     AllowFieldUpdates: z.boolean(),
     Regions: z.array(z.string()),
     AllRegions: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   RuleArn: z.string(),
-  Tags: z.array(TagSchema).optional(),
-  RegionStatuses: z.array(z.object({
-    Region: z.string(),
-    Status: z.string(),
-    RuleArn: z.string(),
-  })).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  RegionStatuses: z.array(RegionStatusStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -422,7 +519,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin TelemetryRule. Registered at `@swamp/aws/observabilityadmin/telemetry-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/telemetry-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.09.11.1",
@@ -456,6 +553,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -465,32 +465,34 @@ const StateSchema = z.object({
     enabled: z.boolean(),
     encryptionConfig: z.object({
       kmsKeyName: z.string(),
-    }),
+    }).partial(),
     labels: z.record(z.string(), z.unknown()),
     location: z.string(),
     quantityBasedRetention: z.object({
       count: z.number(),
-    }),
+    }).partial(),
     timeBasedRetention: z.object({
       retentionPeriod: z.string(),
-    }),
+    }).partial(),
     weeklySchedule: z.object({
       daysOfWeek: z.array(z.string()),
-      startTimes: z.array(z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      })),
-    }),
-  }).optional(),
+      startTimes: z.array(
+        z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   backupSource: z.object({
     backupName: z.string(),
     backupUid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   backupdrBackupSource: z.object({
     backup: z.string(),
-  }).optional(),
+  }).partial().optional(),
   backupdrInfo: z.object({
     currentWindow: z.object({
       automatedBackupPreviouslyEnabled: z.boolean(),
@@ -502,121 +504,127 @@ const StateSchema = z.object({
       disabledTime: z.string(),
       enabledTime: z.string(),
       logRetentionPeriod: z.string(),
-    }),
-    previousWindows: z.array(z.object({
-      automatedBackupPreviouslyEnabled: z.boolean(),
-      backupPlanAssociation: z.string(),
-      continuousBackupPreviousRecoveryWindowDays: z.number(),
-      continuousBackupPreviouslyEnabled: z.boolean(),
-      continuousBackupPreviouslyEnabledTime: z.string(),
-      dataSource: z.string(),
-      disabledTime: z.string(),
-      enabledTime: z.string(),
-      logRetentionPeriod: z.string(),
-    })),
-  }).optional(),
+    }).partial(),
+    previousWindows: z.array(
+      z.object({
+        automatedBackupPreviouslyEnabled: z.boolean(),
+        backupPlanAssociation: z.string(),
+        continuousBackupPreviousRecoveryWindowDays: z.number(),
+        continuousBackupPreviouslyEnabled: z.boolean(),
+        continuousBackupPreviouslyEnabledTime: z.string(),
+        dataSource: z.string(),
+        disabledTime: z.string(),
+        enabledTime: z.string(),
+        logRetentionPeriod: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   cloudsqlBackupRunSource: z.object({
     backupRunId: z.string(),
     instanceId: z.string(),
     project: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clusterType: z.string().optional(),
   continuousBackupConfig: z.object({
     enabled: z.boolean(),
     encryptionConfig: z.object({
       kmsKeyName: z.string(),
-    }),
+    }).partial(),
     recoveryWindowDays: z.number(),
-  }).optional(),
+  }).partial().optional(),
   continuousBackupInfo: z.object({
     earliestRestorableTime: z.string(),
     enabledTime: z.string(),
     encryptionInfo: z.object({
       encryptionType: z.string(),
       kmsKeyVersions: z.array(z.string()),
-    }),
+    }).partial(),
     schedule: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   databaseVersion: z.string().optional(),
   dataplexConfig: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   deleteTime: z.string().optional(),
   displayName: z.string().optional(),
   encryptionConfig: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   encryptionInfo: z.object({
     encryptionType: z.string(),
     kmsKeyVersions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   initialUser: z.object({
     password: z.string(),
     user: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   maintenanceSchedule: z.object({
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   maintenanceUpdatePolicy: z.object({
-    denyMaintenancePeriods: z.array(z.object({
-      endDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-      startDate: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-      time: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
-    maintenanceWindows: z.array(z.object({
-      day: z.string(),
-      startTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
-  }).optional(),
+    denyMaintenancePeriods: z.array(
+      z.object({
+        endDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+        startDate: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+    maintenanceWindows: z.array(
+      z.object({
+        day: z.string(),
+        startTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   maintenanceVersionSelectionPolicy: z.string().optional(),
   migrationSource: z.object({
     hostPort: z.string(),
     referenceId: z.string(),
     sourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   network: z.string().optional(),
   networkConfig: z.object({
     allocatedIpRange: z.string(),
     network: z.string(),
-  }).optional(),
+  }).partial().optional(),
   primaryConfig: z.object({
     secondaryClusterNames: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   pscConfig: z.object({
     pscEnabled: z.boolean(),
     serviceOwnedProjectNumber: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   secondaryConfig: z.object({
     primaryClusterName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sslConfig: z.object({
     caSource: z.string(),
     sslMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   subscriptionType: z.string().optional(),
   tags: z.record(z.string(), z.unknown()).optional(),
@@ -625,7 +633,7 @@ const StateSchema = z.object({
     graceEndTime: z.string(),
     startTime: z.string(),
     upgradeTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -931,7 +939,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AlloyDB Clusters. Registered at `@swamp/gcp/alloydb/clusters`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1091,6 +1099,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

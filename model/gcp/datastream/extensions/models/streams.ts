@@ -756,349 +756,415 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   backfillAll: z.object({
     mongodbExcludedObjects: z.object({
-      databases: z.array(z.object({
-        collections: z.array(z.unknown()),
-        database: z.string(),
-      })),
-    }),
+      databases: z.array(
+        z.object({
+          collections: z.array(z.unknown()),
+          database: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     mysqlExcludedObjects: z.object({
-      mysqlDatabases: z.array(z.object({
-        database: z.string(),
-        mysqlTables: z.array(z.unknown()),
-      })),
-    }),
+      mysqlDatabases: z.array(
+        z.object({
+          database: z.string(),
+          mysqlTables: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     oracleExcludedObjects: z.object({
-      oracleSchemas: z.array(z.object({
-        oracleTables: z.array(z.unknown()),
-        schema: z.string(),
-      })),
-    }),
+      oracleSchemas: z.array(
+        z.object({
+          oracleTables: z.array(z.unknown()),
+          schema: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     postgresqlExcludedObjects: z.object({
-      postgresqlSchemas: z.array(z.object({
-        postgresqlTables: z.array(z.unknown()),
-        schema: z.string(),
-      })),
-    }),
+      postgresqlSchemas: z.array(
+        z.object({
+          postgresqlTables: z.array(z.unknown()),
+          schema: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     saasExcludedObjects: z.object({
-      objects: z.array(z.object({
-        objectName: z.string(),
-        properties: z.array(z.unknown()),
-      })),
-    }),
+      objects: z.array(
+        z.object({
+          objectName: z.string(),
+          properties: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     salesforceExcludedObjects: z.object({
-      objects: z.array(z.object({
-        fields: z.array(z.unknown()),
-        objectName: z.string(),
-      })),
-    }),
+      objects: z.array(
+        z.object({
+          fields: z.array(z.unknown()),
+          objectName: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     spannerExcludedObjects: z.object({
-      schemas: z.array(z.object({
-        schema: z.string(),
-        tables: z.array(z.unknown()),
-      })),
-    }),
+      schemas: z.array(
+        z.object({
+          schema: z.string(),
+          tables: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     sqlServerExcludedObjects: z.object({
-      schemas: z.array(z.object({
-        schema: z.string(),
-        tables: z.array(z.unknown()),
-      })),
-    }),
-  }).optional(),
-  backfillNone: z.object({}).optional(),
+      schemas: z.array(
+        z.object({
+          schema: z.string(),
+          tables: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
+  backfillNone: z.object({}).partial().optional(),
   createTime: z.string().optional(),
   customerManagedEncryptionKey: z.string().optional(),
   destinationConfig: z.object({
     bigqueryDestinationConfig: z.object({
-      appendOnly: z.object({}),
+      appendOnly: z.object({}).partial(),
       blmtConfig: z.object({
         bucket: z.string(),
         connectionName: z.string(),
         fileFormat: z.string(),
         rootPath: z.string(),
         tableFormat: z.string(),
-      }),
+      }).partial(),
       dataFreshness: z.string(),
-      merge: z.object({}),
+      merge: z.object({}).partial(),
       singleTargetDataset: z.object({
         datasetId: z.string(),
-      }),
+      }).partial(),
       sourceHierarchyDatasets: z.object({
         datasetTemplate: z.object({
           datasetIdPrefix: z.string(),
           kmsKeyName: z.string(),
           location: z.string(),
-        }),
+        }).partial(),
         projectId: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     destinationConnectionProfile: z.string(),
     gcsDestinationConfig: z.object({
-      avroFileFormat: z.object({}),
+      avroFileFormat: z.object({}).partial(),
       fileRotationInterval: z.string(),
       fileRotationMb: z.number(),
       jsonFileFormat: z.object({
         compression: z.string(),
         schemaFileFormat: z.string(),
-      }),
+      }).partial(),
       path: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
-  errors: z.array(z.object({
-    details: z.record(z.string(), z.unknown()),
-    errorTime: z.string(),
-    errorUuid: z.string(),
-    message: z.string(),
-    reason: z.string(),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      details: z.record(z.string(), z.unknown()),
+      errorTime: z.string(),
+      errorUuid: z.string(),
+      message: z.string(),
+      reason: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   lastRecoveryTime: z.string().optional(),
   name: z.string(),
-  ruleSets: z.array(z.object({
-    customizationRules: z.array(z.object({
-      bigqueryClustering: z.object({
-        columns: z.unknown(),
-      }),
-      bigqueryPartitioning: z.object({
-        ingestionTimePartition: z.unknown(),
-        integerRangePartition: z.unknown(),
-        requirePartitionFilter: z.unknown(),
-        timeUnitPartition: z.unknown(),
-      }),
-    })),
-    objectFilter: z.object({
-      sourceObjectIdentifier: z.object({
-        mongodbIdentifier: z.object({
-          collection: z.unknown(),
-          database: z.unknown(),
-        }),
-        mysqlIdentifier: z.object({
-          database: z.unknown(),
-          table: z.unknown(),
-        }),
-        oracleIdentifier: z.object({
-          schema: z.unknown(),
-          table: z.unknown(),
-        }),
-        postgresqlIdentifier: z.object({
-          schema: z.unknown(),
-          table: z.unknown(),
-        }),
-        salesforceIdentifier: z.object({
-          objectName: z.unknown(),
-        }),
-        spannerIdentifier: z.object({
-          schema: z.unknown(),
-          table: z.unknown(),
-        }),
-        sqlServerIdentifier: z.object({
-          schema: z.unknown(),
-          table: z.unknown(),
-        }),
-      }),
-    }),
-  })).optional(),
+  ruleSets: z.array(
+    z.object({
+      customizationRules: z.array(
+        z.object({
+          bigqueryClustering: z.object({
+            columns: z.unknown(),
+          }).partial(),
+          bigqueryPartitioning: z.object({
+            ingestionTimePartition: z.unknown(),
+            integerRangePartition: z.unknown(),
+            requirePartitionFilter: z.unknown(),
+            timeUnitPartition: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      objectFilter: z.object({
+        sourceObjectIdentifier: z.object({
+          mongodbIdentifier: z.object({
+            collection: z.unknown(),
+            database: z.unknown(),
+          }).partial(),
+          mysqlIdentifier: z.object({
+            database: z.unknown(),
+            table: z.unknown(),
+          }).partial(),
+          oracleIdentifier: z.object({
+            schema: z.unknown(),
+            table: z.unknown(),
+          }).partial(),
+          postgresqlIdentifier: z.object({
+            schema: z.unknown(),
+            table: z.unknown(),
+          }).partial(),
+          salesforceIdentifier: z.object({
+            objectName: z.unknown(),
+          }).partial(),
+          spannerIdentifier: z.object({
+            schema: z.unknown(),
+            table: z.unknown(),
+          }).partial(),
+          sqlServerIdentifier: z.object({
+            schema: z.unknown(),
+            table: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   sourceConfig: z.object({
     dataverseSourceConfig: z.object({
       excludeObjects: z.object({
-        objects: z.array(z.object({
-          objectName: z.unknown(),
-          properties: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            objectName: z.unknown(),
+            properties: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       includeObjects: z.object({
-        objects: z.array(z.object({
-          objectName: z.unknown(),
-          properties: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            objectName: z.unknown(),
+            properties: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       pollingInterval: z.string(),
-    }),
+    }).partial(),
     mongodbSourceConfig: z.object({
       excludeObjects: z.object({
-        databases: z.array(z.object({
-          collections: z.unknown(),
-          database: z.unknown(),
-        })),
-      }),
+        databases: z.array(
+          z.object({
+            collections: z.unknown(),
+            database: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       includeObjects: z.object({
-        databases: z.array(z.object({
-          collections: z.unknown(),
-          database: z.unknown(),
-        })),
-      }),
+        databases: z.array(
+          z.object({
+            collections: z.unknown(),
+            database: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       jsonMode: z.string(),
       maxConcurrentBackfillTasks: z.number(),
-    }),
+    }).partial(),
     mysqlSourceConfig: z.object({
-      binaryLogPosition: z.object({}),
+      binaryLogPosition: z.object({}).partial(),
       excludeObjects: z.object({
-        mysqlDatabases: z.array(z.object({
-          database: z.unknown(),
-          mysqlTables: z.unknown(),
-        })),
-      }),
-      gtid: z.object({}),
+        mysqlDatabases: z.array(
+          z.object({
+            database: z.unknown(),
+            mysqlTables: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      gtid: z.object({}).partial(),
       includeObjects: z.object({
-        mysqlDatabases: z.array(z.object({
-          database: z.unknown(),
-          mysqlTables: z.unknown(),
-        })),
-      }),
+        mysqlDatabases: z.array(
+          z.object({
+            database: z.unknown(),
+            mysqlTables: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       maxConcurrentBackfillTasks: z.number(),
       maxConcurrentCdcTasks: z.number(),
-    }),
+    }).partial(),
     oracleSourceConfig: z.object({
       binaryLogParser: z.object({
         logFileDirectories: z.object({
           archivedLogDirectory: z.string(),
           onlineLogDirectory: z.string(),
-        }),
-        oracleAsmLogFileAccess: z.object({}),
-      }),
-      dropLargeObjects: z.object({}),
+        }).partial(),
+        oracleAsmLogFileAccess: z.object({}).partial(),
+      }).partial(),
+      dropLargeObjects: z.object({}).partial(),
       excludeObjects: z.object({
-        oracleSchemas: z.array(z.object({
-          oracleTables: z.unknown(),
-          schema: z.unknown(),
-        })),
-      }),
+        oracleSchemas: z.array(
+          z.object({
+            oracleTables: z.unknown(),
+            schema: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       includeObjects: z.object({
-        oracleSchemas: z.array(z.object({
-          oracleTables: z.unknown(),
-          schema: z.unknown(),
-        })),
-      }),
-      logMiner: z.object({}),
+        oracleSchemas: z.array(
+          z.object({
+            oracleTables: z.unknown(),
+            schema: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+      logMiner: z.object({}).partial(),
       maxConcurrentBackfillTasks: z.number(),
       maxConcurrentCdcTasks: z.number(),
-      streamLargeObjects: z.object({}),
-    }),
+      streamLargeObjects: z.object({}).partial(),
+    }).partial(),
     postgresqlSourceConfig: z.object({
       excludeObjects: z.object({
-        postgresqlSchemas: z.array(z.object({
-          postgresqlTables: z.unknown(),
-          schema: z.unknown(),
-        })),
-      }),
+        postgresqlSchemas: z.array(
+          z.object({
+            postgresqlTables: z.unknown(),
+            schema: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       includeObjects: z.object({
-        postgresqlSchemas: z.array(z.object({
-          postgresqlTables: z.unknown(),
-          schema: z.unknown(),
-        })),
-      }),
+        postgresqlSchemas: z.array(
+          z.object({
+            postgresqlTables: z.unknown(),
+            schema: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       maxConcurrentBackfillTasks: z.number(),
       publication: z.string(),
       replicationSlot: z.string(),
-    }),
+    }).partial(),
     salesforceMarketingCloudSourceConfig: z.object({
       excludeObjects: z.object({
-        objects: z.array(z.object({
-          objectName: z.unknown(),
-          properties: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            objectName: z.unknown(),
+            properties: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       fullRefreshPollingInterval: z.string(),
       includeObjects: z.object({
-        objects: z.array(z.object({
-          objectName: z.unknown(),
-          properties: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            objectName: z.unknown(),
+            properties: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       pollingInterval: z.string(),
-    }),
+    }).partial(),
     salesforceSourceConfig: z.object({
       excludeObjects: z.object({
-        objects: z.array(z.object({
-          fields: z.unknown(),
-          objectName: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            fields: z.unknown(),
+            objectName: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       includeObjects: z.object({
-        objects: z.array(z.object({
-          fields: z.unknown(),
-          objectName: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            fields: z.unknown(),
+            objectName: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       pollingInterval: z.string(),
-    }),
+    }).partial(),
     serviceNowSourceConfig: z.object({
       excludeObjects: z.object({
-        objects: z.array(z.object({
-          objectName: z.unknown(),
-          properties: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            objectName: z.unknown(),
+            properties: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       includeObjects: z.object({
-        objects: z.array(z.object({
-          objectName: z.unknown(),
-          properties: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            objectName: z.unknown(),
+            properties: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       pollingInterval: z.string(),
-    }),
+    }).partial(),
     sourceConnectionProfile: z.string(),
     spannerSourceConfig: z.object({
       backfillDataBoostEnabled: z.boolean(),
       changeStreamName: z.string(),
       excludeObjects: z.object({
-        schemas: z.array(z.object({
-          schema: z.unknown(),
-          tables: z.unknown(),
-        })),
-      }),
+        schemas: z.array(
+          z.object({
+            schema: z.unknown(),
+            tables: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       fgacRole: z.string(),
       includeObjects: z.object({
-        schemas: z.array(z.object({
-          schema: z.unknown(),
-          tables: z.unknown(),
-        })),
-      }),
+        schemas: z.array(
+          z.object({
+            schema: z.unknown(),
+            tables: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       maxConcurrentBackfillTasks: z.number(),
       maxConcurrentCdcTasks: z.number(),
       spannerRpcPriority: z.string(),
-    }),
+    }).partial(),
     sqlServerSourceConfig: z.object({
       changeTables: z.object({
         ddlConfig: z.object({
           autoCreateNewCaptureInstanceOnDdl: z.boolean(),
           autoDeleteOldCaptureInstance: z.boolean(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       excludeObjects: z.object({
-        schemas: z.array(z.object({
-          schema: z.unknown(),
-          tables: z.unknown(),
-        })),
-      }),
+        schemas: z.array(
+          z.object({
+            schema: z.unknown(),
+            tables: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       includeObjects: z.object({
-        schemas: z.array(z.object({
-          schema: z.unknown(),
-          tables: z.unknown(),
-        })),
-      }),
+        schemas: z.array(
+          z.object({
+            schema: z.unknown(),
+            tables: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       maxConcurrentBackfillTasks: z.number(),
       maxConcurrentCdcTasks: z.number(),
-      transactionLogs: z.object({}),
-    }),
+      transactionLogs: z.object({}).partial(),
+    }).partial(),
     workdaySourceConfig: z.object({
       excludeObjects: z.object({
-        objects: z.array(z.object({
-          objectName: z.unknown(),
-          properties: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            objectName: z.unknown(),
+            properties: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       includeObjects: z.object({
-        objects: z.array(z.object({
-          objectName: z.unknown(),
-          properties: z.unknown(),
-        })),
-      }),
+        objects: z.array(
+          z.object({
+            objectName: z.unknown(),
+            properties: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       pollingInterval: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -1708,7 +1774,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Datastream Streams. Registered at `@swamp/gcp/datastream/streams`. */
 export const model = {
   type: "@swamp/gcp/datastream/streams",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1877,6 +1943,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

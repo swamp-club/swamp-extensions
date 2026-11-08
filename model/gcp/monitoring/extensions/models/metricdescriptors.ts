@@ -228,18 +228,20 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   description: z.string().optional(),
   displayName: z.string().optional(),
-  labels: z.array(z.object({
-    description: z.string(),
-    key: z.string(),
-    valueType: z.string(),
-  })).optional(),
+  labels: z.array(
+    z.object({
+      description: z.string(),
+      key: z.string(),
+      valueType: z.string(),
+    }).partial(),
+  ).optional(),
   launchStage: z.string().optional(),
   metadata: z.object({
     ingestDelay: z.string(),
     launchStage: z.string(),
     samplePeriod: z.string(),
     timeSeriesResourceHierarchyLevel: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   metricKind: z.string().optional(),
   monitoredResourceTypes: z.array(z.string()).optional(),
   name: z.string(),
@@ -375,7 +377,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring MetricDescriptors. Registered at `@swamp/gcp/monitoring/metricdescriptors`. */
 export const model = {
   type: "@swamp/gcp/monitoring/metricdescriptors",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -504,6 +506,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

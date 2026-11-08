@@ -121,6 +121,89 @@ const ActivitySchema = z.object({
   RemoveAttributes: RemoveAttributesSchema.optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const SelectAttributesStateSchema = z.object({
+  Next: z.string(),
+  Attributes: z.array(z.string()),
+  Name: z.string(),
+}).partial();
+
+const DatastoreStateSchema = z.object({
+  DatastoreName: z.string(),
+  Name: z.string(),
+}).partial();
+
+const FilterStateSchema = z.object({
+  Filter: z.string(),
+  Next: z.string(),
+  Name: z.string(),
+}).partial();
+
+const AddAttributesStateSchema = z.object({
+  Next: z.string(),
+  Attributes: z.record(z.string(), z.unknown()),
+  Name: z.string(),
+}).partial();
+
+const ChannelStateSchema = z.object({
+  ChannelName: z.string(),
+  Next: z.string(),
+  Name: z.string(),
+}).partial();
+
+const DeviceShadowEnrichStateSchema = z.object({
+  Attribute: z.string(),
+  Next: z.string(),
+  ThingName: z.string(),
+  RoleArn: z.string(),
+  Name: z.string(),
+}).partial();
+
+const MathStateSchema = z.object({
+  Attribute: z.string(),
+  Next: z.string(),
+  Math: z.string(),
+  Name: z.string(),
+}).partial();
+
+const LambdaStateSchema = z.object({
+  BatchSize: z.number(),
+  Next: z.string(),
+  LambdaName: z.string(),
+  Name: z.string(),
+}).partial();
+
+const DeviceRegistryEnrichStateSchema = z.object({
+  Attribute: z.string(),
+  Next: z.string(),
+  ThingName: z.string(),
+  RoleArn: z.string(),
+  Name: z.string(),
+}).partial();
+
+const RemoveAttributesStateSchema = z.object({
+  Next: z.string(),
+  Attributes: z.array(z.string()),
+  Name: z.string(),
+}).partial();
+
+const ActivityStateSchema = z.object({
+  SelectAttributes: SelectAttributesStateSchema,
+  Datastore: DatastoreStateSchema,
+  Filter: FilterStateSchema,
+  AddAttributes: AddAttributesStateSchema,
+  Channel: ChannelStateSchema,
+  DeviceShadowEnrich: DeviceShadowEnrichStateSchema,
+  Math: MathStateSchema,
+  Lambda: LambdaStateSchema,
+  DeviceRegistryEnrich: DeviceRegistryEnrichStateSchema,
+  RemoveAttributes: RemoveAttributesStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -143,11 +226,11 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Id: z.string().optional(),
   PipelineName: z.string(),
-  Tags: z.array(TagSchema).optional(),
-  PipelineActivities: z.array(ActivitySchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  PipelineActivities: z.array(ActivityStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -179,7 +262,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTAnalytics Pipeline. Registered at `@swamp/aws/iotanalytics/pipeline`. */
 export const model = {
   type: "@swamp/aws/iotanalytics/pipeline",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -243,6 +326,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

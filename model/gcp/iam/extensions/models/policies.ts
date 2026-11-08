@@ -183,21 +183,23 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
-  rules: z.array(z.object({
-    denyRule: z.object({
-      denialCondition: z.object({
-        description: z.string(),
-        expression: z.string(),
-        location: z.string(),
-        title: z.string(),
-      }),
-      deniedPermissions: z.array(z.string()),
-      deniedPrincipals: z.array(z.string()),
-      exceptionPermissions: z.array(z.string()),
-      exceptionPrincipals: z.array(z.string()),
-    }),
-    description: z.string(),
-  })).optional(),
+  rules: z.array(
+    z.object({
+      denyRule: z.object({
+        denialCondition: z.object({
+          description: z.string(),
+          expression: z.string(),
+          location: z.string(),
+          title: z.string(),
+        }).partial(),
+        deniedPermissions: z.array(z.string()),
+        deniedPrincipals: z.array(z.string()),
+        exceptionPermissions: z.array(z.string()),
+        exceptionPrincipals: z.array(z.string()),
+      }).partial(),
+      description: z.string(),
+    }).partial(),
+  ).optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -303,7 +305,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) Policies. Registered at `@swamp/gcp/iam/policies`. */
 export const model = {
   type: "@swamp/gcp/iam/policies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -452,6 +454,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

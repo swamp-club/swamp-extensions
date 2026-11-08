@@ -73,6 +73,23 @@ const ImageMappingSchema = z.object({
   ).optional(),
 });
 
+const SourceReferenceStateSchema = z.object({
+  type: z.string(),
+  value: z.string(),
+}).partial();
+
+const RegistryMappingStateSchema = z.object({
+  UpstreamRegistryUrl: z.string(),
+  EcrRepositoryPrefix: z.string(),
+  UpstreamRepositoryPrefix: z.string(),
+  EcrAccountId: z.string(),
+}).partial();
+
+const ImageMappingStateSchema = z.object({
+  SourceImage: z.string(),
+  DestinationImage: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -169,20 +186,20 @@ const StateSchema = z.object({
   DefinitionRepository: z.object({
     connectionArn: z.string(),
     fullRepositoryId: z.string(),
-    sourceReference: SourceReferenceSchema,
+    sourceReference: SourceReferenceStateSchema,
     excludeFilePatterns: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   readmePath: z.string().optional(),
   readmeUri: z.string().optional(),
   readmeMarkdown: z.string().optional(),
   ContainerRegistryMap: z.object({
-    RegistryMappings: z.array(RegistryMappingSchema),
-    ImageMappings: z.array(ImageMappingSchema),
-  }).optional(),
+    RegistryMappings: z.array(RegistryMappingStateSchema),
+    ImageMappings: z.array(ImageMappingStateSchema),
+  }).partial().optional(),
   ContainerRegistryMapUri: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -267,7 +284,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Omics WorkflowVersion. Registered at `@swamp/aws/omics/workflow-version`. */
 export const model = {
   type: "@swamp/aws/omics/workflow-version",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -331,6 +348,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

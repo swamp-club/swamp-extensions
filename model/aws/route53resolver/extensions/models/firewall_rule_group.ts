@@ -107,6 +107,48 @@ const TagSchema = z.object({
   ),
 });
 
+const PartnerThreatProtectionConfigStateSchema = z.object({
+  Partner: z.string(),
+}).partial();
+
+const FirewallAdvancedContentCategoryConfigStateSchema = z.object({
+  Category: z.string(),
+}).partial();
+
+const FirewallAdvancedThreatCategoryConfigStateSchema = z.object({
+  Category: z.string(),
+}).partial();
+
+const FirewallRuleTypeStateSchema = z.object({
+  PartnerThreatProtection: PartnerThreatProtectionConfigStateSchema,
+  FirewallAdvancedContentCategory:
+    FirewallAdvancedContentCategoryConfigStateSchema,
+  FirewallAdvancedThreatCategory:
+    FirewallAdvancedThreatCategoryConfigStateSchema,
+}).partial();
+
+const FirewallRuleStateSchema = z.object({
+  FirewallDomainListId: z.string(),
+  FirewallThreatProtectionId: z.string(),
+  Priority: z.number(),
+  Action: z.string(),
+  BlockResponse: z.string(),
+  BlockOverrideDomain: z.string(),
+  BlockOverrideDnsType: z.string(),
+  BlockOverrideTtl: z.number(),
+  Qtype: z.string(),
+  ConfidenceThreshold: z.string(),
+  DnsThreatProtection: z.string(),
+  FirewallDomainRedirectionAction: z.string(),
+  FirewallRuleType: FirewallRuleTypeStateSchema,
+  Status: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -143,11 +185,11 @@ const StateSchema = z.object({
   CreatorRequestId: z.string().optional(),
   CreationTime: z.string().optional(),
   ModificationTime: z.string().optional(),
-  FirewallRules: z.array(FirewallRuleSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  FirewallRules: z.array(FirewallRuleStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -182,7 +224,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Resolver FirewallRuleGroup. Registered at `@swamp/aws/route53resolver/firewall-rule-group`. */
 export const model = {
   type: "@swamp/aws/route53resolver/firewall-rule-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -251,6 +293,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

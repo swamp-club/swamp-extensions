@@ -407,30 +407,34 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   advancedDeploymentControl: z.object({
     reservationOperationalMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   aggregateReservation: z.object({
-    inUseResources: z.array(z.object({
-      accelerator: z.object({
-        acceleratorCount: z.number(),
-        acceleratorType: z.string(),
-      }),
-    })),
-    reservedResources: z.array(z.object({
-      accelerator: z.object({
-        acceleratorCount: z.number(),
-        acceleratorType: z.string(),
-      }),
-    })),
+    inUseResources: z.array(
+      z.object({
+        accelerator: z.object({
+          acceleratorCount: z.number(),
+          acceleratorType: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+    reservedResources: z.array(
+      z.object({
+        accelerator: z.object({
+          acceleratorCount: z.number(),
+          acceleratorType: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     vmFamily: z.string(),
     workloadType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   commitment: z.string().optional(),
   confidentialComputeType: z.string().optional(),
   creationTimestamp: z.string().optional(),
   deleteAfterDuration: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deleteAtTime: z.string().optional(),
   deploymentType: z.string().optional(),
   description: z.string().optional(),
@@ -442,22 +446,22 @@ const StateSchema = z.object({
   name: z.string(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   protectionTier: z.string().optional(),
   reservationSharingPolicy: z.object({
     serviceShareType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resourceMetadata: z.object({
     apiVersion: z.string(),
     resourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resourcePolicies: z.record(z.string(), z.unknown()).optional(),
   resourceStatus: z.object({
     healthInfo: z.object({
       degradedBlockCount: z.number(),
       healthStatus: z.string(),
       healthyBlockCount: z.number(),
-    }),
+    }).partial(),
     reservationBlockCount: z.number(),
     reservationMaintenance: z.object({
       instanceMaintenanceOngoingCount: z.number(),
@@ -476,39 +480,43 @@ const StateSchema = z.object({
         type: z.string(),
         windowEndTime: z.string(),
         windowStartTime: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     specificSkuAllocation: z.object({
       sourceInstanceTemplateId: z.string(),
       utilizations: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   satisfiesPzs: z.boolean().optional(),
   schedulingType: z.string().optional(),
   selfLink: z.string().optional(),
   shareSettings: z.object({
     projectMap: z.record(z.string(), z.unknown()),
     shareType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   specificReservation: z.object({
     assuredCount: z.string(),
     count: z.string(),
     inUseCount: z.string(),
     instanceProperties: z.object({
-      guestAccelerators: z.array(z.object({
-        acceleratorCount: z.number(),
-        acceleratorType: z.string(),
-      })),
-      localSsds: z.array(z.object({
-        diskSizeGb: z.string(),
-        interface: z.string(),
-      })),
+      guestAccelerators: z.array(
+        z.object({
+          acceleratorCount: z.number(),
+          acceleratorType: z.string(),
+        }).partial(),
+      ),
+      localSsds: z.array(
+        z.object({
+          diskSizeGb: z.string(),
+          interface: z.string(),
+        }).partial(),
+      ),
       locationHint: z.string(),
       machineType: z.string(),
       minCpuPlatform: z.string(),
-    }),
+    }).partial(),
     sourceInstanceTemplate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   specificReservationRequired: z.boolean().optional(),
   status: z.string().optional(),
   zone: z.string().optional(),
@@ -746,7 +754,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Reservations. Registered at `@swamp/gcp/compute/reservations`. */
 export const model = {
   type: "@swamp/gcp/compute/reservations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -925,6 +933,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

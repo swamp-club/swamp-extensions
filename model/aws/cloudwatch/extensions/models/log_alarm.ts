@@ -71,6 +71,23 @@ const AlarmTagsPropagationSchema = z.object({
   ).optional(),
 });
 
+const ScheduleConfigurationStateSchema = z.object({
+  ScheduleExpression: z.string(),
+  StartTimeOffset: z.number(),
+  EndTimeOffset: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const AlarmTagsPropagationStateSchema = z.object({
+  Enabled: z.boolean(),
+  IncludedTagKeys: z.array(z.string()),
+  ExcludedTagKeys: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -181,23 +198,23 @@ const StateSchema = z.object({
     AggregationExpression: z.string(),
     LogGroupIdentifiers: z.array(z.string()),
     ScheduledQueryRoleARN: z.string(),
-    ScheduleConfiguration: ScheduleConfigurationSchema,
-    Tags: z.array(TagSchema),
-  }).optional(),
+    ScheduleConfiguration: ScheduleConfigurationStateSchema,
+    Tags: z.array(TagStateSchema),
+  }).partial().optional(),
   WarmUpConfiguration: z.object({
     WarmUpPeriodDurationInMinutes: z.number(),
     OnlyStartEvaluatingAfterWarmUpPeriodEnds: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ActionLogLineCount: z.number().optional(),
   ActionLogLineRoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ActionConfiguration: z.object({
-    AlarmTagsPropagation: AlarmTagsPropagationSchema,
-  }).optional(),
+    AlarmTagsPropagation: AlarmTagsPropagationStateSchema,
+  }).partial().optional(),
   Arn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -303,7 +320,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch LogAlarm. Registered at `@swamp/aws/cloudwatch/log-alarm`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/log-alarm",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.06.16.1",
@@ -357,6 +374,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

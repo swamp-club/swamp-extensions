@@ -171,7 +171,7 @@ const StateSchema = z.object({
     createdAt: z.string(),
     lastModifiedAt: z.string(),
     subType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   revision: z.array(z.string()).optional(),
   space: z.string().optional(),
@@ -233,7 +233,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Sharedflows. Registered at `@swamp/gcp/apigee/sharedflows`. */
 export const model = {
   type: "@swamp/gcp/apigee/sharedflows",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -362,6 +362,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

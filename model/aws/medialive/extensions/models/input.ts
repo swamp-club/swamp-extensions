@@ -188,6 +188,90 @@ const SrtListenerSettingsSchema = z.object({
   ).optional(),
 });
 
+const InputDestinationVpcStateSchema = z.object({
+  AvailabilityZone: z.string(),
+  NetworkInterfaceId: z.string(),
+}).partial();
+
+const InputDestinationRouteStateSchema = z.object({
+  Cidr: z.string(),
+  Gateway: z.string(),
+}).partial();
+
+const InputDestinationStateSchema = z.object({
+  Ip: z.string(),
+  Port: z.string(),
+  Url: z.string(),
+  Vpc: InputDestinationVpcStateSchema,
+  Network: z.string(),
+  NetworkRoutes: z.array(InputDestinationRouteStateSchema),
+  StreamName: z.string(),
+  StaticIpAddress: z.string(),
+}).partial();
+
+const InputDeviceSettingsStateSchema = z.object({
+  Id: z.string(),
+}).partial();
+
+const MediaConnectFlowStateSchema = z.object({
+  FlowArn: z.string(),
+}).partial();
+
+const MulticastSourceStateSchema = z.object({
+  SourceIp: z.string(),
+  Url: z.string(),
+}).partial();
+
+const RouterDestinationSettingsStateSchema = z.object({
+  AvailabilityZoneName: z.string(),
+  RouterOutputArn: z.string(),
+}).partial();
+
+const InputSdpLocationStateSchema = z.object({
+  MediaIndex: z.number(),
+  SdpUrl: z.string(),
+}).partial();
+
+const Smpte2110ReceiverGroupSdpSettingsStateSchema = z.object({
+  AncillarySdps: z.array(InputSdpLocationStateSchema),
+  AudioSdps: z.array(InputSdpLocationStateSchema),
+  VideoSdp: InputSdpLocationStateSchema,
+}).partial();
+
+const Smpte2110ReceiverGroupStateSchema = z.object({
+  SdpSettings: Smpte2110ReceiverGroupSdpSettingsStateSchema,
+}).partial();
+
+const InputSourceStateSchema = z.object({
+  PasswordParam: z.string(),
+  Url: z.string(),
+  Username: z.string(),
+}).partial();
+
+const SrtCallerDecryptionStateSchema = z.object({
+  Algorithm: z.string(),
+  PassphraseSecretArn: z.string(),
+}).partial();
+
+const SrtCallerSourceStateSchema = z.object({
+  Decryption: SrtCallerDecryptionStateSchema,
+  MinimumLatency: z.number(),
+  SrtListenerAddress: z.string(),
+  SrtListenerPort: z.string(),
+  StreamId: z.string(),
+}).partial();
+
+const SrtListenerDecryptionStateSchema = z.object({
+  Algorithm: z.string(),
+  PassphraseSecretArn: z.string(),
+}).partial();
+
+const SrtListenerSettingsStateSchema = z.object({
+  Decryption: SrtListenerDecryptionStateSchema,
+  MinimumLatency: z.number(),
+  StreamId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -300,47 +384,47 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Arn: z.string().optional(),
   AttachedChannels: z.array(z.string()).optional(),
-  Destinations: z.array(InputDestinationSchema).optional(),
+  Destinations: z.array(InputDestinationStateSchema).optional(),
   DestinationUrls: z.array(z.string()).optional(),
   Id: z.string(),
   InputClass: z.string().optional(),
-  InputDevices: z.array(InputDeviceSettingsSchema).optional(),
+  InputDevices: z.array(InputDeviceSettingsStateSchema).optional(),
   InputNetworkLocation: z.string().optional(),
   InputPartnerIds: z.array(z.string()).optional(),
   InputSecurityGroups: z.array(z.string()).optional(),
   InputSourceType: z.string().optional(),
-  MediaConnectFlows: z.array(MediaConnectFlowSchema).optional(),
+  MediaConnectFlows: z.array(MediaConnectFlowStateSchema).optional(),
   MulticastSettings: z.object({
-    Sources: z.array(MulticastSourceSchema),
-  }).optional(),
+    Sources: z.array(MulticastSourceStateSchema),
+  }).partial().optional(),
   Name: z.string().optional(),
   RoleArn: z.string().optional(),
   RouterSettings: z.object({
     SecretArn: z.string(),
     EncryptionType: z.string(),
-    Destinations: z.array(RouterDestinationSettingsSchema),
-  }).optional(),
+    Destinations: z.array(RouterDestinationSettingsStateSchema),
+  }).partial().optional(),
   SdiSources: z.array(z.string()).optional(),
   SecurityGroups: z.array(z.string()).optional(),
   Smpte2110ReceiverGroupSettings: z.object({
-    Smpte2110ReceiverGroups: z.array(Smpte2110ReceiverGroupSchema),
-  }).optional(),
-  Sources: z.array(InputSourceSchema).optional(),
+    Smpte2110ReceiverGroups: z.array(Smpte2110ReceiverGroupStateSchema),
+  }).partial().optional(),
+  Sources: z.array(InputSourceStateSchema).optional(),
   SourceUrls: z.array(z.string()).optional(),
   SrtSettings: z.object({
-    SrtCallerSources: z.array(SrtCallerSourceSchema),
-    SrtListenerSettings: SrtListenerSettingsSchema,
-  }).optional(),
+    SrtCallerSources: z.array(SrtCallerSourceStateSchema),
+    SrtListenerSettings: SrtListenerSettingsStateSchema,
+  }).partial().optional(),
   State: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   Type: z.string().optional(),
   Vpc: z.object({
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -460,10 +544,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive Input. Registered at `@swamp/aws/medialive/input`. */
 export const model = {
   type: "@swamp/aws/medialive/input",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

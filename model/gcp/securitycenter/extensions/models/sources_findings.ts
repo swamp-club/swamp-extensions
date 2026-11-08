@@ -1477,49 +1477,59 @@ const StateSchema = z.object({
       callerIp: z.string(),
       callerIpGeo: z.object({
         regionCode: z.string(),
-      }),
+      }).partial(),
       methodName: z.string(),
       principalEmail: z.string(),
       principalSubject: z.string(),
-      serviceAccountDelegationInfo: z.array(z.object({
-        principalEmail: z.string(),
-        principalSubject: z.string(),
-      })),
+      serviceAccountDelegationInfo: z.array(
+        z.object({
+          principalEmail: z.string(),
+          principalSubject: z.string(),
+        }).partial(),
+      ),
       serviceAccountKeyName: z.string(),
       serviceName: z.string(),
       userAgent: z.string(),
       userAgentFamily: z.string(),
       userName: z.string(),
-    }),
+    }).partial(),
     affectedResources: z.object({
       count: z.string(),
-    }),
+    }).partial(),
     agent: z.object({
       displayName: z.string(),
       id: z.string(),
-    }),
+    }).partial(),
     agentAnomaly: z.object({
       confidenceScore: z.number(),
-      detectorReferences: z.array(z.object({
-        detectorId: z.string(),
-        displayName: z.string(),
-        explanation: z.string(),
-        recommendation: z.string(),
-        severity: z.string(),
-      })),
-      invocationReferences: z.array(z.object({
-        invocationId: z.string(),
-      })),
-    }),
-    agentDataAccessEvents: z.array(z.object({
-      eventId: z.string(),
-      eventTime: z.string(),
-      operation: z.string(),
-      principalSubject: z.string(),
-    })),
-    agentSessions: z.array(z.object({
-      sessionId: z.string(),
-    })),
+      detectorReferences: z.array(
+        z.object({
+          detectorId: z.string(),
+          displayName: z.string(),
+          explanation: z.string(),
+          recommendation: z.string(),
+          severity: z.string(),
+        }).partial(),
+      ),
+      invocationReferences: z.array(
+        z.object({
+          invocationId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+    agentDataAccessEvents: z.array(
+      z.object({
+        eventId: z.string(),
+        eventTime: z.string(),
+        operation: z.string(),
+        principalSubject: z.string(),
+      }).partial(),
+    ),
+    agentSessions: z.array(
+      z.object({
+        sessionId: z.string(),
+      }).partial(),
+    ),
     aiModel: z.object({
       deploymentPlatform: z.string(),
       displayName: z.string(),
@@ -1529,19 +1539,21 @@ const StateSchema = z.object({
       name: z.string(),
       publisher: z.string(),
       usageCategory: z.string(),
-    }),
+    }).partial(),
     application: z.object({
       baseUri: z.string(),
       fullUri: z.string(),
-    }),
+    }).partial(),
     artifactGuardPolicies: z.object({
-      failingPolicies: z.array(z.object({
-        failureReason: z.string(),
-        policyId: z.string(),
-        type: z.string(),
-      })),
+      failingPolicies: z.array(
+        z.object({
+          failureReason: z.string(),
+          policyId: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
       resourceId: z.string(),
-    }),
+    }).partial(),
     attackExposure: z.object({
       attackExposureResult: z.string(),
       exposedHighValueResourcesCount: z.number(),
@@ -1550,7 +1562,7 @@ const StateSchema = z.object({
       latestCalculationTime: z.string(),
       score: z.number(),
       state: z.string(),
-    }),
+    }).partial(),
     backupDisasterRecovery: z.object({
       appliance: z.string(),
       applications: z.array(z.string()),
@@ -1562,117 +1574,135 @@ const StateSchema = z.object({
       policyOptions: z.array(z.string()),
       profile: z.string(),
       storagePool: z.string(),
-    }),
+    }).partial(),
     canonicalName: z.string(),
     category: z.string(),
     chokepoint: z.object({
       relatedFindings: z.array(z.string()),
-    }),
+    }).partial(),
     cloudArmor: z.object({
       adaptiveProtection: z.object({
         confidence: z.number(),
-      }),
+      }).partial(),
       attack: z.object({
         classification: z.string(),
         volumeBps: z.number(),
         volumeBpsLong: z.string(),
         volumePps: z.number(),
         volumePpsLong: z.string(),
-      }),
+      }).partial(),
       duration: z.string(),
       requests: z.object({
         longTermAllowed: z.number(),
         longTermDenied: z.number(),
         ratio: z.number(),
         shortTermAllowed: z.number(),
-      }),
+      }).partial(),
       securityPolicy: z.object({
         name: z.string(),
         preview: z.boolean(),
         type: z.string(),
-      }),
+      }).partial(),
       threatVector: z.string(),
-    }),
+    }).partial(),
     cloudDlpDataProfile: z.object({
       dataProfile: z.string(),
-      infoTypes: z.array(z.object({
-        name: z.string(),
-        sensitivityScore: z.object({
-          score: z.unknown(),
-        }),
-        version: z.string(),
-      })),
+      infoTypes: z.array(
+        z.object({
+          name: z.string(),
+          sensitivityScore: z.object({
+            score: z.unknown(),
+          }).partial(),
+          version: z.string(),
+        }).partial(),
+      ),
       parentType: z.string(),
-    }),
+    }).partial(),
     cloudDlpInspection: z.object({
       fullScan: z.boolean(),
       infoType: z.string(),
       infoTypeCount: z.string(),
       inspectJob: z.string(),
-    }),
+    }).partial(),
     cloudRun: z.object({
       revisions: z.array(z.string()),
-    }),
+    }).partial(),
     complianceDetails: z.object({
       cloudControl: z.object({
         cloudControlName: z.string(),
         policyType: z.string(),
         type: z.string(),
         version: z.number(),
-      }),
+      }).partial(),
       cloudControlDeploymentNames: z.array(z.string()),
-      frameworks: z.array(z.object({
-        category: z.array(z.unknown()),
-        controls: z.array(z.unknown()),
-        displayName: z.string(),
-        name: z.string(),
-        type: z.string(),
-      })),
-    }),
-    compliances: z.array(z.object({
-      ids: z.array(z.string()),
-      standard: z.string(),
-      version: z.string(),
-    })),
-    connections: z.array(z.object({
-      destinationIp: z.string(),
-      destinationPort: z.number(),
-      protocol: z.string(),
-      sourceIp: z.string(),
-      sourcePort: z.number(),
-    })),
+      frameworks: z.array(
+        z.object({
+          category: z.array(z.unknown()),
+          controls: z.array(z.unknown()),
+          displayName: z.string(),
+          name: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+    compliances: z.array(
+      z.object({
+        ids: z.array(z.string()),
+        standard: z.string(),
+        version: z.string(),
+      }).partial(),
+    ),
+    connections: z.array(
+      z.object({
+        destinationIp: z.string(),
+        destinationPort: z.number(),
+        protocol: z.string(),
+        sourceIp: z.string(),
+        sourcePort: z.number(),
+      }).partial(),
+    ),
     contacts: z.record(z.string(), z.unknown()),
-    containers: z.array(z.object({
-      createTime: z.string(),
-      imageId: z.string(),
-      labels: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-      })),
-      name: z.string(),
-      uri: z.string(),
-    })),
+    containers: z.array(
+      z.object({
+        createTime: z.string(),
+        imageId: z.string(),
+        labels: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        name: z.string(),
+        uri: z.string(),
+      }).partial(),
+    ),
     createTime: z.string(),
-    dataAccessEvents: z.array(z.object({
-      eventId: z.string(),
-      eventTime: z.string(),
-      operation: z.string(),
-      principalEmail: z.string(),
-    })),
-    dataFlowEvents: z.array(z.object({
-      eventId: z.string(),
-      eventTime: z.string(),
-      operation: z.string(),
-      principalEmail: z.string(),
-      violatedLocation: z.string(),
-    })),
-    dataRetentionDeletionEvents: z.array(z.object({
-      dataObjectCount: z.string(),
-      eventDetectionTime: z.string(),
-      eventType: z.string(),
-      maxRetentionAllowed: z.string(),
-      minRetentionAllowed: z.string(),
-    })),
+    dataAccessEvents: z.array(
+      z.object({
+        eventId: z.string(),
+        eventTime: z.string(),
+        operation: z.string(),
+        principalEmail: z.string(),
+      }).partial(),
+    ),
+    dataFlowEvents: z.array(
+      z.object({
+        eventId: z.string(),
+        eventTime: z.string(),
+        operation: z.string(),
+        principalEmail: z.string(),
+        violatedLocation: z.string(),
+      }).partial(),
+    ),
+    dataRetentionDeletionEvents: z.array(
+      z.object({
+        dataObjectCount: z.string(),
+        eventDetectionTime: z.string(),
+        eventType: z.string(),
+        maxRetentionAllowed: z.string(),
+        minRetentionAllowed: z.string(),
+      }).partial(),
+    ),
     database: z.object({
       displayName: z.string(),
       grantees: z.array(z.string()),
@@ -1680,7 +1710,7 @@ const StateSchema = z.object({
       query: z.string(),
       userName: z.string(),
       version: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     discoveredWorkload: z.object({
       confidence: z.string(),
@@ -1688,22 +1718,26 @@ const StateSchema = z.object({
       detectedRelevantKeywords: z.boolean(),
       detectedRelevantPackages: z.boolean(),
       workloadType: z.string(),
-    }),
+    }).partial(),
     disk: z.object({
       name: z.string(),
-    }),
+    }).partial(),
     eventTime: z.string(),
     exfiltration: z.object({
-      sources: z.array(z.object({
-        components: z.array(z.unknown()),
-        name: z.string(),
-      })),
-      targets: z.array(z.object({
-        components: z.array(z.unknown()),
-        name: z.string(),
-      })),
+      sources: z.array(
+        z.object({
+          components: z.array(z.unknown()),
+          name: z.string(),
+        }).partial(),
+      ),
+      targets: z.array(
+        z.object({
+          components: z.array(z.unknown()),
+          name: z.string(),
+        }).partial(),
+      ),
       totalExfiltratedBytes: z.string(),
-    }),
+    }).partial(),
     externalExposure: z.object({
       backendBucket: z.string(),
       backendService: z.string(),
@@ -1712,10 +1746,12 @@ const StateSchema = z.object({
       exposedService: z.string(),
       forwardingRule: z.string(),
       hostnameUri: z.string(),
-      httpResponse: z.array(z.object({
-        path: z.string(),
-        statusCode: z.string(),
-      })),
+      httpResponse: z.array(
+        z.object({
+          path: z.string(),
+          statusCode: z.string(),
+        }).partial(),
+      ),
       instanceGroup: z.string(),
       internalBackendService: z.string(),
       loadBalancerFirewallPolicy: z.string(),
@@ -1729,80 +1765,96 @@ const StateSchema = z.object({
       publicIpAddress: z.string(),
       publicPort: z.string(),
       serviceFirewallPolicy: z.string(),
-    }),
+    }).partial(),
     externalSystems: z.record(z.string(), z.unknown()),
     externalUri: z.string(),
-    files: z.array(z.object({
-      contents: z.string(),
-      diskPath: z.object({
-        partitionUuid: z.string(),
-        relativePath: z.string(),
-      }),
-      fileLoadState: z.string(),
-      hashedSize: z.string(),
-      operations: z.array(z.object({
-        type: z.unknown(),
-      })),
-      partiallyHashed: z.boolean(),
-      path: z.string(),
-      sha256: z.string(),
-      size: z.string(),
-    })),
+    files: z.array(
+      z.object({
+        contents: z.string(),
+        diskPath: z.object({
+          partitionUuid: z.string(),
+          relativePath: z.string(),
+        }).partial(),
+        fileLoadState: z.string(),
+        hashedSize: z.string(),
+        operations: z.array(
+          z.object({
+            type: z.unknown(),
+          }).partial(),
+        ),
+        partiallyHashed: z.boolean(),
+        path: z.string(),
+        sha256: z.string(),
+        size: z.string(),
+      }).partial(),
+    ),
     findingClass: z.string(),
-    groupMemberships: z.array(z.object({
-      groupId: z.string(),
-      groupType: z.string(),
-    })),
-    iamBindings: z.array(z.object({
-      action: z.string(),
-      member: z.string(),
-      role: z.string(),
-    })),
-    iamDetails: z.object({
-      iamRolePermissions: z.array(z.object({
-        name: z.string(),
+    groupMemberships: z.array(
+      z.object({
+        groupId: z.string(),
+        groupType: z.string(),
+      }).partial(),
+    ),
+    iamBindings: z.array(
+      z.object({
+        action: z.string(),
+        member: z.string(),
         role: z.string(),
-      })),
-    }),
+      }).partial(),
+    ),
+    iamDetails: z.object({
+      iamRolePermissions: z.array(
+        z.object({
+          name: z.string(),
+          role: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     indicator: z.object({
       domains: z.array(z.string()),
       ipAddresses: z.array(z.string()),
-      signatures: z.array(z.object({
-        memoryHashSignature: z.object({
-          binaryFamily: z.unknown(),
-          detections: z.unknown(),
-        }),
-        signatureType: z.string(),
-        yaraRuleSignature: z.object({
-          yaraRule: z.unknown(),
-        }),
-      })),
+      signatures: z.array(
+        z.object({
+          memoryHashSignature: z.object({
+            binaryFamily: z.unknown(),
+            detections: z.unknown(),
+          }).partial(),
+          signatureType: z.string(),
+          yaraRuleSignature: z.object({
+            yaraRule: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       uris: z.array(z.string()),
-    }),
+    }).partial(),
     ipRules: z.object({
       allowed: z.object({
-        ipRules: z.array(z.object({
-          portRanges: z.unknown(),
-          protocol: z.unknown(),
-        })),
-      }),
+        ipRules: z.array(
+          z.object({
+            portRanges: z.unknown(),
+            protocol: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       denied: z.object({
-        ipRules: z.array(z.object({
-          portRanges: z.unknown(),
-          protocol: z.unknown(),
-        })),
-      }),
+        ipRules: z.array(
+          z.object({
+            portRanges: z.unknown(),
+            protocol: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       destinationIpRanges: z.array(z.string()),
       direction: z.string(),
       exposedServices: z.array(z.string()),
       sourceIpRanges: z.array(z.string()),
-    }),
+    }).partial(),
     job: z.object({
       errorCode: z.number(),
       location: z.string(),
       name: z.string(),
       state: z.string(),
-    }),
+    }).partial(),
     kernelRootkit: z.object({
       name: z.string(),
       unexpectedCodeModification: z.boolean(),
@@ -1813,99 +1865,123 @@ const StateSchema = z.object({
       unexpectedProcessesInRunqueue: z.boolean(),
       unexpectedReadOnlyDataModification: z.boolean(),
       unexpectedSystemCallHandler: z.boolean(),
-    }),
+    }).partial(),
     kubernetes: z.object({
-      accessReviews: z.array(z.object({
-        group: z.string(),
+      accessReviews: z.array(
+        z.object({
+          group: z.string(),
+          name: z.string(),
+          ns: z.string(),
+          resource: z.string(),
+          subresource: z.string(),
+          verb: z.string(),
+          version: z.string(),
+        }).partial(),
+      ),
+      bindings: z.array(
+        z.object({
+          name: z.string(),
+          ns: z.string(),
+          role: z.object({
+            kind: z.unknown(),
+            name: z.unknown(),
+            ns: z.unknown(),
+          }).partial(),
+          subjects: z.array(z.unknown()),
+        }).partial(),
+      ),
+      nodePools: z.array(
+        z.object({
+          name: z.string(),
+          nodes: z.array(z.unknown()),
+        }).partial(),
+      ),
+      nodes: z.array(
+        z.object({
+          name: z.string(),
+        }).partial(),
+      ),
+      objects: z.array(
+        z.object({
+          containers: z.array(z.unknown()),
+          group: z.string(),
+          kind: z.string(),
+          name: z.string(),
+          ns: z.string(),
+        }).partial(),
+      ),
+      pods: z.array(
+        z.object({
+          containers: z.array(z.unknown()),
+          labels: z.array(z.unknown()),
+          name: z.string(),
+          ns: z.string(),
+        }).partial(),
+      ),
+      roles: z.array(
+        z.object({
+          kind: z.string(),
+          name: z.string(),
+          ns: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+    loadBalancers: z.array(
+      z.object({
         name: z.string(),
-        ns: z.string(),
-        resource: z.string(),
-        subresource: z.string(),
-        verb: z.string(),
-        version: z.string(),
-      })),
-      bindings: z.array(z.object({
-        name: z.string(),
-        ns: z.string(),
-        role: z.object({
-          kind: z.unknown(),
-          name: z.unknown(),
-          ns: z.unknown(),
-        }),
-        subjects: z.array(z.unknown()),
-      })),
-      nodePools: z.array(z.object({
-        name: z.string(),
-        nodes: z.array(z.unknown()),
-      })),
-      nodes: z.array(z.object({
-        name: z.string(),
-      })),
-      objects: z.array(z.object({
-        containers: z.array(z.unknown()),
-        group: z.string(),
-        kind: z.string(),
-        name: z.string(),
-        ns: z.string(),
-      })),
-      pods: z.array(z.object({
-        containers: z.array(z.unknown()),
-        labels: z.array(z.unknown()),
-        name: z.string(),
-        ns: z.string(),
-      })),
-      roles: z.array(z.object({
-        kind: z.string(),
-        name: z.string(),
-        ns: z.string(),
-      })),
-    }),
-    loadBalancers: z.array(z.object({
-      name: z.string(),
-    })),
-    logEntries: z.array(z.object({
-      cloudLoggingEntry: z.object({
-        insertId: z.string(),
-        logId: z.string(),
-        resourceContainer: z.string(),
-        timestamp: z.string(),
-      }),
-    })),
+      }).partial(),
+    ),
+    logEntries: z.array(
+      z.object({
+        cloudLoggingEntry: z.object({
+          insertId: z.string(),
+          logId: z.string(),
+          resourceContainer: z.string(),
+          timestamp: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     mitreAttack: z.object({
       additionalTactics: z.array(z.string()),
       additionalTechniques: z.array(z.string()),
       primaryTactic: z.string(),
       primaryTechniques: z.array(z.string()),
       version: z.string(),
-    }),
+    }).partial(),
     moduleName: z.string(),
     mute: z.string(),
     muteInfo: z.object({
-      dynamicMuteRecords: z.array(z.object({
-        matchTime: z.string(),
-        muteConfig: z.string(),
-      })),
+      dynamicMuteRecords: z.array(
+        z.object({
+          matchTime: z.string(),
+          muteConfig: z.string(),
+        }).partial(),
+      ),
       staticMute: z.object({
         applyTime: z.string(),
         state: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     muteInitiator: z.string(),
     muteUpdateTime: z.string(),
     name: z.string(),
-    networks: z.array(z.object({
-      name: z.string(),
-    })),
+    networks: z.array(
+      z.object({
+        name: z.string(),
+      }).partial(),
+    ),
     nextSteps: z.string(),
     notebook: z.object({
       lastAuthor: z.string(),
       name: z.string(),
       notebookUpdateTime: z.string(),
       service: z.string(),
-    }),
-    orgPolicies: z.array(z.object({
-      name: z.string(),
-    })),
+    }).partial(),
+    orgPolicies: z.array(
+      z.object({
+        name: z.string(),
+      }).partial(),
+    ),
     parent: z.string(),
     parentDisplayName: z.string(),
     policyViolationSummary: z.object({
@@ -1913,110 +1989,122 @@ const StateSchema = z.object({
       evaluationErrorsCount: z.string(),
       outOfScopeResourcesCount: z.string(),
       policyViolationsCount: z.string(),
-    }),
-    processes: z.array(z.object({
-      args: z.array(z.string()),
-      argumentsTruncated: z.boolean(),
-      binary: z.object({
-        contents: z.string(),
-        diskPath: z.object({
-          partitionUuid: z.unknown(),
-          relativePath: z.unknown(),
-        }),
-        fileLoadState: z.string(),
-        hashedSize: z.string(),
-        operations: z.array(z.unknown()),
-        partiallyHashed: z.boolean(),
-        path: z.string(),
-        sha256: z.string(),
-        size: z.string(),
-      }),
-      envVariables: z.array(z.object({
-        name: z.unknown(),
-        val: z.unknown(),
-      })),
-      envVariablesTruncated: z.boolean(),
-      libraries: z.array(z.object({
-        contents: z.unknown(),
-        diskPath: z.unknown(),
-        fileLoadState: z.unknown(),
-        hashedSize: z.unknown(),
-        operations: z.unknown(),
-        partiallyHashed: z.unknown(),
-        path: z.unknown(),
-        sha256: z.unknown(),
-        size: z.unknown(),
-      })),
-      name: z.string(),
-      parentPid: z.string(),
-      pid: z.string(),
-      script: z.object({
-        contents: z.string(),
-        diskPath: z.object({
-          partitionUuid: z.unknown(),
-          relativePath: z.unknown(),
-        }),
-        fileLoadState: z.string(),
-        hashedSize: z.string(),
-        operations: z.array(z.unknown()),
-        partiallyHashed: z.boolean(),
-        path: z.string(),
-        sha256: z.string(),
-        size: z.string(),
-      }),
-      userId: z.string(),
-    })),
+    }).partial(),
+    processes: z.array(
+      z.object({
+        args: z.array(z.string()),
+        argumentsTruncated: z.boolean(),
+        binary: z.object({
+          contents: z.string(),
+          diskPath: z.object({
+            partitionUuid: z.unknown(),
+            relativePath: z.unknown(),
+          }).partial(),
+          fileLoadState: z.string(),
+          hashedSize: z.string(),
+          operations: z.array(z.unknown()),
+          partiallyHashed: z.boolean(),
+          path: z.string(),
+          sha256: z.string(),
+          size: z.string(),
+        }).partial(),
+        envVariables: z.array(
+          z.object({
+            name: z.unknown(),
+            val: z.unknown(),
+          }).partial(),
+        ),
+        envVariablesTruncated: z.boolean(),
+        libraries: z.array(
+          z.object({
+            contents: z.unknown(),
+            diskPath: z.unknown(),
+            fileLoadState: z.unknown(),
+            hashedSize: z.unknown(),
+            operations: z.unknown(),
+            partiallyHashed: z.unknown(),
+            path: z.unknown(),
+            sha256: z.unknown(),
+            size: z.unknown(),
+          }).partial(),
+        ),
+        name: z.string(),
+        parentPid: z.string(),
+        pid: z.string(),
+        script: z.object({
+          contents: z.string(),
+          diskPath: z.object({
+            partitionUuid: z.unknown(),
+            relativePath: z.unknown(),
+          }).partial(),
+          fileLoadState: z.string(),
+          hashedSize: z.string(),
+          operations: z.array(z.unknown()),
+          partiallyHashed: z.boolean(),
+          path: z.string(),
+          sha256: z.string(),
+          size: z.string(),
+        }).partial(),
+        userId: z.string(),
+      }).partial(),
+    ),
     resourceName: z.string(),
     secret: z.object({
       environmentVariable: z.object({
         key: z.string(),
-      }),
+      }).partial(),
       filePath: z.object({
         path: z.string(),
-      }),
+      }).partial(),
       status: z.object({
         lastUpdatedTime: z.string(),
         validity: z.string(),
-      }),
+      }).partial(),
       type: z.string(),
-    }),
+    }).partial(),
     securityMarks: z.object({
       canonicalName: z.string(),
       marks: z.record(z.string(), z.unknown()),
       name: z.string(),
-    }),
+    }).partial(),
     securityPosture: z.object({
       changedPolicy: z.string(),
       name: z.string(),
       policy: z.string(),
-      policyDriftDetails: z.array(z.object({
-        detectedValue: z.string(),
-        expectedValue: z.string(),
-        field: z.string(),
-      })),
+      policyDriftDetails: z.array(
+        z.object({
+          detectedValue: z.string(),
+          expectedValue: z.string(),
+          field: z.string(),
+        }).partial(),
+      ),
       policySet: z.string(),
       postureDeployment: z.string(),
       postureDeploymentResource: z.string(),
       revisionId: z.string(),
-    }),
+    }).partial(),
     severity: z.string(),
     sourceProperties: z.record(z.string(), z.unknown()),
     state: z.string(),
     toxicCombination: z.object({
       attackExposureScore: z.number(),
       relatedFindings: z.array(z.string()),
-    }),
+    }).partial(),
     vertexAi: z.object({
-      datasets: z.array(z.object({
-        displayName: z.string(),
-        name: z.string(),
-        source: z.string(),
-      })),
-      pipelines: z.array(z.object({
-        displayName: z.string(),
-        name: z.string(),
-      })),
-    }),
+      datasets: z.array(
+        z.object({
+          displayName: z.string(),
+          name: z.string(),
+          source: z.string(),
+        }).partial(),
+      ),
+      pipelines: z.array(
+        z.object({
+          displayName: z.string(),
+          name: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     vulnerability: z.object({
       cve: z.object({
         cvssv3: z.object({
@@ -2029,129 +2117,151 @@ const StateSchema = z.object({
           privilegesRequired: z.string(),
           scope: z.string(),
           userInteraction: z.string(),
-        }),
+        }).partial(),
         exploitReleaseDate: z.string(),
         exploitationActivity: z.string(),
         firstExploitationDate: z.string(),
         id: z.string(),
         impact: z.string(),
         observedInTheWild: z.boolean(),
-        references: z.array(z.object({
-          source: z.unknown(),
-          uri: z.unknown(),
-        })),
+        references: z.array(
+          z.object({
+            source: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+        ),
         upstreamFixAvailable: z.boolean(),
         zeroDay: z.boolean(),
-      }),
-      cwes: z.array(z.object({
-        id: z.string(),
-        references: z.array(z.unknown()),
-      })),
+      }).partial(),
+      cwes: z.array(
+        z.object({
+          id: z.string(),
+          references: z.array(z.unknown()),
+        }).partial(),
+      ),
       fixedPackage: z.object({
         cpeUri: z.string(),
         packageName: z.string(),
         packageType: z.string(),
         packageVersion: z.string(),
-      }),
+      }).partial(),
       offendingPackage: z.object({
         cpeUri: z.string(),
         packageName: z.string(),
         packageType: z.string(),
         packageVersion: z.string(),
-      }),
+      }).partial(),
       providerRiskScore: z.string(),
       reachable: z.boolean(),
       securityBulletin: z.object({
         bulletinId: z.string(),
         submissionTime: z.string(),
         suggestedUpgradeVersion: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   resource: z.object({
     adcApplication: z.object({
       attributes: z.object({
-        businessOwners: z.array(z.object({
-          email: z.unknown(),
-        })),
+        businessOwners: z.array(
+          z.object({
+            email: z.unknown(),
+          }).partial(),
+        ),
         criticality: z.object({
           type: z.string(),
-        }),
-        developerOwners: z.array(z.object({
-          email: z.unknown(),
-        })),
+        }).partial(),
+        developerOwners: z.array(
+          z.object({
+            email: z.unknown(),
+          }).partial(),
+        ),
         environment: z.object({
           type: z.string(),
-        }),
-        operatorOwners: z.array(z.object({
-          email: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        operatorOwners: z.array(
+          z.object({
+            email: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       name: z.string(),
-    }),
+    }).partial(),
     adcApplicationTemplate: z.object({
       name: z.string(),
-    }),
+    }).partial(),
     adcSharedTemplate: z.object({
       name: z.string(),
-    }),
+    }).partial(),
     application: z.object({
       attributes: z.object({
-        businessOwners: z.array(z.object({
-          email: z.unknown(),
-        })),
+        businessOwners: z.array(
+          z.object({
+            email: z.unknown(),
+          }).partial(),
+        ),
         criticality: z.object({
           type: z.string(),
-        }),
-        developerOwners: z.array(z.object({
-          email: z.unknown(),
-        })),
+        }).partial(),
+        developerOwners: z.array(
+          z.object({
+            email: z.unknown(),
+          }).partial(),
+        ),
         environment: z.object({
           type: z.string(),
-        }),
-        operatorOwners: z.array(z.object({
-          email: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        operatorOwners: z.array(
+          z.object({
+            email: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       name: z.string(),
-    }),
+    }).partial(),
     awsMetadata: z.object({
       account: z.object({
         id: z.string(),
         name: z.string(),
-      }),
+      }).partial(),
       organization: z.object({
         id: z.string(),
-      }),
-      organizationalUnits: z.array(z.object({
-        id: z.string(),
-        name: z.string(),
-      })),
-    }),
+      }).partial(),
+      organizationalUnits: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     azureMetadata: z.object({
-      managementGroups: z.array(z.object({
-        displayName: z.string(),
-        id: z.string(),
-      })),
+      managementGroups: z.array(
+        z.object({
+          displayName: z.string(),
+          id: z.string(),
+        }).partial(),
+      ),
       resourceGroup: z.object({
         id: z.string(),
         name: z.string(),
-      }),
+      }).partial(),
       subscription: z.object({
         displayName: z.string(),
         id: z.string(),
-      }),
+      }).partial(),
       tenant: z.object({
         displayName: z.string(),
         id: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     cloudProvider: z.string(),
     displayName: z.string(),
-    folders: z.array(z.object({
-      resourceFolder: z.string(),
-      resourceFolderDisplayName: z.string(),
-    })),
+    folders: z.array(
+      z.object({
+        resourceFolder: z.string(),
+        resourceFolderDisplayName: z.string(),
+      }).partial(),
+    ),
     location: z.string(),
     name: z.string(),
     organization: z.string(),
@@ -2160,16 +2270,18 @@ const StateSchema = z.object({
     projectDisplayName: z.string(),
     projectName: z.string(),
     resourcePath: z.object({
-      nodes: z.array(z.object({
-        displayName: z.string(),
-        id: z.string(),
-        nodeType: z.string(),
-      })),
-    }),
+      nodes: z.array(
+        z.object({
+          displayName: z.string(),
+          id: z.string(),
+          nodeType: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     resourcePathString: z.string(),
     service: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   stateChange: z.string().optional(),
 }).passthrough();
 
@@ -3355,7 +3467,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center Sources.Findings. Registered at `@swamp/gcp/securitycenter/sources-findings`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/sources-findings",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3565,6 +3677,11 @@ export const model = {
     {
       toVersion: "2026.10.29.1",
       description: "Added: cloudRun",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

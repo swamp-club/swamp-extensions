@@ -101,13 +101,17 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   detail: z.string().optional(),
   documentationUri: z.string().optional(),
-  impactedDestinations: z.array(z.object({
-    impacts: z.array(z.object({
-      regionCode: z.string(),
-      severity: z.string(),
-    })),
-    reportingContext: z.string(),
-  })).optional(),
+  impactedDestinations: z.array(
+    z.object({
+      impacts: z.array(
+        z.object({
+          regionCode: z.string(),
+          severity: z.string(),
+        }).partial(),
+      ),
+      reportingContext: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   severity: z.string().optional(),
   title: z.string().optional(),
@@ -154,7 +158,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Issues. Registered at `@swamp/gcp/merchantapi/accounts-issues`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-issues",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -173,6 +177,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

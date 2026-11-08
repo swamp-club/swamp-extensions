@@ -122,20 +122,22 @@ const StateSchema = z.object({
     pullRequest: z.object({
       baseBranch: z.string(),
       prNumber: z.string(),
-    }),
+    }).partial(),
     remoteUri: z.string(),
     revisionId: z.string(),
-  }).optional(),
-  sources: z.array(z.object({
-    codeAttribution: z.object({
-      codeExcerpt: z.string(),
-      lineNumber: z.number(),
-      path: z.string(),
-      startLineNumber: z.number(),
-    }),
-    dataType: z.string(),
-    falsePositive: z.boolean(),
-  })).optional(),
+  }).partial().optional(),
+  sources: z.array(
+    z.object({
+      codeAttribution: z.object({
+        codeExcerpt: z.string(),
+        lineNumber: z.number(),
+        path: z.string(),
+        startLineNumber: z.number(),
+      }).partial(),
+      dataType: z.string(),
+      falsePositive: z.boolean(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -179,7 +181,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Checks Accounts.Repos.Scans. Registered at `@swamp/gcp/checks/accounts-repos-scans`. */
 export const model = {
   type: "@swamp/gcp/checks/accounts-repos-scans",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -303,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

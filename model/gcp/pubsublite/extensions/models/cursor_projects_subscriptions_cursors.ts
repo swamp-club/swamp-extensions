@@ -91,7 +91,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   cursor: z.object({
     offset: z.string(),
-  }).optional(),
+  }).partial().optional(),
   partition: z.string().optional(),
 }).passthrough();
 
@@ -136,7 +136,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Lite Cursor.Projects.Subscriptions.Cursors. Registered at `@swamp/gcp/pubsublite/cursor-projects-subscriptions-cursors`. */
 export const model = {
   type: "@swamp/gcp/pubsublite/cursor-projects-subscriptions-cursors",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -255,6 +255,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

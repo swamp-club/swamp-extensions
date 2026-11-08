@@ -136,24 +136,26 @@ const StateSchema = z.object({
     succeededInstanceCount: z.string(),
     succeededRebootRequiredInstanceCount: z.string(),
     timedOutInstanceCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   instanceFilter: z.object({
     all: z.boolean(),
-    groupLabels: z.array(z.object({
-      labels: z.record(z.string(), z.unknown()),
-    })),
+    groupLabels: z.array(
+      z.object({
+        labels: z.record(z.string(), z.unknown()),
+      }).partial(),
+    ),
     instanceNamePrefixes: z.array(z.string()),
     instances: z.array(z.string()),
     zones: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   patchConfig: z.object({
     apt: z.object({
       excludes: z.array(z.string()),
       exclusivePackages: z.array(z.string()),
       type: z.string(),
-    }),
-    goo: z.object({}),
+    }).partial(),
+    goo: z.object({}).partial(),
     migInstancesAllowed: z.boolean(),
     postStep: z.object({
       linuxExecStepConfig: z.object({
@@ -162,21 +164,21 @@ const StateSchema = z.object({
           bucket: z.string(),
           generationNumber: z.string(),
           object: z.string(),
-        }),
+        }).partial(),
         interpreter: z.string(),
         localPath: z.string(),
-      }),
+      }).partial(),
       windowsExecStepConfig: z.object({
         allowedSuccessCodes: z.array(z.number()),
         gcsObject: z.object({
           bucket: z.string(),
           generationNumber: z.string(),
           object: z.string(),
-        }),
+        }).partial(),
         interpreter: z.string(),
         localPath: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     preStep: z.object({
       linuxExecStepConfig: z.object({
         allowedSuccessCodes: z.array(z.number()),
@@ -184,34 +186,34 @@ const StateSchema = z.object({
           bucket: z.string(),
           generationNumber: z.string(),
           object: z.string(),
-        }),
+        }).partial(),
         interpreter: z.string(),
         localPath: z.string(),
-      }),
+      }).partial(),
       windowsExecStepConfig: z.object({
         allowedSuccessCodes: z.array(z.number()),
         gcsObject: z.object({
           bucket: z.string(),
           generationNumber: z.string(),
           object: z.string(),
-        }),
+        }).partial(),
         interpreter: z.string(),
         localPath: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     rebootConfig: z.string(),
     skipUnpatchableVms: z.boolean(),
     windowsUpdate: z.object({
       classifications: z.array(z.string()),
       excludes: z.array(z.string()),
       exclusivePatches: z.array(z.string()),
-    }),
+    }).partial(),
     yum: z.object({
       excludes: z.array(z.string()),
       exclusivePackages: z.array(z.string()),
       minimal: z.boolean(),
       security: z.boolean(),
-    }),
+    }).partial(),
     zypper: z.object({
       categories: z.array(z.string()),
       excludes: z.array(z.string()),
@@ -219,17 +221,17 @@ const StateSchema = z.object({
       severities: z.array(z.string()),
       withOptional: z.boolean(),
       withUpdate: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   patchDeployment: z.string().optional(),
   percentComplete: z.number().optional(),
   rollout: z.object({
     disruptionBudget: z.object({
       fixed: z.number(),
       percent: z.number(),
-    }),
+    }).partial(),
     mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -275,7 +277,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud OS Config PatchJobs. Registered at `@swamp/gcp/osconfig/patchjobs`. */
 export const model = {
   type: "@swamp/gcp/osconfig/patchjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -294,6 +296,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

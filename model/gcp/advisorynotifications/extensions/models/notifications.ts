@@ -119,24 +119,28 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   createTime: z.string().optional(),
-  messages: z.array(z.object({
-    attachments: z.array(z.object({
-      csv: z.object({
-        dataRows: z.unknown(),
-        headers: z.unknown(),
-      }),
-      displayName: z.string(),
-    })),
-    body: z.object({
-      text: z.object({
-        enText: z.string(),
-        localizationState: z.string(),
-        localizedText: z.string(),
-      }),
-    }),
-    createTime: z.string(),
-    localizationTime: z.string(),
-  })).optional(),
+  messages: z.array(
+    z.object({
+      attachments: z.array(
+        z.object({
+          csv: z.object({
+            dataRows: z.unknown(),
+            headers: z.unknown(),
+          }).partial(),
+          displayName: z.string(),
+        }).partial(),
+      ),
+      body: z.object({
+        text: z.object({
+          enText: z.string(),
+          localizationState: z.string(),
+          localizedText: z.string(),
+        }).partial(),
+      }).partial(),
+      createTime: z.string(),
+      localizationTime: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   notificationType: z.string().optional(),
   subject: z.object({
@@ -144,8 +148,8 @@ const StateSchema = z.object({
       enText: z.string(),
       localizationState: z.string(),
       localizedText: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -189,7 +193,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Advisory Notifications Notifications. Registered at `@swamp/gcp/advisorynotifications/notifications`. */
 export const model = {
   type: "@swamp/gcp/advisorynotifications/notifications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -318,6 +322,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

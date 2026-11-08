@@ -189,10 +189,12 @@ const StateSchema = z.object({
   directMembersCount: z.string().optional(),
   email: z.string().optional(),
   etag: z.string().optional(),
-  externalIds: z.array(z.object({
-    id: z.string(),
-    namespace: z.string(),
-  })).optional(),
+  externalIds: z.array(
+    z.object({
+      id: z.string(),
+      namespace: z.string(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
@@ -268,7 +270,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Groups. Registered at `@swamp/gcp/admin/groups`. */
 export const model = {
   type: "@swamp/gcp/admin/groups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -302,6 +304,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

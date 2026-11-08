@@ -146,6 +146,92 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const SignalInformationStateSchema = z.object({
+  MaxSampleCount: z.number(),
+  Name: z.string(),
+  MinimumSamplingIntervalMs: z.number(),
+  DataPartitionId: z.string(),
+}).partial();
+
+const TimeBasedSignalFetchConfigStateSchema = z.object({
+  ExecutionFrequencyMs: z.number(),
+}).partial();
+
+const ConditionBasedSignalFetchConfigStateSchema = z.object({
+  ConditionExpression: z.string(),
+  TriggerMode: z.string(),
+}).partial();
+
+const SignalFetchInformationStateSchema = z.object({
+  FullyQualifiedName: z.string(),
+  SignalFetchConfig: z.object({
+    TimeBased: TimeBasedSignalFetchConfigStateSchema,
+    ConditionBased: ConditionBasedSignalFetchConfigStateSchema,
+  }).partial(),
+  ConditionLanguageVersion: z.number(),
+  Actions: z.array(z.string()),
+}).partial();
+
+const S3ConfigStateSchema = z.object({
+  BucketArn: z.string(),
+  DataFormat: z.string(),
+  StorageCompressionFormat: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const TimestreamConfigStateSchema = z.object({
+  TimestreamTableArn: z.string(),
+  ExecutionRoleArn: z.string(),
+}).partial();
+
+const MqttTopicConfigStateSchema = z.object({
+  MqttTopicArn: z.string(),
+  ExecutionRoleArn: z.string(),
+}).partial();
+
+const TimeBasedCollectionSchemeStateSchema = z.object({
+  PeriodMs: z.number(),
+}).partial();
+
+const ConditionBasedCollectionSchemeStateSchema = z.object({
+  MinimumTriggerIntervalMs: z.number(),
+  Expression: z.string(),
+  TriggerMode: z.string(),
+  ConditionLanguageVersion: z.number(),
+}).partial();
+
+const StorageMaximumSizeStateSchema = z.object({
+  Unit: z.string(),
+  Value: z.number(),
+}).partial();
+
+const StorageMinimumTimeToLiveStateSchema = z.object({
+  Unit: z.string(),
+  Value: z.number(),
+}).partial();
+
+const DataPartitionStorageOptionsStateSchema = z.object({
+  MaximumSize: StorageMaximumSizeStateSchema,
+  MinimumTimeToLive: StorageMinimumTimeToLiveStateSchema,
+  StorageLocation: z.string(),
+}).partial();
+
+const DataPartitionUploadOptionsStateSchema = z.object({
+  Expression: z.string(),
+  ConditionLanguageVersion: z.number(),
+}).partial();
+
+const DataPartitionStateSchema = z.object({
+  Id: z.string(),
+  StorageOptions: DataPartitionStorageOptionsStateSchema,
+  UploadOptions: DataPartitionUploadOptionsStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -199,13 +285,15 @@ const StateSchema = z.object({
   Compression: z.string().optional(),
   Description: z.string().optional(),
   Priority: z.number().optional(),
-  SignalsToCollect: z.array(SignalInformationSchema).optional(),
-  SignalsToFetch: z.array(SignalFetchInformationSchema).optional(),
-  DataDestinationConfigs: z.array(z.object({
-    S3Config: S3ConfigSchema,
-    TimestreamConfig: TimestreamConfigSchema,
-    MqttTopicConfig: MqttTopicConfigSchema,
-  })).optional(),
+  SignalsToCollect: z.array(SignalInformationStateSchema).optional(),
+  SignalsToFetch: z.array(SignalFetchInformationStateSchema).optional(),
+  DataDestinationConfigs: z.array(
+    z.object({
+      S3Config: S3ConfigStateSchema,
+      TimestreamConfig: TimestreamConfigStateSchema,
+      MqttTopicConfig: MqttTopicConfigStateSchema,
+    }).partial(),
+  ).optional(),
   StartTime: z.string().optional(),
   Name: z.string(),
   ExpiryTime: z.string().optional(),
@@ -218,14 +306,14 @@ const StateSchema = z.object({
   TargetArn: z.string().optional(),
   Arn: z.string().optional(),
   CollectionScheme: z.object({
-    TimeBasedCollectionScheme: TimeBasedCollectionSchemeSchema,
-    ConditionBasedCollectionScheme: ConditionBasedCollectionSchemeSchema,
-  }).optional(),
-  DataPartitions: z.array(DataPartitionSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+    TimeBasedCollectionScheme: TimeBasedCollectionSchemeStateSchema,
+    ConditionBasedCollectionScheme: ConditionBasedCollectionSchemeStateSchema,
+  }).partial().optional(),
+  DataPartitions: z.array(DataPartitionStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -285,7 +373,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTFleetWise Campaign. Registered at `@swamp/aws/iotfleetwise/campaign`. */
 export const model = {
   type: "@swamp/aws/iotfleetwise/campaign",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +437,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

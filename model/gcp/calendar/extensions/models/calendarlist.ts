@@ -261,12 +261,14 @@ const StateSchema = z.object({
   colorId: z.string().optional(),
   conferenceProperties: z.object({
     allowedConferenceSolutionTypes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   dataOwner: z.string().optional(),
-  defaultReminders: z.array(z.object({
-    method: z.string(),
-    minutes: z.number(),
-  })).optional(),
+  defaultReminders: z.array(
+    z.object({
+      method: z.string(),
+      minutes: z.number(),
+    }).partial(),
+  ).optional(),
   deleted: z.boolean().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
@@ -276,11 +278,13 @@ const StateSchema = z.object({
   kind: z.string().optional(),
   location: z.string().optional(),
   notificationSettings: z.object({
-    notifications: z.array(z.object({
-      method: z.string(),
-      type: z.string(),
-    })),
-  }).optional(),
+    notifications: z.array(
+      z.object({
+        method: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   primary: z.boolean().optional(),
   selected: z.boolean().optional(),
   summary: z.string().optional(),
@@ -402,7 +406,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar CalendarList. Registered at `@swamp/gcp/calendar/calendarlist`. */
 export const model = {
   type: "@swamp/gcp/calendar/calendarlist",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -571,6 +575,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

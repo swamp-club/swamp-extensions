@@ -282,34 +282,36 @@ const StateSchema = z.object({
   dnsName: z.string().optional(),
   kind: z.string().optional(),
   localData: z.object({
-    localDatas: z.array(z.object({
-      kind: z.string(),
-      name: z.string(),
-      routingPolicy: z.object({
-        geo: z.object({
-          enableFencing: z.unknown(),
-          items: z.unknown(),
-          kind: z.unknown(),
-        }),
-        healthCheck: z.string(),
+    localDatas: z.array(
+      z.object({
         kind: z.string(),
-        primaryBackup: z.object({
-          backupGeoTargets: z.unknown(),
-          kind: z.unknown(),
-          primaryTargets: z.unknown(),
-          trickleTraffic: z.unknown(),
-        }),
-        wrr: z.object({
-          items: z.unknown(),
-          kind: z.unknown(),
-        }),
-      }),
-      rrdatas: z.array(z.string()),
-      signatureRrdatas: z.array(z.string()),
-      ttl: z.number(),
-      type: z.string(),
-    })),
-  }).optional(),
+        name: z.string(),
+        routingPolicy: z.object({
+          geo: z.object({
+            enableFencing: z.unknown(),
+            items: z.unknown(),
+            kind: z.unknown(),
+          }).partial(),
+          healthCheck: z.string(),
+          kind: z.string(),
+          primaryBackup: z.object({
+            backupGeoTargets: z.unknown(),
+            kind: z.unknown(),
+            primaryTargets: z.unknown(),
+            trickleTraffic: z.unknown(),
+          }).partial(),
+          wrr: z.object({
+            items: z.unknown(),
+            kind: z.unknown(),
+          }).partial(),
+        }).partial(),
+        rrdatas: z.array(z.string()),
+        signatureRrdatas: z.array(z.string()),
+        ttl: z.number(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   ruleName: z.string().optional(),
 }).passthrough();
 
@@ -425,7 +427,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS ResponsePolicyRules. Registered at `@swamp/gcp/dns/responsepolicyrules`. */
 export const model = {
   type: "@swamp/gcp/dns/responsepolicyrules",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -574,6 +576,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

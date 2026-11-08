@@ -60,6 +60,16 @@ const TagSchema = z.object({
   ),
 });
 
+const NameNodeStateSchema = z.object({
+  Hostname: z.string(),
+  Port: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -182,20 +192,20 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  NameNodes: z.array(NameNodeSchema).optional(),
+  NameNodes: z.array(NameNodeStateSchema).optional(),
   BlockSize: z.number().optional(),
   ReplicationFactor: z.number().optional(),
   KmsKeyProviderUri: z.string().optional(),
   QopConfiguration: z.object({
     RpcProtection: z.string(),
     DataTransferProtection: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AuthenticationType: z.string().optional(),
   SimpleUser: z.string().optional(),
   KerberosPrincipal: z.string().optional(),
   KerberosKeytab: z.string().optional(),
   KerberosKrb5Conf: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   AgentArns: z.array(z.string()).optional(),
   Subdirectory: z.string().optional(),
   LocationArn: z.string(),
@@ -203,17 +213,17 @@ const StateSchema = z.object({
   CmkSecretConfig: z.object({
     SecretArn: z.string(),
     KmsKeyArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CustomSecretConfig: z.object({
     SecretArn: z.string(),
     SecretAccessRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ManagedSecretConfig: z.object({
     SecretArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -346,7 +356,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationHDFS. Registered at `@swamp/aws/datasync/location-hdfs`. */
 export const model = {
   type: "@swamp/aws/datasync/location-hdfs",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -365,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

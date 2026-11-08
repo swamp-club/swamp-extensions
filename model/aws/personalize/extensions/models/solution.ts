@@ -74,6 +74,28 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const CategoricalHyperParameterRangeStateSchema = z.object({
+  Name: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const ContinuousHyperParameterRangeStateSchema = z.object({
+  Name: z.string(),
+  MinValue: z.number(),
+  MaxValue: z.number(),
+}).partial();
+
+const IntegerHyperParameterRangeStateSchema = z.object({
+  Name: z.string(),
+  MinValue: z.number(),
+  MaxValue: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -189,34 +211,36 @@ const StateSchema = z.object({
     AutoMLConfig: z.object({
       MetricName: z.string(),
       RecipeList: z.array(z.string()),
-    }),
+    }).partial(),
     EventValueThreshold: z.string(),
     FeatureTransformationParameters: z.record(z.string(), z.unknown()),
     HpoConfig: z.object({
       AlgorithmHyperParameterRanges: z.object({
         CategoricalHyperParameterRanges: z.array(
-          CategoricalHyperParameterRangeSchema,
+          CategoricalHyperParameterRangeStateSchema,
         ),
         ContinuousHyperParameterRanges: z.array(
-          ContinuousHyperParameterRangeSchema,
+          ContinuousHyperParameterRangeStateSchema,
         ),
-        IntegerHyperParameterRanges: z.array(IntegerHyperParameterRangeSchema),
-      }),
+        IntegerHyperParameterRanges: z.array(
+          IntegerHyperParameterRangeStateSchema,
+        ),
+      }).partial(),
       HpoObjective: z.object({
         MetricName: z.string(),
         Type: z.string(),
         MetricRegex: z.string(),
-      }),
+      }).partial(),
       HpoResourceConfig: z.object({
         MaxNumberOfTrainingJobs: z.string(),
         MaxParallelTrainingJobs: z.string(),
-      }),
-    }),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -329,7 +353,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Personalize Solution. Registered at `@swamp/aws/personalize/solution`. */
 export const model = {
   type: "@swamp/aws/personalize/solution",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -398,6 +422,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

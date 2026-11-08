@@ -365,18 +365,20 @@ const StateSchema = z.object({
     labels: z.record(z.string(), z.unknown()),
     name: z.string(),
     namespace: z.string(),
-    ownerReferences: z.array(z.object({
-      apiVersion: z.string(),
-      blockOwnerDeletion: z.boolean(),
-      controller: z.boolean(),
-      kind: z.string(),
-      name: z.string(),
-      uid: z.string(),
-    })),
+    ownerReferences: z.array(
+      z.object({
+        apiVersion: z.string(),
+        blockOwnerDeletion: z.boolean(),
+        controller: z.boolean(),
+        kind: z.string(),
+        name: z.string(),
+        uid: z.string(),
+      }).partial(),
+    ),
     resourceVersion: z.string(),
     selfLink: z.string(),
     uid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spec: z.object({
     runExecutionToken: z.string(),
     startExecutionToken: z.string(),
@@ -393,18 +395,20 @@ const StateSchema = z.object({
         labels: z.record(z.string(), z.unknown()),
         name: z.string(),
         namespace: z.string(),
-        ownerReferences: z.array(z.object({
-          apiVersion: z.unknown(),
-          blockOwnerDeletion: z.unknown(),
-          controller: z.unknown(),
-          kind: z.unknown(),
-          name: z.unknown(),
-          uid: z.unknown(),
-        })),
+        ownerReferences: z.array(
+          z.object({
+            apiVersion: z.unknown(),
+            blockOwnerDeletion: z.unknown(),
+            controller: z.unknown(),
+            kind: z.unknown(),
+            name: z.unknown(),
+            uid: z.unknown(),
+          }).partial(),
+        ),
         resourceVersion: z.string(),
         selfLink: z.string(),
         uid: z.string(),
-      }),
+      }).partial(),
       spec: z.object({
         delayExecution: z.boolean(),
         parallelism: z.number(),
@@ -418,20 +422,22 @@ const StateSchema = z.object({
             serviceAccountName: z.unknown(),
             timeoutSeconds: z.unknown(),
             volumes: z.unknown(),
-          }),
-        }),
-      }),
-    }),
-  }).optional(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   status: z.object({
-    conditions: z.array(z.object({
-      lastTransitionTime: z.string(),
-      message: z.string(),
-      reason: z.string(),
-      severity: z.string(),
-      status: z.string(),
-      type: z.string(),
-    })),
+    conditions: z.array(
+      z.object({
+        lastTransitionTime: z.string(),
+        message: z.string(),
+        reason: z.string(),
+        severity: z.string(),
+        status: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     executionCount: z.number(),
     latestCreatedExecution: z.object({
       completionStatus: z.string(),
@@ -439,9 +445,9 @@ const StateSchema = z.object({
       creationTimestamp: z.string(),
       deletionTimestamp: z.string(),
       name: z.string(),
-    }),
+    }).partial(),
     observedGeneration: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -665,7 +671,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Jobs. Registered at `@swamp/gcp/run/namespaces-jobs`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-jobs",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -719,6 +725,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -151,68 +151,76 @@ const StateSchema = z.object({
   entryAgent: z.string().optional(),
   inputTypes: z.array(z.string()).optional(),
   languageCode: z.string().optional(),
-  messages: z.array(z.object({
-    chunks: z.array(z.object({
-      agentTransfer: z.object({
-        displayName: z.unknown(),
-        targetAgent: z.unknown(),
-      }),
-      blob: z.object({
-        data: z.unknown(),
-        mimeType: z.unknown(),
-      }),
-      defaultVariables: z.record(z.string(), z.unknown()),
-      image: z.object({
-        altText: z.unknown(),
-        data: z.unknown(),
-        mimeType: z.unknown(),
-      }),
-      payload: z.record(z.string(), z.unknown()),
-      text: z.string(),
-      toolCall: z.object({
-        agentName: z.unknown(),
-        args: z.unknown(),
-        displayName: z.unknown(),
-        id: z.unknown(),
-        parentToolCallId: z.unknown(),
-        tool: z.unknown(),
-        toolsetTool: z.unknown(),
-      }),
-      toolResponse: z.object({
-        agentName: z.unknown(),
-        displayName: z.unknown(),
-        id: z.unknown(),
-        parentToolCallId: z.unknown(),
-        response: z.unknown(),
-        tool: z.unknown(),
-        toolsetTool: z.unknown(),
-      }),
-      transcript: z.string(),
-      updatedVariables: z.record(z.string(), z.unknown()),
-    })),
-    eventTime: z.string(),
-    role: z.string(),
-  })).optional(),
+  messages: z.array(
+    z.object({
+      chunks: z.array(
+        z.object({
+          agentTransfer: z.object({
+            displayName: z.unknown(),
+            targetAgent: z.unknown(),
+          }).partial(),
+          blob: z.object({
+            data: z.unknown(),
+            mimeType: z.unknown(),
+          }).partial(),
+          defaultVariables: z.record(z.string(), z.unknown()),
+          image: z.object({
+            altText: z.unknown(),
+            data: z.unknown(),
+            mimeType: z.unknown(),
+          }).partial(),
+          payload: z.record(z.string(), z.unknown()),
+          text: z.string(),
+          toolCall: z.object({
+            agentName: z.unknown(),
+            args: z.unknown(),
+            displayName: z.unknown(),
+            id: z.unknown(),
+            parentToolCallId: z.unknown(),
+            tool: z.unknown(),
+            toolsetTool: z.unknown(),
+          }).partial(),
+          toolResponse: z.object({
+            agentName: z.unknown(),
+            displayName: z.unknown(),
+            id: z.unknown(),
+            parentToolCallId: z.unknown(),
+            response: z.unknown(),
+            tool: z.unknown(),
+            toolsetTool: z.unknown(),
+          }).partial(),
+          transcript: z.string(),
+          updatedVariables: z.record(z.string(), z.unknown()),
+        }).partial(),
+      ),
+      eventTime: z.string(),
+      role: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   source: z.string().optional(),
   startTime: z.string().optional(),
   turnCount: z.number().optional(),
-  turns: z.array(z.object({
-    messages: z.array(z.object({
-      chunks: z.array(z.unknown()),
-      eventTime: z.string(),
-      role: z.string(),
-    })),
-    rootSpan: z.object({
-      attributes: z.record(z.string(), z.unknown()),
-      childSpans: z.array(z.record(z.string(), z.unknown())),
-      duration: z.string(),
-      endTime: z.string(),
-      name: z.string(),
-      startTime: z.string(),
-    }),
-    userIntendedText: z.string(),
-  })).optional(),
+  turns: z.array(
+    z.object({
+      messages: z.array(
+        z.object({
+          chunks: z.array(z.unknown()),
+          eventTime: z.string(),
+          role: z.string(),
+        }).partial(),
+      ),
+      rootSpan: z.object({
+        attributes: z.record(z.string(), z.unknown()),
+        childSpans: z.array(z.record(z.string(), z.unknown())),
+        duration: z.string(),
+        endTime: z.string(),
+        name: z.string(),
+        startTime: z.string(),
+      }).partial(),
+      userIntendedText: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -259,7 +267,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Conversations. Registered at `@swamp/gcp/ces/apps-conversations`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-conversations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -413,6 +421,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -374,7 +374,7 @@ const StateSchema = z.object({
     lifecycleStateDetails: z.string(),
     serviceAgentEmail: z.string(),
     workloadIdentityPool: z.string(),
-  }).optional(),
+  }).partial().optional(),
   identityConnectorDisabled: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -394,7 +394,7 @@ const StateSchema = z.object({
       diagnosticsEventsEnabled: z.boolean(),
       healthMonitoringEnabled: z.boolean(),
       incidentLogsEnabled: z.boolean(),
-    }),
+    }).partial(),
     diskRedundancy: z.string(),
     dnsListenerIp: z.string(),
     domain: z.string(),
@@ -423,10 +423,10 @@ const StateSchema = z.object({
     timeZone: z.object({
       id: z.string(),
       version: z.string(),
-    }),
+    }).partial(),
     vmBackupStorageType: z.string(),
     vmFileSystemStorageType: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -654,7 +654,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud CloudVmClusters. Registered at `@swamp/gcp/oracledatabase/cloudvmclusters`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/cloudvmclusters",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -822,6 +822,11 @@ export const model = {
     {
       toVersion: "2026.11.05.1",
       description: "Added: identityConnectorDisabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

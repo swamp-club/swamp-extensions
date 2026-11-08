@@ -311,6 +311,146 @@ const EventSourceSchema = z.object({
     .optional(),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const CrossRegionCopyTargetStateSchema = z.object({
+  TargetRegion: z.string(),
+}).partial();
+
+const ShareRuleStateSchema = z.object({
+  TargetAccounts: z.array(z.string()),
+  UnshareIntervalUnit: z.string(),
+  UnshareInterval: z.number(),
+}).partial();
+
+const DeprecateRuleStateSchema = z.object({
+  IntervalUnit: z.string(),
+  Count: z.number(),
+  Interval: z.number(),
+}).partial();
+
+const ScriptStateSchema = z.object({
+  ExecutionHandlerService: z.string(),
+  ExecutionTimeout: z.number(),
+  Stages: z.array(z.string()),
+  ExecutionHandler: z.string(),
+  MaximumRetryCount: z.number(),
+  ExecuteOperationOnScriptFailure: z.boolean(),
+}).partial();
+
+const CreateRuleStateSchema = z.object({
+  IntervalUnit: z.string(),
+  Scripts: z.array(ScriptStateSchema),
+  Times: z.array(z.string()),
+  CronExpression: z.string(),
+  Interval: z.number(),
+  Location: z.string(),
+}).partial();
+
+const FastRestoreRuleStateSchema = z.object({
+  IntervalUnit: z.string(),
+  Count: z.number(),
+  AvailabilityZones: z.array(z.string()),
+  AvailabilityZoneIds: z.array(z.string()),
+  Interval: z.number(),
+}).partial();
+
+const RetentionArchiveTierStateSchema = z.object({
+  IntervalUnit: z.string(),
+  Count: z.number(),
+  Interval: z.number(),
+}).partial();
+
+const ArchiveRetainRuleStateSchema = z.object({
+  RetentionArchiveTier: RetentionArchiveTierStateSchema,
+}).partial();
+
+const ArchiveRuleStateSchema = z.object({
+  RetainRule: ArchiveRetainRuleStateSchema,
+}).partial();
+
+const RetainRuleStateSchema = z.object({
+  IntervalUnit: z.string(),
+  Count: z.number(),
+  Interval: z.number(),
+}).partial();
+
+const CrossRegionCopyDeprecateRuleStateSchema = z.object({
+  IntervalUnit: z.string(),
+  Interval: z.number(),
+}).partial();
+
+const CrossRegionCopyRetainRuleStateSchema = z.object({
+  IntervalUnit: z.string(),
+  Interval: z.number(),
+}).partial();
+
+const CrossRegionCopyRuleStateSchema = z.object({
+  TargetRegion: z.string(),
+  Target: z.string(),
+  DeprecateRule: CrossRegionCopyDeprecateRuleStateSchema,
+  Encrypted: z.boolean(),
+  CmkArn: z.string(),
+  RetainRule: CrossRegionCopyRetainRuleStateSchema,
+  CopyTags: z.boolean(),
+}).partial();
+
+const ScheduleStateSchema = z.object({
+  ShareRules: z.array(ShareRuleStateSchema),
+  DeprecateRule: DeprecateRuleStateSchema,
+  TagsToAdd: z.array(TagStateSchema),
+  CreateRule: CreateRuleStateSchema,
+  VariableTags: z.array(TagStateSchema),
+  FastRestoreRule: FastRestoreRuleStateSchema,
+  ArchiveRule: ArchiveRuleStateSchema,
+  RetainRule: RetainRuleStateSchema,
+  CrossRegionCopyRules: z.array(CrossRegionCopyRuleStateSchema),
+  Name: z.string(),
+  CopyTags: z.boolean(),
+}).partial();
+
+const ParametersStateSchema = z.object({
+  ExcludeBootVolume: z.boolean(),
+  NoReboot: z.boolean(),
+  ExcludeDataVolumeTags: z.array(TagStateSchema),
+}).partial();
+
+const ExclusionsStateSchema = z.object({
+  ExcludeTags: z.array(TagStateSchema),
+  ExcludeVolumeTypes: z.array(z.string()),
+  ExcludeBootVolumes: z.boolean(),
+}).partial();
+
+const EncryptionConfigurationStateSchema = z.object({
+  Encrypted: z.boolean(),
+  CmkArn: z.string(),
+}).partial();
+
+const CrossRegionCopyActionStateSchema = z.object({
+  Target: z.string(),
+  EncryptionConfiguration: EncryptionConfigurationStateSchema,
+  RetainRule: CrossRegionCopyRetainRuleStateSchema,
+}).partial();
+
+const ActionStateSchema = z.object({
+  CrossRegionCopy: z.array(CrossRegionCopyActionStateSchema),
+  Name: z.string(),
+}).partial();
+
+const EventParametersStateSchema = z.object({
+  DescriptionRegex: z.string(),
+  EventType: z.string(),
+  SnapshotOwner: z.array(z.string()),
+}).partial();
+
+const EventSourceStateSchema = z.object({
+  Type: z.string(),
+  Parameters: EventParametersStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -425,37 +565,41 @@ const StateSchema = z.object({
   CreateInterval: z.number().optional(),
   Description: z.string().optional(),
   ExtendDeletion: z.boolean().optional(),
-  Exclusions: ExclusionsSchema.optional(),
+  Exclusions: z.object({
+    ExcludeTags: z.array(TagStateSchema),
+    ExcludeVolumeTypes: z.array(z.string()),
+    ExcludeBootVolumes: z.boolean(),
+  }).partial().optional(),
   RetainInterval: z.number().optional(),
   ExecutionRoleArn: z.string().optional(),
   DefaultPolicy: z.string().optional(),
   State: z.string().optional(),
-  CrossRegionCopyTargets: z.array(CrossRegionCopyTargetSchema).optional(),
+  CrossRegionCopyTargets: z.array(CrossRegionCopyTargetStateSchema).optional(),
   PolicyDetails: z.object({
     PolicyLanguage: z.string(),
     ResourceTypes: z.array(z.string()),
-    Schedules: z.array(ScheduleSchema),
+    Schedules: z.array(ScheduleStateSchema),
     PolicyType: z.string(),
     CreateInterval: z.number(),
-    Parameters: ParametersSchema,
+    Parameters: ParametersStateSchema,
     ExtendDeletion: z.boolean(),
-    Exclusions: ExclusionsSchema,
-    Actions: z.array(ActionSchema),
+    Exclusions: ExclusionsStateSchema,
+    Actions: z.array(ActionStateSchema),
     ResourceType: z.string(),
     RetainInterval: z.number(),
-    EventSource: EventSourceSchema,
-    CrossRegionCopyTargets: z.array(CrossRegionCopyTargetSchema),
-    TargetTags: z.array(TagSchema),
+    EventSource: EventSourceStateSchema,
+    CrossRegionCopyTargets: z.array(CrossRegionCopyTargetStateSchema),
+    TargetTags: z.array(TagStateSchema),
     ResourceLocations: z.array(z.string()),
     CopyTags: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   PolicyId: z.string(),
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CopyTags: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -576,7 +720,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DLM LifecyclePolicy. Registered at `@swamp/aws/dlm/lifecycle-policy`. */
 export const model = {
   type: "@swamp/aws/dlm/lifecycle-policy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -585,6 +729,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

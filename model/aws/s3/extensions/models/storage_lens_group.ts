@@ -97,6 +97,37 @@ const OrSchema = z.object({
   ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const MatchObjectSizeStateSchema = z.object({
+  BytesGreaterThan: z.number(),
+  BytesLessThan: z.number(),
+}).partial();
+
+const MatchObjectAgeStateSchema = z.object({
+  DaysGreaterThan: z.number(),
+  DaysLessThan: z.number(),
+}).partial();
+
+const AndStateSchema = z.object({
+  MatchAnyPrefix: z.array(z.string()),
+  MatchAnySuffix: z.array(z.string()),
+  MatchAnyTag: z.array(TagStateSchema),
+  MatchObjectSize: MatchObjectSizeStateSchema,
+  MatchObjectAge: MatchObjectAgeStateSchema,
+}).partial();
+
+const OrStateSchema = z.object({
+  MatchAnyPrefix: z.array(z.string()),
+  MatchAnySuffix: z.array(z.string()),
+  MatchAnyTag: z.array(TagStateSchema),
+  MatchObjectSize: MatchObjectSizeStateSchema,
+  MatchObjectAge: MatchObjectAgeStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -145,17 +176,17 @@ const StateSchema = z.object({
   Filter: z.object({
     MatchAnyPrefix: z.array(z.string()),
     MatchAnySuffix: z.array(z.string()),
-    MatchAnyTag: z.array(TagSchema),
-    MatchObjectSize: MatchObjectSizeSchema,
-    MatchObjectAge: MatchObjectAgeSchema,
-    And: AndSchema,
-    Or: OrSchema,
-  }).optional(),
+    MatchAnyTag: z.array(TagStateSchema),
+    MatchObjectSize: MatchObjectSizeStateSchema,
+    MatchObjectAge: MatchObjectAgeStateSchema,
+    And: AndStateSchema,
+    Or: OrStateSchema,
+  }).partial().optional(),
   StorageLensGroupArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -212,7 +243,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 StorageLensGroup. Registered at `@swamp/aws/s3/storage-lens-group`. */
 export const model = {
   type: "@swamp/aws/s3/storage-lens-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -276,6 +307,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

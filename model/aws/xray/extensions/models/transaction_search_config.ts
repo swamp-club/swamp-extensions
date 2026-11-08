@@ -73,10 +73,10 @@ const StateSchema = z.object({
   IndexingPercentage: z.number().optional(),
   CloudWatchLogsConfiguration: z.object({
     SpansLogGroupKmsKeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -117,7 +117,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for XRay TransactionSearchConfig. Registered at `@swamp/aws/xray/transaction-search-config`. */
 export const model = {
   type: "@swamp/aws/xray/transaction-search-config",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -181,6 +181,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

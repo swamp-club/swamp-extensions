@@ -222,30 +222,38 @@ const StateSchema = z.object({
   exportPscConfig: z.object({
     globalGoogleApis: z.boolean(),
     publishedServicesAndRegionalGoogleApis: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   policyMode: z.string().optional(),
   presetTopology: z.string().optional(),
   routeTables: z.array(z.string()).optional(),
-  routingVpcs: z.array(z.object({
-    requiredForNewSiteToSiteDataTransferSpokes: z.boolean(),
-    uri: z.string(),
-  })).optional(),
+  routingVpcs: z.array(
+    z.object({
+      requiredForNewSiteToSiteDataTransferSpokes: z.boolean(),
+      uri: z.string(),
+    }).partial(),
+  ).optional(),
   spokeSummary: z.object({
-    spokeStateCounts: z.array(z.object({
-      count: z.string(),
-      state: z.string(),
-    })),
-    spokeStateReasonCounts: z.array(z.object({
-      count: z.string(),
-      stateReasonCode: z.string(),
-    })),
-    spokeTypeCounts: z.array(z.object({
-      count: z.string(),
-      spokeType: z.string(),
-    })),
-  }).optional(),
+    spokeStateCounts: z.array(
+      z.object({
+        count: z.string(),
+        state: z.string(),
+      }).partial(),
+    ),
+    spokeStateReasonCounts: z.array(
+      z.object({
+        count: z.string(),
+        stateReasonCode: z.string(),
+      }).partial(),
+    ),
+    spokeTypeCounts: z.array(
+      z.object({
+        count: z.string(),
+        spokeType: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   state: z.string().optional(),
   uniqueId: z.string().optional(),
   updateTime: z.string().optional(),
@@ -332,7 +340,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity Global.Hubs. Registered at `@swamp/gcp/networkconnectivity/global-hubs`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/global-hubs",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -515,6 +523,11 @@ export const model = {
     {
       toVersion: "2026.10.31.1",
       description: "Added: exportPscConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

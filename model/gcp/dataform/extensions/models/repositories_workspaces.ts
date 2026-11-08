@@ -160,13 +160,13 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   dataEncryptionState: z.object({
     kmsKeyVersionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   disableMoves: z.boolean().optional(),
   internalMetadata: z.string().optional(),
   name: z.string(),
   privateResourceMetadata: z.object({
     userScoped: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -219,7 +219,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.Workspaces. Registered at `@swamp/gcp/dataform/repositories-workspaces`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-workspaces",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -375,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

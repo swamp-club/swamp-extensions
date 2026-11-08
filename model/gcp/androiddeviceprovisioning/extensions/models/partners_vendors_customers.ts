@@ -95,7 +95,7 @@ const StateSchema = z.object({
   googleWorkspaceAccount: z.object({
     customerId: z.string(),
     preProvisioningTokens: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   languageCode: z.string().optional(),
   name: z.string(),
   ownerEmails: z.array(z.string()).optional(),
@@ -144,7 +144,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Device Provisioning Partner Partners.Vendors.Customers. Registered at `@swamp/gcp/androiddeviceprovisioning/partners-vendors-customers`. */
 export const model = {
   type: "@swamp/gcp/androiddeviceprovisioning/partners-vendors-customers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -263,6 +263,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -541,6 +541,351 @@ const HookConfigurationSchema = z.object({
   ),
 });
 
+const DocumentsMetadataConfigurationStateSchema = z.object({
+  S3Prefix: z.string(),
+}).partial();
+
+const AccessControlListConfigurationStateSchema = z.object({
+  KeyPath: z.string(),
+}).partial();
+
+const S3DataSourceConfigurationStateSchema = z.object({
+  BucketName: z.string(),
+  InclusionPrefixes: z.array(z.string()),
+  InclusionPatterns: z.array(z.string()),
+  ExclusionPatterns: z.array(z.string()),
+  DocumentsMetadataConfiguration: DocumentsMetadataConfigurationStateSchema,
+  AccessControlListConfiguration: AccessControlListConfigurationStateSchema,
+}).partial();
+
+const DataSourceVpcConfigurationStateSchema = z.object({
+  SubnetIds: z.array(z.string()),
+  SecurityGroupIds: z.array(z.string()),
+}).partial();
+
+const DataSourceToIndexFieldMappingStateSchema = z.object({
+  DataSourceFieldName: z.string(),
+  DateFieldFormat: z.string(),
+  IndexFieldName: z.string(),
+}).partial();
+
+const S3PathStateSchema = z.object({
+  Bucket: z.string(),
+  Key: z.string(),
+}).partial();
+
+const SharePointConfigurationStateSchema = z.object({
+  SharePointVersion: z.string(),
+  Urls: z.array(z.string()),
+  SecretArn: z.string(),
+  CrawlAttachments: z.boolean(),
+  UseChangeLog: z.boolean(),
+  InclusionPatterns: z.array(z.string()),
+  ExclusionPatterns: z.array(z.string()),
+  VpcConfiguration: DataSourceVpcConfigurationStateSchema,
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+  DocumentTitleFieldName: z.string(),
+  DisableLocalGroups: z.boolean(),
+  SslCertificateS3Path: S3PathStateSchema,
+}).partial();
+
+const SalesforceStandardObjectConfigurationStateSchema = z.object({
+  Name: z.string(),
+  DocumentDataFieldName: z.string(),
+  DocumentTitleFieldName: z.string(),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+}).partial();
+
+const SalesforceStandardKnowledgeArticleTypeConfigurationStateSchema = z.object(
+  {
+    DocumentDataFieldName: z.string(),
+    DocumentTitleFieldName: z.string(),
+    FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+  },
+).partial();
+
+const SalesforceCustomKnowledgeArticleTypeConfigurationStateSchema = z.object({
+  Name: z.string(),
+  DocumentDataFieldName: z.string(),
+  DocumentTitleFieldName: z.string(),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+}).partial();
+
+const SalesforceKnowledgeArticleConfigurationStateSchema = z.object({
+  IncludedStates: z.array(z.string()),
+  StandardKnowledgeArticleTypeConfiguration:
+    SalesforceStandardKnowledgeArticleTypeConfigurationStateSchema,
+  CustomKnowledgeArticleTypeConfigurations: z.array(
+    SalesforceCustomKnowledgeArticleTypeConfigurationStateSchema,
+  ),
+}).partial();
+
+const SalesforceChatterFeedConfigurationStateSchema = z.object({
+  DocumentDataFieldName: z.string(),
+  DocumentTitleFieldName: z.string(),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+  IncludeFilterTypes: z.array(z.string()),
+}).partial();
+
+const SalesforceStandardObjectAttachmentConfigurationStateSchema = z.object({
+  DocumentTitleFieldName: z.string(),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+}).partial();
+
+const SalesforceConfigurationStateSchema = z.object({
+  ServerUrl: z.string(),
+  SecretArn: z.string(),
+  StandardObjectConfigurations: z.array(
+    SalesforceStandardObjectConfigurationStateSchema,
+  ),
+  KnowledgeArticleConfiguration:
+    SalesforceKnowledgeArticleConfigurationStateSchema,
+  ChatterFeedConfiguration: SalesforceChatterFeedConfigurationStateSchema,
+  CrawlAttachments: z.boolean(),
+  StandardObjectAttachmentConfiguration:
+    SalesforceStandardObjectAttachmentConfigurationStateSchema,
+  IncludeAttachmentFilePatterns: z.array(z.string()),
+  ExcludeAttachmentFilePatterns: z.array(z.string()),
+}).partial();
+
+const OneDriveUsersStateSchema = z.object({
+  OneDriveUserList: z.array(z.string()),
+  OneDriveUserS3Path: S3PathStateSchema,
+}).partial();
+
+const OneDriveConfigurationStateSchema = z.object({
+  TenantDomain: z.string(),
+  SecretArn: z.string(),
+  OneDriveUsers: OneDriveUsersStateSchema,
+  InclusionPatterns: z.array(z.string()),
+  ExclusionPatterns: z.array(z.string()),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+  DisableLocalGroups: z.boolean(),
+}).partial();
+
+const ServiceNowKnowledgeArticleConfigurationStateSchema = z.object({
+  CrawlAttachments: z.boolean(),
+  IncludeAttachmentFilePatterns: z.array(z.string()),
+  ExcludeAttachmentFilePatterns: z.array(z.string()),
+  DocumentDataFieldName: z.string(),
+  DocumentTitleFieldName: z.string(),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+  FilterQuery: z.string(),
+}).partial();
+
+const ServiceNowServiceCatalogConfigurationStateSchema = z.object({
+  CrawlAttachments: z.boolean(),
+  IncludeAttachmentFilePatterns: z.array(z.string()),
+  ExcludeAttachmentFilePatterns: z.array(z.string()),
+  DocumentDataFieldName: z.string(),
+  DocumentTitleFieldName: z.string(),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+}).partial();
+
+const ServiceNowConfigurationStateSchema = z.object({
+  HostUrl: z.string(),
+  SecretArn: z.string(),
+  ServiceNowBuildVersion: z.string(),
+  AuthenticationType: z.string(),
+  KnowledgeArticleConfiguration:
+    ServiceNowKnowledgeArticleConfigurationStateSchema,
+  ServiceCatalogConfiguration: ServiceNowServiceCatalogConfigurationStateSchema,
+}).partial();
+
+const ConnectionConfigurationStateSchema = z.object({
+  DatabaseHost: z.string(),
+  DatabasePort: z.number(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  SecretArn: z.string(),
+}).partial();
+
+const ColumnConfigurationStateSchema = z.object({
+  DocumentIdColumnName: z.string(),
+  DocumentDataColumnName: z.string(),
+  DocumentTitleColumnName: z.string(),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+  ChangeDetectingColumns: z.array(z.string()),
+}).partial();
+
+const AclConfigurationStateSchema = z.object({
+  AllowedGroupsColumnName: z.string(),
+}).partial();
+
+const SqlConfigurationStateSchema = z.object({
+  QueryIdentifiersEnclosingOption: z.string(),
+}).partial();
+
+const DatabaseConfigurationStateSchema = z.object({
+  DatabaseEngineType: z.string(),
+  ConnectionConfiguration: ConnectionConfigurationStateSchema,
+  VpcConfiguration: DataSourceVpcConfigurationStateSchema,
+  ColumnConfiguration: ColumnConfigurationStateSchema,
+  AclConfiguration: AclConfigurationStateSchema,
+  SqlConfiguration: SqlConfigurationStateSchema,
+}).partial();
+
+const ConfluenceSpaceToIndexFieldMappingStateSchema = z.object({
+  DataSourceFieldName: z.string(),
+  DateFieldFormat: z.string(),
+  IndexFieldName: z.string(),
+}).partial();
+
+const ConfluenceSpaceConfigurationStateSchema = z.object({
+  CrawlPersonalSpaces: z.boolean(),
+  CrawlArchivedSpaces: z.boolean(),
+  IncludeSpaces: z.array(z.string()),
+  ExcludeSpaces: z.array(z.string()),
+  SpaceFieldMappings: z.array(ConfluenceSpaceToIndexFieldMappingStateSchema),
+}).partial();
+
+const ConfluencePageToIndexFieldMappingStateSchema = z.object({
+  DataSourceFieldName: z.string(),
+  DateFieldFormat: z.string(),
+  IndexFieldName: z.string(),
+}).partial();
+
+const ConfluencePageConfigurationStateSchema = z.object({
+  PageFieldMappings: z.array(ConfluencePageToIndexFieldMappingStateSchema),
+}).partial();
+
+const ConfluenceBlogToIndexFieldMappingStateSchema = z.object({
+  DataSourceFieldName: z.string(),
+  DateFieldFormat: z.string(),
+  IndexFieldName: z.string(),
+}).partial();
+
+const ConfluenceBlogConfigurationStateSchema = z.object({
+  BlogFieldMappings: z.array(ConfluenceBlogToIndexFieldMappingStateSchema),
+}).partial();
+
+const ConfluenceAttachmentToIndexFieldMappingStateSchema = z.object({
+  DataSourceFieldName: z.string(),
+  DateFieldFormat: z.string(),
+  IndexFieldName: z.string(),
+}).partial();
+
+const ConfluenceAttachmentConfigurationStateSchema = z.object({
+  CrawlAttachments: z.boolean(),
+  AttachmentFieldMappings: z.array(
+    ConfluenceAttachmentToIndexFieldMappingStateSchema,
+  ),
+}).partial();
+
+const ConfluenceConfigurationStateSchema = z.object({
+  ServerUrl: z.string(),
+  SecretArn: z.string(),
+  Version: z.string(),
+  SpaceConfiguration: ConfluenceSpaceConfigurationStateSchema,
+  PageConfiguration: ConfluencePageConfigurationStateSchema,
+  BlogConfiguration: ConfluenceBlogConfigurationStateSchema,
+  AttachmentConfiguration: ConfluenceAttachmentConfigurationStateSchema,
+  VpcConfiguration: DataSourceVpcConfigurationStateSchema,
+  InclusionPatterns: z.array(z.string()),
+  ExclusionPatterns: z.array(z.string()),
+}).partial();
+
+const GoogleDriveConfigurationStateSchema = z.object({
+  SecretArn: z.string(),
+  InclusionPatterns: z.array(z.string()),
+  ExclusionPatterns: z.array(z.string()),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+  ExcludeMimeTypes: z.array(z.string()),
+  ExcludeUserAccounts: z.array(z.string()),
+  ExcludeSharedDrives: z.array(z.string()),
+}).partial();
+
+const WebCrawlerSeedUrlConfigurationStateSchema = z.object({
+  SeedUrls: z.array(z.string()),
+  WebCrawlerMode: z.string(),
+}).partial();
+
+const WebCrawlerSiteMapsConfigurationStateSchema = z.object({
+  SiteMaps: z.array(z.string()),
+}).partial();
+
+const WebCrawlerUrlsStateSchema = z.object({
+  SeedUrlConfiguration: WebCrawlerSeedUrlConfigurationStateSchema,
+  SiteMapsConfiguration: WebCrawlerSiteMapsConfigurationStateSchema,
+}).partial();
+
+const ProxyConfigurationStateSchema = z.object({
+  Host: z.string(),
+  Port: z.number(),
+  Credentials: z.string(),
+}).partial();
+
+const WebCrawlerBasicAuthenticationStateSchema = z.object({
+  Host: z.string(),
+  Port: z.number(),
+  Credentials: z.string(),
+}).partial();
+
+const WebCrawlerAuthenticationConfigurationStateSchema = z.object({
+  BasicAuthentication: z.array(WebCrawlerBasicAuthenticationStateSchema),
+}).partial();
+
+const WebCrawlerConfigurationStateSchema = z.object({
+  Urls: WebCrawlerUrlsStateSchema,
+  CrawlDepth: z.number(),
+  MaxLinksPerPage: z.number(),
+  MaxContentSizePerPageInMegaBytes: z.number(),
+  MaxUrlsPerMinuteCrawlRate: z.number(),
+  UrlInclusionPatterns: z.array(z.string()),
+  UrlExclusionPatterns: z.array(z.string()),
+  ProxyConfiguration: ProxyConfigurationStateSchema,
+  AuthenticationConfiguration: WebCrawlerAuthenticationConfigurationStateSchema,
+}).partial();
+
+const WorkDocsConfigurationStateSchema = z.object({
+  OrganizationId: z.string(),
+  CrawlComments: z.boolean(),
+  UseChangeLog: z.boolean(),
+  InclusionPatterns: z.array(z.string()),
+  ExclusionPatterns: z.array(z.string()),
+  FieldMappings: z.array(DataSourceToIndexFieldMappingStateSchema),
+}).partial();
+
+const TemplateConfigurationStateSchema = z.object({
+  Template: z.record(z.string(), z.unknown()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const DocumentAttributeValueStateSchema = z.object({
+  StringValue: z.string(),
+  StringListValue: z.array(z.string()),
+  LongValue: z.number(),
+  DateValue: z.string(),
+}).partial();
+
+const DocumentAttributeConditionStateSchema = z.object({
+  ConditionDocumentAttributeKey: z.string(),
+  Operator: z.string(),
+  ConditionOnValue: DocumentAttributeValueStateSchema,
+}).partial();
+
+const DocumentAttributeTargetStateSchema = z.object({
+  TargetDocumentAttributeKey: z.string(),
+  TargetDocumentAttributeValueDeletion: z.boolean(),
+  TargetDocumentAttributeValue: DocumentAttributeValueStateSchema,
+}).partial();
+
+const InlineCustomDocumentEnrichmentConfigurationStateSchema = z.object({
+  Condition: DocumentAttributeConditionStateSchema,
+  Target: DocumentAttributeTargetStateSchema,
+  DocumentContentDeletion: z.boolean(),
+}).partial();
+
+const HookConfigurationStateSchema = z.object({
+  InvocationCondition: DocumentAttributeConditionStateSchema,
+  LambdaArn: z.string(),
+  S3Bucket: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -625,34 +970,34 @@ const StateSchema = z.object({
   IndexId: z.string(),
   Type: z.string().optional(),
   DataSourceConfiguration: z.object({
-    S3Configuration: S3DataSourceConfigurationSchema,
-    SharePointConfiguration: SharePointConfigurationSchema,
-    SalesforceConfiguration: SalesforceConfigurationSchema,
-    OneDriveConfiguration: OneDriveConfigurationSchema,
-    ServiceNowConfiguration: ServiceNowConfigurationSchema,
-    DatabaseConfiguration: DatabaseConfigurationSchema,
-    ConfluenceConfiguration: ConfluenceConfigurationSchema,
-    GoogleDriveConfiguration: GoogleDriveConfigurationSchema,
-    WebCrawlerConfiguration: WebCrawlerConfigurationSchema,
-    WorkDocsConfiguration: WorkDocsConfigurationSchema,
-    TemplateConfiguration: TemplateConfigurationSchema,
-  }).optional(),
+    S3Configuration: S3DataSourceConfigurationStateSchema,
+    SharePointConfiguration: SharePointConfigurationStateSchema,
+    SalesforceConfiguration: SalesforceConfigurationStateSchema,
+    OneDriveConfiguration: OneDriveConfigurationStateSchema,
+    ServiceNowConfiguration: ServiceNowConfigurationStateSchema,
+    DatabaseConfiguration: DatabaseConfigurationStateSchema,
+    ConfluenceConfiguration: ConfluenceConfigurationStateSchema,
+    GoogleDriveConfiguration: GoogleDriveConfigurationStateSchema,
+    WebCrawlerConfiguration: WebCrawlerConfigurationStateSchema,
+    WorkDocsConfiguration: WorkDocsConfigurationStateSchema,
+    TemplateConfiguration: TemplateConfigurationStateSchema,
+  }).partial().optional(),
   Description: z.string().optional(),
   Schedule: z.string().optional(),
   RoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CustomDocumentEnrichmentConfiguration: z.object({
     InlineConfigurations: z.array(
-      InlineCustomDocumentEnrichmentConfigurationSchema,
+      InlineCustomDocumentEnrichmentConfigurationStateSchema,
     ),
-    PreExtractionHookConfiguration: HookConfigurationSchema,
-    PostExtractionHookConfiguration: HookConfigurationSchema,
+    PreExtractionHookConfiguration: HookConfigurationStateSchema,
+    PostExtractionHookConfiguration: HookConfigurationStateSchema,
     RoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LanguageCode: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -740,7 +1085,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kendra DataSource. Registered at `@swamp/aws/kendra/data-source`. */
 export const model = {
   type: "@swamp/aws/kendra/data-source",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -809,6 +1154,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

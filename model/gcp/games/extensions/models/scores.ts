@@ -156,36 +156,38 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  items: z.array(z.object({
-    friendsRank: z.object({
-      formattedNumScores: z.string(),
-      formattedRank: z.string(),
+  items: z.array(
+    z.object({
+      friendsRank: z.object({
+        formattedNumScores: z.string(),
+        formattedRank: z.string(),
+        kind: z.string(),
+        numScores: z.string(),
+        rank: z.string(),
+      }).partial(),
       kind: z.string(),
-      numScores: z.string(),
-      rank: z.string(),
-    }),
-    kind: z.string(),
-    leaderboard_id: z.string(),
-    publicRank: z.object({
-      formattedNumScores: z.string(),
-      formattedRank: z.string(),
-      kind: z.string(),
-      numScores: z.string(),
-      rank: z.string(),
-    }),
-    scoreString: z.string(),
-    scoreTag: z.string(),
-    scoreValue: z.string(),
-    socialRank: z.object({
-      formattedNumScores: z.string(),
-      formattedRank: z.string(),
-      kind: z.string(),
-      numScores: z.string(),
-      rank: z.string(),
-    }),
-    timeSpan: z.string(),
-    writeTimestamp: z.string(),
-  })).optional(),
+      leaderboard_id: z.string(),
+      publicRank: z.object({
+        formattedNumScores: z.string(),
+        formattedRank: z.string(),
+        kind: z.string(),
+        numScores: z.string(),
+        rank: z.string(),
+      }).partial(),
+      scoreString: z.string(),
+      scoreTag: z.string(),
+      scoreValue: z.string(),
+      socialRank: z.object({
+        formattedNumScores: z.string(),
+        formattedRank: z.string(),
+        kind: z.string(),
+        numScores: z.string(),
+        rank: z.string(),
+      }).partial(),
+      timeSpan: z.string(),
+      writeTimestamp: z.string(),
+    }).partial(),
+  ).optional(),
   kind: z.string().optional(),
   nextPageToken: z.string().optional(),
   player: z.object({
@@ -200,7 +202,7 @@ const StateSchema = z.object({
         level: z.number(),
         maxExperiencePoints: z.string(),
         minExperiencePoints: z.string(),
-      }),
+      }).partial(),
       kind: z.string(),
       lastLevelUpTimestampMillis: z.string(),
       nextLevel: z.object({
@@ -208,24 +210,24 @@ const StateSchema = z.object({
         level: z.number(),
         maxExperiencePoints: z.string(),
         minExperiencePoints: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     friendStatus: z.string(),
     gamePlayerId: z.string(),
     kind: z.string(),
     name: z.object({
       familyName: z.string(),
       givenName: z.string(),
-    }),
+    }).partial(),
     originalPlayerId: z.string(),
     playerId: z.string(),
     profileSettings: z.object({
       friendsListVisibility: z.string(),
       kind: z.string(),
       profileVisible: z.boolean(),
-    }),
+    }).partial(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -277,7 +279,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Games Services Scores. Registered at `@swamp/gcp/games/scores`. */
 export const model = {
   type: "@swamp/gcp/games/scores",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -401,6 +403,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -270,20 +270,24 @@ const StateSchema = z.object({
   messageType: z.string().optional(),
   name: z.string(),
   parsedData: z.object({
-    segments: z.array(z.object({
-      fields: z.record(z.string(), z.unknown()),
-      segmentId: z.string(),
-      setId: z.string(),
-    })),
-  }).optional(),
-  patientIds: z.array(z.object({
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
+    segments: z.array(
+      z.object({
+        fields: z.record(z.string(), z.unknown()),
+        segmentId: z.string(),
+        setId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  patientIds: z.array(
+    z.object({
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   schematizedData: z.object({
     data: z.string(),
     error: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sendFacility: z.string().optional(),
   sendTime: z.string().optional(),
 }).passthrough();
@@ -423,7 +427,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Healthcare Datasets.Hl7V2Stores.Messages. Registered at `@swamp/gcp/healthcare/datasets-hl7v2stores-messages`. */
 export const model = {
   type: "@swamp/gcp/healthcare/datasets-hl7v2stores-messages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -567,6 +571,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

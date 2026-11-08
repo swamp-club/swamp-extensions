@@ -360,6 +360,139 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const ConnectorPropertyStateSchema = z.object({
+  Name: z.string(),
+  KeyOverride: z.string(),
+  Required: z.boolean(),
+  DefaultValue: z.string(),
+  AllowedValues: z.array(z.string()),
+  PropertyLocation: z.string(),
+  PropertyType: z.string(),
+}).partial();
+
+const SecretConnectorPropertyStateSchema = z.object({
+  Name: z.string(),
+  KeyOverride: z.string(),
+  Required: z.boolean(),
+  PropertyLocation: z.string(),
+  PropertyType: z.string(),
+}).partial();
+
+const ClientCredentialsPropertiesStateSchema = z.object({
+  TokenUrl: ConnectorPropertyStateSchema,
+  RequestMethod: z.string(),
+  ContentType: z.string(),
+  ClientId: SecretConnectorPropertyStateSchema,
+  ClientSecret: SecretConnectorPropertyStateSchema,
+  Scope: ConnectorPropertyStateSchema,
+  TokenUrlParameters: z.array(ConnectorPropertyStateSchema),
+}).partial();
+
+const JWTBearerPropertiesStateSchema = z.object({
+  TokenUrl: ConnectorPropertyStateSchema,
+  RequestMethod: z.string(),
+  ContentType: z.string(),
+  JwtToken: SecretConnectorPropertyStateSchema,
+  TokenUrlParameters: z.array(ConnectorPropertyStateSchema),
+}).partial();
+
+const ConnectorAuthorizationCodePropertiesStateSchema = z.object({
+  AuthorizationCodeUrl: ConnectorPropertyStateSchema,
+  AuthorizationCode: ConnectorPropertyStateSchema,
+  RedirectUri: ConnectorPropertyStateSchema,
+  TokenUrl: ConnectorPropertyStateSchema,
+  RequestMethod: z.string(),
+  ContentType: z.string(),
+  ClientId: SecretConnectorPropertyStateSchema,
+  ClientSecret: SecretConnectorPropertyStateSchema,
+  Scope: ConnectorPropertyStateSchema,
+  Prompt: ConnectorPropertyStateSchema,
+  TokenUrlParameters: z.array(ConnectorPropertyStateSchema),
+}).partial();
+
+const ConnectorOAuth2PropertiesStateSchema = z.object({
+  OAuth2GrantType: z.string(),
+  ClientCredentialsProperties: ClientCredentialsPropertiesStateSchema,
+  JWTBearerProperties: JWTBearerPropertiesStateSchema,
+  AuthorizationCodeProperties: ConnectorAuthorizationCodePropertiesStateSchema,
+}).partial();
+
+const BasicAuthenticationPropertiesStateSchema = z.object({
+  Username: SecretConnectorPropertyStateSchema,
+  Password: SecretConnectorPropertyStateSchema,
+}).partial();
+
+const CustomAuthenticationPropertiesStateSchema = z.object({
+  AuthenticationParameters: z.array(SecretConnectorPropertyStateSchema),
+}).partial();
+
+const ResponseConfigurationStateSchema = z.object({
+  ResultPath: z.string(),
+  ErrorPath: z.string(),
+}).partial();
+
+const ResponseExtractionMappingStateSchema = z.object({
+  ContentPath: z.string(),
+  HeaderKey: z.string(),
+}).partial();
+
+const ExtractedParameterStateSchema = z.object({
+  Key: z.string(),
+  DefaultValue: z.string(),
+  PropertyLocation: z.string(),
+  Value: ResponseExtractionMappingStateSchema,
+}).partial();
+
+const CursorConfigurationStateSchema = z.object({
+  NextPage: ExtractedParameterStateSchema,
+  LimitParameter: ExtractedParameterStateSchema,
+}).partial();
+
+const OffsetConfigurationStateSchema = z.object({
+  OffsetParameter: ExtractedParameterStateSchema,
+  LimitParameter: ExtractedParameterStateSchema,
+}).partial();
+
+const PaginationConfigurationStateSchema = z.object({
+  CursorConfiguration: CursorConfigurationStateSchema,
+  OffsetConfiguration: OffsetConfigurationStateSchema,
+}).partial();
+
+const BetweenConfigurationStateSchema = z.object({
+  LowBoundKey: z.string(),
+  HighBoundKey: z.string(),
+  Template: z.string(),
+}).partial();
+
+const FilterStringConfigurationStateSchema = z.object({
+  QueryParameterName: z.string(),
+  QuoteStringValues: z.boolean(),
+  QuoteCharacter: z.string(),
+}).partial();
+
+const FilterConfigurationStateSchema = z.object({
+  FilterMode: z.string(),
+  OperatorMappings: z.record(z.string(), z.unknown()),
+  DateTimeFormat: z.string(),
+  StripQuotes: z.boolean(),
+  BetweenConfiguration: BetweenConfigurationStateSchema,
+  FilterStringConfiguration: FilterStringConfigurationStateSchema,
+}).partial();
+
+const SourceConfigurationStateSchema = z.object({
+  RequestMethod: z.string(),
+  RequestPath: z.string(),
+  RequestParameters: z.array(ConnectorPropertyStateSchema),
+  ResponseConfiguration: ResponseConfigurationStateSchema,
+  PaginationConfiguration: PaginationConfigurationStateSchema,
+  FilterConfiguration: FilterConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -436,27 +569,27 @@ const StateSchema = z.object({
   IntegrationType: z.string().optional(),
   Description: z.string().optional(),
   ConnectionProperties: z.object({
-    Url: ConnectorPropertySchema,
-    AdditionalRequestParameters: z.array(ConnectorPropertySchema),
-  }).optional(),
+    Url: ConnectorPropertyStateSchema,
+    AdditionalRequestParameters: z.array(ConnectorPropertyStateSchema),
+  }).partial().optional(),
   ConnectorAuthenticationConfiguration: z.object({
     AuthenticationTypes: z.array(z.string()),
-    OAuth2Properties: ConnectorOAuth2PropertiesSchema,
-    BasicAuthenticationProperties: BasicAuthenticationPropertiesSchema,
-    CustomAuthenticationProperties: CustomAuthenticationPropertiesSchema,
-  }).optional(),
+    OAuth2Properties: ConnectorOAuth2PropertiesStateSchema,
+    BasicAuthenticationProperties: BasicAuthenticationPropertiesStateSchema,
+    CustomAuthenticationProperties: CustomAuthenticationPropertiesStateSchema,
+  }).partial().optional(),
   RestConfiguration: z.object({
-    GlobalSourceConfiguration: SourceConfigurationSchema,
+    GlobalSourceConfiguration: SourceConfigurationStateSchema,
     ValidationEndpointConfiguration: z.object({
       RequestMethod: z.string(),
       RequestPath: z.string(),
-    }),
+    }).partial(),
     EntityConfigurations: z.record(z.string(), z.unknown()),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -537,7 +670,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue ConnectionType. Registered at `@swamp/aws/glue/connection-type`. */
 export const model = {
   type: "@swamp/aws/glue/connection-type",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -551,6 +684,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

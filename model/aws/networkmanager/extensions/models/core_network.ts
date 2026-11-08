@@ -47,6 +47,32 @@ const TagSchema = z.object({
   ),
 });
 
+const CoreNetworkSegmentStateSchema = z.object({
+  Name: z.string(),
+  EdgeLocations: z.array(z.string()),
+  SharedSegments: z.array(z.string()),
+}).partial();
+
+const CoreNetworkNetworkFunctionGroupStateSchema = z.object({
+  Name: z.string(),
+  EdgeLocations: z.array(z.string()),
+  Segments: z.object({
+    SendTo: z.array(z.string()),
+    SendVia: z.array(z.string()),
+  }).partial(),
+}).partial();
+
+const CoreNetworkEdgeStateSchema = z.object({
+  EdgeLocation: z.string(),
+  Asn: z.number(),
+  InsideCidrBlocks: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -83,29 +109,15 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   CreatedAt: z.string().optional(),
   State: z.string().optional(),
-  Segments: z.array(z.object({
-    Name: z.string(),
-    EdgeLocations: z.array(z.string()),
-    SharedSegments: z.array(z.string()),
-  })).optional(),
-  NetworkFunctionGroups: z.array(z.object({
-    Name: z.string(),
-    EdgeLocations: z.array(z.string()),
-    Segments: z.object({
-      SendTo: z.array(z.string()),
-      SendVia: z.array(z.string()),
-    }),
-  })).optional(),
-  Edges: z.array(z.object({
-    EdgeLocation: z.string(),
-    Asn: z.number(),
-    InsideCidrBlocks: z.array(z.string()),
-  })).optional(),
+  Segments: z.array(CoreNetworkSegmentStateSchema).optional(),
+  NetworkFunctionGroups: z.array(CoreNetworkNetworkFunctionGroupStateSchema)
+    .optional(),
+  Edges: z.array(CoreNetworkEdgeStateSchema).optional(),
   OwnerAccount: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -144,7 +156,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager CoreNetwork. Registered at `@swamp/aws/networkmanager/core-network`. */
 export const model = {
   type: "@swamp/aws/networkmanager/core-network",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

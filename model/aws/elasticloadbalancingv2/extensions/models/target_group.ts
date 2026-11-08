@@ -63,6 +63,23 @@ const TagSchema = z.object({
   Key: z.string().describe("The value for the tag."),
 });
 
+const TargetDescriptionStateSchema = z.object({
+  AvailabilityZone: z.string(),
+  Id: z.string(),
+  Port: z.number(),
+  QuicServerId: z.string(),
+}).partial();
+
+const TargetGroupAttributeStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -149,10 +166,10 @@ const StateSchema = z.object({
   Matcher: z.object({
     GrpcCode: z.string(),
     HttpCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   HealthCheckPath: z.string().optional(),
   Port: z.number().optional(),
-  Targets: z.array(TargetDescriptionSchema).optional(),
+  Targets: z.array(TargetDescriptionStateSchema).optional(),
   HealthCheckEnabled: z.boolean().optional(),
   ProtocolVersion: z.string().optional(),
   UnhealthyThresholdCount: z.number().optional(),
@@ -162,17 +179,17 @@ const StateSchema = z.object({
   TargetGroupFullName: z.string().optional(),
   HealthyThresholdCount: z.number().optional(),
   HealthCheckProtocol: z.string().optional(),
-  TargetGroupAttributes: z.array(TargetGroupAttributeSchema).optional(),
+  TargetGroupAttributes: z.array(TargetGroupAttributeStateSchema).optional(),
   TargetType: z.string().optional(),
   HealthCheckPort: z.string().optional(),
   TargetGroupArn: z.string(),
   Protocol: z.string().optional(),
   TargetGroupName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TargetControlPort: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -262,7 +279,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticLoadBalancingV2 TargetGroup. Registered at `@swamp/aws/elasticloadbalancingv2/target-group`. */
 export const model = {
   type: "@swamp/aws/elasticloadbalancingv2/target-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -321,6 +338,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

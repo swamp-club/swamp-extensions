@@ -156,6 +156,74 @@ const TagSchema = z.object({
   Value: z.string().max(256),
 });
 
+const ScaleInPolicyStateSchema = z.object({
+  CpuUtilizationPercentage: z.number(),
+}).partial();
+
+const ScaleOutPolicyStateSchema = z.object({
+  CpuUtilizationPercentage: z.number(),
+}).partial();
+
+const AutoScalingStateSchema = z.object({
+  MaxWorkerCount: z.number(),
+  MinWorkerCount: z.number(),
+  ScaleInPolicy: ScaleInPolicyStateSchema,
+  ScaleOutPolicy: ScaleOutPolicyStateSchema,
+  McuCount: z.number(),
+  MaxAutoscalingTaskCount: z.number(),
+}).partial();
+
+const ProvisionedCapacityStateSchema = z.object({
+  McuCount: z.number(),
+  WorkerCount: z.number(),
+}).partial();
+
+const VpcStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const ApacheKafkaClusterStateSchema = z.object({
+  BootstrapServers: z.string(),
+  Vpc: VpcStateSchema,
+}).partial();
+
+const CloudWatchLogsLogDeliveryStateSchema = z.object({
+  Enabled: z.boolean(),
+  LogGroup: z.string(),
+}).partial();
+
+const FirehoseLogDeliveryStateSchema = z.object({
+  DeliveryStream: z.string(),
+  Enabled: z.boolean(),
+}).partial();
+
+const S3LogDeliveryStateSchema = z.object({
+  Bucket: z.string(),
+  Enabled: z.boolean(),
+  Prefix: z.string(),
+}).partial();
+
+const WorkerLogDeliveryStateSchema = z.object({
+  CloudWatchLogs: CloudWatchLogsLogDeliveryStateSchema,
+  Firehose: FirehoseLogDeliveryStateSchema,
+  S3: S3LogDeliveryStateSchema,
+}).partial();
+
+const CustomPluginStateSchema = z.object({
+  CustomPluginArn: z.string(),
+  Revision: z.number(),
+}).partial();
+
+const PluginStateSchema = z.object({
+  CustomPlugin: CustomPluginStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -246,37 +314,37 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Capacity: z.object({
-    AutoScaling: AutoScalingSchema,
-    ProvisionedCapacity: ProvisionedCapacitySchema,
-  }).optional(),
+    AutoScaling: AutoScalingStateSchema,
+    ProvisionedCapacity: ProvisionedCapacityStateSchema,
+  }).partial().optional(),
   ConnectorArn: z.string(),
   ConnectorConfiguration: z.record(z.string(), z.unknown()).optional(),
   ConnectorDescription: z.string().optional(),
   ConnectorName: z.string().optional(),
   KafkaCluster: z.object({
-    ApacheKafkaCluster: ApacheKafkaClusterSchema,
-  }).optional(),
+    ApacheKafkaCluster: ApacheKafkaClusterStateSchema,
+  }).partial().optional(),
   KafkaClusterClientAuthentication: z.object({
     AuthenticationType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KafkaClusterEncryptionInTransit: z.object({
     EncryptionType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KafkaConnectVersion: z.string().optional(),
   NetworkType: z.string().optional(),
   LogDelivery: z.object({
-    WorkerLogDelivery: WorkerLogDeliverySchema,
-  }).optional(),
-  Plugins: z.array(PluginSchema).optional(),
+    WorkerLogDelivery: WorkerLogDeliveryStateSchema,
+  }).partial().optional(),
+  Plugins: z.array(PluginStateSchema).optional(),
   ServiceExecutionRoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   WorkerConfiguration: z.object({
     Revision: z.number(),
     WorkerConfigurationArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -375,7 +443,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for KafkaConnect Connector. Registered at `@swamp/aws/kafkaconnect/connector`. */
 export const model = {
   type: "@swamp/aws/kafkaconnect/connector",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -444,6 +512,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

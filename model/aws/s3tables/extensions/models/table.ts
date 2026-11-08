@@ -123,6 +123,60 @@ const TagSchema = z.object({
   ),
 });
 
+const SchemaFieldStateSchema = z.object({
+  Type: z.string(),
+  Required: z.boolean(),
+  Id: z.number(),
+  Name: z.string(),
+}).partial();
+
+const IcebergSchemaStateSchema = z.object({
+  SchemaFieldList: z.array(SchemaFieldStateSchema),
+}).partial();
+
+const IcebergSortFieldStateSchema = z.object({
+  SourceId: z.number(),
+  NullOrder: z.string(),
+  Transform: z.string(),
+  Direction: z.string(),
+}).partial();
+
+const IcebergSortOrderStateSchema = z.object({
+  Fields: z.array(IcebergSortFieldStateSchema),
+  OrderId: z.number(),
+}).partial();
+
+const SchemaV2FieldStateSchema = z.object({
+  Required: z.boolean(),
+  Doc: z.string(),
+  Id: z.number(),
+  Name: z.string(),
+}).partial();
+
+const IcebergSchemaV2StateSchema = z.object({
+  SchemaV2FieldList: z.array(SchemaV2FieldStateSchema),
+  SchemaV2FieldType: z.string(),
+  SchemaId: z.number(),
+  IdentifierFieldIds: z.array(z.number()),
+}).partial();
+
+const IcebergPartitionFieldStateSchema = z.object({
+  SourceId: z.number(),
+  FieldId: z.number(),
+  Transform: z.string(),
+  Name: z.string(),
+}).partial();
+
+const IcebergPartitionSpecStateSchema = z.object({
+  Fields: z.array(IcebergPartitionFieldStateSchema),
+  SpecId: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -206,11 +260,11 @@ const StateSchema = z.object({
   WithoutMetadata: z.string().optional(),
   StorageClassConfiguration: z.object({
     StorageClass: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Compaction: z.object({
     Status: z.string(),
     TargetFileSizeMB: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Namespace: z.string().optional(),
   TableName: z.string().optional(),
   TableBucketARN: z.string().optional(),
@@ -218,22 +272,22 @@ const StateSchema = z.object({
   TableARN: z.string(),
   OpenTableFormat: z.string().optional(),
   IcebergMetadata: z.object({
-    IcebergSchema: IcebergSchemaSchema,
-    IcebergSortOrder: IcebergSortOrderSchema,
-    IcebergSchemaV2: IcebergSchemaV2Schema,
-    IcebergPartitionSpec: IcebergPartitionSpecSchema,
+    IcebergSchema: IcebergSchemaStateSchema,
+    IcebergSortOrder: IcebergSortOrderStateSchema,
+    IcebergSchemaV2: IcebergSchemaV2StateSchema,
+    IcebergPartitionSpec: IcebergPartitionSpecStateSchema,
     TableProperties: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   WarehouseLocation: z.string().optional(),
   SnapshotManagement: z.object({
     Status: z.string(),
     MinSnapshotsToKeep: z.number(),
     MaxSnapshotAgeHours: z.number(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -323,7 +377,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3Tables Table. Registered at `@swamp/aws/s3tables/table`. */
 export const model = {
   type: "@swamp/aws/s3tables/table",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -392,6 +446,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

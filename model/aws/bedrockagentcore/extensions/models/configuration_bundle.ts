@@ -62,6 +62,16 @@ const TagSchema = z.object({
   ),
 });
 
+const VersionCreatedBySourceStateSchema = z.object({
+  Name: z.string(),
+  Arn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -142,21 +152,24 @@ const StateSchema = z.object({
   Components: z.record(z.string(), z.unknown()).optional(),
   BranchName: z.string().optional(),
   CommitMessage: z.string().optional(),
-  CreatedBy: VersionCreatedBySourceSchema.optional(),
+  CreatedBy: z.object({
+    Name: z.string(),
+    Arn: z.string(),
+  }).partial().optional(),
   VersionId: z.string().optional(),
   LineageMetadata: z.object({
     ParentVersionIds: z.array(z.string()),
     BranchName: z.string(),
-    CreatedBy: VersionCreatedBySourceSchema,
+    CreatedBy: VersionCreatedBySourceStateSchema,
     CommitMessage: z.string(),
-  }).optional(),
+  }).partial().optional(),
   KmsKeyArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -239,7 +252,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore ConfigurationBundle. Registered at `@swamp/aws/bedrockagentcore/configuration-bundle`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/configuration-bundle",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.06.15.2",
@@ -273,6 +286,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

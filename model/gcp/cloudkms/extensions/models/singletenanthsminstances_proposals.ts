@@ -213,50 +213,56 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   addQuorumMember: z.object({
     twoFactorPublicKeyPem: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
-  deleteSingleTenantHsmInstance: z.object({}).optional(),
+  deleteSingleTenantHsmInstance: z.object({}).partial().optional(),
   deleteTime: z.string().optional(),
-  disableSingleTenantHsmInstance: z.object({}).optional(),
-  enableSingleTenantHsmInstance: z.object({}).optional(),
+  disableSingleTenantHsmInstance: z.object({}).partial().optional(),
+  enableSingleTenantHsmInstance: z.object({}).partial().optional(),
   expireTime: z.string().optional(),
   failureReason: z.string().optional(),
   name: z.string(),
   purgeTime: z.string().optional(),
   quorumParameters: z.object({
     approvedTwoFactorPublicKeyPems: z.array(z.string()),
-    challenges: z.array(z.object({
-      challenge: z.string(),
-      publicKeyPem: z.string(),
-    })),
+    challenges: z.array(
+      z.object({
+        challenge: z.string(),
+        publicKeyPem: z.string(),
+      }).partial(),
+    ),
     requiredApproverCount: z.number(),
-  }).optional(),
-  refreshSingleTenantHsmInstance: z.object({}).optional(),
+  }).partial().optional(),
+  refreshSingleTenantHsmInstance: z.object({}).partial().optional(),
   registerTwoFactorAuthKeys: z.object({
     requiredApproverCount: z.number(),
     twoFactorPublicKeyPems: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   removeQuorumMember: z.object({
     twoFactorPublicKeyPem: z.string(),
-  }).optional(),
+  }).partial().optional(),
   requiredActionQuorumParameters: z.object({
     approvedTwoFactorPublicKeyPems: z.array(z.string()),
-    quorumChallenges: z.array(z.object({
-      challenge: z.string(),
-      publicKeyPem: z.string(),
-    })),
+    quorumChallenges: z.array(
+      z.object({
+        challenge: z.string(),
+        publicKeyPem: z.string(),
+      }).partial(),
+    ),
     requiredApproverCount: z.number(),
-    requiredChallenges: z.array(z.object({
-      challenge: z.string(),
-      publicKeyPem: z.string(),
-    })),
-  }).optional(),
+    requiredChallenges: z.array(
+      z.object({
+        challenge: z.string(),
+        publicKeyPem: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   state: z.string().optional(),
   ttl: z.string().optional(),
   upgradeKeyTrust: z.object({
     name: z.string(),
     twoFactorPublicKeyPem: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -360,7 +366,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Key Management Service (KMS) SingleTenantHsmInstances.Proposals. Registered at `@swamp/gcp/cloudkms/singletenanthsminstances-proposals`. */
 export const model = {
   type: "@swamp/gcp/cloudkms/singletenanthsminstances-proposals",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -511,6 +517,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

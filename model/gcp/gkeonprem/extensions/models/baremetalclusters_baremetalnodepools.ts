@@ -274,46 +274,54 @@ const StateSchema = z.object({
       registryBurst: z.number(),
       registryPullQps: z.number(),
       serializeImagePullsDisabled: z.boolean(),
-    }),
+    }).partial(),
     labels: z.record(z.string(), z.unknown()),
-    nodeConfigs: z.array(z.object({
-      labels: z.record(z.string(), z.unknown()),
-      nodeIp: z.string(),
-    })),
+    nodeConfigs: z.array(
+      z.object({
+        labels: z.record(z.string(), z.unknown()),
+        nodeIp: z.string(),
+      }).partial(),
+    ),
     operatingSystem: z.string(),
-    taints: z.array(z.object({
-      effect: z.string(),
-      key: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
+    taints: z.array(
+      z.object({
+        effect: z.string(),
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
   state: z.string().optional(),
   status: z.object({
-    conditions: z.array(z.object({
-      lastTransitionTime: z.string(),
-      message: z.string(),
-      reason: z.string(),
-      state: z.string(),
-      type: z.string(),
-    })),
+    conditions: z.array(
+      z.object({
+        lastTransitionTime: z.string(),
+        message: z.string(),
+        reason: z.string(),
+        state: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     errorMessage: z.string(),
     version: z.string(),
     versions: z.object({
-      versions: z.array(z.object({
-        count: z.string(),
-        version: z.string(),
-      })),
-    }),
-  }).optional(),
+      versions: z.array(
+        z.object({
+          count: z.string(),
+          version: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   upgradePolicy: z.object({
     parallelUpgradeConfig: z.object({
       concurrentNodes: z.number(),
       minimumAvailableNodes: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -428,7 +436,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE On-Prem BareMetalClusters.BareMetalNodePools. Registered at `@swamp/gcp/gkeonprem/baremetalclusters-baremetalnodepools`. */
 export const model = {
   type: "@swamp/gcp/gkeonprem/baremetalclusters-baremetalnodepools",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -601,6 +609,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

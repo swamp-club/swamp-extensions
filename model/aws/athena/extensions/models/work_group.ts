@@ -188,6 +188,94 @@ const ResultConfigurationUpdatesSchema = z.object({
   RemoveAclConfiguration: z.boolean().optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const EncryptionConfigurationStateSchema = z.object({
+  EncryptionOption: z.string(),
+  KmsKey: z.string(),
+}).partial();
+
+const AclConfigurationStateSchema = z.object({
+  S3AclOption: z.string(),
+}).partial();
+
+const ResultConfigurationStateSchema = z.object({
+  EncryptionConfiguration: EncryptionConfigurationStateSchema,
+  OutputLocation: z.string(),
+  ExpectedBucketOwner: z.string(),
+  AclConfiguration: AclConfigurationStateSchema,
+}).partial();
+
+const EngineVersionStateSchema = z.object({
+  SelectedEngineVersion: z.string(),
+  EffectiveEngineVersion: z.string(),
+}).partial();
+
+const CustomerContentEncryptionConfigurationStateSchema = z.object({
+  KmsKey: z.string(),
+}).partial();
+
+const ManagedStorageEncryptionConfigurationStateSchema = z.object({
+  KmsKey: z.string(),
+}).partial();
+
+const ManagedQueryResultsConfigurationStateSchema = z.object({
+  EncryptionConfiguration: ManagedStorageEncryptionConfigurationStateSchema,
+  Enabled: z.boolean(),
+}).partial();
+
+const ClassificationStateSchema = z.object({
+  Name: z.string(),
+  Properties: z.record(z.string(), z.unknown()),
+}).partial();
+
+const EngineConfigurationStateSchema = z.object({
+  CoordinatorDpuSize: z.number(),
+  MaxConcurrentDpus: z.number(),
+  DefaultExecutorDpuSize: z.number(),
+  AdditionalConfigs: z.record(z.string(), z.unknown()),
+  SparkProperties: z.record(z.string(), z.unknown()),
+  Classifications: z.array(ClassificationStateSchema),
+}).partial();
+
+const CloudWatchLoggingConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  LogGroup: z.string(),
+  LogStreamNamePrefix: z.string(),
+  LogTypes: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ManagedLoggingConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  KmsKey: z.string(),
+}).partial();
+
+const S3LoggingConfigurationStateSchema = z.object({
+  Enabled: z.boolean(),
+  LogLocation: z.string(),
+  KmsKey: z.string(),
+}).partial();
+
+const MonitoringConfigurationStateSchema = z.object({
+  CloudWatchLoggingConfiguration: CloudWatchLoggingConfigurationStateSchema,
+  ManagedLoggingConfiguration: ManagedLoggingConfigurationStateSchema,
+  S3LoggingConfiguration: S3LoggingConfigurationStateSchema,
+}).partial();
+
+const ResultConfigurationUpdatesStateSchema = z.object({
+  EncryptionConfiguration: EncryptionConfigurationStateSchema,
+  OutputLocation: z.string(),
+  ExpectedBucketOwner: z.string(),
+  AclConfiguration: AclConfigurationStateSchema,
+  RemoveEncryptionConfiguration: z.boolean(),
+  RemoveOutputLocation: z.boolean(),
+  RemoveExpectedBucketOwner: z.boolean(),
+  RemoveAclConfiguration: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -305,45 +393,47 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Name: z.string(),
   Description: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   WorkGroupConfiguration: z.object({
     BytesScannedCutoffPerQuery: z.number(),
     EnforceWorkGroupConfiguration: z.boolean(),
     PublishCloudWatchMetricsEnabled: z.boolean(),
     RequesterPaysEnabled: z.boolean(),
-    ResultConfiguration: ResultConfigurationSchema,
-    EngineVersion: EngineVersionSchema,
+    ResultConfiguration: ResultConfigurationStateSchema,
+    EngineVersion: EngineVersionStateSchema,
     AdditionalConfiguration: z.string(),
     ExecutionRole: z.string(),
     CustomerContentEncryptionConfiguration:
-      CustomerContentEncryptionConfigurationSchema,
-    ManagedQueryResultsConfiguration: ManagedQueryResultsConfigurationSchema,
-    EngineConfiguration: EngineConfigurationSchema,
-    MonitoringConfiguration: MonitoringConfigurationSchema,
-  }).optional(),
+      CustomerContentEncryptionConfigurationStateSchema,
+    ManagedQueryResultsConfiguration:
+      ManagedQueryResultsConfigurationStateSchema,
+    EngineConfiguration: EngineConfigurationStateSchema,
+    MonitoringConfiguration: MonitoringConfigurationStateSchema,
+  }).partial().optional(),
   WorkGroupConfigurationUpdates: z.object({
     BytesScannedCutoffPerQuery: z.number(),
     EnforceWorkGroupConfiguration: z.boolean(),
     PublishCloudWatchMetricsEnabled: z.boolean(),
     RequesterPaysEnabled: z.boolean(),
-    ResultConfigurationUpdates: ResultConfigurationUpdatesSchema,
+    ResultConfigurationUpdates: ResultConfigurationUpdatesStateSchema,
     RemoveBytesScannedCutoffPerQuery: z.boolean(),
-    EngineVersion: EngineVersionSchema,
+    EngineVersion: EngineVersionStateSchema,
     AdditionalConfiguration: z.string(),
     ExecutionRole: z.string(),
     CustomerContentEncryptionConfiguration:
-      CustomerContentEncryptionConfigurationSchema,
+      CustomerContentEncryptionConfigurationStateSchema,
     RemoveCustomerContentEncryptionConfiguration: z.boolean(),
-    ManagedQueryResultsConfiguration: ManagedQueryResultsConfigurationSchema,
-    EngineConfiguration: EngineConfigurationSchema,
-    MonitoringConfiguration: MonitoringConfigurationSchema,
-  }).optional(),
+    ManagedQueryResultsConfiguration:
+      ManagedQueryResultsConfigurationStateSchema,
+    EngineConfiguration: EngineConfigurationStateSchema,
+    MonitoringConfiguration: MonitoringConfigurationStateSchema,
+  }).partial().optional(),
   CreationTime: z.string().optional(),
   State: z.string().optional(),
   RecursiveDeleteOption: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -470,7 +560,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Athena WorkGroup. Registered at `@swamp/aws/athena/work-group`. */
 export const model = {
   type: "@swamp/aws/athena/work-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -534,6 +624,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

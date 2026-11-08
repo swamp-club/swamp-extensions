@@ -281,87 +281,99 @@ const StateSchema = z.object({
   accessLevel: z.object({
     basic: z.object({
       combiningFunction: z.string(),
-      conditions: z.array(z.object({
-        devicePolicy: z.object({
-          allowedDeviceManagementLevels: z.unknown(),
-          allowedEncryptionStatuses: z.unknown(),
-          osConstraints: z.unknown(),
-          requireAdminApproval: z.unknown(),
-          requireCorpOwned: z.unknown(),
-          requireScreenlock: z.unknown(),
-        }),
-        ipSubnetworks: z.array(z.unknown()),
-        members: z.array(z.unknown()),
-        negate: z.boolean(),
-        regions: z.array(z.unknown()),
-        requiredAccessLevels: z.array(z.unknown()),
-        vpcNetworkSources: z.array(z.unknown()),
-      })),
-    }),
+      conditions: z.array(
+        z.object({
+          devicePolicy: z.object({
+            allowedDeviceManagementLevels: z.unknown(),
+            allowedEncryptionStatuses: z.unknown(),
+            osConstraints: z.unknown(),
+            requireAdminApproval: z.unknown(),
+            requireCorpOwned: z.unknown(),
+            requireScreenlock: z.unknown(),
+          }).partial(),
+          ipSubnetworks: z.array(z.unknown()),
+          members: z.array(z.unknown()),
+          negate: z.boolean(),
+          regions: z.array(z.unknown()),
+          requiredAccessLevels: z.array(z.unknown()),
+          vpcNetworkSources: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     custom: z.object({
       expr: z.object({
         description: z.string(),
         expression: z.string(),
         location: z.string(),
         title: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     description: z.string(),
     name: z.string(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   accessPolicy: z.object({
     etag: z.string(),
     name: z.string(),
     parent: z.string(),
     scopes: z.array(z.string()),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ancestors: z.array(z.string()).optional(),
-  assetExceptions: z.array(z.object({
-    details: z.string(),
-    exceptionType: z.string(),
-  })).optional(),
+  assetExceptions: z.array(
+    z.object({
+      details: z.string(),
+      exceptionType: z.string(),
+    }).partial(),
+  ).optional(),
   assetType: z.string().optional(),
   iamPolicy: z.object({
-    auditConfigs: z.array(z.object({
-      auditLogConfigs: z.array(z.object({
-        exemptedMembers: z.unknown(),
-        logType: z.unknown(),
-      })),
-      service: z.string(),
-    })),
-    bindings: z.array(z.object({
-      condition: z.object({
-        description: z.string(),
-        expression: z.string(),
-        location: z.string(),
-        title: z.string(),
-      }),
-      members: z.array(z.string()),
-      role: z.string(),
-    })),
+    auditConfigs: z.array(
+      z.object({
+        auditLogConfigs: z.array(
+          z.object({
+            exemptedMembers: z.unknown(),
+            logType: z.unknown(),
+          }).partial(),
+        ),
+        service: z.string(),
+      }).partial(),
+    ),
+    bindings: z.array(
+      z.object({
+        condition: z.object({
+          description: z.string(),
+          expression: z.string(),
+          location: z.string(),
+          title: z.string(),
+        }).partial(),
+        members: z.array(z.string()),
+        role: z.string(),
+      }).partial(),
+    ),
     etag: z.string(),
     version: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  orgPolicy: z.array(z.object({
-    booleanPolicy: z.object({
-      enforced: z.boolean(),
-    }),
-    constraint: z.string(),
-    etag: z.string(),
-    listPolicy: z.object({
-      allValues: z.string(),
-      allowedValues: z.array(z.string()),
-      deniedValues: z.array(z.string()),
-      inheritFromParent: z.boolean(),
-      suggestedValue: z.string(),
-    }),
-    restoreDefault: z.object({}),
-    updateTime: z.string(),
-    version: z.number(),
-  })).optional(),
+  orgPolicy: z.array(
+    z.object({
+      booleanPolicy: z.object({
+        enforced: z.boolean(),
+      }).partial(),
+      constraint: z.string(),
+      etag: z.string(),
+      listPolicy: z.object({
+        allValues: z.string(),
+        allowedValues: z.array(z.string()),
+        deniedValues: z.array(z.string()),
+        inheritFromParent: z.boolean(),
+        suggestedValue: z.string(),
+      }).partial(),
+      restoreDefault: z.object({}).partial(),
+      updateTime: z.string(),
+      version: z.number(),
+    }).partial(),
+  ).optional(),
   osInventory: z.object({
     items: z.record(z.string(), z.unknown()),
     name: z.string(),
@@ -374,29 +386,31 @@ const StateSchema = z.object({
       osconfigAgentVersion: z.string(),
       shortName: z.string(),
       version: z.string(),
-    }),
+    }).partial(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   relatedAsset: z.object({
     ancestors: z.array(z.string()),
     asset: z.string(),
     assetType: z.string(),
     relationshipType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   relatedAssets: z.object({
-    assets: z.array(z.object({
-      ancestors: z.array(z.string()),
-      asset: z.string(),
-      assetType: z.string(),
-      relationshipType: z.string(),
-    })),
+    assets: z.array(
+      z.object({
+        ancestors: z.array(z.string()),
+        asset: z.string(),
+        assetType: z.string(),
+        relationshipType: z.string(),
+      }).partial(),
+    ),
     relationshipAttributes: z.object({
       action: z.string(),
       sourceResourceType: z.string(),
       targetResourceType: z.string(),
       type: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   resource: z.object({
     data: z.record(z.string(), z.unknown()),
     discoveryDocumentUri: z.string(),
@@ -405,7 +419,7 @@ const StateSchema = z.object({
     parent: z.string(),
     resourceUrl: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   servicePerimeter: z.object({
     description: z.string(),
     etag: z.string(),
@@ -413,93 +427,105 @@ const StateSchema = z.object({
     perimeterType: z.string(),
     spec: z.object({
       accessLevels: z.array(z.string()),
-      egressPolicies: z.array(z.object({
-        egressFrom: z.object({
-          identities: z.unknown(),
-          identityType: z.unknown(),
-          sourceRestriction: z.unknown(),
-          sources: z.unknown(),
-        }),
-        egressTo: z.object({
-          externalResources: z.unknown(),
-          operations: z.unknown(),
-          resources: z.unknown(),
-          roles: z.unknown(),
-        }),
-        title: z.string(),
-      })),
-      ingressPolicies: z.array(z.object({
-        ingressFrom: z.object({
-          identities: z.unknown(),
-          identityType: z.unknown(),
-          sources: z.unknown(),
-        }),
-        ingressTo: z.object({
-          operations: z.unknown(),
-          resources: z.unknown(),
-          roles: z.unknown(),
-        }),
-        title: z.string(),
-      })),
+      egressPolicies: z.array(
+        z.object({
+          egressFrom: z.object({
+            identities: z.unknown(),
+            identityType: z.unknown(),
+            sourceRestriction: z.unknown(),
+            sources: z.unknown(),
+          }).partial(),
+          egressTo: z.object({
+            externalResources: z.unknown(),
+            operations: z.unknown(),
+            resources: z.unknown(),
+            roles: z.unknown(),
+          }).partial(),
+          title: z.string(),
+        }).partial(),
+      ),
+      ingressPolicies: z.array(
+        z.object({
+          ingressFrom: z.object({
+            identities: z.unknown(),
+            identityType: z.unknown(),
+            sources: z.unknown(),
+          }).partial(),
+          ingressTo: z.object({
+            operations: z.unknown(),
+            resources: z.unknown(),
+            roles: z.unknown(),
+          }).partial(),
+          title: z.string(),
+        }).partial(),
+      ),
       resources: z.array(z.string()),
       restrictedServices: z.array(z.string()),
       vpcAccessibleServices: z.object({
-        allowedServicePatterns: z.array(z.object({
-          modifiers: z.unknown(),
-          pattern: z.unknown(),
-          service: z.unknown(),
-        })),
+        allowedServicePatterns: z.array(
+          z.object({
+            modifiers: z.unknown(),
+            pattern: z.unknown(),
+            service: z.unknown(),
+          }).partial(),
+        ),
         allowedServices: z.array(z.string()),
         enableRestriction: z.boolean(),
         servicePatternsEnforcementScopes: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     status: z.object({
       accessLevels: z.array(z.string()),
-      egressPolicies: z.array(z.object({
-        egressFrom: z.object({
-          identities: z.unknown(),
-          identityType: z.unknown(),
-          sourceRestriction: z.unknown(),
-          sources: z.unknown(),
-        }),
-        egressTo: z.object({
-          externalResources: z.unknown(),
-          operations: z.unknown(),
-          resources: z.unknown(),
-          roles: z.unknown(),
-        }),
-        title: z.string(),
-      })),
-      ingressPolicies: z.array(z.object({
-        ingressFrom: z.object({
-          identities: z.unknown(),
-          identityType: z.unknown(),
-          sources: z.unknown(),
-        }),
-        ingressTo: z.object({
-          operations: z.unknown(),
-          resources: z.unknown(),
-          roles: z.unknown(),
-        }),
-        title: z.string(),
-      })),
+      egressPolicies: z.array(
+        z.object({
+          egressFrom: z.object({
+            identities: z.unknown(),
+            identityType: z.unknown(),
+            sourceRestriction: z.unknown(),
+            sources: z.unknown(),
+          }).partial(),
+          egressTo: z.object({
+            externalResources: z.unknown(),
+            operations: z.unknown(),
+            resources: z.unknown(),
+            roles: z.unknown(),
+          }).partial(),
+          title: z.string(),
+        }).partial(),
+      ),
+      ingressPolicies: z.array(
+        z.object({
+          ingressFrom: z.object({
+            identities: z.unknown(),
+            identityType: z.unknown(),
+            sources: z.unknown(),
+          }).partial(),
+          ingressTo: z.object({
+            operations: z.unknown(),
+            resources: z.unknown(),
+            roles: z.unknown(),
+          }).partial(),
+          title: z.string(),
+        }).partial(),
+      ),
       resources: z.array(z.string()),
       restrictedServices: z.array(z.string()),
       vpcAccessibleServices: z.object({
-        allowedServicePatterns: z.array(z.object({
-          modifiers: z.unknown(),
-          pattern: z.unknown(),
-          service: z.unknown(),
-        })),
+        allowedServicePatterns: z.array(
+          z.object({
+            modifiers: z.unknown(),
+            pattern: z.unknown(),
+            service: z.unknown(),
+          }).partial(),
+        ),
         allowedServices: z.array(z.string()),
         enableRestriction: z.boolean(),
         servicePatternsEnforcementScopes: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     title: z.string(),
     useExplicitDryRunSpec: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -544,7 +570,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Asset Assets. Registered at `@swamp/gcp/cloudasset/assets`. */
 export const model = {
   type: "@swamp/gcp/cloudasset/assets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -688,6 +714,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

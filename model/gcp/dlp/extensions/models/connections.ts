@@ -226,24 +226,26 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   cloudSql: z.object({
-    cloudSqlIam: z.object({}),
+    cloudSqlIam: z.object({}).partial(),
     connectionName: z.string(),
     databaseEngine: z.string(),
     maxConnections: z.number(),
     usernamePassword: z.object({
       passwordSecretVersionName: z.string(),
       username: z.string(),
-    }),
-  }).optional(),
-  errors: z.array(z.object({
-    details: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    extraInfo: z.string(),
-    timestamps: z.array(z.string()),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  errors: z.array(
+    z.object({
+      details: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      extraInfo: z.string(),
+      timestamps: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   state: z.string().optional(),
 }).passthrough();
@@ -354,7 +356,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) Connections. Registered at `@swamp/gcp/dlp/connections`. */
 export const model = {
   type: "@swamp/gcp/dlp/connections",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -493,6 +495,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

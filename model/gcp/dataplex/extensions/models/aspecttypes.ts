@@ -260,7 +260,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   authorization: z.object({
     alternateUsePermission: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dataClassification: z.string().optional(),
   description: z.string().optional(),
@@ -275,16 +275,18 @@ const StateSchema = z.object({
       displayOrder: z.number(),
       stringType: z.string(),
       stringValues: z.array(z.string()),
-    }),
+    }).partial(),
     arrayItems: z.record(z.string(), z.unknown()),
     constraints: z.object({
       required: z.boolean(),
-    }),
-    enumValues: z.array(z.object({
-      deprecated: z.string(),
-      index: z.number(),
-      name: z.string(),
-    })),
+    }).partial(),
+    enumValues: z.array(
+      z.object({
+        deprecated: z.string(),
+        index: z.number(),
+        name: z.string(),
+      }).partial(),
+    ),
     index: z.number(),
     mapItems: z.record(z.string(), z.unknown()),
     name: z.string(),
@@ -292,7 +294,7 @@ const StateSchema = z.object({
     type: z.string(),
     typeId: z.string(),
     typeRef: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   transferStatus: z.string().optional(),
   uid: z.string().optional(),
@@ -420,7 +422,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex AspectTypes. Registered at `@swamp/gcp/dataplex/aspecttypes`. */
 export const model = {
   type: "@swamp/gcp/dataplex/aspecttypes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -601,6 +603,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

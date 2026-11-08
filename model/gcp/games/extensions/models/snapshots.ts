@@ -122,7 +122,7 @@ const StateSchema = z.object({
     mime_type: z.string(),
     url: z.string(),
     width: z.number(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   driveId: z.string().optional(),
   durationMillis: z.string().optional(),
@@ -176,7 +176,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Games Services Snapshots. Registered at `@swamp/gcp/games/snapshots`. */
 export const model = {
   type: "@swamp/gcp/games/snapshots",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -300,6 +300,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

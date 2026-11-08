@@ -173,11 +173,11 @@ const StateSchema = z.object({
   customBiddingAlgorithmRulesId: z.string().optional(),
   error: z.object({
     errorCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   rules: z.object({
     resourceName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -235,7 +235,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 CustomBiddingAlgorithms.Rules. Registered at `@swamp/gcp/displayvideo/custombiddingalgorithms-rules`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/custombiddingalgorithms-rules",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -377,6 +377,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

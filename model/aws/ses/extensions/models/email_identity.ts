@@ -43,6 +43,11 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -112,32 +117,32 @@ const StateSchema = z.object({
   EmailIdentity: z.string(),
   ConfigurationSetAttributes: z.object({
     ConfigurationSetName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DkimSigningAttributes: z.object({
     DomainSigningSelector: z.string(),
     DomainSigningPrivateKey: z.string(),
     NextSigningKeyLength: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DkimAttributes: z.object({
     SigningEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   MailFromAttributes: z.object({
     MailFromDomain: z.string(),
     BehaviorOnMxFailure: z.string(),
-  }).optional(),
+  }).partial().optional(),
   FeedbackAttributes: z.object({
     EmailForwardingEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   DkimDNSTokenName1: z.string().optional(),
   DkimDNSTokenName2: z.string().optional(),
   DkimDNSTokenName3: z.string().optional(),
   DkimDNSTokenValue1: z.string().optional(),
   DkimDNSTokenValue2: z.string().optional(),
   DkimDNSTokenValue3: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -216,7 +221,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES EmailIdentity. Registered at `@swamp/aws/ses/email-identity`. */
 export const model = {
   type: "@swamp/aws/ses/email-identity",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -280,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

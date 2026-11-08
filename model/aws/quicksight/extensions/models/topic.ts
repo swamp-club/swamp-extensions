@@ -442,6 +442,208 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256).describe("Tag value."),
 });
 
+const DataAggregationStateSchema = z.object({
+  DatasetRowDateGranularity: z.string(),
+  DefaultDateColumnName: z.string(),
+}).partial();
+
+const CollectiveConstantStateSchema = z.object({
+  ValueList: z.array(z.string()),
+}).partial();
+
+const TopicCategoryFilterConstantStateSchema = z.object({
+  ConstantType: z.string(),
+  SingularConstant: z.string(),
+  CollectiveConstant: CollectiveConstantStateSchema,
+}).partial();
+
+const TopicCategoryFilterStateSchema = z.object({
+  CategoryFilterFunction: z.string(),
+  CategoryFilterType: z.string(),
+  Constant: TopicCategoryFilterConstantStateSchema,
+  Inverse: z.boolean(),
+}).partial();
+
+const TopicSingularFilterConstantStateSchema = z.object({
+  ConstantType: z.string(),
+  SingularConstant: z.string(),
+}).partial();
+
+const TopicNumericEqualityFilterStateSchema = z.object({
+  Constant: TopicSingularFilterConstantStateSchema,
+  Aggregation: z.string(),
+}).partial();
+
+const RangeConstantStateSchema = z.object({
+  Minimum: z.string(),
+  Maximum: z.string(),
+}).partial();
+
+const TopicRangeFilterConstantStateSchema = z.object({
+  ConstantType: z.string(),
+  RangeConstant: RangeConstantStateSchema,
+}).partial();
+
+const TopicNumericRangeFilterStateSchema = z.object({
+  Inclusive: z.boolean(),
+  Constant: TopicRangeFilterConstantStateSchema,
+  Aggregation: z.string(),
+}).partial();
+
+const TopicDateRangeFilterStateSchema = z.object({
+  Inclusive: z.boolean(),
+  Constant: TopicRangeFilterConstantStateSchema,
+}).partial();
+
+const TopicRelativeDateFilterStateSchema = z.object({
+  TimeGranularity: z.string(),
+  RelativeDateFilterFunction: z.string(),
+  Constant: TopicSingularFilterConstantStateSchema,
+}).partial();
+
+const TopicFilterStateSchema = z.object({
+  FilterDescription: z.string(),
+  FilterClass: z.string(),
+  FilterName: z.string(),
+  FilterSynonyms: z.array(z.string()),
+  OperandFieldName: z.string(),
+  FilterType: z.string(),
+  CategoryFilter: TopicCategoryFilterStateSchema,
+  NumericEqualityFilter: TopicNumericEqualityFilterStateSchema,
+  NumericRangeFilter: TopicNumericRangeFilterStateSchema,
+  DateRangeFilter: TopicDateRangeFilterStateSchema,
+  RelativeDateFilter: TopicRelativeDateFilterStateSchema,
+}).partial();
+
+const ComparativeOrderStateSchema = z.object({
+  UseOrdering: z.string(),
+  SpecifedOrder: z.array(z.string()),
+  TreatUndefinedSpecifiedValues: z.string(),
+}).partial();
+
+const SemanticTypeStateSchema = z.object({
+  TypeName: z.string(),
+  SubTypeName: z.string(),
+  TypeParameters: z.record(z.string(), z.unknown()),
+  TruthyCellValue: z.string(),
+  TruthyCellValueSynonyms: z.array(z.string()),
+  FalseyCellValue: z.string(),
+  FalseyCellValueSynonyms: z.array(z.string()),
+}).partial();
+
+const NegativeFormatStateSchema = z.object({
+  Prefix: z.string(),
+  Suffix: z.string(),
+}).partial();
+
+const DisplayFormatOptionsStateSchema = z.object({
+  UseBlankCellFormat: z.boolean(),
+  BlankCellFormat: z.string(),
+  DateFormat: z.string(),
+  DecimalSeparator: z.string(),
+  GroupingSeparator: z.string(),
+  UseGrouping: z.boolean(),
+  FractionDigits: z.number(),
+  Prefix: z.string(),
+  Suffix: z.string(),
+  UnitScaler: z.string(),
+  NegativeFormat: NegativeFormatStateSchema,
+  CurrencySymbol: z.string(),
+}).partial();
+
+const DefaultFormattingStateSchema = z.object({
+  DisplayFormat: z.string(),
+  DisplayFormatOptions: DisplayFormatOptionsStateSchema,
+}).partial();
+
+const CellValueSynonymStateSchema = z.object({
+  CellValue: z.string(),
+  Synonyms: z.array(z.string()),
+}).partial();
+
+const TopicColumnStateSchema = z.object({
+  ColumnName: z.string(),
+  ColumnFriendlyName: z.string(),
+  ColumnDescription: z.string(),
+  ColumnSynonyms: z.array(z.string()),
+  ColumnDataRole: z.string(),
+  Aggregation: z.string(),
+  IsIncludedInTopic: z.boolean(),
+  DisableIndexing: z.boolean(),
+  ComparativeOrder: ComparativeOrderStateSchema,
+  SemanticType: SemanticTypeStateSchema,
+  TimeGranularity: z.string(),
+  AllowedAggregations: z.array(z.string()),
+  NotAllowedAggregations: z.array(z.string()),
+  DefaultFormatting: DefaultFormattingStateSchema,
+  NeverAggregateInFilter: z.boolean(),
+  CellValueSynonyms: z.array(CellValueSynonymStateSchema),
+  NonAdditive: z.boolean(),
+}).partial();
+
+const TopicCalculatedFieldStateSchema = z.object({
+  CalculatedFieldName: z.string(),
+  CalculatedFieldDescription: z.string(),
+  Expression: z.string(),
+  CalculatedFieldSynonyms: z.array(z.string()),
+  IsIncludedInTopic: z.boolean(),
+  DisableIndexing: z.boolean(),
+  ColumnDataRole: z.string(),
+  TimeGranularity: z.string(),
+  DefaultFormatting: DefaultFormattingStateSchema,
+  Aggregation: z.string(),
+  ComparativeOrder: ComparativeOrderStateSchema,
+  SemanticType: SemanticTypeStateSchema,
+  AllowedAggregations: z.array(z.string()),
+  NotAllowedAggregations: z.array(z.string()),
+  NeverAggregateInFilter: z.boolean(),
+  CellValueSynonyms: z.array(CellValueSynonymStateSchema),
+  NonAdditive: z.boolean(),
+}).partial();
+
+const SemanticEntityTypeStateSchema = z.object({
+  TypeName: z.string(),
+  SubTypeName: z.string(),
+  TypeParameters: z.record(z.string(), z.unknown()),
+}).partial();
+
+const NamedEntityDefinitionMetricStateSchema = z.object({
+  Aggregation: z.string(),
+  AggregationFunctionParameters: z.record(z.string(), z.unknown()),
+}).partial();
+
+const NamedEntityDefinitionStateSchema = z.object({
+  FieldName: z.string(),
+  PropertyName: z.string(),
+  PropertyRole: z.string(),
+  PropertyUsage: z.string(),
+  Metric: NamedEntityDefinitionMetricStateSchema,
+}).partial();
+
+const TopicNamedEntityStateSchema = z.object({
+  EntityName: z.string(),
+  EntityDescription: z.string(),
+  EntitySynonyms: z.array(z.string()),
+  SemanticEntityType: SemanticEntityTypeStateSchema,
+  Definition: z.array(NamedEntityDefinitionStateSchema),
+}).partial();
+
+const DatasetMetadataStateSchema = z.object({
+  DatasetArn: z.string(),
+  DatasetName: z.string(),
+  DatasetDescription: z.string(),
+  DataAggregation: DataAggregationStateSchema,
+  Filters: z.array(TopicFilterStateSchema),
+  Columns: z.array(TopicColumnStateSchema),
+  CalculatedFields: z.array(TopicCalculatedFieldStateSchema),
+  NamedEntities: z.array(TopicNamedEntityStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -486,20 +688,20 @@ const StateSchema = z.object({
   AwsAccountId: z.string(),
   ConfigOptions: z.object({
     QBusinessInsightsEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   CustomInstructions: z.object({
     CustomInstructionsString: z.string(),
-  }).optional(),
-  DataSets: z.array(DatasetMetadataSchema).optional(),
+  }).partial().optional(),
+  DataSets: z.array(DatasetMetadataStateSchema).optional(),
   Description: z.string().optional(),
   FolderArns: z.array(z.string()).optional(),
   Name: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TopicId: z.string(),
   UserExperienceVersion: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -549,7 +751,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Topic. Registered at `@swamp/aws/quicksight/topic`. */
 export const model = {
   type: "@swamp/aws/quicksight/topic",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -618,6 +820,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

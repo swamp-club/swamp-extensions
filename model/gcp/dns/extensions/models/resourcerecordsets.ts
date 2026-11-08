@@ -374,62 +374,70 @@ const StateSchema = z.object({
   routingPolicy: z.object({
     geo: z.object({
       enableFencing: z.boolean(),
-      items: z.array(z.object({
-        healthCheckedTargets: z.object({
-          externalEndpoints: z.unknown(),
-          internalLoadBalancers: z.unknown(),
-        }),
-        kind: z.string(),
-        location: z.string(),
-        rrdatas: z.array(z.unknown()),
-        signatureRrdatas: z.array(z.unknown()),
-      })),
+      items: z.array(
+        z.object({
+          healthCheckedTargets: z.object({
+            externalEndpoints: z.unknown(),
+            internalLoadBalancers: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          location: z.string(),
+          rrdatas: z.array(z.unknown()),
+          signatureRrdatas: z.array(z.unknown()),
+        }).partial(),
+      ),
       kind: z.string(),
-    }),
+    }).partial(),
     healthCheck: z.string(),
     kind: z.string(),
     primaryBackup: z.object({
       backupGeoTargets: z.object({
         enableFencing: z.boolean(),
-        items: z.array(z.object({
-          healthCheckedTargets: z.unknown(),
-          kind: z.unknown(),
-          location: z.unknown(),
-          rrdatas: z.unknown(),
-          signatureRrdatas: z.unknown(),
-        })),
+        items: z.array(
+          z.object({
+            healthCheckedTargets: z.unknown(),
+            kind: z.unknown(),
+            location: z.unknown(),
+            rrdatas: z.unknown(),
+            signatureRrdatas: z.unknown(),
+          }).partial(),
+        ),
         kind: z.string(),
-      }),
+      }).partial(),
       kind: z.string(),
       primaryTargets: z.object({
         externalEndpoints: z.array(z.string()),
-        internalLoadBalancers: z.array(z.object({
-          ipAddress: z.unknown(),
-          ipProtocol: z.unknown(),
-          kind: z.unknown(),
-          loadBalancerType: z.unknown(),
-          networkUrl: z.unknown(),
-          port: z.unknown(),
-          project: z.unknown(),
-          region: z.unknown(),
-        })),
-      }),
+        internalLoadBalancers: z.array(
+          z.object({
+            ipAddress: z.unknown(),
+            ipProtocol: z.unknown(),
+            kind: z.unknown(),
+            loadBalancerType: z.unknown(),
+            networkUrl: z.unknown(),
+            port: z.unknown(),
+            project: z.unknown(),
+            region: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       trickleTraffic: z.number(),
-    }),
+    }).partial(),
     wrr: z.object({
-      items: z.array(z.object({
-        healthCheckedTargets: z.object({
-          externalEndpoints: z.unknown(),
-          internalLoadBalancers: z.unknown(),
-        }),
-        kind: z.string(),
-        rrdatas: z.array(z.unknown()),
-        signatureRrdatas: z.array(z.unknown()),
-        weight: z.number(),
-      })),
+      items: z.array(
+        z.object({
+          healthCheckedTargets: z.object({
+            externalEndpoints: z.unknown(),
+            internalLoadBalancers: z.unknown(),
+          }).partial(),
+          kind: z.string(),
+          rrdatas: z.array(z.unknown()),
+          signatureRrdatas: z.array(z.unknown()),
+          weight: z.number(),
+        }).partial(),
+      ),
       kind: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   rrdatas: z.array(z.string()).optional(),
   signatureRrdatas: z.array(z.string()).optional(),
   ttl: z.number().optional(),
@@ -617,7 +625,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS ResourceRecordSets. Registered at `@swamp/gcp/dns/resourcerecordsets`. */
 export const model = {
   type: "@swamp/gcp/dns/resourcerecordsets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -786,6 +794,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

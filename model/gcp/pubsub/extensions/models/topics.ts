@@ -682,14 +682,14 @@ const StateSchema = z.object({
       gcpServiceAccount: z.string(),
       state: z.string(),
       streamArn: z.string(),
-    }),
+    }).partial(),
     awsMsk: z.object({
       awsRoleArn: z.string(),
       clusterArn: z.string(),
       gcpServiceAccount: z.string(),
       state: z.string(),
       topic: z.string(),
-    }),
+    }).partial(),
     azureEventHubs: z.object({
       clientId: z.string(),
       eventHub: z.string(),
@@ -699,18 +699,18 @@ const StateSchema = z.object({
       state: z.string(),
       subscriptionId: z.string(),
       tenantId: z.string(),
-    }),
+    }).partial(),
     cloudStorage: z.object({
-      avroFormat: z.object({}),
+      avroFormat: z.object({}).partial(),
       bucket: z.string(),
       matchGlob: z.string(),
       minimumObjectCreateTime: z.string(),
-      pubsubAvroFormat: z.object({}),
+      pubsubAvroFormat: z.object({}).partial(),
       state: z.string(),
       textFormat: z.object({
         delimiter: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     confluentCloud: z.object({
       bootstrapServer: z.string(),
       clusterId: z.string(),
@@ -718,37 +718,39 @@ const StateSchema = z.object({
       identityPoolId: z.string(),
       state: z.string(),
       topic: z.string(),
-    }),
+    }).partial(),
     platformLogsSettings: z.object({
       severity: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   kmsKeyName: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   messageRetentionDuration: z.string().optional(),
   messageStoragePolicy: z.object({
     allowedPersistenceRegions: z.array(z.string()),
     enforceInTransit: z.boolean(),
-  }).optional(),
-  messageTransforms: z.array(z.object({
-    aiInference: z.object({
-      endpoint: z.string(),
-      serviceAccountEmail: z.string(),
-      unstructuredInference: z.object({
-        parameters: z.record(z.string(), z.unknown()),
-      }),
-    }),
-    compression: z.object({
-      compressionAlgorithm: z.string(),
-      compressionMode: z.string(),
-    }),
-    disabled: z.boolean(),
-    enabled: z.boolean(),
-    javascriptUdf: z.object({
-      code: z.string(),
-      functionName: z.string(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  messageTransforms: z.array(
+    z.object({
+      aiInference: z.object({
+        endpoint: z.string(),
+        serviceAccountEmail: z.string(),
+        unstructuredInference: z.object({
+          parameters: z.record(z.string(), z.unknown()),
+        }).partial(),
+      }).partial(),
+      compression: z.object({
+        compressionAlgorithm: z.string(),
+        compressionMode: z.string(),
+      }).partial(),
+      disabled: z.boolean(),
+      enabled: z.boolean(),
+      javascriptUdf: z.object({
+        code: z.string(),
+        functionName: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   satisfiesPzs: z.boolean().optional(),
   schemaSettings: z.object({
@@ -756,7 +758,7 @@ const StateSchema = z.object({
     firstRevisionId: z.string(),
     lastRevisionId: z.string(),
     schema: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
@@ -1327,7 +1329,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Topics. Registered at `@swamp/gcp/pubsub/topics`. */
 export const model = {
   type: "@swamp/gcp/pubsub/topics",
-  version: "2026.10.24.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1590,6 +1592,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

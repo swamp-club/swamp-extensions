@@ -58,6 +58,17 @@ const EncryptionAtRestSchema = z.object({
   ).optional(),
 });
 
+const ConnectionPasswordEncryptionStateSchema = z.object({
+  KmsKeyId: z.string(),
+  ReturnConnectionPasswordEncrypted: z.boolean(),
+}).partial();
+
+const EncryptionAtRestStateSchema = z.object({
+  CatalogEncryptionMode: z.string(),
+  CatalogEncryptionServiceRole: z.string(),
+  SseAwsKmsKeyId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -89,12 +100,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   CatalogId: z.string(),
   DataCatalogEncryptionSettings: z.object({
-    ConnectionPasswordEncryption: ConnectionPasswordEncryptionSchema,
-    EncryptionAtRest: EncryptionAtRestSchema,
-  }).optional(),
+    ConnectionPasswordEncryption: ConnectionPasswordEncryptionStateSchema,
+    EncryptionAtRest: EncryptionAtRestStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -135,7 +146,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue DataCatalogEncryptionSettings. Registered at `@swamp/aws/glue/data-catalog-encryption-settings`. */
 export const model = {
   type: "@swamp/aws/glue/data-catalog-encryption-settings",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -154,6 +165,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

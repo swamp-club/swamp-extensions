@@ -124,7 +124,7 @@ const StateSchema = z.object({
   geoLocation: z.object({
     formattedAddress: z.string(),
     regionCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   guid: z.string().optional(),
   host: z.object({
     cloudInstanceId: z.string(),
@@ -134,24 +134,28 @@ const StateSchema = z.object({
     cloudVirtualNetworkIds: z.array(z.string()),
     cloudZone: z.string(),
     os: z.string(),
-  }).optional(),
+  }).partial().optional(),
   hostname: z.string().optional(),
   name: z.string(),
-  networkInterfaces: z.array(z.object({
-    adapterDescription: z.string(),
-    cidr: z.string(),
-    interfaceName: z.string(),
-    ipAddress: z.string(),
-    macAddress: z.string(),
-    speed: z.string(),
-    vlanId: z.string(),
-  })).optional(),
+  networkInterfaces: z.array(
+    z.object({
+      adapterDescription: z.string(),
+      cidr: z.string(),
+      interfaceName: z.string(),
+      ipAddress: z.string(),
+      macAddress: z.string(),
+      speed: z.string(),
+      vlanId: z.string(),
+    }).partial(),
+  ).optional(),
   originatingIp: z.string().optional(),
-  providerTags: z.array(z.object({
-    category: z.string(),
-    resourceType: z.string(),
-    value: z.string(),
-  })).optional(),
+  providerTags: z.array(
+    z.object({
+      category: z.string(),
+      resourceType: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   type: z.string().optional(),
   updateTime: z.string().optional(),
   upgradeAvailable: z.boolean().optional(),
@@ -204,7 +208,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/networkmanagement/networkmonitoringproviders-monitoringpoints",
-  version: "2026.10.27.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -238,6 +242,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -131,12 +131,12 @@ const StateSchema = z.object({
     resourceKey: z.string(),
     resourceKeySet: z.boolean(),
     revisionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   latestReviewSummary: z.object({
     createTime: z.string(),
     review: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
 }).passthrough();
 
@@ -178,7 +178,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deep Review Documents. Registered at `@swamp/gcp/deepreview/documents`. */
 export const model = {
   type: "@swamp/gcp/deepreview/documents",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -192,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

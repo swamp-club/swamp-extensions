@@ -67,6 +67,36 @@ const EumsSmsConfigurationSchema = z.object({
   Region: z.string().optional(),
 });
 
+const CustomEmailSenderStateSchema = z.object({
+  LambdaVersion: z.string(),
+  LambdaArn: z.string(),
+}).partial();
+
+const CustomSMSSenderStateSchema = z.object({
+  LambdaVersion: z.string(),
+  LambdaArn: z.string(),
+}).partial();
+
+const PreTokenGenerationConfigStateSchema = z.object({
+  LambdaVersion: z.string(),
+  LambdaArn: z.string(),
+}).partial();
+
+const InboundFederationStateSchema = z.object({
+  LambdaVersion: z.string(),
+  LambdaArn: z.string(),
+}).partial();
+
+const EumsSmsConfigurationStateSchema = z.object({
+  CallerArn: z.string(),
+  ExternalId: z.string(),
+  OriginationIdentity: z.string(),
+  ConfigurationSetName: z.string(),
+  InEntityId: z.string(),
+  InTemplateId: z.string(),
+  Region: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -126,7 +156,7 @@ const StateSchema = z.object({
     From: z.string(),
     ConfigurationSet: z.string(),
     EmailSendingAccount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LambdaConfig: z.object({
     CreateAuthChallenge: z.string(),
     CustomMessage: z.string(),
@@ -138,22 +168,22 @@ const StateSchema = z.object({
     VerifyAuthChallengeResponse: z.string(),
     UserMigration: z.string(),
     PreTokenGeneration: z.string(),
-    CustomEmailSender: CustomEmailSenderSchema,
-    CustomSMSSender: CustomSMSSenderSchema,
-    PreTokenGenerationConfig: PreTokenGenerationConfigSchema,
-    InboundFederation: InboundFederationSchema,
+    CustomEmailSender: CustomEmailSenderStateSchema,
+    CustomSMSSender: CustomSMSSenderStateSchema,
+    PreTokenGenerationConfig: PreTokenGenerationConfigStateSchema,
+    InboundFederation: InboundFederationStateSchema,
     KMSKeyID: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SmsConfiguration: z.object({
     ExternalId: z.string(),
     SnsCallerArn: z.string(),
     SnsRegion: z.string(),
-    EumsSms: EumsSmsConfigurationSchema,
-  }).optional(),
+    EumsSms: EumsSmsConfigurationStateSchema,
+  }).partial().optional(),
   UserPoolTags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -216,7 +246,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito UserPoolRegionalConfigurationAttachment. Registered at `@swamp/aws/cognito/user-pool-regional-configuration-attachment`. */
 export const model = {
   type: "@swamp/aws/cognito/user-pool-regional-configuration-attachment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -240,6 +270,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

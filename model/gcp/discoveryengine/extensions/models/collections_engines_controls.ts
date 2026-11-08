@@ -318,30 +318,38 @@ const StateSchema = z.object({
     fixedBoost: z.number(),
     interpolationBoostSpec: z.object({
       attributeType: z.string(),
-      controlPoints: z.array(z.object({
-        attributeValue: z.string(),
-        boostAmount: z.number(),
-      })),
+      controlPoints: z.array(
+        z.object({
+          attributeValue: z.string(),
+          boostAmount: z.number(),
+        }).partial(),
+      ),
       fieldName: z.string(),
       interpolationType: z.string(),
-    }),
-  }).optional(),
-  conditions: z.array(z.object({
-    activeTimeRange: z.array(z.object({
-      endTime: z.string(),
-      startTime: z.string(),
-    })),
-    queryRegex: z.string(),
-    queryTerms: z.array(z.object({
-      fullMatch: z.boolean(),
-      value: z.string(),
-    })),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  conditions: z.array(
+    z.object({
+      activeTimeRange: z.array(
+        z.object({
+          endTime: z.string(),
+          startTime: z.string(),
+        }).partial(),
+      ),
+      queryRegex: z.string(),
+      queryTerms: z.array(
+        z.object({
+          fullMatch: z.boolean(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   displayName: z.string().optional(),
   filterAction: z.object({
     dataStore: z.string(),
     filter: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   promoteAction: z.object({
     dataStore: z.string(),
@@ -352,15 +360,15 @@ const StateSchema = z.object({
       imageUri: z.string(),
       title: z.string(),
       uri: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   redirectAction: z.object({
     redirectUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   solutionType: z.string().optional(),
   synonymsAction: z.object({
     synonyms: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   useCases: z.array(z.string()).optional(),
 }).passthrough();
 
@@ -549,7 +557,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Controls. Registered at `@swamp/gcp/discoveryengine/collections-engines-controls`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-controls",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -688,6 +696,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -65,6 +65,24 @@ const SubnetMappingSchema = z.object({
   ).optional(),
 });
 
+const LoadBalancerAttributeStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const SubnetMappingStateSchema = z.object({
+  SubnetId: z.string(),
+  AllocationId: z.string(),
+  PrivateIPv4Address: z.string(),
+  IPv6Address: z.string(),
+  SourceNatIpv6Prefix: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -127,10 +145,10 @@ const StateSchema = z.object({
   IpAddressType: z.string().optional(),
   EnablePrefixForIpv6SourceNat: z.string().optional(),
   SecurityGroups: z.array(z.string()).optional(),
-  LoadBalancerAttributes: z.array(LoadBalancerAttributeSchema).optional(),
+  LoadBalancerAttributes: z.array(LoadBalancerAttributeStateSchema).optional(),
   MinimumLoadBalancerCapacity: z.object({
     CapacityUnits: z.number(),
-  }).optional(),
+  }).partial().optional(),
   EnableCapacityReservationProvisionStabilize: z.boolean().optional(),
   Scheme: z.string().optional(),
   DNSName: z.string().optional(),
@@ -140,14 +158,14 @@ const StateSchema = z.object({
   Subnets: z.array(z.string()).optional(),
   Type: z.string().optional(),
   CanonicalHostedZoneID: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LoadBalancerArn: z.string(),
-  SubnetMappings: z.array(SubnetMappingSchema).optional(),
+  SubnetMappings: z.array(SubnetMappingStateSchema).optional(),
   EnforceSecurityGroupInboundRulesOnPrivateLinkTraffic: z.string().optional(),
   Ipv4IpamPoolId: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -217,7 +235,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticLoadBalancingV2 LoadBalancer. Registered at `@swamp/aws/elasticloadbalancingv2/load-balancer`. */
 export const model = {
   type: "@swamp/aws/elasticloadbalancingv2/load-balancer",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -276,6 +294,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

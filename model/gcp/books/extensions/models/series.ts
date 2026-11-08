@@ -82,33 +82,35 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   kind: z.string().optional(),
-  series: z.array(z.object({
-    bannerImageUrl: z.string(),
-    eligibleForSubscription: z.boolean(),
-    imageUrl: z.string(),
-    isComplete: z.boolean(),
-    seriesFormatType: z.string(),
-    seriesId: z.string(),
-    seriesSubscriptionReleaseInfo: z.object({
-      cancelTime: z.string(),
-      currentReleaseInfo: z.object({
-        amountInMicros: z.number(),
-        currencyCode: z.string(),
-        releaseNumber: z.string(),
-        releaseTime: z.string(),
-      }),
-      nextReleaseInfo: z.object({
-        amountInMicros: z.number(),
-        currencyCode: z.string(),
-        releaseNumber: z.string(),
-        releaseTime: z.string(),
-      }),
-      seriesSubscriptionType: z.string(),
-    }),
-    seriesType: z.string(),
-    subscriptionId: z.string(),
-    title: z.string(),
-  })).optional(),
+  series: z.array(
+    z.object({
+      bannerImageUrl: z.string(),
+      eligibleForSubscription: z.boolean(),
+      imageUrl: z.string(),
+      isComplete: z.boolean(),
+      seriesFormatType: z.string(),
+      seriesId: z.string(),
+      seriesSubscriptionReleaseInfo: z.object({
+        cancelTime: z.string(),
+        currentReleaseInfo: z.object({
+          amountInMicros: z.number(),
+          currencyCode: z.string(),
+          releaseNumber: z.string(),
+          releaseTime: z.string(),
+        }).partial(),
+        nextReleaseInfo: z.object({
+          amountInMicros: z.number(),
+          currencyCode: z.string(),
+          releaseNumber: z.string(),
+          releaseTime: z.string(),
+        }).partial(),
+        seriesSubscriptionType: z.string(),
+      }).partial(),
+      seriesType: z.string(),
+      subscriptionId: z.string(),
+      title: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -149,7 +151,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Books Series. Registered at `@swamp/gcp/books/series`. */
 export const model = {
   type: "@swamp/gcp/books/series",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -263,6 +265,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -46,6 +46,11 @@ const TagSchema = z.object({
   ).describe("The value for an AWS resource tag."),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -171,12 +176,12 @@ const StateSchema = z.object({
   Domain: z.string().optional(),
   MountOptions: z.object({
     Version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Password: z.string().optional(),
   ServerHostname: z.string().optional(),
   Subdirectory: z.string().optional(),
   User: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LocationArn: z.string(),
   LocationUri: z.string().optional(),
   AuthenticationType: z.string().optional(),
@@ -187,17 +192,17 @@ const StateSchema = z.object({
   CmkSecretConfig: z.object({
     SecretArn: z.string(),
     KmsKeyArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CustomSecretConfig: z.object({
     SecretArn: z.string(),
     SecretAccessRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ManagedSecretConfig: z.object({
     SecretArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -329,7 +334,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationSMB. Registered at `@swamp/aws/datasync/location-smb`. */
 export const model = {
   type: "@swamp/aws/datasync/location-smb",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -348,6 +353,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -44,6 +44,12 @@ const ResourceSelectionSchema = z.object({
   ResourceType: z.string(),
 });
 
+const ResourceSelectionStateSchema = z.object({
+  Resources: z.array(z.string()),
+  TieringDownSettingsInDays: z.number(),
+  ResourceType: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -67,13 +73,13 @@ const StateSchema = z.object({
   TieringConfigurationName: z.string(),
   TieringConfigurationArn: z.string().optional(),
   BackupVaultName: z.string().optional(),
-  ResourceSelection: z.array(ResourceSelectionSchema).optional(),
+  ResourceSelection: z.array(ResourceSelectionStateSchema).optional(),
   TieringConfigurationTags: z.record(z.string(), z.unknown()).optional(),
   CreationTime: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -105,7 +111,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup TieringConfiguration. Registered at `@swamp/aws/backup/tiering-configuration`. */
 export const model = {
   type: "@swamp/aws/backup/tiering-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -169,6 +175,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

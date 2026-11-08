@@ -72,11 +72,11 @@ const StateSchema = z.object({
   Name: z.string(),
   Reference: z.object({
     ReferenceArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SseConfig: z.object({
     Type: z.string(),
     KeyArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   StatusMessage: z.string().optional(),
   StoreArn: z.string().optional(),
@@ -85,7 +85,7 @@ const StateSchema = z.object({
   UpdateTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -127,7 +127,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Omics VariantStore. Registered at `@swamp/aws/omics/variant-store`. */
 export const model = {
   type: "@swamp/aws/omics/variant-store",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

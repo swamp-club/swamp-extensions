@@ -244,6 +244,132 @@ const IcebergInputSchema = z.object({
   ).optional(),
 });
 
+const ColumnStateSchema = z.object({
+  Comment: z.string(),
+  Type: z.string(),
+  Name: z.string(),
+}).partial();
+
+const SerdeInfoStateSchema = z.object({
+  Parameters: z.record(z.string(), z.unknown()),
+  SerializationLibrary: z.string(),
+  Name: z.string(),
+}).partial();
+
+const OrderStateSchema = z.object({
+  Column: z.string(),
+  SortOrder: z.number(),
+}).partial();
+
+const SchemaIdStateSchema = z.object({
+  RegistryName: z.string(),
+  SchemaName: z.string(),
+  SchemaArn: z.string(),
+}).partial();
+
+const SchemaReferenceStateSchema = z.object({
+  SchemaId: SchemaIdStateSchema,
+  SchemaVersionId: z.string(),
+  SchemaVersionNumber: z.number(),
+}).partial();
+
+const SkewedInfoStateSchema = z.object({
+  SkewedColumnValues: z.array(z.string()),
+  SkewedColumnValueLocationMaps: z.record(z.string(), z.unknown()),
+  SkewedColumnNames: z.array(z.string()),
+}).partial();
+
+const StorageDescriptorStateSchema = z.object({
+  StoredAsSubDirectories: z.boolean(),
+  Parameters: z.record(z.string(), z.unknown()),
+  BucketColumns: z.array(z.string()),
+  NumberOfBuckets: z.number(),
+  OutputFormat: z.string(),
+  Columns: z.array(ColumnStateSchema),
+  SerdeInfo: SerdeInfoStateSchema,
+  SortColumns: z.array(OrderStateSchema),
+  Compressed: z.boolean(),
+  SchemaReference: SchemaReferenceStateSchema,
+  SkewedInfo: SkewedInfoStateSchema,
+  InputFormat: z.string(),
+  Location: z.string(),
+}).partial();
+
+const TableIdentifierStateSchema = z.object({
+  DatabaseName: z.string(),
+  Region: z.string(),
+  CatalogId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const ViewRepresentationStateSchema = z.object({
+  Dialect: z.string(),
+  DialectVersion: z.string(),
+  ViewOriginalText: z.string(),
+  ViewExpandedText: z.string(),
+  ValidationConnection: z.string(),
+}).partial();
+
+const ViewDefinitionStateSchema = z.object({
+  IsProtected: z.boolean(),
+  Definer: z.string(),
+  SubObjects: z.array(z.string()),
+  Representations: z.array(ViewRepresentationStateSchema),
+}).partial();
+
+const IcebergStructFieldStateSchema = z.object({
+  Id: z.number(),
+  Name: z.string(),
+  Type: z.string(),
+  Required: z.boolean(),
+  Doc: z.string(),
+}).partial();
+
+const IcebergSchemaStateSchema = z.object({
+  SchemaId: z.number(),
+  IdentifierFieldIds: z.array(z.number()),
+  Type: z.string(),
+  Fields: z.array(IcebergStructFieldStateSchema),
+}).partial();
+
+const IcebergPartitionFieldStateSchema = z.object({
+  SourceId: z.number(),
+  Transform: z.string(),
+  Name: z.string(),
+  FieldId: z.number(),
+}).partial();
+
+const IcebergPartitionSpecStateSchema = z.object({
+  Fields: z.array(IcebergPartitionFieldStateSchema),
+  SpecId: z.number(),
+}).partial();
+
+const IcebergSortFieldStateSchema = z.object({
+  SourceId: z.number(),
+  Transform: z.string(),
+  Direction: z.string(),
+  NullOrder: z.string(),
+}).partial();
+
+const IcebergSortOrderStateSchema = z.object({
+  OrderId: z.number(),
+  Fields: z.array(IcebergSortFieldStateSchema),
+}).partial();
+
+const IcebergTableInputStateSchema = z.object({
+  Location: z.string(),
+  Schema: IcebergSchemaStateSchema,
+  PartitionSpec: IcebergPartitionSpecStateSchema,
+  WriteOrder: IcebergSortOrderStateSchema,
+  Properties: z.record(z.string(), z.unknown()),
+}).partial();
+
+const IcebergInputStateSchema = z.object({
+  MetadataOperation: z.string(),
+  Version: z.string(),
+  IcebergTableInput: IcebergTableInputStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -322,21 +448,21 @@ const StateSchema = z.object({
     TableType: z.string(),
     Parameters: z.record(z.string(), z.unknown()),
     ViewExpandedText: z.string(),
-    StorageDescriptor: StorageDescriptorSchema,
-    TargetTable: TableIdentifierSchema,
-    PartitionKeys: z.array(ColumnSchema),
+    StorageDescriptor: StorageDescriptorStateSchema,
+    TargetTable: TableIdentifierStateSchema,
+    PartitionKeys: z.array(ColumnStateSchema),
     Retention: z.number(),
     Name: z.string(),
-    ViewDefinition: ViewDefinitionSchema,
-  }).optional(),
+    ViewDefinition: ViewDefinitionStateSchema,
+  }).partial().optional(),
   OpenTableFormatInput: z.object({
-    IcebergInput: IcebergInputSchema,
-  }).optional(),
+    IcebergInput: IcebergInputStateSchema,
+  }).partial().optional(),
   CatalogId: z.string(),
   Name: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -416,7 +542,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Table. Registered at `@swamp/aws/glue/table`. */
 export const model = {
   type: "@swamp/aws/glue/table",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -435,6 +561,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

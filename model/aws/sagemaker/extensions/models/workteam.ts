@@ -70,6 +70,26 @@ const TagSchema = z.object({
   Value: z.string().describe("The value of the tag."),
 });
 
+const CognitoMemberDefinitionStateSchema = z.object({
+  CognitoUserGroup: z.string(),
+  CognitoUserPool: z.string(),
+  CognitoClientId: z.string(),
+}).partial();
+
+const OidcMemberDefinitionStateSchema = z.object({
+  OidcGroups: z.array(z.string()),
+}).partial();
+
+const MemberDefinitionStateSchema = z.object({
+  CognitoMemberDefinition: CognitoMemberDefinitionStateSchema,
+  OidcMemberDefinition: OidcMemberDefinitionStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -113,12 +133,12 @@ const StateSchema = z.object({
   WorkteamArn: z.string(),
   NotificationConfiguration: z.object({
     NotificationTopicArn: z.string(),
-  }).optional(),
-  MemberDefinitions: z.array(MemberDefinitionSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  MemberDefinitions: z.array(MemberDefinitionStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -165,7 +185,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Workteam. Registered at `@swamp/aws/sagemaker/workteam`. */
 export const model = {
   type: "@swamp/aws/sagemaker/workteam",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -179,6 +199,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

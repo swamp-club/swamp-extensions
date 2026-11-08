@@ -289,6 +289,127 @@ const TagSchema = z.object({
   ),
 });
 
+const ConstraintsResourceStateSchema = z.object({
+  S3Uri: z.string(),
+}).partial();
+
+const StatisticsResourceStateSchema = z.object({
+  S3Uri: z.string(),
+}).partial();
+
+const BaselineConfigStateSchema = z.object({
+  ConstraintsResource: ConstraintsResourceStateSchema,
+  StatisticsResource: StatisticsResourceStateSchema,
+}).partial();
+
+const MonitoringAppSpecificationStateSchema = z.object({
+  ContainerArguments: z.array(z.string()),
+  ContainerEntrypoint: z.array(z.string()),
+  ImageUri: z.string(),
+  PostAnalyticsProcessorSourceUri: z.string(),
+  RecordPreprocessorSourceUri: z.string(),
+}).partial();
+
+const EndpointInputStateSchema = z.object({
+  EndpointName: z.string(),
+  LocalPath: z.string(),
+  S3DataDistributionType: z.string(),
+  S3InputMode: z.string(),
+  ExcludeFeaturesAttribute: z.string(),
+}).partial();
+
+const CsvStateSchema = z.object({
+  Header: z.boolean(),
+}).partial();
+
+const JsonStateSchema = z.object({
+  Line: z.boolean(),
+}).partial();
+
+const DatasetFormatStateSchema = z.object({
+  Csv: CsvStateSchema,
+  Json: JsonStateSchema,
+  Parquet: z.boolean(),
+}).partial();
+
+const BatchTransformInputStateSchema = z.object({
+  DataCapturedDestinationS3Uri: z.string(),
+  DatasetFormat: DatasetFormatStateSchema,
+  LocalPath: z.string(),
+  S3DataDistributionType: z.string(),
+  S3InputMode: z.string(),
+  ExcludeFeaturesAttribute: z.string(),
+}).partial();
+
+const MonitoringInputStateSchema = z.object({
+  EndpointInput: EndpointInputStateSchema,
+  BatchTransformInput: BatchTransformInputStateSchema,
+}).partial();
+
+const S3OutputStateSchema = z.object({
+  LocalPath: z.string(),
+  S3UploadMode: z.string(),
+  S3Uri: z.string(),
+}).partial();
+
+const MonitoringOutputStateSchema = z.object({
+  S3Output: S3OutputStateSchema,
+}).partial();
+
+const MonitoringOutputConfigStateSchema = z.object({
+  KmsKeyId: z.string(),
+  MonitoringOutputs: z.array(MonitoringOutputStateSchema),
+}).partial();
+
+const ClusterConfigStateSchema = z.object({
+  InstanceCount: z.number(),
+  InstanceType: z.string(),
+  VolumeKmsKeyId: z.string(),
+  VolumeSizeInGB: z.number(),
+}).partial();
+
+const MonitoringResourcesStateSchema = z.object({
+  ClusterConfig: ClusterConfigStateSchema,
+}).partial();
+
+const VpcConfigStateSchema = z.object({
+  SecurityGroupIds: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const NetworkConfigStateSchema = z.object({
+  EnableInterContainerTrafficEncryption: z.boolean(),
+  EnableNetworkIsolation: z.boolean(),
+  VpcConfig: VpcConfigStateSchema,
+}).partial();
+
+const StoppingConditionStateSchema = z.object({
+  MaxRuntimeInSeconds: z.number(),
+}).partial();
+
+const MonitoringJobDefinitionStateSchema = z.object({
+  BaselineConfig: BaselineConfigStateSchema,
+  Environment: z.record(z.string(), z.unknown()),
+  MonitoringAppSpecification: MonitoringAppSpecificationStateSchema,
+  MonitoringInputs: z.array(MonitoringInputStateSchema),
+  MonitoringOutputConfig: MonitoringOutputConfigStateSchema,
+  MonitoringResources: MonitoringResourcesStateSchema,
+  NetworkConfig: NetworkConfigStateSchema,
+  RoleArn: z.string(),
+  StoppingCondition: StoppingConditionStateSchema,
+}).partial();
+
+const ScheduleConfigStateSchema = z.object({
+  ScheduleExpression: z.string(),
+  DataAnalysisStartTime: z.string(),
+  DataAnalysisEndTime: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -387,12 +508,12 @@ const StateSchema = z.object({
   MonitoringScheduleArn: z.string(),
   MonitoringScheduleName: z.string().optional(),
   MonitoringScheduleConfig: z.object({
-    MonitoringJobDefinition: MonitoringJobDefinitionSchema,
+    MonitoringJobDefinition: MonitoringJobDefinitionStateSchema,
     MonitoringJobDefinitionName: z.string(),
     MonitoringType: z.string(),
-    ScheduleConfig: ScheduleConfigSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    ScheduleConfig: ScheduleConfigStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CreationTime: z.string().optional(),
   EndpointName: z.string().optional(),
   FailureReason: z.string().optional(),
@@ -406,11 +527,11 @@ const StateSchema = z.object({
     MonitoringScheduleName: z.string(),
     ProcessingJobArn: z.string(),
     ScheduledTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MonitoringScheduleStatus: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -515,7 +636,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker MonitoringSchedule. Registered at `@swamp/aws/sagemaker/monitoring-schedule`. */
 export const model = {
   type: "@swamp/aws/sagemaker/monitoring-schedule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -584,6 +705,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

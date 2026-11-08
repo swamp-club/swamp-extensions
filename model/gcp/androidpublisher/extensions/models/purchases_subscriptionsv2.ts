@@ -95,116 +95,118 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   acknowledgementState: z.string().optional(),
   canceledStateContext: z.object({
-    developerInitiatedCancellation: z.object({}),
-    replacementCancellation: z.object({}),
-    systemInitiatedCancellation: z.object({}),
+    developerInitiatedCancellation: z.object({}).partial(),
+    replacementCancellation: z.object({}).partial(),
+    systemInitiatedCancellation: z.object({}).partial(),
     userInitiatedCancellation: z.object({
       cancelSurveyResult: z.object({
         reason: z.string(),
         reasonUserInput: z.string(),
-      }),
+      }).partial(),
       cancelTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   etag: z.string().optional(),
   externalAccountIdentifiers: z.object({
     externalAccountId: z.string(),
     obfuscatedExternalAccountId: z.string(),
     obfuscatedExternalProfileId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inGracePeriodStateContext: z.object({
     renewalDeclined: z.object({
       pendingOrderId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   kind: z.string().optional(),
-  lineItems: z.array(z.object({
-    autoRenewingPlan: z.object({
-      autoRenewEnabled: z.boolean(),
-      installmentDetails: z.object({
-        initialCommittedPaymentsCount: z.number(),
-        pendingCancellation: z.object({}),
-        remainingCommittedPaymentsCount: z.number(),
-        subsequentCommittedPaymentsCount: z.number(),
-      }),
-      priceChangeDetails: z.object({
-        expectedNewPriceChargeTime: z.string(),
-        newPrice: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-        priceChangeMode: z.string(),
-        priceChangeState: z.string(),
-      }),
-      priceStepUpConsentDetails: z.object({
-        consentDeadlineTime: z.string(),
-        newPrice: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-        state: z.string(),
-      }),
-      recurringPrice: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-    }),
-    deferredItemRemoval: z.object({}),
-    deferredItemReplacement: z.object({
+  lineItems: z.array(
+    z.object({
+      autoRenewingPlan: z.object({
+        autoRenewEnabled: z.boolean(),
+        installmentDetails: z.object({
+          initialCommittedPaymentsCount: z.number(),
+          pendingCancellation: z.object({}).partial(),
+          remainingCommittedPaymentsCount: z.number(),
+          subsequentCommittedPaymentsCount: z.number(),
+        }).partial(),
+        priceChangeDetails: z.object({
+          expectedNewPriceChargeTime: z.string(),
+          newPrice: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          priceChangeMode: z.string(),
+          priceChangeState: z.string(),
+        }).partial(),
+        priceStepUpConsentDetails: z.object({
+          consentDeadlineTime: z.string(),
+          newPrice: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          state: z.string(),
+        }).partial(),
+        recurringPrice: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+      }).partial(),
+      deferredItemRemoval: z.object({}).partial(),
+      deferredItemReplacement: z.object({
+        productId: z.string(),
+      }).partial(),
+      expiryTime: z.string(),
+      itemReplacement: z.object({
+        basePlanId: z.string(),
+        offerId: z.string(),
+        productId: z.string(),
+        replacementMode: z.string(),
+      }).partial(),
+      latestSuccessfulOrderId: z.string(),
+      offerDetails: z.object({
+        basePlanId: z.string(),
+        offerId: z.string(),
+        offerTags: z.array(z.string()),
+      }).partial(),
+      offerPhase: z.object({
+        basePrice: z.object({}).partial(),
+        freeTrial: z.object({}).partial(),
+        introductoryPrice: z.object({}).partial(),
+        prorationPeriod: z.object({
+          originalOfferPhaseType: z.string(),
+        }).partial(),
+      }).partial(),
+      prepaidPlan: z.object({
+        allowExtendAfterTime: z.string(),
+      }).partial(),
       productId: z.string(),
-    }),
-    expiryTime: z.string(),
-    itemReplacement: z.object({
-      basePlanId: z.string(),
-      offerId: z.string(),
-      productId: z.string(),
-      replacementMode: z.string(),
-    }),
-    latestSuccessfulOrderId: z.string(),
-    offerDetails: z.object({
-      basePlanId: z.string(),
-      offerId: z.string(),
-      offerTags: z.array(z.string()),
-    }),
-    offerPhase: z.object({
-      basePrice: z.object({}),
-      freeTrial: z.object({}),
-      introductoryPrice: z.object({}),
-      prorationPeriod: z.object({
-        originalOfferPhaseType: z.string(),
-      }),
-    }),
-    prepaidPlan: z.object({
-      allowExtendAfterTime: z.string(),
-    }),
-    productId: z.string(),
-    signupPromotion: z.object({
-      oneTimeCode: z.object({}),
-      vanityCode: z.object({
-        promotionCode: z.string(),
-      }),
-    }),
-  })).optional(),
+      signupPromotion: z.object({
+        oneTimeCode: z.object({}).partial(),
+        vanityCode: z.object({
+          promotionCode: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   linkedPurchaseToken: z.string().optional(),
   onHoldStateContext: z.object({
     renewalDeclined: z.object({
       pendingOrderId: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   outOfAppPurchaseContext: z.object({
     expiredExternalAccountIdentifiers: z.object({
       externalAccountId: z.string(),
       obfuscatedExternalAccountId: z.string(),
       obfuscatedExternalProfileId: z.string(),
-    }),
+    }).partial(),
     expiredPurchaseToken: z.string(),
-  }).optional(),
+  }).partial().optional(),
   pausedStateContext: z.object({
     autoResumeTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   regionCode: z.string().optional(),
   startTime: z.string().optional(),
   subscribeWithGoogleInfo: z.object({
@@ -213,9 +215,9 @@ const StateSchema = z.object({
     givenName: z.string(),
     profileId: z.string(),
     profileName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   subscriptionState: z.string().optional(),
-  testPurchase: z.object({}).optional(),
+  testPurchase: z.object({}).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -259,7 +261,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Purchases.Subscriptionsv2. Registered at `@swamp/gcp/androidpublisher/purchases-subscriptionsv2`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/purchases-subscriptionsv2",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -413,6 +415,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

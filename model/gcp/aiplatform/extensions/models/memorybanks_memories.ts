@@ -246,10 +246,12 @@ const StateSchema = z.object({
   revisionLabels: z.record(z.string(), z.unknown()).optional(),
   revisionTtl: z.string().optional(),
   scope: z.record(z.string(), z.unknown()).optional(),
-  topics: z.array(z.object({
-    customMemoryTopicLabel: z.string(),
-    managedMemoryTopic: z.string(),
-  })).optional(),
+  topics: z.array(
+    z.object({
+      customMemoryTopicLabel: z.string(),
+      managedMemoryTopic: z.string(),
+    }).partial(),
+  ).optional(),
   ttl: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -361,7 +363,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform MemoryBanks.Memories. Registered at `@swamp/gcp/aiplatform/memorybanks-memories`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/memorybanks-memories",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -395,6 +397,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

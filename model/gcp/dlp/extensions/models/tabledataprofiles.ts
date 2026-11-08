@@ -133,75 +133,81 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   configSnapshot: z.object({
     dataProfileJob: z.object({
-      dataProfileActions: z.array(z.object({
-        exportData: z.object({
-          profileTable: z.unknown(),
-          sampleFindingsTable: z.unknown(),
-        }),
-        pubSubNotification: z.object({
-          detailOfMessage: z.unknown(),
-          event: z.unknown(),
-          pubsubCondition: z.unknown(),
-          topic: z.unknown(),
-        }),
-        publishToChronicle: z.object({}),
-        publishToDataplexCatalog: z.object({
-          lowerDataRiskToLow: z.unknown(),
-        }),
-        publishToScc: z.object({}),
-        tagResources: z.object({
-          lowerDataRiskToLow: z.unknown(),
-          profileGenerationsToTag: z.unknown(),
-          tagConditions: z.unknown(),
-        }),
-      })),
+      dataProfileActions: z.array(
+        z.object({
+          exportData: z.object({
+            profileTable: z.unknown(),
+            sampleFindingsTable: z.unknown(),
+          }).partial(),
+          pubSubNotification: z.object({
+            detailOfMessage: z.unknown(),
+            event: z.unknown(),
+            pubsubCondition: z.unknown(),
+            topic: z.unknown(),
+          }).partial(),
+          publishToChronicle: z.object({}).partial(),
+          publishToDataplexCatalog: z.object({
+            lowerDataRiskToLow: z.unknown(),
+          }).partial(),
+          publishToScc: z.object({}).partial(),
+          tagResources: z.object({
+            lowerDataRiskToLow: z.unknown(),
+            profileGenerationsToTag: z.unknown(),
+            tagConditions: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       inspectTemplates: z.array(z.string()),
       location: z.object({
         folderId: z.string(),
         organizationId: z.string(),
-      }),
+      }).partial(),
       otherCloudStartingLocation: z.object({
         awsLocation: z.object({
           accountId: z.string(),
           allAssetInventoryAssets: z.boolean(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       projectId: z.string(),
-    }),
+    }).partial(),
     discoveryConfig: z.object({
-      actions: z.array(z.object({
-        exportData: z.object({
-          profileTable: z.unknown(),
-          sampleFindingsTable: z.unknown(),
-        }),
-        pubSubNotification: z.object({
-          detailOfMessage: z.unknown(),
-          event: z.unknown(),
-          pubsubCondition: z.unknown(),
-          topic: z.unknown(),
-        }),
-        publishToChronicle: z.object({}),
-        publishToDataplexCatalog: z.object({
-          lowerDataRiskToLow: z.unknown(),
-        }),
-        publishToScc: z.object({}),
-        tagResources: z.object({
-          lowerDataRiskToLow: z.unknown(),
-          profileGenerationsToTag: z.unknown(),
-          tagConditions: z.unknown(),
-        }),
-      })),
+      actions: z.array(
+        z.object({
+          exportData: z.object({
+            profileTable: z.unknown(),
+            sampleFindingsTable: z.unknown(),
+          }).partial(),
+          pubSubNotification: z.object({
+            detailOfMessage: z.unknown(),
+            event: z.unknown(),
+            pubsubCondition: z.unknown(),
+            topic: z.unknown(),
+          }).partial(),
+          publishToChronicle: z.object({}).partial(),
+          publishToDataplexCatalog: z.object({
+            lowerDataRiskToLow: z.unknown(),
+          }).partial(),
+          publishToScc: z.object({}).partial(),
+          tagResources: z.object({
+            lowerDataRiskToLow: z.unknown(),
+            profileGenerationsToTag: z.unknown(),
+            tagConditions: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       createTime: z.string(),
       displayName: z.string(),
-      errors: z.array(z.object({
-        details: z.object({
-          code: z.unknown(),
-          details: z.unknown(),
-          message: z.unknown(),
-        }),
-        extraInfo: z.string(),
-        timestamps: z.array(z.unknown()),
-      })),
+      errors: z.array(
+        z.object({
+          details: z.object({
+            code: z.unknown(),
+            details: z.unknown(),
+            message: z.unknown(),
+          }).partial(),
+          extraInfo: z.string(),
+          timestamps: z.array(z.unknown()),
+        }).partial(),
+      ),
       inspectTemplates: z.array(z.string()),
       lastRunTime: z.string(),
       name: z.string(),
@@ -209,186 +215,206 @@ const StateSchema = z.object({
         location: z.object({
           folderId: z.string(),
           organizationId: z.string(),
-        }),
+        }).partial(),
         projectId: z.string(),
-      }),
+      }).partial(),
       otherCloudStartingLocation: z.object({
         awsLocation: z.object({
           accountId: z.string(),
           allAssetInventoryAssets: z.boolean(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       processingLocation: z.object({
         documentFallbackLocation: z.object({
-          globalProcessing: z.object({}),
-          multiRegionProcessing: z.object({}),
-        }),
+          globalProcessing: z.object({}).partial(),
+          multiRegionProcessing: z.object({}).partial(),
+        }).partial(),
         imageFallbackLocation: z.object({
-          globalProcessing: z.object({}),
-          multiRegionProcessing: z.object({}),
-        }),
-      }),
+          globalProcessing: z.object({}).partial(),
+          multiRegionProcessing: z.object({}).partial(),
+        }).partial(),
+      }).partial(),
       status: z.string(),
-      targets: z.array(z.object({
-        bigQueryTarget: z.object({
-          cadence: z.unknown(),
-          conditions: z.unknown(),
-          disabled: z.unknown(),
-          filter: z.unknown(),
-        }),
-        cloudSqlTarget: z.object({
-          conditions: z.unknown(),
-          disabled: z.unknown(),
-          filter: z.unknown(),
-          generationCadence: z.unknown(),
-        }),
-        cloudStorageTarget: z.object({
-          conditions: z.unknown(),
-          disabled: z.unknown(),
-          filter: z.unknown(),
-          generationCadence: z.unknown(),
-        }),
-        otherCloudTarget: z.object({
-          conditions: z.unknown(),
-          dataSourceType: z.unknown(),
-          disabled: z.unknown(),
-          filter: z.unknown(),
-          generationCadence: z.unknown(),
-        }),
-        secretsTarget: z.object({}),
-        vertexDatasetTarget: z.object({
-          conditions: z.unknown(),
-          disabled: z.unknown(),
-          filter: z.unknown(),
-          generationCadence: z.unknown(),
-        }),
-      })),
+      targets: z.array(
+        z.object({
+          bigQueryTarget: z.object({
+            cadence: z.unknown(),
+            conditions: z.unknown(),
+            disabled: z.unknown(),
+            filter: z.unknown(),
+          }).partial(),
+          cloudSqlTarget: z.object({
+            conditions: z.unknown(),
+            disabled: z.unknown(),
+            filter: z.unknown(),
+            generationCadence: z.unknown(),
+          }).partial(),
+          cloudStorageTarget: z.object({
+            conditions: z.unknown(),
+            disabled: z.unknown(),
+            filter: z.unknown(),
+            generationCadence: z.unknown(),
+          }).partial(),
+          otherCloudTarget: z.object({
+            conditions: z.unknown(),
+            dataSourceType: z.unknown(),
+            disabled: z.unknown(),
+            filter: z.unknown(),
+            generationCadence: z.unknown(),
+          }).partial(),
+          secretsTarget: z.object({}).partial(),
+          vertexDatasetTarget: z.object({
+            conditions: z.unknown(),
+            disabled: z.unknown(),
+            filter: z.unknown(),
+            generationCadence: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       updateTime: z.string(),
-    }),
+    }).partial(),
     inspectConfig: z.object({
       contentOptions: z.array(z.string()),
-      customInfoTypes: z.array(z.object({
-        detectionRules: z.array(z.unknown()),
-        dictionary: z.object({
-          cloudStoragePath: z.unknown(),
-          wordList: z.unknown(),
-        }),
-        exclusionType: z.string(),
-        fileLabelInfoType: z.object({
-          googleDriveLabel: z.unknown(),
-          sensitivityLabel: z.unknown(),
-        }),
-        infoType: z.object({
-          name: z.unknown(),
-          sensitivityScore: z.unknown(),
-          version: z.unknown(),
-        }),
-        likelihood: z.string(),
-        metadataKeyValueExpression: z.object({
-          keyRegex: z.unknown(),
-          valueRegex: z.unknown(),
-        }),
-        regex: z.object({
-          groupIndexes: z.unknown(),
-          pattern: z.unknown(),
-        }),
-        sensitivityScore: z.object({
-          score: z.unknown(),
-        }),
-        storedType: z.object({
-          createTime: z.unknown(),
-          name: z.unknown(),
-        }),
-        surrogateType: z.object({}),
-      })),
+      customInfoTypes: z.array(
+        z.object({
+          detectionRules: z.array(z.unknown()),
+          dictionary: z.object({
+            cloudStoragePath: z.unknown(),
+            wordList: z.unknown(),
+          }).partial(),
+          exclusionType: z.string(),
+          fileLabelInfoType: z.object({
+            googleDriveLabel: z.unknown(),
+            sensitivityLabel: z.unknown(),
+          }).partial(),
+          infoType: z.object({
+            name: z.unknown(),
+            sensitivityScore: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+          likelihood: z.string(),
+          metadataKeyValueExpression: z.object({
+            keyRegex: z.unknown(),
+            valueRegex: z.unknown(),
+          }).partial(),
+          regex: z.object({
+            groupIndexes: z.unknown(),
+            pattern: z.unknown(),
+          }).partial(),
+          sensitivityScore: z.object({
+            score: z.unknown(),
+          }).partial(),
+          storedType: z.object({
+            createTime: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+          surrogateType: z.object({}).partial(),
+        }).partial(),
+      ),
       excludeInfoTypes: z.boolean(),
       includeQuote: z.boolean(),
-      infoTypes: z.array(z.object({
-        name: z.string(),
-        sensitivityScore: z.object({
-          score: z.unknown(),
-        }),
-        version: z.string(),
-      })),
+      infoTypes: z.array(
+        z.object({
+          name: z.string(),
+          sensitivityScore: z.object({
+            score: z.unknown(),
+          }).partial(),
+          version: z.string(),
+        }).partial(),
+      ),
       limits: z.object({
-        maxFindingsPerInfoType: z.array(z.object({
-          infoType: z.unknown(),
-          maxFindings: z.unknown(),
-        })),
+        maxFindingsPerInfoType: z.array(
+          z.object({
+            infoType: z.unknown(),
+            maxFindings: z.unknown(),
+          }).partial(),
+        ),
         maxFindingsPerItem: z.number(),
         maxFindingsPerRequest: z.number(),
-      }),
+      }).partial(),
       minLikelihood: z.string(),
-      minLikelihoodPerInfoType: z.array(z.object({
-        infoType: z.object({
-          name: z.unknown(),
-          sensitivityScore: z.unknown(),
-          version: z.unknown(),
-        }),
-        minLikelihood: z.string(),
-      })),
-      ruleSet: z.array(z.object({
-        infoTypes: z.array(z.unknown()),
-        rules: z.array(z.unknown()),
-      })),
-    }),
+      minLikelihoodPerInfoType: z.array(
+        z.object({
+          infoType: z.object({
+            name: z.unknown(),
+            sensitivityScore: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+          minLikelihood: z.string(),
+        }).partial(),
+      ),
+      ruleSet: z.array(
+        z.object({
+          infoTypes: z.array(z.unknown()),
+          rules: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
     inspectTemplateModifiedTime: z.string(),
     inspectTemplateName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dataRiskLevel: z.object({
     score: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataSourceType: z.object({
     dataSource: z.string(),
-  }).optional(),
+  }).partial().optional(),
   datasetId: z.string().optional(),
   datasetLocation: z.string().optional(),
   datasetProjectId: z.string().optional(),
-  domains: z.array(z.object({
-    category: z.string(),
-    signals: z.array(z.string()),
-  })).optional(),
+  domains: z.array(
+    z.object({
+      category: z.string(),
+      signals: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   encryptionStatus: z.string().optional(),
   expirationTime: z.string().optional(),
   failedColumnCount: z.string().optional(),
   fullResource: z.string().optional(),
   lastModifiedTime: z.string().optional(),
   name: z.string(),
-  otherInfoTypes: z.array(z.object({
-    estimatedPrevalence: z.number(),
-    excludedFromAnalysis: z.boolean(),
-    infoType: z.object({
-      name: z.string(),
-      sensitivityScore: z.object({
-        score: z.string(),
-      }),
-      version: z.string(),
-    }),
-  })).optional(),
-  predictedInfoTypes: z.array(z.object({
-    estimatedPrevalence: z.number(),
-    infoType: z.object({
-      name: z.string(),
-      sensitivityScore: z.object({
-        score: z.string(),
-      }),
-      version: z.string(),
-    }),
-  })).optional(),
+  otherInfoTypes: z.array(
+    z.object({
+      estimatedPrevalence: z.number(),
+      excludedFromAnalysis: z.boolean(),
+      infoType: z.object({
+        name: z.string(),
+        sensitivityScore: z.object({
+          score: z.string(),
+        }).partial(),
+        version: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  predictedInfoTypes: z.array(
+    z.object({
+      estimatedPrevalence: z.number(),
+      infoType: z.object({
+        name: z.string(),
+        sensitivityScore: z.object({
+          score: z.string(),
+        }).partial(),
+        version: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   profileLastGenerated: z.string().optional(),
   profileStatus: z.object({
     status: z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     timestamp: z.string(),
-  }).optional(),
+  }).partial().optional(),
   projectDataProfile: z.string().optional(),
-  relatedResources: z.array(z.object({
-    fullResource: z.string(),
-  })).optional(),
+  relatedResources: z.array(
+    z.object({
+      fullResource: z.string(),
+    }).partial(),
+  ).optional(),
   resourceLabels: z.record(z.string(), z.unknown()).optional(),
   resourceVisibility: z.string().optional(),
   rowCount: z.string().optional(),
@@ -396,19 +422,21 @@ const StateSchema = z.object({
     datasetId: z.string(),
     projectId: z.string(),
     tableId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   scannedColumnCount: z.string().optional(),
   sensitivityScore: z.object({
     score: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   tableId: z.string().optional(),
   tableSizeBytes: z.string().optional(),
-  tags: z.array(z.object({
-    key: z.string(),
-    namespacedTagValue: z.string(),
-    value: z.string(),
-  })).optional(),
+  tags: z.array(
+    z.object({
+      key: z.string(),
+      namespacedTagValue: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -452,7 +480,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) TableDataProfiles. Registered at `@swamp/gcp/dlp/tabledataprofiles`. */
 export const model = {
   type: "@swamp/gcp/dlp/tabledataprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -596,6 +624,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

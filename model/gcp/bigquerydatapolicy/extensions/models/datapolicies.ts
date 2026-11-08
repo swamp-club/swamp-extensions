@@ -281,11 +281,11 @@ const StateSchema = z.object({
   dataGovernanceTag: z.object({
     key: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataMaskingPolicy: z.object({
     predefinedExpression: z.string(),
     routine: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataPolicyId: z.string().optional(),
   dataPolicyType: z.string().optional(),
   etag: z.string().optional(),
@@ -451,7 +451,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Data Policy DataPolicies. Registered at `@swamp/gcp/bigquerydatapolicy/datapolicies`. */
 export const model = {
   type: "@swamp/gcp/bigquerydatapolicy/datapolicies",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -641,6 +641,11 @@ export const model = {
     {
       toVersion: "2026.11.08.1",
       description: "Added: matchingCondition",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -43,6 +43,11 @@ const SsmControlsSchema = z.object({
   ConcurrentExecutionRatePercentage: z.number().int().optional(),
 });
 
+const SsmControlsStateSchema = z.object({
+  ErrorPercentage: z.number(),
+  ConcurrentExecutionRatePercentage: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -73,8 +78,8 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   TargetVersion: z.string().optional(),
   ExecutionControls: z.object({
-    SsmControls: SsmControlsSchema,
-  }).optional(),
+    SsmControls: SsmControlsStateSchema,
+  }).partial().optional(),
   Parameters: z.record(z.string(), z.unknown()).optional(),
   TargetType: z.string().optional(),
   ConfigRuleName: z.string(),
@@ -85,7 +90,7 @@ const StateSchema = z.object({
   Automatic: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -125,7 +130,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Config RemediationConfiguration. Registered at `@swamp/aws/config/remediation-configuration`. */
 export const model = {
   type: "@swamp/aws/config/remediation-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -149,6 +154,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

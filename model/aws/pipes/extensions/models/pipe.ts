@@ -561,6 +561,346 @@ const PipeTargetTimestreamParametersSchema = z.object({
   MultiMeasureMappings: z.array(MultiMeasureMappingSchema).optional(),
 });
 
+const PipeEnrichmentHttpParametersStateSchema = z.object({
+  PathParameterValues: z.array(z.string()),
+  HeaderParameters: z.record(z.string(), z.unknown()),
+  QueryStringParameters: z.record(z.string(), z.unknown()),
+}).partial();
+
+const S3LogDestinationStateSchema = z.object({
+  BucketName: z.string(),
+  Prefix: z.string(),
+  BucketOwner: z.string(),
+  OutputFormat: z.string(),
+}).partial();
+
+const FirehoseLogDestinationStateSchema = z.object({
+  DeliveryStreamArn: z.string(),
+}).partial();
+
+const CloudwatchLogsLogDestinationStateSchema = z.object({
+  LogGroupArn: z.string(),
+}).partial();
+
+const FilterStateSchema = z.object({
+  Pattern: z.string(),
+}).partial();
+
+const FilterCriteriaStateSchema = z.object({
+  Filters: z.array(FilterStateSchema),
+}).partial();
+
+const DeadLetterConfigStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const PipeSourceKinesisStreamParametersStateSchema = z.object({
+  BatchSize: z.number(),
+  DeadLetterConfig: DeadLetterConfigStateSchema,
+  OnPartialBatchItemFailure: z.string(),
+  MaximumBatchingWindowInSeconds: z.number(),
+  MaximumRecordAgeInSeconds: z.number(),
+  MaximumRetryAttempts: z.number(),
+  ParallelizationFactor: z.number(),
+  StartingPosition: z.string(),
+  StartingPositionTimestamp: z.string(),
+}).partial();
+
+const PipeSourceDynamoDBStreamParametersStateSchema = z.object({
+  BatchSize: z.number(),
+  DeadLetterConfig: DeadLetterConfigStateSchema,
+  OnPartialBatchItemFailure: z.string(),
+  MaximumBatchingWindowInSeconds: z.number(),
+  MaximumRecordAgeInSeconds: z.number(),
+  MaximumRetryAttempts: z.number(),
+  ParallelizationFactor: z.number(),
+  StartingPosition: z.string(),
+}).partial();
+
+const PipeSourceSqsQueueParametersStateSchema = z.object({
+  BatchSize: z.number(),
+  MaximumBatchingWindowInSeconds: z.number(),
+}).partial();
+
+const PipeSourceActiveMQBrokerParametersStateSchema = z.object({
+  Credentials: z.object({
+    BasicAuth: z.string(),
+  }).partial(),
+  QueueName: z.string(),
+  BatchSize: z.number(),
+  MaximumBatchingWindowInSeconds: z.number(),
+}).partial();
+
+const PipeSourceRabbitMQBrokerParametersStateSchema = z.object({
+  Credentials: z.object({
+    BasicAuth: z.string(),
+  }).partial(),
+  QueueName: z.string(),
+  VirtualHost: z.string(),
+  BatchSize: z.number(),
+  MaximumBatchingWindowInSeconds: z.number(),
+}).partial();
+
+const PipeSourceManagedStreamingKafkaParametersStateSchema = z.object({
+  TopicName: z.string(),
+  StartingPosition: z.string(),
+  BatchSize: z.number(),
+  MaximumBatchingWindowInSeconds: z.number(),
+  ConsumerGroupID: z.string(),
+  Credentials: z.object({
+    SaslScram512Auth: z.string(),
+    ClientCertificateTlsAuth: z.string(),
+  }).partial(),
+}).partial();
+
+const SelfManagedKafkaAccessConfigurationVpcStateSchema = z.object({
+  Subnets: z.array(z.string()),
+  SecurityGroup: z.array(z.string()),
+}).partial();
+
+const PipeSourceSelfManagedKafkaParametersStateSchema = z.object({
+  TopicName: z.string(),
+  StartingPosition: z.string(),
+  AdditionalBootstrapServers: z.array(z.string()),
+  BatchSize: z.number(),
+  MaximumBatchingWindowInSeconds: z.number(),
+  ConsumerGroupID: z.string(),
+  Credentials: z.object({
+    BasicAuth: z.string(),
+    SaslScram512Auth: z.string(),
+    SaslScram256Auth: z.string(),
+    ClientCertificateTlsAuth: z.string(),
+  }).partial(),
+  ServerRootCaCertificate: z.string(),
+  Vpc: SelfManagedKafkaAccessConfigurationVpcStateSchema,
+}).partial();
+
+const PipeTargetLambdaFunctionParametersStateSchema = z.object({
+  InvocationType: z.string(),
+}).partial();
+
+const PipeTargetStateMachineParametersStateSchema = z.object({
+  InvocationType: z.string(),
+}).partial();
+
+const PipeTargetKinesisStreamParametersStateSchema = z.object({
+  PartitionKey: z.string(),
+}).partial();
+
+const AwsVpcConfigurationStateSchema = z.object({
+  Subnets: z.array(z.string()),
+  SecurityGroups: z.array(z.string()),
+  AssignPublicIp: z.string(),
+}).partial();
+
+const NetworkConfigurationStateSchema = z.object({
+  AwsvpcConfiguration: AwsVpcConfigurationStateSchema,
+}).partial();
+
+const CapacityProviderStrategyItemStateSchema = z.object({
+  CapacityProvider: z.string(),
+  Weight: z.number(),
+  Base: z.number(),
+}).partial();
+
+const PlacementConstraintStateSchema = z.object({
+  Type: z.string(),
+  Expression: z.string(),
+}).partial();
+
+const PlacementStrategyStateSchema = z.object({
+  Type: z.string(),
+  Field: z.string(),
+}).partial();
+
+const EcsEnvironmentVariableStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const EcsEnvironmentFileStateSchema = z.object({
+  Type: z.string(),
+  Value: z.string(),
+}).partial();
+
+const EcsResourceRequirementStateSchema = z.object({
+  Type: z.string(),
+  Value: z.string(),
+}).partial();
+
+const EcsContainerOverrideStateSchema = z.object({
+  Command: z.array(z.string()),
+  Cpu: z.number(),
+  Environment: z.array(EcsEnvironmentVariableStateSchema),
+  EnvironmentFiles: z.array(EcsEnvironmentFileStateSchema),
+  Memory: z.number(),
+  MemoryReservation: z.number(),
+  Name: z.string(),
+  ResourceRequirements: z.array(EcsResourceRequirementStateSchema),
+}).partial();
+
+const EcsEphemeralStorageStateSchema = z.object({
+  SizeInGiB: z.number(),
+}).partial();
+
+const EcsInferenceAcceleratorOverrideStateSchema = z.object({
+  DeviceName: z.string(),
+  DeviceType: z.string(),
+}).partial();
+
+const EcsTaskOverrideStateSchema = z.object({
+  ContainerOverrides: z.array(EcsContainerOverrideStateSchema),
+  Cpu: z.string(),
+  EphemeralStorage: EcsEphemeralStorageStateSchema,
+  ExecutionRoleArn: z.string(),
+  InferenceAcceleratorOverrides: z.array(
+    EcsInferenceAcceleratorOverrideStateSchema,
+  ),
+  Memory: z.string(),
+  TaskRoleArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const PipeTargetEcsTaskParametersStateSchema = z.object({
+  TaskDefinitionArn: z.string(),
+  TaskCount: z.number(),
+  LaunchType: z.string(),
+  NetworkConfiguration: NetworkConfigurationStateSchema,
+  PlatformVersion: z.string(),
+  Group: z.string(),
+  CapacityProviderStrategy: z.array(CapacityProviderStrategyItemStateSchema),
+  EnableECSManagedTags: z.boolean(),
+  EnableExecuteCommand: z.boolean(),
+  PlacementConstraints: z.array(PlacementConstraintStateSchema),
+  PlacementStrategy: z.array(PlacementStrategyStateSchema),
+  PropagateTags: z.string(),
+  ReferenceId: z.string(),
+  Overrides: EcsTaskOverrideStateSchema,
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const BatchArrayPropertiesStateSchema = z.object({
+  Size: z.number(),
+}).partial();
+
+const BatchRetryStrategyStateSchema = z.object({
+  Attempts: z.number(),
+}).partial();
+
+const BatchEnvironmentVariableStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const BatchResourceRequirementStateSchema = z.object({
+  Type: z.string(),
+  Value: z.string(),
+}).partial();
+
+const BatchContainerOverridesStateSchema = z.object({
+  Command: z.array(z.string()),
+  Environment: z.array(BatchEnvironmentVariableStateSchema),
+  InstanceType: z.string(),
+  ResourceRequirements: z.array(BatchResourceRequirementStateSchema),
+}).partial();
+
+const BatchJobDependencyStateSchema = z.object({
+  JobId: z.string(),
+  Type: z.string(),
+}).partial();
+
+const PipeTargetBatchJobParametersStateSchema = z.object({
+  JobDefinition: z.string(),
+  JobName: z.string(),
+  ArrayProperties: BatchArrayPropertiesStateSchema,
+  RetryStrategy: BatchRetryStrategyStateSchema,
+  ContainerOverrides: BatchContainerOverridesStateSchema,
+  DependsOn: z.array(BatchJobDependencyStateSchema),
+  Parameters: z.record(z.string(), z.unknown()),
+}).partial();
+
+const PipeTargetSqsQueueParametersStateSchema = z.object({
+  MessageGroupId: z.string(),
+  MessageDeduplicationId: z.string(),
+}).partial();
+
+const PipeTargetHttpParametersStateSchema = z.object({
+  PathParameterValues: z.array(z.string()),
+  HeaderParameters: z.record(z.string(), z.unknown()),
+  QueryStringParameters: z.record(z.string(), z.unknown()),
+}).partial();
+
+const PipeTargetRedshiftDataParametersStateSchema = z.object({
+  SecretManagerArn: z.string(),
+  Database: z.string(),
+  DbUser: z.string(),
+  StatementName: z.string(),
+  WithEvent: z.boolean(),
+  Sqls: z.array(z.string()),
+}).partial();
+
+const SageMakerPipelineParameterStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const PipeTargetSageMakerPipelineParametersStateSchema = z.object({
+  PipelineParameterList: z.array(SageMakerPipelineParameterStateSchema),
+}).partial();
+
+const PipeTargetEventBridgeEventBusParametersStateSchema = z.object({
+  EndpointId: z.string(),
+  DetailType: z.string(),
+  Source: z.string(),
+  Resources: z.array(z.string()),
+  Time: z.string(),
+}).partial();
+
+const PipeTargetCloudWatchLogsParametersStateSchema = z.object({
+  LogStreamName: z.string(),
+  Timestamp: z.string(),
+}).partial();
+
+const DimensionMappingStateSchema = z.object({
+  DimensionValue: z.string(),
+  DimensionValueType: z.string(),
+  DimensionName: z.string(),
+}).partial();
+
+const SingleMeasureMappingStateSchema = z.object({
+  MeasureValue: z.string(),
+  MeasureValueType: z.string(),
+  MeasureName: z.string(),
+}).partial();
+
+const MultiMeasureAttributeMappingStateSchema = z.object({
+  MeasureValue: z.string(),
+  MeasureValueType: z.string(),
+  MultiMeasureAttributeName: z.string(),
+}).partial();
+
+const MultiMeasureMappingStateSchema = z.object({
+  MultiMeasureName: z.string(),
+  MultiMeasureAttributeMappings: z.array(
+    MultiMeasureAttributeMappingStateSchema,
+  ),
+}).partial();
+
+const PipeTargetTimestreamParametersStateSchema = z.object({
+  TimeValue: z.string(),
+  EpochTimeUnit: z.string(),
+  TimeFieldType: z.string(),
+  TimestampFormat: z.string(),
+  VersionValue: z.string(),
+  DimensionMappings: z.array(DimensionMappingStateSchema),
+  SingleMeasureMappings: z.array(SingleMeasureMappingStateSchema),
+  MultiMeasureMappings: z.array(MultiMeasureMappingStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -657,53 +997,55 @@ const StateSchema = z.object({
   Enrichment: z.string().optional(),
   EnrichmentParameters: z.object({
     InputTemplate: z.string(),
-    HttpParameters: PipeEnrichmentHttpParametersSchema,
-  }).optional(),
+    HttpParameters: PipeEnrichmentHttpParametersStateSchema,
+  }).partial().optional(),
   KmsKeyIdentifier: z.string().optional(),
   LastModifiedTime: z.string().optional(),
   LogConfiguration: z.object({
-    S3LogDestination: S3LogDestinationSchema,
-    FirehoseLogDestination: FirehoseLogDestinationSchema,
-    CloudwatchLogsLogDestination: CloudwatchLogsLogDestinationSchema,
+    S3LogDestination: S3LogDestinationStateSchema,
+    FirehoseLogDestination: FirehoseLogDestinationStateSchema,
+    CloudwatchLogsLogDestination: CloudwatchLogsLogDestinationStateSchema,
     Level: z.string(),
     IncludeExecutionData: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Name: z.string(),
   RoleArn: z.string().optional(),
   Source: z.string().optional(),
   SourceParameters: z.object({
-    FilterCriteria: FilterCriteriaSchema,
-    KinesisStreamParameters: PipeSourceKinesisStreamParametersSchema,
-    DynamoDBStreamParameters: PipeSourceDynamoDBStreamParametersSchema,
-    SqsQueueParameters: PipeSourceSqsQueueParametersSchema,
-    ActiveMQBrokerParameters: PipeSourceActiveMQBrokerParametersSchema,
-    RabbitMQBrokerParameters: PipeSourceRabbitMQBrokerParametersSchema,
+    FilterCriteria: FilterCriteriaStateSchema,
+    KinesisStreamParameters: PipeSourceKinesisStreamParametersStateSchema,
+    DynamoDBStreamParameters: PipeSourceDynamoDBStreamParametersStateSchema,
+    SqsQueueParameters: PipeSourceSqsQueueParametersStateSchema,
+    ActiveMQBrokerParameters: PipeSourceActiveMQBrokerParametersStateSchema,
+    RabbitMQBrokerParameters: PipeSourceRabbitMQBrokerParametersStateSchema,
     ManagedStreamingKafkaParameters:
-      PipeSourceManagedStreamingKafkaParametersSchema,
-    SelfManagedKafkaParameters: PipeSourceSelfManagedKafkaParametersSchema,
-  }).optional(),
+      PipeSourceManagedStreamingKafkaParametersStateSchema,
+    SelfManagedKafkaParameters: PipeSourceSelfManagedKafkaParametersStateSchema,
+  }).partial().optional(),
   StateReason: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   Target: z.string().optional(),
   TargetParameters: z.object({
     InputTemplate: z.string(),
-    LambdaFunctionParameters: PipeTargetLambdaFunctionParametersSchema,
-    StepFunctionStateMachineParameters: PipeTargetStateMachineParametersSchema,
-    KinesisStreamParameters: PipeTargetKinesisStreamParametersSchema,
-    EcsTaskParameters: PipeTargetEcsTaskParametersSchema,
-    BatchJobParameters: PipeTargetBatchJobParametersSchema,
-    SqsQueueParameters: PipeTargetSqsQueueParametersSchema,
-    HttpParameters: PipeTargetHttpParametersSchema,
-    RedshiftDataParameters: PipeTargetRedshiftDataParametersSchema,
-    SageMakerPipelineParameters: PipeTargetSageMakerPipelineParametersSchema,
+    LambdaFunctionParameters: PipeTargetLambdaFunctionParametersStateSchema,
+    StepFunctionStateMachineParameters:
+      PipeTargetStateMachineParametersStateSchema,
+    KinesisStreamParameters: PipeTargetKinesisStreamParametersStateSchema,
+    EcsTaskParameters: PipeTargetEcsTaskParametersStateSchema,
+    BatchJobParameters: PipeTargetBatchJobParametersStateSchema,
+    SqsQueueParameters: PipeTargetSqsQueueParametersStateSchema,
+    HttpParameters: PipeTargetHttpParametersStateSchema,
+    RedshiftDataParameters: PipeTargetRedshiftDataParametersStateSchema,
+    SageMakerPipelineParameters:
+      PipeTargetSageMakerPipelineParametersStateSchema,
     EventBridgeEventBusParameters:
-      PipeTargetEventBridgeEventBusParametersSchema,
-    CloudWatchLogsParameters: PipeTargetCloudWatchLogsParametersSchema,
-    TimestreamParameters: PipeTargetTimestreamParametersSchema,
-  }).optional(),
+      PipeTargetEventBridgeEventBusParametersStateSchema,
+    CloudWatchLogsParameters: PipeTargetCloudWatchLogsParametersStateSchema,
+    TimestreamParameters: PipeTargetTimestreamParametersStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -803,7 +1145,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Pipes Pipe. Registered at `@swamp/aws/pipes/pipe`. */
 export const model = {
   type: "@swamp/aws/pipes/pipe",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -872,6 +1214,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

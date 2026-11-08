@@ -147,17 +147,17 @@ const StateSchema = z.object({
   backupImageAssetId: z.string().optional(),
   createdInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dimension: z.object({
     height: z.number(),
     width: z.number(),
-  }).optional(),
+  }).partial().optional(),
   dynamicProfileId: z.string().optional(),
   format: z.string().optional(),
   id: z.string().optional(),
   lastModifiedInfo: z.object({
     time: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   status: z.string().optional(),
   studioAccountId: z.string().optional(),
@@ -254,7 +254,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 StudioCreatives. Registered at `@swamp/gcp/dfareporting/studiocreatives`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/studiocreatives",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -383,6 +383,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

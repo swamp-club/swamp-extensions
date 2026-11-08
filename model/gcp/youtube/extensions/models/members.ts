@@ -117,7 +117,7 @@ const StateSchema = z.object({
       channelUrl: z.string(),
       displayName: z.string(),
       profileImageUrl: z.string(),
-    }),
+    }).partial(),
     membershipsDetails: z.object({
       accessibleLevels: z.array(z.string()),
       highestAccessibleLevel: z.string(),
@@ -125,14 +125,16 @@ const StateSchema = z.object({
       membershipsDuration: z.object({
         memberSince: z.string(),
         memberTotalDurationMonths: z.number(),
-      }),
-      membershipsDurationAtLevels: z.array(z.object({
-        level: z.string(),
-        memberSince: z.string(),
-        memberTotalDurationMonths: z.number(),
-      })),
-    }),
-  }).optional(),
+      }).partial(),
+      membershipsDurationAtLevels: z.array(
+        z.object({
+          level: z.string(),
+          memberSince: z.string(),
+          memberTotalDurationMonths: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -176,7 +178,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Members. Registered at `@swamp/gcp/youtube/members`. */
 export const model = {
   type: "@swamp/gcp/youtube/members",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -295,6 +297,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

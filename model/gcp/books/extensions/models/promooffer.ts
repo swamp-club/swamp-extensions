@@ -94,19 +94,23 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  items: z.array(z.object({
-    artUrl: z.string(),
-    gservicesKey: z.string(),
-    id: z.string(),
-    items: z.array(z.object({
-      author: z.string(),
-      canonicalVolumeLink: z.string(),
-      coverUrl: z.string(),
-      description: z.string(),
-      title: z.string(),
-      volumeId: z.string(),
-    })),
-  })).optional(),
+  items: z.array(
+    z.object({
+      artUrl: z.string(),
+      gservicesKey: z.string(),
+      id: z.string(),
+      items: z.array(
+        z.object({
+          author: z.string(),
+          canonicalVolumeLink: z.string(),
+          coverUrl: z.string(),
+          description: z.string(),
+          title: z.string(),
+          volumeId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   kind: z.string().optional(),
 }).passthrough();
 
@@ -148,7 +152,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Books Promooffer. Registered at `@swamp/gcp/books/promooffer`. */
 export const model = {
   type: "@swamp/gcp/books/promooffer",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -267,6 +271,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

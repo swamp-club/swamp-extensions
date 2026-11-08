@@ -108,6 +108,39 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The tag value."),
 });
 
+const CodeLocationStateSchema = z.object({
+  Language: z.string(),
+  CodeUnit: z.string(),
+  ClassName: z.string(),
+  MethodName: z.string(),
+  FilePath: z.string(),
+  LineNumber: z.number(),
+}).partial();
+
+const CaptureLimitsConfigStateSchema = z.object({
+  MaxHits: z.number(),
+  MaxStringLength: z.number(),
+  MaxCollectionWidth: z.number(),
+  MaxCollectionDepth: z.number(),
+  MaxStackFrames: z.number(),
+  MaxStackTraceSize: z.number(),
+  MaxObjectDepth: z.number(),
+  MaxFieldsPerObject: z.number(),
+}).partial();
+
+const CodeCaptureConfigurationStateSchema = z.object({
+  CaptureArguments: z.array(z.string()),
+  CaptureReturn: z.boolean(),
+  CaptureStackTrace: z.boolean(),
+  CaptureLocals: z.array(z.string()),
+  CaptureLimits: CaptureLimitsConfigStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -173,20 +206,20 @@ const StateSchema = z.object({
   Environment: z.string(),
   SignalType: z.string(),
   Location: z.object({
-    CodeLocation: CodeLocationSchema,
-  }).optional(),
+    CodeLocation: CodeLocationStateSchema,
+  }).partial().optional(),
   LocationHash: z.string(),
   Description: z.string().optional(),
   ExpiresAt: z.string().optional(),
   AttributeFilters: z.array(z.record(z.string(), z.unknown())).optional(),
   CaptureConfiguration: z.object({
-    CodeCapture: CodeCaptureConfigurationSchema,
-  }).optional(),
+    CodeCapture: CodeCaptureConfigurationStateSchema,
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -255,7 +288,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApplicationSignals InstrumentationConfig. Registered at `@swamp/aws/applicationsignals/instrumentation-config`. */
 export const model = {
   type: "@swamp/aws/applicationsignals/instrumentation-config",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -269,6 +302,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

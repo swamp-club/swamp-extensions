@@ -915,11 +915,13 @@ const StateSchema = z.object({
     configmanagement: z.object({
       cluster: z.string(),
       configSync: z.object({
-        deploymentOverrides: z.array(z.object({
-          containers: z.unknown(),
-          deploymentName: z.unknown(),
-          deploymentNamespace: z.unknown(),
-        })),
+        deploymentOverrides: z.array(
+          z.object({
+            containers: z.unknown(),
+            deploymentName: z.unknown(),
+            deploymentNamespace: z.unknown(),
+          }).partial(),
+        ),
         enabled: z.boolean(),
         git: z.object({
           gcpServiceAccountEmail: z.string(),
@@ -930,7 +932,7 @@ const StateSchema = z.object({
           syncRepo: z.string(),
           syncRev: z.string(),
           syncWaitSecs: z.string(),
-        }),
+        }).partial(),
         metricsGcpServiceAccountEmail: z.string(),
         oci: z.object({
           gcpServiceAccountEmail: z.string(),
@@ -938,16 +940,16 @@ const StateSchema = z.object({
           secretType: z.string(),
           syncRepo: z.string(),
           syncWaitSecs: z.string(),
-        }),
+        }).partial(),
         preventDrift: z.boolean(),
         sourceFormat: z.string(),
         stopSyncing: z.boolean(),
-      }),
+      }).partial(),
       hierarchyController: z.object({
         enableHierarchicalResourceQuota: z.boolean(),
         enablePodTreeLabels: z.boolean(),
         enabled: z.boolean(),
-      }),
+      }).partial(),
       management: z.string(),
       policyController: z.object({
         auditIntervalSeconds: z.string(),
@@ -956,76 +958,78 @@ const StateSchema = z.object({
         logDeniesEnabled: z.boolean(),
         monitoring: z.object({
           backends: z.array(z.unknown()),
-        }),
+        }).partial(),
         mutationEnabled: z.boolean(),
         referentialRulesEnabled: z.boolean(),
         templateLibraryInstalled: z.boolean(),
         updateTime: z.string(),
-      }),
+      }).partial(),
       version: z.string(),
-    }),
+    }).partial(),
     identityservice: z.object({
-      authMethods: z.array(z.object({
-        azureadConfig: z.object({
-          clientId: z.unknown(),
-          clientSecret: z.unknown(),
-          encryptedClientSecret: z.unknown(),
-          groupFormat: z.unknown(),
-          kubectlRedirectUri: z.unknown(),
-          tenant: z.unknown(),
-          userClaim: z.unknown(),
-        }),
-        googleConfig: z.object({
-          disable: z.unknown(),
-        }),
-        ldapConfig: z.object({
-          group: z.unknown(),
-          server: z.unknown(),
-          serviceAccount: z.unknown(),
-          user: z.unknown(),
-        }),
-        name: z.string(),
-        oidcConfig: z.object({
-          certificateAuthorityData: z.unknown(),
-          clientId: z.unknown(),
-          clientSecret: z.unknown(),
-          deployCloudConsoleProxy: z.unknown(),
-          enableAccessToken: z.unknown(),
-          encryptedClientSecret: z.unknown(),
-          extraParams: z.unknown(),
-          groupPrefix: z.unknown(),
-          groupsClaim: z.unknown(),
-          issuerUri: z.unknown(),
-          kubectlRedirectUri: z.unknown(),
-          scopes: z.unknown(),
-          userClaim: z.unknown(),
-          userPrefix: z.unknown(),
-        }),
-        proxy: z.string(),
-        samlConfig: z.object({
-          attributeMapping: z.unknown(),
-          groupPrefix: z.unknown(),
-          groupsAttribute: z.unknown(),
-          identityProviderCertificates: z.unknown(),
-          identityProviderId: z.unknown(),
-          identityProviderSsoUri: z.unknown(),
-          userAttribute: z.unknown(),
-          userPrefix: z.unknown(),
-        }),
-      })),
+      authMethods: z.array(
+        z.object({
+          azureadConfig: z.object({
+            clientId: z.unknown(),
+            clientSecret: z.unknown(),
+            encryptedClientSecret: z.unknown(),
+            groupFormat: z.unknown(),
+            kubectlRedirectUri: z.unknown(),
+            tenant: z.unknown(),
+            userClaim: z.unknown(),
+          }).partial(),
+          googleConfig: z.object({
+            disable: z.unknown(),
+          }).partial(),
+          ldapConfig: z.object({
+            group: z.unknown(),
+            server: z.unknown(),
+            serviceAccount: z.unknown(),
+            user: z.unknown(),
+          }).partial(),
+          name: z.string(),
+          oidcConfig: z.object({
+            certificateAuthorityData: z.unknown(),
+            clientId: z.unknown(),
+            clientSecret: z.unknown(),
+            deployCloudConsoleProxy: z.unknown(),
+            enableAccessToken: z.unknown(),
+            encryptedClientSecret: z.unknown(),
+            extraParams: z.unknown(),
+            groupPrefix: z.unknown(),
+            groupsClaim: z.unknown(),
+            issuerUri: z.unknown(),
+            kubectlRedirectUri: z.unknown(),
+            scopes: z.unknown(),
+            userClaim: z.unknown(),
+            userPrefix: z.unknown(),
+          }).partial(),
+          proxy: z.string(),
+          samlConfig: z.object({
+            attributeMapping: z.unknown(),
+            groupPrefix: z.unknown(),
+            groupsAttribute: z.unknown(),
+            identityProviderCertificates: z.unknown(),
+            identityProviderId: z.unknown(),
+            identityProviderSsoUri: z.unknown(),
+            userAttribute: z.unknown(),
+            userPrefix: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       identityServiceOptions: z.object({
         diagnosticInterface: z.object({
           enabled: z.boolean(),
           expirationTime: z.string(),
-        }),
+        }).partial(),
         sessionDuration: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     mesh: z.object({
       configApi: z.string(),
       controlPlane: z.string(),
       management: z.string(),
-    }),
+    }).partial(),
     policycontroller: z.object({
       policyControllerHubConfig: z.object({
         auditIntervalSeconds: z.string(),
@@ -1036,136 +1040,144 @@ const StateSchema = z.object({
         logDeniesEnabled: z.boolean(),
         monitoring: z.object({
           backends: z.array(z.unknown()),
-        }),
+        }).partial(),
         mutationEnabled: z.boolean(),
         policyContent: z.object({
           bundles: z.record(z.string(), z.unknown()),
           templateLibrary: z.object({
             installation: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         referentialRulesEnabled: z.boolean(),
-      }),
+      }).partial(),
       version: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   membershipSpecs: z.record(z.string(), z.unknown()).optional(),
   membershipStates: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   resourceState: z.object({
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   scopeSpecs: z.record(z.string(), z.unknown()).optional(),
   scopeStates: z.record(z.string(), z.unknown()).optional(),
   spec: z.object({
-    appdevexperience: z.object({}),
+    appdevexperience: z.object({}).partial(),
     clusterupgrade: z.object({
-      gkeUpgradeOverrides: z.array(z.object({
-        postConditions: z.object({
-          soaking: z.unknown(),
-        }),
-        upgrade: z.object({
-          name: z.unknown(),
-          version: z.unknown(),
-        }),
-      })),
+      gkeUpgradeOverrides: z.array(
+        z.object({
+          postConditions: z.object({
+            soaking: z.unknown(),
+          }).partial(),
+          upgrade: z.object({
+            name: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       postConditions: z.object({
         soaking: z.string(),
-      }),
+      }).partial(),
       upstreamFleets: z.array(z.string()),
-    }),
+    }).partial(),
     dataplanev2: z.object({
       enableEncryption: z.boolean(),
-    }),
+    }).partial(),
     fleetobservability: z.object({
       loggingConfig: z.object({
         defaultConfig: z.object({
           mode: z.string(),
-        }),
+        }).partial(),
         fleetScopeLogsConfig: z.object({
           mode: z.string(),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     mesh: z.object({
       modernizationCompatibility: z.string(),
       modernizationStrategy: z.string(),
-    }),
+    }).partial(),
     multiclusteringress: z.object({
       configMembership: z.string(),
-    }),
+    }).partial(),
     rbacrolebindingactuation: z.object({
       allowedCustomRoles: z.array(z.string()),
-    }),
+    }).partial(),
     workloadidentity: z.object({
       scopeTenancyPool: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.object({
     appdevexperience: z.object({
       networkingInstallSucceeded: z.object({
         code: z.string(),
         description: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     clusterupgrade: z.object({
       downstreamFleets: z.array(z.string()),
       gkeState: z.object({
-        conditions: z.array(z.object({
-          reason: z.unknown(),
-          status: z.unknown(),
-          type: z.unknown(),
-          updateTime: z.unknown(),
-        })),
-        upgradeState: z.array(z.object({
-          stats: z.unknown(),
-          status: z.unknown(),
-          upgrade: z.unknown(),
-        })),
-      }),
+        conditions: z.array(
+          z.object({
+            reason: z.unknown(),
+            status: z.unknown(),
+            type: z.unknown(),
+            updateTime: z.unknown(),
+          }).partial(),
+        ),
+        upgradeState: z.array(
+          z.object({
+            stats: z.unknown(),
+            status: z.unknown(),
+            upgrade: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       ignored: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     fleetobservability: z.object({
       logging: z.object({
         defaultLog: z.object({
           code: z.string(),
           errors: z.array(z.unknown()),
-        }),
+        }).partial(),
         scopeLog: z.object({
           code: z.string(),
           errors: z.array(z.unknown()),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       monitoring: z.object({
         state: z.object({
           code: z.string(),
           errors: z.array(z.unknown()),
-        }),
-      }),
-    }),
-    rbacrolebindingactuation: z.object({}),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+    rbacrolebindingactuation: z.object({}).partial(),
     servicemesh: z.object({
-      conditions: z.array(z.object({
-        code: z.string(),
-        details: z.string(),
-        documentationLink: z.string(),
-        severity: z.string(),
-      })),
-    }),
+      conditions: z.array(
+        z.object({
+          code: z.string(),
+          details: z.string(),
+          documentationLink: z.string(),
+          severity: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     state: z.object({
       code: z.string(),
       description: z.string(),
       updateTime: z.string(),
-    }),
+    }).partial(),
     workloadidentity: z.object({
       namespaceStateDetails: z.record(z.string(), z.unknown()),
       namespaceStates: z.record(z.string(), z.unknown()),
       scopeTenancyWorkloadIdentityPool: z.string(),
       workloadIdentityPool: z.string(),
       workloadIdentityPoolStateDetails: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   unreachable: z.array(z.string()).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -1933,7 +1945,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Features. Registered at `@swamp/gcp/gkehub/features`. */
 export const model = {
   type: "@swamp/gcp/gkehub/features",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.25.1",
@@ -2099,6 +2111,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -465,7 +465,7 @@ const StateSchema = z.object({
     emails: z.array(z.string()),
     instruction: z.string(),
     uris: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   company: z.string().optional(),
   companyDisplayName: z.string().optional(),
   compensationInfo: z.object({
@@ -474,76 +474,80 @@ const StateSchema = z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
+      }).partial(),
       minCompensation: z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     annualizedTotalCompensationRange: z.object({
       maxCompensation: z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
+      }).partial(),
       minCompensation: z.object({
         currencyCode: z.string(),
         nanos: z.number(),
         units: z.string(),
-      }),
-    }),
-    entries: z.array(z.object({
-      amount: z.object({
-        currencyCode: z.string(),
-        nanos: z.number(),
-        units: z.string(),
-      }),
-      description: z.string(),
-      expectedUnitsPerYear: z.number(),
-      range: z.object({
-        maxCompensation: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-        minCompensation: z.object({
-          currencyCode: z.unknown(),
-          nanos: z.unknown(),
-          units: z.unknown(),
-        }),
-      }),
-      type: z.string(),
-      unit: z.string(),
-    })),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+    entries: z.array(
+      z.object({
+        amount: z.object({
+          currencyCode: z.string(),
+          nanos: z.number(),
+          units: z.string(),
+        }).partial(),
+        description: z.string(),
+        expectedUnitsPerYear: z.number(),
+        range: z.object({
+          maxCompensation: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+          minCompensation: z.object({
+            currencyCode: z.unknown(),
+            nanos: z.unknown(),
+            units: z.unknown(),
+          }).partial(),
+        }).partial(),
+        type: z.string(),
+        unit: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   customAttributes: z.record(z.string(), z.unknown()).optional(),
   degreeTypes: z.array(z.string()).optional(),
   department: z.string().optional(),
   derivedInfo: z.object({
     jobCategories: z.array(z.string()),
-    locations: z.array(z.object({
-      latLng: z.object({
-        latitude: z.number(),
-        longitude: z.number(),
-      }),
-      locationType: z.string(),
-      postalAddress: z.object({
-        addressLines: z.array(z.unknown()),
-        administrativeArea: z.string(),
-        languageCode: z.string(),
-        locality: z.string(),
-        organization: z.string(),
-        postalCode: z.string(),
-        recipients: z.array(z.unknown()),
-        regionCode: z.string(),
-        revision: z.number(),
-        sortingCode: z.string(),
-        sublocality: z.string(),
-      }),
-      radiusMiles: z.number(),
-    })),
-  }).optional(),
+    locations: z.array(
+      z.object({
+        latLng: z.object({
+          latitude: z.number(),
+          longitude: z.number(),
+        }).partial(),
+        locationType: z.string(),
+        postalAddress: z.object({
+          addressLines: z.array(z.unknown()),
+          administrativeArea: z.string(),
+          languageCode: z.string(),
+          locality: z.string(),
+          organization: z.string(),
+          postalCode: z.string(),
+          recipients: z.array(z.unknown()),
+          regionCode: z.string(),
+          revision: z.number(),
+          sortingCode: z.string(),
+          sublocality: z.string(),
+        }).partial(),
+        radiusMiles: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   description: z.string().optional(),
   employmentTypes: z.array(z.string()).optional(),
   incentives: z.string().optional(),
@@ -561,7 +565,7 @@ const StateSchema = z.object({
   processingOptions: z.object({
     disableStreetAddressResolution: z.boolean(),
     htmlSanitization: z.string(),
-  }).optional(),
+  }).partial().optional(),
   promotionValue: z.number().optional(),
   qualifications: z.string().optional(),
   requisitionId: z.string().optional(),
@@ -907,7 +911,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Talent Solution Tenants.Jobs. Registered at `@swamp/gcp/jobs/tenants-jobs`. */
 export const model = {
   type: "@swamp/gcp/jobs/tenants-jobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1054,6 +1058,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

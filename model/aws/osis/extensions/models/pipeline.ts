@@ -47,6 +47,27 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const VpcOptionsStateSchema = z.object({
+  SecurityGroupIds: z.array(z.string()),
+  SubnetIds: z.array(z.string()),
+  VpcEndpointManagement: z.string(),
+  VpcAttachmentOptions: z.object({
+    AttachToVpc: z.boolean(),
+    CidrBlock: z.string(),
+  }).partial(),
+}).partial();
+
+const VpcEndpointStateSchema = z.object({
+  VpcEndpointId: z.string(),
+  VpcId: z.string(),
+  VpcOptions: VpcOptionsStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -139,21 +160,21 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   BufferOptions: z.object({
     PersistentBufferEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   EncryptionAtRestOptions: z.object({
     KmsKeyArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LogPublishingOptions: z.object({
     IsLoggingEnabled: z.boolean(),
     CloudWatchLogDestination: z.object({
       LogGroup: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   MaxUnits: z.number().optional(),
   MinUnits: z.number().optional(),
   PipelineConfigurationBody: z.string().optional(),
   PipelineName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   VpcOptions: z.object({
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
@@ -161,31 +182,19 @@ const StateSchema = z.object({
     VpcAttachmentOptions: z.object({
       AttachToVpc: z.boolean(),
       CidrBlock: z.string(),
-    }),
-  }).optional(),
-  VpcEndpoints: z.array(z.object({
-    VpcEndpointId: z.string(),
-    VpcId: z.string(),
-    VpcOptions: z.object({
-      SecurityGroupIds: z.array(z.string()),
-      SubnetIds: z.array(z.string()),
-      VpcEndpointManagement: z.string(),
-      VpcAttachmentOptions: z.object({
-        AttachToVpc: z.boolean(),
-        CidrBlock: z.string(),
-      }),
-    }),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  VpcEndpoints: z.array(VpcEndpointStateSchema).optional(),
   VpcEndpointService: z.string().optional(),
   PipelineArn: z.string(),
   PipelineRoleArn: z.string().optional(),
   IngestEndpointUrls: z.array(z.string()).optional(),
   ResourcePolicy: z.object({
     Policy: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -286,7 +295,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OSIS Pipeline. Registered at `@swamp/aws/osis/pipeline`. */
 export const model = {
   type: "@swamp/aws/osis/pipeline",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -355,6 +364,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

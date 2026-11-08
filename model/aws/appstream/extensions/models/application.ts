@@ -86,21 +86,23 @@ const StateSchema = z.object({
   IconS3Location: z.object({
     S3Bucket: z.string(),
     S3Key: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string(),
   AppBlockArn: z.string().optional(),
   Platforms: z.array(z.string()).optional(),
-  Tags: z.array(z.object({
-    Key: z.string(),
-    Value: z.string(),
-    TagKey: z.string(),
-    TagValue: z.string(),
-  })).optional(),
+  Tags: z.array(
+    z.object({
+      Key: z.string(),
+      Value: z.string(),
+      TagKey: z.string(),
+      TagValue: z.string(),
+    }).partial(),
+  ).optional(),
   AttributesToDelete: z.array(z.string()).optional(),
   CreatedTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -149,7 +151,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream Application. Registered at `@swamp/aws/appstream/application`. */
 export const model = {
   type: "@swamp/aws/appstream/application",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -208,6 +210,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

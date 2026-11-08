@@ -65,6 +65,21 @@ const CapacityProviderLoggingConfigSchema = z.object({
   ).optional(),
 });
 
+const TargetTrackingScalingPolicyStateSchema = z.object({
+  PredefinedMetricType: z.string(),
+  TargetValue: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CapacityProviderLoggingConfigStateSchema = z.object({
+  LogGroup: z.string(),
+  SystemLogLevel: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -167,33 +182,33 @@ const StateSchema = z.object({
   CapacityProviderScalingConfig: z.object({
     MaxVCpuCount: z.number(),
     ScalingMode: z.string(),
-    ScalingPolicies: z.array(TargetTrackingScalingPolicySchema),
-  }).optional(),
+    ScalingPolicies: z.array(TargetTrackingScalingPolicyStateSchema),
+  }).partial().optional(),
   InstanceRequirements: z.object({
     Architectures: z.array(z.string()),
     AllowedInstanceTypes: z.array(z.string()),
     ExcludedInstanceTypes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   KmsKeyArn: z.string().optional(),
   PermissionsConfig: z.object({
     CapacityProviderOperatorRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   State: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   VpcConfig: z.object({
     SubnetIds: z.array(z.string()),
     SecurityGroupIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   PropagateTags: z.object({
     Mode: z.string(),
-    ExplicitTags: z.array(TagSchema),
-  }).optional(),
+    ExplicitTags: z.array(TagStateSchema),
+  }).partial().optional(),
   TelemetryConfig: z.object({
-    LoggingConfig: CapacityProviderLoggingConfigSchema,
-  }).optional(),
+    LoggingConfig: CapacityProviderLoggingConfigStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -302,7 +317,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda CapacityProvider. Registered at `@swamp/aws/lambda/capacity-provider`. */
 export const model = {
   type: "@swamp/aws/lambda/capacity-provider",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -406,6 +421,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

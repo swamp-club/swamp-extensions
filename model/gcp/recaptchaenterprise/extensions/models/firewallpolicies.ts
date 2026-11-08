@@ -202,19 +202,21 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  actions: z.array(z.object({
-    allow: z.object({}),
-    block: z.object({}),
-    includeRecaptchaScript: z.object({}),
-    redirect: z.object({}),
-    setHeader: z.object({
-      key: z.string(),
-      value: z.string(),
-    }),
-    substitute: z.object({
-      path: z.string(),
-    }),
-  })).optional(),
+  actions: z.array(
+    z.object({
+      allow: z.object({}).partial(),
+      block: z.object({}).partial(),
+      includeRecaptchaScript: z.object({}).partial(),
+      redirect: z.object({}).partial(),
+      setHeader: z.object({
+        key: z.string(),
+        value: z.string(),
+      }).partial(),
+      substitute: z.object({
+        path: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   condition: z.string().optional(),
   description: z.string().optional(),
   name: z.string(),
@@ -306,7 +308,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud reCAPTCHA Enterprise Firewallpolicies. Registered at `@swamp/gcp/recaptchaenterprise/firewallpolicies`. */
 export const model = {
   type: "@swamp/gcp/recaptchaenterprise/firewallpolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -445,6 +447,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -157,6 +157,109 @@ const TagSpecificationSchema = z.object({
   Tags: z.array(TagSchema).optional(),
 });
 
+const EbsBlockDeviceStateSchema = z.object({
+  VolumeType: z.string(),
+  Encrypted: z.boolean(),
+  KmsKeyId: z.string(),
+  Iops: z.number(),
+  Throughput: z.number(),
+  VolumeSize: z.number(),
+}).partial();
+
+const BlockDeviceMappingStateSchema = z.object({
+  DeviceName: z.string(),
+  Ebs: EbsBlockDeviceStateSchema,
+  NoDevice: z.string(),
+  VirtualName: z.string(),
+}).partial();
+
+const CapacityReservationTargetStateSchema = z.object({
+  CapacityReservationId: z.string(),
+  CapacityReservationResourceGroupArn: z.string(),
+}).partial();
+
+const CapacityReservationSpecificationStateSchema = z.object({
+  CapacityReservationPreference: z.string(),
+  CapacityReservationTarget: CapacityReservationTargetStateSchema,
+}).partial();
+
+const CpuOptionsRequestStateSchema = z.object({
+  CoreCount: z.number(),
+  ThreadsPerCore: z.number(),
+}).partial();
+
+const CreditSpecificationRequestStateSchema = z.object({
+  CpuCredits: z.string(),
+}).partial();
+
+const EnclaveOptionsRequestStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const HibernationOptionsRequestStateSchema = z.object({
+  Configured: z.boolean(),
+}).partial();
+
+const IamInstanceProfileSpecificationStateSchema = z.object({
+  Arn: z.string(),
+  Name: z.string(),
+}).partial();
+
+const LicenseConfigurationRequestStateSchema = z.object({
+  LicenseConfigurationArn: z.string(),
+}).partial();
+
+const InstanceMaintenanceOptionsRequestStateSchema = z.object({
+  AutoRecovery: z.string(),
+}).partial();
+
+const InstanceMetadataOptionsRequestStateSchema = z.object({
+  HttpEndpoint: z.string(),
+  HttpProtocolIpv6: z.string(),
+  HttpPutResponseHopLimit: z.number(),
+  HttpTokens: z.string(),
+  InstanceMetadataTags: z.string(),
+}).partial();
+
+const RunInstancesMonitoringEnabledStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const InstanceNetworkInterfaceSpecificationStateSchema = z.object({
+  Description: z.string(),
+  DeviceIndex: z.number(),
+  Groups: z.array(z.string()),
+  SubnetId: z.string(),
+}).partial();
+
+const InstanceNetworkPerformanceOptionsRequestStateSchema = z.object({
+  BandwidthWeighting: z.string(),
+}).partial();
+
+const PlacementStateSchema = z.object({
+  AvailabilityZone: z.string(),
+  GroupId: z.string(),
+  GroupName: z.string(),
+  PartitionNumber: z.number(),
+  Tenancy: z.string(),
+}).partial();
+
+const PrivateDnsNameOptionsRequestStateSchema = z.object({
+  HostnameType: z.string(),
+  EnableResourceNameDnsARecord: z.boolean(),
+  EnableResourceNameDnsAAAARecord: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TagSpecificationStateSchema = z.object({
+  ResourceType: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -210,41 +313,45 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ManagedInstance: z.object({
-    BlockDeviceMappings: z.array(BlockDeviceMappingSchema),
-    CapacityReservationSpecification: CapacityReservationSpecificationSchema,
-    CpuOptions: CpuOptionsRequestSchema,
-    CreditSpecification: CreditSpecificationRequestSchema,
+    BlockDeviceMappings: z.array(BlockDeviceMappingStateSchema),
+    CapacityReservationSpecification:
+      CapacityReservationSpecificationStateSchema,
+    CpuOptions: CpuOptionsRequestStateSchema,
+    CreditSpecification: CreditSpecificationRequestStateSchema,
     DisableApiStop: z.boolean(),
     EbsOptimized: z.boolean(),
     EnablePrimaryIpv6: z.boolean(),
-    EnclaveOptions: EnclaveOptionsRequestSchema,
-    HibernationOptions: HibernationOptionsRequestSchema,
-    IamInstanceProfile: IamInstanceProfileSpecificationSchema,
+    EnclaveOptions: EnclaveOptionsRequestStateSchema,
+    HibernationOptions: HibernationOptionsRequestStateSchema,
+    IamInstanceProfile: IamInstanceProfileSpecificationStateSchema,
     ImageId: z.string(),
     InstanceType: z.string(),
     Ipv6AddressCount: z.number(),
     KeyName: z.string(),
-    LicenseSpecifications: z.array(LicenseConfigurationRequestSchema),
-    MaintenanceOptions: InstanceMaintenanceOptionsRequestSchema,
-    MetadataOptions: InstanceMetadataOptionsRequestSchema,
-    Monitoring: RunInstancesMonitoringEnabledSchema,
-    NetworkInterfaces: z.array(InstanceNetworkInterfaceSpecificationSchema),
-    NetworkPerformanceOptions: InstanceNetworkPerformanceOptionsRequestSchema,
-    Placement: PlacementSchema,
-    PrivateDnsNameOptions: PrivateDnsNameOptionsRequestSchema,
+    LicenseSpecifications: z.array(LicenseConfigurationRequestStateSchema),
+    MaintenanceOptions: InstanceMaintenanceOptionsRequestStateSchema,
+    MetadataOptions: InstanceMetadataOptionsRequestStateSchema,
+    Monitoring: RunInstancesMonitoringEnabledStateSchema,
+    NetworkInterfaces: z.array(
+      InstanceNetworkInterfaceSpecificationStateSchema,
+    ),
+    NetworkPerformanceOptions:
+      InstanceNetworkPerformanceOptionsRequestStateSchema,
+    Placement: PlacementStateSchema,
+    PrivateDnsNameOptions: PrivateDnsNameOptionsRequestStateSchema,
     SubnetId: z.string(),
-    TagSpecifications: z.array(TagSpecificationSchema),
+    TagSpecifications: z.array(TagSpecificationStateSchema),
     UserData: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   WorkspaceInstanceId: z.string(),
   ProvisionState: z.string().optional(),
   EC2ManagedInstance: z.object({
     InstanceId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -307,7 +414,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WorkspacesInstances WorkspaceInstance. Registered at `@swamp/aws/workspacesinstances/workspace-instance`. */
 export const model = {
   type: "@swamp/aws/workspacesinstances/workspace-instance",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -366,6 +473,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

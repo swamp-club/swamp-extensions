@@ -140,6 +140,63 @@ const LFTagPolicyResourceSchema = z.object({
   ),
 });
 
+const CatalogResourceStateSchema = z.object({
+  Id: z.string(),
+}).partial();
+
+const DatabaseResourceStateSchema = z.object({
+  CatalogId: z.string(),
+  Name: z.string(),
+}).partial();
+
+const TableResourceStateSchema = z.object({
+  CatalogId: z.string(),
+  DatabaseName: z.string(),
+  Name: z.string(),
+  TableWildcard: z.record(z.string(), z.unknown()),
+}).partial();
+
+const ColumnWildcardStateSchema = z.object({
+  ExcludedColumnNames: z.array(z.string()),
+}).partial();
+
+const TableWithColumnsResourceStateSchema = z.object({
+  CatalogId: z.string(),
+  DatabaseName: z.string(),
+  Name: z.string(),
+  ColumnNames: z.array(z.string()),
+  ColumnWildcard: ColumnWildcardStateSchema,
+}).partial();
+
+const DataLocationResourceStateSchema = z.object({
+  CatalogId: z.string(),
+  ResourceArn: z.string(),
+}).partial();
+
+const DataCellsFilterResourceStateSchema = z.object({
+  TableCatalogId: z.string(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  Name: z.string(),
+}).partial();
+
+const LFTagKeyResourceStateSchema = z.object({
+  CatalogId: z.string(),
+  TagKey: z.string(),
+  TagValues: z.array(z.string()),
+}).partial();
+
+const LFTagStateSchema = z.object({
+  TagKey: z.string(),
+  TagValues: z.array(z.string()),
+}).partial();
+
+const LFTagPolicyResourceStateSchema = z.object({
+  CatalogId: z.string(),
+  ResourceType: z.string(),
+  Expression: z.array(LFTagStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -232,24 +289,24 @@ const StateSchema = z.object({
   Catalog: z.string().optional(),
   Principal: z.object({
     DataLakePrincipalIdentifier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Resource: z.object({
-    Catalog: CatalogResourceSchema,
-    Database: DatabaseResourceSchema,
-    Table: TableResourceSchema,
-    TableWithColumns: TableWithColumnsResourceSchema,
-    DataLocation: DataLocationResourceSchema,
-    DataCellsFilter: DataCellsFilterResourceSchema,
-    LFTag: LFTagKeyResourceSchema,
-    LFTagPolicy: LFTagPolicyResourceSchema,
-  }).optional(),
+    Catalog: CatalogResourceStateSchema,
+    Database: DatabaseResourceStateSchema,
+    Table: TableResourceStateSchema,
+    TableWithColumns: TableWithColumnsResourceStateSchema,
+    DataLocation: DataLocationResourceStateSchema,
+    DataCellsFilter: DataCellsFilterResourceStateSchema,
+    LFTag: LFTagKeyResourceStateSchema,
+    LFTagPolicy: LFTagPolicyResourceStateSchema,
+  }).partial().optional(),
   Permissions: z.array(z.string()).optional(),
   PermissionsWithGrantOption: z.array(z.string()).optional(),
   PrincipalIdentifier: z.string(),
   ResourceIdentifier: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -348,7 +405,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LakeFormation PrincipalPermissions. Registered at `@swamp/aws/lakeformation/principal-permissions`. */
 export const model = {
   type: "@swamp/aws/lakeformation/principal-permissions",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -422,6 +479,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

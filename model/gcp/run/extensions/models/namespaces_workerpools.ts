@@ -467,24 +467,28 @@ const StateSchema = z.object({
     labels: z.record(z.string(), z.unknown()),
     name: z.string(),
     namespace: z.string(),
-    ownerReferences: z.array(z.object({
-      apiVersion: z.string(),
-      blockOwnerDeletion: z.boolean(),
-      controller: z.boolean(),
-      kind: z.string(),
-      name: z.string(),
-      uid: z.string(),
-    })),
+    ownerReferences: z.array(
+      z.object({
+        apiVersion: z.string(),
+        blockOwnerDeletion: z.boolean(),
+        controller: z.boolean(),
+        kind: z.string(),
+        name: z.string(),
+        uid: z.string(),
+      }).partial(),
+    ),
     resourceVersion: z.string(),
     selfLink: z.string(),
     uid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spec: z.object({
-    instanceSplits: z.array(z.object({
-      latestRevision: z.boolean(),
-      percent: z.number(),
-      revisionName: z.string(),
-    })),
+    instanceSplits: z.array(
+      z.object({
+        latestRevision: z.boolean(),
+        percent: z.number(),
+        revisionName: z.string(),
+      }).partial(),
+    ),
     template: z.object({
       metadata: z.object({
         annotations: z.record(z.string(), z.unknown()),
@@ -498,81 +502,93 @@ const StateSchema = z.object({
         labels: z.record(z.string(), z.unknown()),
         name: z.string(),
         namespace: z.string(),
-        ownerReferences: z.array(z.object({
-          apiVersion: z.unknown(),
-          blockOwnerDeletion: z.unknown(),
-          controller: z.unknown(),
-          kind: z.unknown(),
-          name: z.unknown(),
-          uid: z.unknown(),
-        })),
+        ownerReferences: z.array(
+          z.object({
+            apiVersion: z.unknown(),
+            blockOwnerDeletion: z.unknown(),
+            controller: z.unknown(),
+            kind: z.unknown(),
+            name: z.unknown(),
+            uid: z.unknown(),
+          }).partial(),
+        ),
         resourceVersion: z.string(),
         selfLink: z.string(),
         uid: z.string(),
-      }),
+      }).partial(),
       spec: z.object({
         containerConcurrency: z.number(),
-        containers: z.array(z.object({
-          args: z.unknown(),
-          command: z.unknown(),
-          env: z.unknown(),
-          envFrom: z.unknown(),
-          image: z.unknown(),
-          imagePullPolicy: z.unknown(),
-          livenessProbe: z.unknown(),
-          name: z.unknown(),
-          ports: z.unknown(),
-          readinessProbe: z.unknown(),
-          resources: z.unknown(),
-          sandboxLauncher: z.unknown(),
-          securityContext: z.unknown(),
-          startupProbe: z.unknown(),
-          terminationMessagePath: z.unknown(),
-          terminationMessagePolicy: z.unknown(),
-          volumeMounts: z.unknown(),
-          workingDir: z.unknown(),
-        })),
+        containers: z.array(
+          z.object({
+            args: z.unknown(),
+            command: z.unknown(),
+            env: z.unknown(),
+            envFrom: z.unknown(),
+            image: z.unknown(),
+            imagePullPolicy: z.unknown(),
+            livenessProbe: z.unknown(),
+            name: z.unknown(),
+            ports: z.unknown(),
+            readinessProbe: z.unknown(),
+            resources: z.unknown(),
+            sandboxLauncher: z.unknown(),
+            securityContext: z.unknown(),
+            startupProbe: z.unknown(),
+            terminationMessagePath: z.unknown(),
+            terminationMessagePolicy: z.unknown(),
+            volumeMounts: z.unknown(),
+            workingDir: z.unknown(),
+          }).partial(),
+        ),
         enableServiceLinks: z.boolean(),
-        imagePullSecrets: z.array(z.object({
-          name: z.unknown(),
-        })),
+        imagePullSecrets: z.array(
+          z.object({
+            name: z.unknown(),
+          }).partial(),
+        ),
         nodeSelector: z.record(z.string(), z.unknown()),
         runtimeClassName: z.string(),
         sandboxes: z.object({
           templates: z.array(z.unknown()),
-        }),
+        }).partial(),
         serviceAccountName: z.string(),
         timeoutSeconds: z.number(),
-        volumes: z.array(z.object({
-          configMap: z.unknown(),
-          csi: z.unknown(),
-          emptyDir: z.unknown(),
-          filestore: z.unknown(),
-          name: z.unknown(),
-          nfs: z.unknown(),
-          secret: z.unknown(),
-        })),
-      }),
-    }),
-  }).optional(),
+        volumes: z.array(
+          z.object({
+            configMap: z.unknown(),
+            csi: z.unknown(),
+            emptyDir: z.unknown(),
+            filestore: z.unknown(),
+            name: z.unknown(),
+            nfs: z.unknown(),
+            secret: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   status: z.object({
-    conditions: z.array(z.object({
-      lastTransitionTime: z.string(),
-      message: z.string(),
-      reason: z.string(),
-      severity: z.string(),
-      status: z.string(),
-      type: z.string(),
-    })),
-    instanceSplits: z.array(z.object({
-      latestRevision: z.boolean(),
-      percent: z.number(),
-      revisionName: z.string(),
-    })),
+    conditions: z.array(
+      z.object({
+        lastTransitionTime: z.string(),
+        message: z.string(),
+        reason: z.string(),
+        severity: z.string(),
+        status: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+    instanceSplits: z.array(
+      z.object({
+        latestRevision: z.boolean(),
+        percent: z.number(),
+        revisionName: z.string(),
+      }).partial(),
+    ),
     latestCreatedRevisionName: z.string(),
     latestReadyRevisionName: z.string(),
     observedGeneration: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -919,7 +935,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Workerpools. Registered at `@swamp/gcp/run/namespaces-workerpools`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-workerpools",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -973,6 +989,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

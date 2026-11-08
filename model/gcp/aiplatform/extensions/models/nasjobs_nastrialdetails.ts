@@ -118,30 +118,34 @@ const StateSchema = z.object({
     endTime: z.string(),
     finalMeasurement: z.object({
       elapsedDuration: z.string(),
-      metrics: z.array(z.object({
-        metricId: z.string(),
-        value: z.number(),
-      })),
+      metrics: z.array(
+        z.object({
+          metricId: z.string(),
+          value: z.number(),
+        }).partial(),
+      ),
       stepCount: z.string(),
-    }),
+    }).partial(),
     id: z.string(),
     startTime: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   trainTrial: z.object({
     endTime: z.string(),
     finalMeasurement: z.object({
       elapsedDuration: z.string(),
-      metrics: z.array(z.object({
-        metricId: z.string(),
-        value: z.number(),
-      })),
+      metrics: z.array(
+        z.object({
+          metricId: z.string(),
+          value: z.number(),
+        }).partial(),
+      ),
       stepCount: z.string(),
-    }),
+    }).partial(),
     id: z.string(),
     startTime: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -188,7 +192,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform NasJobs.NasTrialDetails. Registered at `@swamp/gcp/aiplatform/nasjobs-nastrialdetails`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/nasjobs-nastrialdetails",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -347,6 +351,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

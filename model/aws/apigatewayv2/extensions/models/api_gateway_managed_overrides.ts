@@ -58,6 +58,17 @@ const RouteSettingsSchema = z.object({
   ).optional(),
 });
 
+const AccessLogSettingsStateSchema = z.object({
+  DestinationArn: z.string(),
+  Format: z.string(),
+}).partial();
+
+const RouteSettingsStateSchema = z.object({
+  DetailedMetricsEnabled: z.boolean(),
+  ThrottlingBurstLimit: z.number(),
+  ThrottlingRateLimit: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -135,28 +146,28 @@ const StateSchema = z.object({
   ApiId: z.string(),
   Stage: z.object({
     Description: z.string(),
-    AccessLogSettings: AccessLogSettingsSchema,
+    AccessLogSettings: AccessLogSettingsStateSchema,
     AutoDeploy: z.boolean(),
     RouteSettings: z.record(z.string(), z.unknown()),
     StageVariables: z.record(z.string(), z.unknown()),
-    DefaultRouteSettings: RouteSettingsSchema,
-  }).optional(),
+    DefaultRouteSettings: RouteSettingsStateSchema,
+  }).partial().optional(),
   Integration: z.object({
     TimeoutInMillis: z.number(),
     Description: z.string(),
     PayloadFormatVersion: z.string(),
     IntegrationMethod: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Route: z.object({
     AuthorizationScopes: z.array(z.string()),
     Target: z.string(),
     AuthorizationType: z.string(),
     AuthorizerId: z.string(),
     OperationName: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -241,7 +252,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 ApiGatewayManagedOverrides. Registered at `@swamp/aws/apigatewayv2/api-gateway-managed-overrides`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/api-gateway-managed-overrides",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -260,6 +271,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

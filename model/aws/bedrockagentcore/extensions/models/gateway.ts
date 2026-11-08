@@ -152,6 +152,86 @@ const MCPGatewayConfigurationSchema = z.object({
   DisableMcpListToolsPagination: z.boolean().optional(),
 });
 
+const AuthorizingClaimMatchValueTypeStateSchema = z.object({
+  ClaimMatchValue: z.object({
+    MatchValueString: z.string(),
+    MatchValueStringList: z.array(z.string()),
+  }).partial(),
+  ClaimMatchOperator: z.string(),
+}).partial();
+
+const CustomClaimValidationTypeStateSchema = z.object({
+  InboundTokenClaimName: z.string(),
+  InboundTokenClaimValueType: z.string(),
+  AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeStateSchema,
+}).partial();
+
+const ManagedVpcResourceStateSchema = z.object({
+  VpcIdentifier: z.string(),
+  SubnetIds: z.array(z.string()),
+  EndpointIpAddressType: z.string(),
+  SecurityGroupIds: z.array(z.string()),
+  RoutingDomain: z.string(),
+  Tags: z.record(z.string(), z.unknown()),
+}).partial();
+
+const CustomJWTAuthorizerConfigurationStateSchema = z.object({
+  DiscoveryUrl: z.string(),
+  AllowedAudience: z.array(z.string()),
+  AllowedClients: z.array(z.string()),
+  AllowedScopes: z.array(z.string()),
+  AdvertisedScopeMapping: z.record(z.string(), z.unknown()),
+  CustomClaims: z.array(CustomClaimValidationTypeStateSchema),
+  PrivateEndpoint: z.object({
+    SelfManagedLatticeResource: z.object({
+      ResourceConfigurationIdentifier: z.string(),
+    }).partial(),
+    ManagedVpcResource: ManagedVpcResourceStateSchema,
+  }).partial(),
+}).partial();
+
+const LambdaInterceptorConfigurationStateSchema = z.object({
+  Arn: z.string(),
+}).partial();
+
+const InterceptorPayloadFilterStateSchema = z.object({
+  Exclude: z.array(
+    z.object({
+      Field: z.string(),
+    }).partial(),
+  ),
+}).partial();
+
+const InterceptorInputConfigurationStateSchema = z.object({
+  PassRequestHeaders: z.boolean(),
+  PayloadFilter: InterceptorPayloadFilterStateSchema,
+}).partial();
+
+const GatewayInterceptorConfigurationStateSchema = z.object({
+  Interceptor: z.object({
+    Lambda: LambdaInterceptorConfigurationStateSchema,
+  }).partial(),
+  InterceptionPoints: z.array(z.string()),
+  InputConfiguration: InterceptorInputConfigurationStateSchema,
+}).partial();
+
+const SessionConfigurationStateSchema = z.object({
+  SessionTimeoutInSeconds: z.number(),
+}).partial();
+
+const StreamingConfigurationStateSchema = z.object({
+  EnableResponseStreaming: z.boolean(),
+}).partial();
+
+const MCPGatewayConfigurationStateSchema = z.object({
+  SupportedVersions: z.array(z.string()),
+  Instructions: z.string(),
+  SearchType: z.string(),
+  SessionConfiguration: SessionConfigurationStateSchema,
+  StreamingConfiguration: StreamingConfigurationStateSchema,
+  DisableMcpListToolsPagination: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -212,8 +292,8 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   AuthorizerConfiguration: z.object({
-    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema,
-  }).optional(),
+    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationStateSchema,
+  }).partial().optional(),
   AuthorizerType: z.string().optional(),
   CreatedAt: z.string().optional(),
   Description: z.string().optional(),
@@ -221,17 +301,17 @@ const StateSchema = z.object({
   GatewayArn: z.string().optional(),
   GatewayIdentifier: z.string(),
   GatewayUrl: z.string().optional(),
-  InterceptorConfigurations: z.array(GatewayInterceptorConfigurationSchema)
+  InterceptorConfigurations: z.array(GatewayInterceptorConfigurationStateSchema)
     .optional(),
   KmsKeyArn: z.string().optional(),
   Name: z.string().optional(),
   PolicyEngineConfiguration: z.object({
     Arn: z.string(),
     Mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ProtocolConfiguration: z.object({
-    Mcp: MCPGatewayConfigurationSchema,
-  }).optional(),
+    Mcp: MCPGatewayConfigurationStateSchema,
+  }).partial().optional(),
   ProtocolType: z.string().optional(),
   RoleArn: z.string().optional(),
   Status: z.string().optional(),
@@ -240,14 +320,14 @@ const StateSchema = z.object({
   UpdatedAt: z.string().optional(),
   WafConfiguration: z.object({
     FailureMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   WebAclArn: z.string().optional(),
   WorkloadIdentityDetails: z.object({
     WorkloadIdentityArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -316,7 +396,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Gateway. Registered at `@swamp/aws/bedrockagentcore/gateway`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -440,6 +520,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

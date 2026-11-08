@@ -453,94 +453,96 @@ const StateSchema = z.object({
   disallowUnspecifiedMode: z.boolean().optional(),
   dockerConfig: z.object({
     immutableTags: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   format: z.string().optional(),
   kmsKeyName: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   mavenConfig: z.object({
     allowSnapshotOverwrites: z.boolean(),
     versionPolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   mode: z.string().optional(),
   name: z.string(),
   platformLogsConfig: z.object({
     loggingState: z.string(),
     severityLevel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   registryUri: z.string().optional(),
   remoteRepositoryConfig: z.object({
     aptRepository: z.object({
       customRepository: z.object({
         uri: z.string(),
-      }),
+      }).partial(),
       publicRepository: z.object({
         repositoryBase: z.string(),
         repositoryPath: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     commonRepository: z.object({
       uri: z.string(),
-    }),
+    }).partial(),
     description: z.string(),
     disableUpstreamValidation: z.boolean(),
     dockerRepository: z.object({
       customRepository: z.object({
         uri: z.string(),
-      }),
+      }).partial(),
       publicRepository: z.string(),
-    }),
+    }).partial(),
     mavenRepository: z.object({
       customRepository: z.object({
         uri: z.string(),
-      }),
+      }).partial(),
       publicRepository: z.string(),
-    }),
-    noCache: z.object({}),
+    }).partial(),
+    noCache: z.object({}).partial(),
     npmRepository: z.object({
       customRepository: z.object({
         uri: z.string(),
-      }),
+      }).partial(),
       publicRepository: z.string(),
-    }),
+    }).partial(),
     pythonRepository: z.object({
       customRepository: z.object({
         uri: z.string(),
-      }),
+      }).partial(),
       publicRepository: z.string(),
-    }),
+    }).partial(),
     upstreamCredentials: z.object({
       usernamePasswordCredentials: z.object({
         passwordSecretVersion: z.string(),
         username: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     yumRepository: z.object({
       customRepository: z.object({
         uri: z.string(),
-      }),
+      }).partial(),
       publicRepository: z.object({
         repositoryBase: z.string(),
         repositoryPath: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   sizeBytes: z.string().optional(),
   updateTime: z.string().optional(),
   virtualRepositoryConfig: z.object({
-    upstreamPolicies: z.array(z.object({
-      id: z.string(),
-      priority: z.number(),
-      repository: z.string(),
-    })),
-  }).optional(),
+    upstreamPolicies: z.array(
+      z.object({
+        id: z.string(),
+        priority: z.number(),
+        repository: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   vulnerabilityScanningConfig: z.object({
     enablementConfig: z.string(),
     enablementState: z.string(),
     enablementStateReason: z.string(),
     lastEnableTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -863,7 +865,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Artifact Registry Repositories. Registered at `@swamp/gcp/artifactregistry/repositories`. */
 export const model = {
   type: "@swamp/gcp/artifactregistry/repositories",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1089,6 +1091,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

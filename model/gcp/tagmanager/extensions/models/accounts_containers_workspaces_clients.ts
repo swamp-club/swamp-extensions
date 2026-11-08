@@ -216,14 +216,16 @@ const StateSchema = z.object({
   fingerprint: z.string().optional(),
   name: z.string(),
   notes: z.string().optional(),
-  parameter: z.array(z.object({
-    isWeakReference: z.boolean(),
-    key: z.string(),
-    list: z.array(z.record(z.string(), z.unknown())),
-    map: z.array(z.record(z.string(), z.unknown())),
-    type: z.string(),
-    value: z.string(),
-  })).optional(),
+  parameter: z.array(
+    z.object({
+      isWeakReference: z.boolean(),
+      key: z.string(),
+      list: z.array(z.record(z.string(), z.unknown())),
+      map: z.array(z.record(z.string(), z.unknown())),
+      type: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   parentFolderId: z.string().optional(),
   path: z.string().optional(),
   priority: z.number().optional(),
@@ -323,7 +325,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tag Manager Accounts.Containers.Workspaces.Clients. Registered at `@swamp/gcp/tagmanager/accounts-containers-workspaces-clients`. */
 export const model = {
   type: "@swamp/gcp/tagmanager/accounts-containers-workspaces-clients",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -472,6 +474,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

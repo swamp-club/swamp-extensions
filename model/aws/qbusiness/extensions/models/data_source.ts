@@ -116,6 +116,58 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const DocumentAttributeConditionStateSchema = z.object({
+  Key: z.string(),
+  Operator: z.string(),
+  Value: z.object({
+    StringValue: z.string(),
+    StringListValue: z.array(z.string()),
+    LongValue: z.number(),
+    DateValue: z.string(),
+  }).partial(),
+}).partial();
+
+const DocumentAttributeTargetStateSchema = z.object({
+  Key: z.string(),
+  Value: z.object({
+    StringValue: z.string(),
+    StringListValue: z.array(z.string()),
+    LongValue: z.number(),
+    DateValue: z.string(),
+  }).partial(),
+  AttributeValueOperator: z.string(),
+}).partial();
+
+const InlineDocumentEnrichmentConfigurationStateSchema = z.object({
+  Condition: DocumentAttributeConditionStateSchema,
+  Target: DocumentAttributeTargetStateSchema,
+  DocumentContentOperator: z.string(),
+}).partial();
+
+const HookConfigurationStateSchema = z.object({
+  InvocationCondition: DocumentAttributeConditionStateSchema,
+  LambdaArn: z.string(),
+  S3BucketName: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const ImageExtractionConfigurationStateSchema = z.object({
+  ImageExtractionStatus: z.string(),
+}).partial();
+
+const AudioExtractionConfigurationStateSchema = z.object({
+  AudioExtractionStatus: z.string(),
+}).partial();
+
+const VideoExtractionConfigurationStateSchema = z.object({
+  VideoExtractionStatus: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -181,29 +233,31 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   DisplayName: z.string().optional(),
   DocumentEnrichmentConfiguration: z.object({
-    InlineConfigurations: z.array(InlineDocumentEnrichmentConfigurationSchema),
-    PreExtractionHookConfiguration: HookConfigurationSchema,
-    PostExtractionHookConfiguration: HookConfigurationSchema,
-  }).optional(),
+    InlineConfigurations: z.array(
+      InlineDocumentEnrichmentConfigurationStateSchema,
+    ),
+    PreExtractionHookConfiguration: HookConfigurationStateSchema,
+    PostExtractionHookConfiguration: HookConfigurationStateSchema,
+  }).partial().optional(),
   MediaExtractionConfiguration: z.object({
-    ImageExtractionConfiguration: ImageExtractionConfigurationSchema,
-    AudioExtractionConfiguration: AudioExtractionConfigurationSchema,
-    VideoExtractionConfiguration: VideoExtractionConfigurationSchema,
-  }).optional(),
+    ImageExtractionConfiguration: ImageExtractionConfigurationStateSchema,
+    AudioExtractionConfiguration: AudioExtractionConfigurationStateSchema,
+    VideoExtractionConfiguration: VideoExtractionConfigurationStateSchema,
+  }).partial().optional(),
   IndexId: z.string(),
   RoleArn: z.string().optional(),
   Status: z.string().optional(),
   SyncSchedule: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Type: z.string().optional(),
   UpdatedAt: z.string().optional(),
   VpcConfiguration: z.object({
     SubnetIds: z.array(z.string()),
     SecurityGroupIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -270,7 +324,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QBusiness DataSource. Registered at `@swamp/aws/qbusiness/data-source`. */
 export const model = {
   type: "@swamp/aws/qbusiness/data-source",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -339,6 +393,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -126,15 +126,17 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  accelerators: z.array(z.object({
-    guestAcceleratorCount: z.number(),
-    guestAcceleratorType: z.string(),
-  })).optional(),
+  accelerators: z.array(
+    z.object({
+      guestAcceleratorCount: z.number(),
+      guestAcceleratorType: z.string(),
+    }).partial(),
+  ).optional(),
   architecture: z.string().optional(),
   bundledLocalSsds: z.object({
     defaultInterface: z.string(),
     partitionCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   creationTimestamp: z.string().optional(),
   deprecated: z.object({
     deleted: z.string(),
@@ -142,7 +144,7 @@ const StateSchema = z.object({
     obsolete: z.string(),
     replacement: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   guestCpus: z.number().optional(),
   id: z.string().optional(),
@@ -197,7 +199,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine MachineTypes. Registered at `@swamp/gcp/compute/machinetypes`. */
 export const model = {
   type: "@swamp/gcp/compute/machinetypes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -331,6 +333,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

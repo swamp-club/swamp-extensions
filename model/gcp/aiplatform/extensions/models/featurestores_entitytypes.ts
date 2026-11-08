@@ -242,20 +242,20 @@ const StateSchema = z.object({
   monitoringConfig: z.object({
     categoricalThresholdConfig: z.object({
       value: z.number(),
-    }),
+    }).partial(),
     importFeaturesAnalysis: z.object({
       anomalyDetectionBaseline: z.string(),
       state: z.string(),
-    }),
+    }).partial(),
     numericalThresholdConfig: z.object({
       value: z.number(),
-    }),
+    }).partial(),
     snapshotAnalysis: z.object({
       disabled: z.boolean(),
       monitoringIntervalDays: z.number(),
       stalenessDays: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   offlineStorageTtlDays: z.number().optional(),
   satisfiesPzi: z.boolean().optional(),
@@ -366,7 +366,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Featurestores.EntityTypes. Registered at `@swamp/gcp/aiplatform/featurestores-entitytypes`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/featurestores-entitytypes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -561,6 +561,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

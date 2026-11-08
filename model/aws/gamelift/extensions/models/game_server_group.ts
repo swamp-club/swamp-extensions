@@ -62,6 +62,20 @@ const TagSchema = z.object({
   ).optional(),
 });
 
+const TargetTrackingConfigurationStateSchema = z.object({
+  TargetValue: z.number(),
+}).partial();
+
+const InstanceDefinitionStateSchema = z.object({
+  InstanceType: z.string(),
+  WeightedCapacity: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -143,27 +157,27 @@ const StateSchema = z.object({
   AutoScalingGroupArn: z.string().optional(),
   AutoScalingPolicy: z.object({
     EstimatedInstanceWarmup: z.number(),
-    TargetTrackingConfiguration: TargetTrackingConfigurationSchema,
-  }).optional(),
+    TargetTrackingConfiguration: TargetTrackingConfigurationStateSchema,
+  }).partial().optional(),
   BalancingStrategy: z.string().optional(),
   DeleteOption: z.string().optional(),
   GameServerGroupArn: z.string(),
   GameServerGroupName: z.string().optional(),
   GameServerProtectionPolicy: z.string().optional(),
-  InstanceDefinitions: z.array(InstanceDefinitionSchema).optional(),
+  InstanceDefinitions: z.array(InstanceDefinitionStateSchema).optional(),
   LaunchTemplate: z.object({
     LaunchTemplateId: z.string(),
     LaunchTemplateName: z.string(),
     Version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MaxSize: z.number().optional(),
   MinSize: z.number().optional(),
   RoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   VpcSubnets: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -251,7 +265,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift GameServerGroup. Registered at `@swamp/aws/gamelift/game-server-group`. */
 export const model = {
   type: "@swamp/aws/gamelift/game-server-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -315,6 +329,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

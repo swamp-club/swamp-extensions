@@ -94,10 +94,12 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   androidAppInfo: z.object({
-    permissions: z.array(z.object({
-      type: z.string(),
-    })),
-  }).optional(),
+    permissions: z.array(
+      z.object({
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   appId: z.string().optional(),
   categoryIds: z.array(z.string()).optional(),
   chromeAppInfo: z.object({
@@ -109,29 +111,35 @@ const StateSchema = z.object({
     kioskEnabled: z.boolean(),
     manifestVersion: z.string(),
     minUserCount: z.number(),
-    permissions: z.array(z.object({
-      accessUserData: z.boolean(),
-      documentationUri: z.string(),
-      type: z.string(),
-    })),
+    permissions: z.array(
+      z.object({
+        accessUserData: z.boolean(),
+        documentationUri: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     riskAssessment: z.object({
-      entries: z.array(z.object({
-        provider: z.string(),
-        riskAssessment: z.object({
-          assessment: z.unknown(),
-          detailsUrl: z.unknown(),
-          version: z.unknown(),
-        }),
-        riskLevel: z.string(),
-      })),
+      entries: z.array(
+        z.object({
+          provider: z.string(),
+          riskAssessment: z.object({
+            assessment: z.unknown(),
+            detailsUrl: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+          riskLevel: z.string(),
+        }).partial(),
+      ),
       overallRiskLevel: z.string(),
-    }),
-    siteAccess: z.array(z.object({
-      hostMatch: z.string(),
-    })),
+    }).partial(),
+    siteAccess: z.array(
+      z.object({
+        hostMatch: z.string(),
+      }).partial(),
+    ),
     supportEnabled: z.boolean(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   detailUri: z.string().optional(),
   displayName: z.string().optional(),
@@ -150,7 +158,7 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   type: z.string().optional(),
 }).passthrough();
 
@@ -192,7 +200,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.Apps.Chrome. Registered at `@swamp/gcp/chromemanagement/customers-apps-chrome`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-apps-chrome",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -346,6 +354,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

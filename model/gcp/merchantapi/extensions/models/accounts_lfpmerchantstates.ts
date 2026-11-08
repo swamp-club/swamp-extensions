@@ -83,28 +83,32 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  countrySettings: z.array(z.object({
-    freeLocalListingsEnabled: z.boolean(),
-    instockServingVerificationState: z.string(),
-    inventoryVerificationState: z.string(),
-    localInventoryAdsEnabled: z.boolean(),
-    pickupServingVerificationState: z.string(),
-    productPageType: z.string(),
-    regionCode: z.string(),
-  })).optional(),
+  countrySettings: z.array(
+    z.object({
+      freeLocalListingsEnabled: z.boolean(),
+      instockServingVerificationState: z.string(),
+      inventoryVerificationState: z.string(),
+      localInventoryAdsEnabled: z.boolean(),
+      pickupServingVerificationState: z.string(),
+      productPageType: z.string(),
+      regionCode: z.string(),
+    }).partial(),
+  ).optional(),
   inventoryStats: z.object({
     submittedEntries: z.string(),
     submittedInStockEntries: z.string(),
     submittedProducts: z.string(),
     unsubmittedEntries: z.string(),
-  }).optional(),
+  }).partial().optional(),
   linkedGbps: z.string().optional(),
   name: z.string(),
-  storeStates: z.array(z.object({
-    matchingState: z.string(),
-    matchingStateHint: z.string(),
-    storeCode: z.string(),
-  })).optional(),
+  storeStates: z.array(
+    z.object({
+      matchingState: z.string(),
+      matchingStateHint: z.string(),
+      storeCode: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -145,7 +149,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.LfpMerchantStates. Registered at `@swamp/gcp/merchantapi/accounts-lfpmerchantstates`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-lfpmerchantstates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -164,6 +168,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

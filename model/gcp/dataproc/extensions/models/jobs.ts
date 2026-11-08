@@ -710,18 +710,18 @@ const StateSchema = z.object({
   driverSchedulingConfig: z.object({
     memoryMb: z.number(),
     vcores: z.number(),
-  }).optional(),
+  }).partial().optional(),
   flinkJob: z.object({
     args: z.array(z.string()),
     jarFileUris: z.array(z.string()),
     loggingConfig: z.object({
       driverLogLevels: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     mainClass: z.string(),
     mainJarFileUri: z.string(),
     properties: z.record(z.string(), z.unknown()),
     savepointUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   hadoopJob: z.object({
     archiveUris: z.array(z.string()),
     args: z.array(z.string()),
@@ -729,11 +729,11 @@ const StateSchema = z.object({
     jarFileUris: z.array(z.string()),
     loggingConfig: z.object({
       driverLogLevels: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     mainClass: z.string(),
     mainJarFileUri: z.string(),
     properties: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   hiveJob: z.object({
     continueOnFailure: z.boolean(),
     jarFileUris: z.array(z.string()),
@@ -741,9 +741,9 @@ const StateSchema = z.object({
     queryFileUri: z.string(),
     queryList: z.object({
       queries: z.array(z.string()),
-    }),
+    }).partial(),
     scriptVariables: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   jobUuid: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   pigJob: z.object({
@@ -751,32 +751,32 @@ const StateSchema = z.object({
     jarFileUris: z.array(z.string()),
     loggingConfig: z.object({
       driverLogLevels: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     properties: z.record(z.string(), z.unknown()),
     queryFileUri: z.string(),
     queryList: z.object({
       queries: z.array(z.string()),
-    }),
+    }).partial(),
     scriptVariables: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   placement: z.object({
     clusterLabels: z.record(z.string(), z.unknown()),
     clusterName: z.string(),
     clusterUuid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   prestoJob: z.object({
     clientTags: z.array(z.string()),
     continueOnFailure: z.boolean(),
     loggingConfig: z.object({
       driverLogLevels: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     outputFormat: z.string(),
     properties: z.record(z.string(), z.unknown()),
     queryFileUri: z.string(),
     queryList: z.object({
       queries: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   pysparkJob: z.object({
     archiveUris: z.array(z.string()),
     args: z.array(z.string()),
@@ -784,19 +784,19 @@ const StateSchema = z.object({
     jarFileUris: z.array(z.string()),
     loggingConfig: z.object({
       driverLogLevels: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     mainPythonFileUri: z.string(),
     properties: z.record(z.string(), z.unknown()),
     pythonFileUris: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   reference: z.object({
     jobId: z.string(),
     projectId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   scheduling: z.object({
     maxFailuresPerHour: z.number(),
     maxFailuresTotal: z.number(),
-  }).optional(),
+  }).partial().optional(),
   sparkJob: z.object({
     archiveUris: z.array(z.string()),
     args: z.array(z.string()),
@@ -804,66 +804,70 @@ const StateSchema = z.object({
     jarFileUris: z.array(z.string()),
     loggingConfig: z.object({
       driverLogLevels: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     mainClass: z.string(),
     mainJarFileUri: z.string(),
     properties: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   sparkRJob: z.object({
     archiveUris: z.array(z.string()),
     args: z.array(z.string()),
     fileUris: z.array(z.string()),
     loggingConfig: z.object({
       driverLogLevels: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     mainRFileUri: z.string(),
     properties: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   sparkSqlJob: z.object({
     jarFileUris: z.array(z.string()),
     loggingConfig: z.object({
       driverLogLevels: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     properties: z.record(z.string(), z.unknown()),
     queryFileUri: z.string(),
     queryList: z.object({
       queries: z.array(z.string()),
-    }),
+    }).partial(),
     scriptVariables: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     details: z.string(),
     state: z.string(),
     stateStartTime: z.string(),
     substate: z.string(),
-  }).optional(),
-  statusHistory: z.array(z.object({
-    details: z.string(),
-    state: z.string(),
-    stateStartTime: z.string(),
-    substate: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  statusHistory: z.array(
+    z.object({
+      details: z.string(),
+      state: z.string(),
+      stateStartTime: z.string(),
+      substate: z.string(),
+    }).partial(),
+  ).optional(),
   trinoJob: z.object({
     clientTags: z.array(z.string()),
     continueOnFailure: z.boolean(),
     loggingConfig: z.object({
       driverLogLevels: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     outputFormat: z.string(),
     properties: z.record(z.string(), z.unknown()),
     queryFileUri: z.string(),
     queryList: z.object({
       queries: z.array(z.string()),
-    }),
-  }).optional(),
-  yarnApplications: z.array(z.object({
-    memoryMbSeconds: z.string(),
-    name: z.string(),
-    progress: z.number(),
-    state: z.string(),
-    trackingUrl: z.string(),
-    vcoreSeconds: z.string(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  yarnApplications: z.array(
+    z.object({
+      memoryMbSeconds: z.string(),
+      name: z.string(),
+      progress: z.number(),
+      state: z.string(),
+      trackingUrl: z.string(),
+      vcoreSeconds: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1427,7 +1431,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Jobs. Registered at `@swamp/gcp/dataproc/jobs`. */
 export const model = {
   type: "@swamp/gcp/dataproc/jobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1581,6 +1585,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

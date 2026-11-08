@@ -112,6 +112,48 @@ const TagSchema = z.object({
   Value: z.string().describe("The value of the tag."),
 });
 
+const AlarmStateSchema = z.object({
+  AlarmName: z.string(),
+}).partial();
+
+const AutoRollbackConfigStateSchema = z.object({
+  Alarms: z.array(AlarmStateSchema),
+}).partial();
+
+const CapacitySizeStateSchema = z.object({
+  Type: z.string(),
+  Value: z.number(),
+}).partial();
+
+const TrafficRoutingConfigStateSchema = z.object({
+  CanarySize: CapacitySizeStateSchema,
+  LinearStepSize: CapacitySizeStateSchema,
+  Type: z.string(),
+  WaitIntervalInSeconds: z.number(),
+}).partial();
+
+const BlueGreenUpdatePolicyStateSchema = z.object({
+  MaximumExecutionTimeoutInSeconds: z.number(),
+  TerminationWaitInSeconds: z.number(),
+  TrafficRoutingConfiguration: TrafficRoutingConfigStateSchema,
+}).partial();
+
+const RollingUpdatePolicyStateSchema = z.object({
+  MaximumBatchSize: CapacitySizeStateSchema,
+  MaximumExecutionTimeoutInSeconds: z.number(),
+  RollbackMaximumBatchSize: CapacitySizeStateSchema,
+  WaitIntervalInSeconds: z.number(),
+}).partial();
+
+const VariantPropertyStateSchema = z.object({
+  VariantPropertyType: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -163,20 +205,21 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   DeploymentConfig: z.object({
-    AutoRollbackConfiguration: AutoRollbackConfigSchema,
-    BlueGreenUpdatePolicy: BlueGreenUpdatePolicySchema,
-    RollingUpdatePolicy: RollingUpdatePolicySchema,
-  }).optional(),
+    AutoRollbackConfiguration: AutoRollbackConfigStateSchema,
+    BlueGreenUpdatePolicy: BlueGreenUpdatePolicyStateSchema,
+    RollingUpdatePolicy: RollingUpdatePolicyStateSchema,
+  }).partial().optional(),
   EndpointArn: z.string(),
   EndpointConfigName: z.string().optional(),
   EndpointName: z.string().optional(),
-  ExcludeRetainedVariantProperties: z.array(VariantPropertySchema).optional(),
+  ExcludeRetainedVariantProperties: z.array(VariantPropertyStateSchema)
+    .optional(),
   RetainAllVariantProperties: z.boolean().optional(),
   RetainDeploymentConfig: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -236,7 +279,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Endpoint. Registered at `@swamp/aws/sagemaker/endpoint`. */
 export const model = {
   type: "@swamp/aws/sagemaker/endpoint",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -305,6 +348,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -53,6 +53,20 @@ const SlurmCustomSettingSchema = z.object({
   ),
 });
 
+const ComputeNodeGroupConfigurationStateSchema = z.object({
+  ComputeNodeGroupId: z.string(),
+}).partial();
+
+const ErrorInfoStateSchema = z.object({
+  Code: z.string(),
+  Message: z.string(),
+}).partial();
+
+const SlurmCustomSettingStateSchema = z.object({
+  ParameterName: z.string(),
+  ParameterValue: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -89,22 +103,20 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Arn: z.string(),
   ClusterId: z.string().optional(),
-  ComputeNodeGroupConfigurations: z.array(ComputeNodeGroupConfigurationSchema)
-    .optional(),
-  ErrorInfo: z.array(z.object({
-    Code: z.string(),
-    Message: z.string(),
-  })).optional(),
+  ComputeNodeGroupConfigurations: z.array(
+    ComputeNodeGroupConfigurationStateSchema,
+  ).optional(),
+  ErrorInfo: z.array(ErrorInfoStateSchema).optional(),
   Id: z.string().optional(),
   Name: z.string().optional(),
   SlurmConfiguration: z.object({
-    SlurmCustomSettings: z.array(SlurmCustomSettingSchema),
-  }).optional(),
+    SlurmCustomSettings: z.array(SlurmCustomSettingStateSchema),
+  }).partial().optional(),
   Status: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -148,7 +160,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS Queue. Registered at `@swamp/aws/pcs/queue`. */
 export const model = {
   type: "@swamp/aws/pcs/queue",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -212,6 +224,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

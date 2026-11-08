@@ -47,6 +47,16 @@ const TagSchema = z.object({
   ),
 });
 
+const MemberModeCountStateSchema = z.object({
+  Mode: z.string(),
+  Count: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -166,10 +176,7 @@ const StateSchema = z.object({
   DbInstanceType: z.string().optional(),
   EffectiveDbParameterGroupIdentifier: z.string().optional(),
   VpcSubnetIds: z.array(z.string()).optional(),
-  MemberModeCounts: z.array(z.object({
-    Mode: z.string(),
-    Count: z.number(),
-  })).optional(),
+  MemberModeCounts: z.array(MemberModeCountStateSchema).optional(),
   DeploymentType: z.string().optional(),
   Name: z.string().optional(),
   Endpoint: z.string().optional(),
@@ -177,7 +184,7 @@ const StateSchema = z.object({
   NetworkType: z.string().optional(),
   NextMaintenanceTime: z.string().optional(),
   EngineType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Password: z.string().optional(),
   DbParameterGroupIdentifier: z.string().optional(),
   Status: z.string().optional(),
@@ -191,8 +198,8 @@ const StateSchema = z.object({
     S3Configuration: z.object({
       BucketName: z.string(),
       Enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   Username: z.string().optional(),
   Bucket: z.string().optional(),
   PubliclyAccessible: z.boolean().optional(),
@@ -201,10 +208,10 @@ const StateSchema = z.object({
   MaintenanceSchedule: z.object({
     Timezone: z.string(),
     PreferredMaintenanceWindow: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -328,7 +335,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Timestream InfluxDBCluster. Registered at `@swamp/aws/timestream/influx-dbcluster`. */
 export const model = {
   type: "@swamp/aws/timestream/influx-dbcluster",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -398,6 +405,11 @@ export const model = {
     {
       toVersion: "2026.11.05.1",
       description: "Added: KmsKeyId",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

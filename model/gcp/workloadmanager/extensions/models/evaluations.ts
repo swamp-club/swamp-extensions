@@ -239,7 +239,7 @@ const StateSchema = z.object({
   bigQueryDestination: z.object({
     createNewResultsTable: z.boolean(),
     destinationDataset: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   customRulesBucket: z.string().optional(),
   description: z.string().optional(),
@@ -250,14 +250,14 @@ const StateSchema = z.object({
   resourceFilter: z.object({
     gceInstanceFilter: z.object({
       serviceAccounts: z.array(z.string()),
-    }),
+    }).partial(),
     inclusionLabels: z.record(z.string(), z.unknown()),
     resourceIdPatterns: z.array(z.string()),
     scopes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   resourceStatus: z.object({
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ruleNames: z.array(z.string()).optional(),
   schedule: z.string().optional(),
   updateTime: z.string().optional(),
@@ -361,7 +361,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workload Manager Evaluations. Registered at `@swamp/gcp/workloadmanager/evaluations`. */
 export const model = {
   type: "@swamp/gcp/workloadmanager/evaluations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -503,6 +503,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -104,11 +104,13 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   id: z.string(),
   kind: z.string().optional(),
-  timepoints: z.array(z.object({
-    dateWindow: z.string(),
-    spend: z.number(),
-    startDate: z.string(),
-  })).optional(),
+  timepoints: z.array(
+    z.object({
+      dateWindow: z.string(),
+      spend: z.number(),
+      startDate: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -152,7 +154,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 TvCampaignDetails. Registered at `@swamp/gcp/dfareporting/tvcampaigndetails`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/tvcampaigndetails",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +273,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

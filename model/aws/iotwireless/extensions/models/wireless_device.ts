@@ -99,6 +99,54 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).optional(),
 });
 
+const OtaaV11StateSchema = z.object({
+  AppKey: z.string(),
+  NwkKey: z.string(),
+  JoinEui: z.string(),
+}).partial();
+
+const OtaaV10xStateSchema = z.object({
+  AppKey: z.string(),
+  AppEui: z.string(),
+}).partial();
+
+const SessionKeysAbpV11StateSchema = z.object({
+  FNwkSIntKey: z.string(),
+  SNwkSIntKey: z.string(),
+  NwkSEncKey: z.string(),
+  AppSKey: z.string(),
+}).partial();
+
+const AbpV11StateSchema = z.object({
+  DevAddr: z.string(),
+  SessionKeys: SessionKeysAbpV11StateSchema,
+}).partial();
+
+const SessionKeysAbpV10xStateSchema = z.object({
+  NwkSKey: z.string(),
+  AppSKey: z.string(),
+}).partial();
+
+const AbpV10xStateSchema = z.object({
+  DevAddr: z.string(),
+  SessionKeys: SessionKeysAbpV10xStateSchema,
+}).partial();
+
+const ApplicationStateSchema = z.object({
+  DestinationName: z.string(),
+  FPort: z.number(),
+  Type: z.string(),
+}).partial();
+
+const FPortsStateSchema = z.object({
+  Applications: z.array(ApplicationStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -159,13 +207,13 @@ const StateSchema = z.object({
     DevEui: z.string(),
     DeviceProfileId: z.string(),
     ServiceProfileId: z.string(),
-    OtaaV11: OtaaV11Schema,
-    OtaaV10x: OtaaV10xSchema,
-    AbpV11: AbpV11Schema,
-    AbpV10x: AbpV10xSchema,
-    FPorts: FPortsSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    OtaaV11: OtaaV11StateSchema,
+    OtaaV10x: OtaaV10xStateSchema,
+    AbpV11: AbpV11StateSchema,
+    AbpV10x: AbpV10xStateSchema,
+    FPorts: FPortsStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Arn: z.string().optional(),
   Id: z.string(),
   ThingArn: z.string().optional(),
@@ -174,7 +222,7 @@ const StateSchema = z.object({
   Positioning: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -236,7 +284,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTWireless WirelessDevice. Registered at `@swamp/aws/iotwireless/wireless-device`. */
 export const model = {
   type: "@swamp/aws/iotwireless/wireless-device",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -300,6 +348,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

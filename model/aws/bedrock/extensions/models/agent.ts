@@ -207,6 +207,81 @@ const PromptConfigurationSchema = z.object({
   ).optional(),
 });
 
+const S3IdentifierStateSchema = z.object({
+  S3BucketName: z.string(),
+  S3ObjectKey: z.string(),
+}).partial();
+
+const FunctionStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  Parameters: z.record(z.string(), z.unknown()),
+  RequireConfirmation: z.string(),
+}).partial();
+
+const FunctionsStateSchema = z.object({
+  Functions: z.array(FunctionStateSchema),
+}).partial();
+
+const AgentActionGroupStateSchema = z.object({
+  ActionGroupName: z.string(),
+  Description: z.string(),
+  ParentActionGroupSignature: z.string(),
+  ActionGroupExecutor: z.object({
+    Lambda: z.string(),
+    CustomControl: z.string(),
+  }).partial(),
+  ApiSchema: z.object({
+    S3: S3IdentifierStateSchema,
+    Payload: z.string(),
+  }).partial(),
+  ActionGroupState: z.string(),
+  FunctionSchema: FunctionsStateSchema,
+  SkipResourceInUseCheckOnDelete: z.boolean(),
+}).partial();
+
+const LambdaStateSchema = z.object({
+  Lambda: z.string(),
+}).partial();
+
+const SessionSummaryConfigurationStateSchema = z.object({
+  MaxRecentSessions: z.number(),
+}).partial();
+
+const AgentKnowledgeBaseStateSchema = z.object({
+  KnowledgeBaseId: z.string(),
+  Description: z.string(),
+  KnowledgeBaseState: z.string(),
+}).partial();
+
+const AgentCollaboratorStateSchema = z.object({
+  AgentDescriptor: z.object({
+    AliasArn: z.string(),
+  }).partial(),
+  CollaborationInstruction: z.string(),
+  CollaboratorName: z.string(),
+  RelayConversationHistory: z.string(),
+}).partial();
+
+const InferenceConfigurationStateSchema = z.object({
+  Temperature: z.number(),
+  TopP: z.number(),
+  TopK: z.number(),
+  MaximumLength: z.number(),
+  StopSequences: z.array(z.string()),
+}).partial();
+
+const PromptConfigurationStateSchema = z.object({
+  PromptType: z.string(),
+  PromptCreationMode: z.string(),
+  PromptState: z.string(),
+  BasePromptTemplate: z.string(),
+  InferenceConfiguration: InferenceConfigurationStateSchema,
+  ParserMode: z.string(),
+  FoundationModel: z.string(),
+  AdditionalModelRequestFields: z.record(z.string(), z.unknown()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -311,7 +386,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ActionGroups: z.array(AgentActionGroupSchema).optional(),
+  ActionGroups: z.array(AgentActionGroupStateSchema).optional(),
   AgentArn: z.string().optional(),
   AgentId: z.string(),
   AgentName: z.string().optional(),
@@ -321,8 +396,8 @@ const StateSchema = z.object({
   AutoPrepare: z.boolean().optional(),
   CreatedAt: z.string().optional(),
   CustomOrchestration: z.object({
-    Executor: LambdaSchema,
-  }).optional(),
+    Executor: LambdaStateSchema,
+  }).partial().optional(),
   CustomerEncryptionKeyArn: z.string().optional(),
   SkipResourceInUseCheckOnDelete: z.boolean().optional(),
   Description: z.string().optional(),
@@ -331,30 +406,30 @@ const StateSchema = z.object({
   GuardrailConfiguration: z.object({
     GuardrailIdentifier: z.string(),
     GuardrailVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MemoryConfiguration: z.object({
     EnabledMemoryTypes: z.array(z.string()),
     StorageDays: z.number(),
-    SessionSummaryConfiguration: SessionSummaryConfigurationSchema,
-  }).optional(),
+    SessionSummaryConfiguration: SessionSummaryConfigurationStateSchema,
+  }).partial().optional(),
   IdleSessionTTLInSeconds: z.number().optional(),
   AgentCollaboration: z.string().optional(),
   Instruction: z.string().optional(),
-  KnowledgeBases: z.array(AgentKnowledgeBaseSchema).optional(),
-  AgentCollaborators: z.array(AgentCollaboratorSchema).optional(),
+  KnowledgeBases: z.array(AgentKnowledgeBaseStateSchema).optional(),
+  AgentCollaborators: z.array(AgentCollaboratorStateSchema).optional(),
   OrchestrationType: z.string().optional(),
   PreparedAt: z.string().optional(),
   PromptOverrideConfiguration: z.object({
-    PromptConfigurations: z.array(PromptConfigurationSchema),
+    PromptConfigurations: z.array(PromptConfigurationStateSchema),
     OverrideLambda: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RecommendedActions: z.array(z.string()).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   TestAliasTags: z.record(z.string(), z.unknown()).optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -468,7 +543,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock Agent. Registered at `@swamp/aws/bedrock/agent`. */
 export const model = {
   type: "@swamp/aws/bedrock/agent",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -537,6 +612,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -659,13 +659,13 @@ const StateSchema = z.object({
     signatureName: z.string(),
     uri: z.string(),
     versionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   predictionOutput: z.object({
     errorCount: z.string(),
     nodeHours: z.number(),
     outputPath: z.string(),
     predictionCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
   trainingInput: z.object({
@@ -673,21 +673,21 @@ const StateSchema = z.object({
     enableWebAccess: z.boolean(),
     encryptionConfig: z.object({
       kmsKeyName: z.string(),
-    }),
+    }).partial(),
     evaluatorConfig: z.object({
       acceleratorConfig: z.object({
         count: z.string(),
         type: z.string(),
-      }),
+      }).partial(),
       containerArgs: z.array(z.string()),
       containerCommand: z.array(z.string()),
       diskConfig: z.object({
         bootDiskSizeGb: z.number(),
         bootDiskType: z.string(),
-      }),
+      }).partial(),
       imageUri: z.string(),
       tpuTfVersion: z.string(),
-    }),
+    }).partial(),
     evaluatorCount: z.string(),
     evaluatorType: z.string(),
     hyperparameters: z.object({
@@ -698,32 +698,34 @@ const StateSchema = z.object({
       maxFailedTrials: z.number(),
       maxParallelTrials: z.number(),
       maxTrials: z.number(),
-      params: z.array(z.object({
-        categoricalValues: z.array(z.unknown()),
-        discreteValues: z.array(z.unknown()),
-        maxValue: z.number(),
-        minValue: z.number(),
-        parameterName: z.string(),
-        scaleType: z.string(),
-        type: z.string(),
-      })),
+      params: z.array(
+        z.object({
+          categoricalValues: z.array(z.unknown()),
+          discreteValues: z.array(z.unknown()),
+          maxValue: z.number(),
+          minValue: z.number(),
+          parameterName: z.string(),
+          scaleType: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
       resumePreviousJobId: z.string(),
-    }),
+    }).partial(),
     jobDir: z.string(),
     masterConfig: z.object({
       acceleratorConfig: z.object({
         count: z.string(),
         type: z.string(),
-      }),
+      }).partial(),
       containerArgs: z.array(z.string()),
       containerCommand: z.array(z.string()),
       diskConfig: z.object({
         bootDiskSizeGb: z.number(),
         bootDiskType: z.string(),
-      }),
+      }).partial(),
       imageUri: z.string(),
       tpuTfVersion: z.string(),
-    }),
+    }).partial(),
     masterType: z.string(),
     network: z.string(),
     packageUris: z.array(z.string()),
@@ -731,16 +733,16 @@ const StateSchema = z.object({
       acceleratorConfig: z.object({
         count: z.string(),
         type: z.string(),
-      }),
+      }).partial(),
       containerArgs: z.array(z.string()),
       containerCommand: z.array(z.string()),
       diskConfig: z.object({
         bootDiskSizeGb: z.number(),
         bootDiskType: z.string(),
-      }),
+      }).partial(),
       imageUri: z.string(),
       tpuTfVersion: z.string(),
-    }),
+    }).partial(),
     parameterServerCount: z.string(),
     parameterServerType: z.string(),
     pythonModule: z.string(),
@@ -752,63 +754,67 @@ const StateSchema = z.object({
       maxRunningTime: z.string(),
       maxWaitTime: z.string(),
       priority: z.number(),
-    }),
+    }).partial(),
     serviceAccount: z.string(),
     useChiefInTfConfig: z.boolean(),
     workerConfig: z.object({
       acceleratorConfig: z.object({
         count: z.string(),
         type: z.string(),
-      }),
+      }).partial(),
       containerArgs: z.array(z.string()),
       containerCommand: z.array(z.string()),
       diskConfig: z.object({
         bootDiskSizeGb: z.number(),
         bootDiskType: z.string(),
-      }),
+      }).partial(),
       imageUri: z.string(),
       tpuTfVersion: z.string(),
-    }),
+    }).partial(),
     workerCount: z.string(),
     workerType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   trainingOutput: z.object({
     builtInAlgorithmOutput: z.object({
       framework: z.string(),
       modelPath: z.string(),
       pythonVersion: z.string(),
       runtimeVersion: z.string(),
-    }),
+    }).partial(),
     completedTrialCount: z.string(),
     consumedMLUnits: z.number(),
     hyperparameterMetricTag: z.string(),
     isBuiltInAlgorithmJob: z.boolean(),
     isHyperparameterTuningJob: z.boolean(),
-    trials: z.array(z.object({
-      allMetrics: z.array(z.object({
-        objectiveValue: z.unknown(),
-        trainingStep: z.unknown(),
-      })),
-      builtInAlgorithmOutput: z.object({
-        framework: z.string(),
-        modelPath: z.string(),
-        pythonVersion: z.string(),
-        runtimeVersion: z.string(),
-      }),
-      endTime: z.string(),
-      finalMetric: z.object({
-        objectiveValue: z.number(),
-        trainingStep: z.string(),
-      }),
-      hyperparameters: z.record(z.string(), z.unknown()),
-      isTrialStoppedEarly: z.boolean(),
-      startTime: z.string(),
-      state: z.string(),
-      trialId: z.string(),
-      webAccessUris: z.record(z.string(), z.unknown()),
-    })),
+    trials: z.array(
+      z.object({
+        allMetrics: z.array(
+          z.object({
+            objectiveValue: z.unknown(),
+            trainingStep: z.unknown(),
+          }).partial(),
+        ),
+        builtInAlgorithmOutput: z.object({
+          framework: z.string(),
+          modelPath: z.string(),
+          pythonVersion: z.string(),
+          runtimeVersion: z.string(),
+        }).partial(),
+        endTime: z.string(),
+        finalMetric: z.object({
+          objectiveValue: z.number(),
+          trainingStep: z.string(),
+        }).partial(),
+        hyperparameters: z.record(z.string(), z.unknown()),
+        isTrialStoppedEarly: z.boolean(),
+        startTime: z.string(),
+        state: z.string(),
+        trialId: z.string(),
+        webAccessUris: z.record(z.string(), z.unknown()),
+      }).partial(),
+    ),
     webAccessUris: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1344,7 +1350,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AI Platform Training & Prediction Jobs. Registered at `@swamp/gcp/ml/jobs`. */
 export const model = {
   type: "@swamp/gcp/ml/jobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1595,6 +1601,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

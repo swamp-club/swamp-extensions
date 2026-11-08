@@ -243,12 +243,12 @@ const StateSchema = z.object({
       instituteSize: z.string(),
       instituteType: z.string(),
       website: z.string(),
-    }),
+    }).partial(),
     isDomainVerified: z.boolean(),
     languageCode: z.string(),
     phoneNumber: z.string(),
     primaryDomain: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   inviteLinkUri: z.string().optional(),
   linkState: z.string().optional(),
@@ -382,7 +382,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Channel Accounts.ChannelPartnerLinks. Registered at `@swamp/gcp/cloudchannel/accounts-channelpartnerlinks`. */
 export const model = {
   type: "@swamp/gcp/cloudchannel/accounts-channelpartnerlinks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -512,6 +512,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

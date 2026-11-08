@@ -312,47 +312,49 @@ const StateSchema = z.object({
     federatedPrincipal: z.string(),
     serviceAccount: z.string(),
     serviceAccountProjectNumber: z.string(),
-  }).optional(),
-  scopedAccessSettings: z.array(z.object({
-    activeSettings: z.object({
-      accessLevels: z.array(z.string()),
-      sessionSettings: z.object({
-        maxInactivity: z.string(),
-        sessionLength: z.string(),
-        sessionLengthEnabled: z.boolean(),
-        sessionReauthMethod: z.string(),
-        useOidcMaxAge: z.boolean(),
-      }),
-    }),
-    dryRunSettings: z.object({
-      accessLevels: z.array(z.string()),
-      sessionSettings: z.object({
-        maxInactivity: z.string(),
-        sessionLength: z.string(),
-        sessionLengthEnabled: z.boolean(),
-        sessionReauthMethod: z.string(),
-        useOidcMaxAge: z.boolean(),
-      }),
-    }),
-    scope: z.object({
-      clientScope: z.object({
-        restrictedClientApplication: z.object({
-          clientId: z.unknown(),
-          name: z.unknown(),
-        }),
-        restrictedProject: z.object({
-          name: z.unknown(),
-        }),
-      }),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  scopedAccessSettings: z.array(
+    z.object({
+      activeSettings: z.object({
+        accessLevels: z.array(z.string()),
+        sessionSettings: z.object({
+          maxInactivity: z.string(),
+          sessionLength: z.string(),
+          sessionLengthEnabled: z.boolean(),
+          sessionReauthMethod: z.string(),
+          useOidcMaxAge: z.boolean(),
+        }).partial(),
+      }).partial(),
+      dryRunSettings: z.object({
+        accessLevels: z.array(z.string()),
+        sessionSettings: z.object({
+          maxInactivity: z.string(),
+          sessionLength: z.string(),
+          sessionLengthEnabled: z.boolean(),
+          sessionReauthMethod: z.string(),
+          useOidcMaxAge: z.boolean(),
+        }).partial(),
+      }).partial(),
+      scope: z.object({
+        clientScope: z.object({
+          restrictedClientApplication: z.object({
+            clientId: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+          restrictedProject: z.object({
+            name: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   sessionSettings: z.object({
     maxInactivity: z.string(),
     sessionLength: z.string(),
     sessionLengthEnabled: z.boolean(),
     sessionReauthMethod: z.string(),
     useOidcMaxAge: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -536,7 +538,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Context Manager GcpUserAccessBindings. Registered at `@swamp/gcp/accesscontextmanager/gcpuseraccessbindings`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/gcpuseraccessbindings",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -711,6 +713,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

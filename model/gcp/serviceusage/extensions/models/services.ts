@@ -205,135 +205,169 @@ const serviceInventoryMethods = {
 
 const StateSchema = z.object({
   config: z.object({
-    apis: z.array(z.object({
-      edition: z.string(),
-      methods: z.array(z.object({
-        edition: z.unknown(),
-        name: z.unknown(),
-        options: z.unknown(),
-        requestStreaming: z.unknown(),
-        requestTypeUrl: z.unknown(),
-        responseStreaming: z.unknown(),
-        responseTypeUrl: z.unknown(),
-        syntax: z.unknown(),
-      })),
-      mixins: z.array(z.object({
-        name: z.unknown(),
-        root: z.unknown(),
-      })),
-      name: z.string(),
-      options: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-      })),
-      sourceContext: z.object({
-        fileName: z.string(),
-      }),
-      syntax: z.string(),
-      version: z.string(),
-    })),
+    apis: z.array(
+      z.object({
+        edition: z.string(),
+        methods: z.array(
+          z.object({
+            edition: z.unknown(),
+            name: z.unknown(),
+            options: z.unknown(),
+            requestStreaming: z.unknown(),
+            requestTypeUrl: z.unknown(),
+            responseStreaming: z.unknown(),
+            responseTypeUrl: z.unknown(),
+            syntax: z.unknown(),
+          }).partial(),
+        ),
+        mixins: z.array(
+          z.object({
+            name: z.unknown(),
+            root: z.unknown(),
+          }).partial(),
+        ),
+        name: z.string(),
+        options: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        sourceContext: z.object({
+          fileName: z.string(),
+        }).partial(),
+        syntax: z.string(),
+        version: z.string(),
+      }).partial(),
+    ),
     authentication: z.object({
-      providers: z.array(z.object({
-        audiences: z.string(),
-        authorizationUrl: z.string(),
-        id: z.string(),
-        issuer: z.string(),
-        jwksUri: z.string(),
-        jwtLocations: z.array(z.unknown()),
-      })),
-      rules: z.array(z.object({
-        allowWithoutCredential: z.boolean(),
-        oauth: z.object({
-          canonicalScopes: z.unknown(),
-        }),
-        requirements: z.array(z.unknown()),
-        selector: z.string(),
-      })),
-    }),
+      providers: z.array(
+        z.object({
+          audiences: z.string(),
+          authorizationUrl: z.string(),
+          id: z.string(),
+          issuer: z.string(),
+          jwksUri: z.string(),
+          jwtLocations: z.array(z.unknown()),
+        }).partial(),
+      ),
+      rules: z.array(
+        z.object({
+          allowWithoutCredential: z.boolean(),
+          oauth: z.object({
+            canonicalScopes: z.unknown(),
+          }).partial(),
+          requirements: z.array(z.unknown()),
+          selector: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     documentation: z.object({
       additionalIamInfo: z.string(),
       documentationRootUrl: z.string(),
       overview: z.string(),
-      pages: z.array(z.object({
-        content: z.string(),
-        name: z.string(),
-        subpages: z.array(z.unknown()),
-      })),
-      rules: z.array(z.object({
-        deprecationDescription: z.string(),
-        description: z.string(),
-        disableReplacementWords: z.string(),
-        selector: z.string(),
-      })),
-      sectionOverrides: z.array(z.object({
-        content: z.string(),
-        name: z.string(),
-        subpages: z.array(z.unknown()),
-      })),
+      pages: z.array(
+        z.object({
+          content: z.string(),
+          name: z.string(),
+          subpages: z.array(z.unknown()),
+        }).partial(),
+      ),
+      rules: z.array(
+        z.object({
+          deprecationDescription: z.string(),
+          description: z.string(),
+          disableReplacementWords: z.string(),
+          selector: z.string(),
+        }).partial(),
+      ),
+      sectionOverrides: z.array(
+        z.object({
+          content: z.string(),
+          name: z.string(),
+          subpages: z.array(z.unknown()),
+        }).partial(),
+      ),
       serviceRootUrl: z.string(),
       summary: z.string(),
-    }),
-    endpoints: z.array(z.object({
-      aliases: z.array(z.string()),
-      allowCors: z.boolean(),
-      name: z.string(),
-      target: z.string(),
-    })),
-    monitoredResources: z.array(z.object({
-      description: z.string(),
-      displayName: z.string(),
-      labels: z.array(z.object({
-        description: z.unknown(),
-        key: z.unknown(),
-        valueType: z.unknown(),
-      })),
-      launchStage: z.string(),
-      name: z.string(),
-      type: z.string(),
-    })),
-    monitoring: z.object({
-      consumerDestinations: z.array(z.object({
-        metrics: z.array(z.unknown()),
-        monitoredResource: z.string(),
-      })),
-      producerDestinations: z.array(z.object({
-        metrics: z.array(z.unknown()),
-        monitoredResource: z.string(),
-      })),
-    }),
-    name: z.string(),
-    quota: z.object({
-      limits: z.array(z.object({
-        defaultLimit: z.string(),
+    }).partial(),
+    endpoints: z.array(
+      z.object({
+        aliases: z.array(z.string()),
+        allowCors: z.boolean(),
+        name: z.string(),
+        target: z.string(),
+      }).partial(),
+    ),
+    monitoredResources: z.array(
+      z.object({
         description: z.string(),
         displayName: z.string(),
-        duration: z.string(),
-        freeTier: z.string(),
-        maxLimit: z.string(),
-        metric: z.string(),
+        labels: z.array(
+          z.object({
+            description: z.unknown(),
+            key: z.unknown(),
+            valueType: z.unknown(),
+          }).partial(),
+        ),
+        launchStage: z.string(),
         name: z.string(),
-        trafficSource: z.string(),
-        unit: z.string(),
-        values: z.record(z.string(), z.unknown()),
-      })),
-      metricRules: z.array(z.object({
-        agenticMetricCosts: z.record(z.string(), z.unknown()),
-        metricCosts: z.record(z.string(), z.unknown()),
-        nonagenticMetricCosts: z.record(z.string(), z.unknown()),
-        selector: z.string(),
-      })),
-    }),
+        type: z.string(),
+      }).partial(),
+    ),
+    monitoring: z.object({
+      consumerDestinations: z.array(
+        z.object({
+          metrics: z.array(z.unknown()),
+          monitoredResource: z.string(),
+        }).partial(),
+      ),
+      producerDestinations: z.array(
+        z.object({
+          metrics: z.array(z.unknown()),
+          monitoredResource: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+    name: z.string(),
+    quota: z.object({
+      limits: z.array(
+        z.object({
+          defaultLimit: z.string(),
+          description: z.string(),
+          displayName: z.string(),
+          duration: z.string(),
+          freeTier: z.string(),
+          maxLimit: z.string(),
+          metric: z.string(),
+          name: z.string(),
+          trafficSource: z.string(),
+          unit: z.string(),
+          values: z.record(z.string(), z.unknown()),
+        }).partial(),
+      ),
+      metricRules: z.array(
+        z.object({
+          agenticMetricCosts: z.record(z.string(), z.unknown()),
+          metricCosts: z.record(z.string(), z.unknown()),
+          nonagenticMetricCosts: z.record(z.string(), z.unknown()),
+          selector: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     title: z.string(),
     usage: z.object({
       producerNotificationChannel: z.string(),
       requirements: z.array(z.string()),
-      rules: z.array(z.object({
-        allowUnregisteredCalls: z.boolean(),
-        selector: z.string(),
-        skipServiceControl: z.boolean(),
-      })),
-    }),
-  }).optional(),
+      rules: z.array(
+        z.object({
+          allowUnregisteredCalls: z.boolean(),
+          selector: z.string(),
+          skipServiceControl: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   parent: z.string().optional(),
   state: z.string().optional(),
@@ -380,7 +414,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Service Usage Services. Registered at `@swamp/gcp/serviceusage/services`. */
 export const model = {
   type: "@swamp/gcp/serviceusage/services",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -544,6 +578,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

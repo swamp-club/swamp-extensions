@@ -176,16 +176,18 @@ const StateSchema = z.object({
   keyPairId: z.string().optional(),
   pem: z.string().optional(),
   pkcs7: z.string().optional(),
-  privateKeyMetadata: z.array(z.object({
-    hardwareKeyMetadata: z.object({
-      description: z.string(),
-    }),
-    kaclsKeyMetadata: z.object({
-      kaclsData: z.string(),
-      kaclsUri: z.string(),
-    }),
-    privateKeyMetadataId: z.string(),
-  })).optional(),
+  privateKeyMetadata: z.array(
+    z.object({
+      hardwareKeyMetadata: z.object({
+        description: z.string(),
+      }).partial(),
+      kaclsKeyMetadata: z.object({
+        kaclsData: z.string(),
+        kaclsUri: z.string(),
+      }).partial(),
+      privateKeyMetadataId: z.string(),
+    }).partial(),
+  ).optional(),
   subjectEmailAddresses: z.array(z.string()).optional(),
 }).passthrough();
 
@@ -256,7 +258,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Settings.Cse.Keypairs. Registered at `@swamp/gcp/gmail/users-settings-cse-keypairs`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-settings-cse-keypairs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -385,6 +387,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -219,28 +219,28 @@ const StateSchema = z.object({
       followingBatchSamplePercentage: z.number(),
       initialBatchSamplePercentage: z.number(),
       sampleStrategy: z.string(),
-    }),
+    }).partial(),
     trainingConfig: z.object({
       timeoutTrainingMilliHours: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   annotationLabels: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
   currentSpend: z.object({
     currencyCode: z.string(),
     nanos: z.number(),
     units: z.string(),
-  }).optional(),
+  }).partial().optional(),
   datasets: z.array(z.string()).optional(),
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inputs: z.string().optional(),
   inputsSchemaUri: z.string().optional(),
   instructionUri: z.string().optional(),
@@ -356,7 +356,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform DataLabelingJobs. Registered at `@swamp/gcp/aiplatform/datalabelingjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/datalabelingjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -523,6 +523,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

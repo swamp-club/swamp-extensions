@@ -132,13 +132,15 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   config: z.object({
     content: z.string(),
-  }).optional(),
+  }).partial().optional(),
   expandedConfig: z.string().optional(),
   id: z.string().optional(),
-  imports: z.array(z.object({
-    content: z.string(),
-    name: z.string(),
-  })).optional(),
+  imports: z.array(
+    z.object({
+      content: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   insertTime: z.string().optional(),
   layout: z.string().optional(),
   manifestSizeBytes: z.string().optional(),
@@ -188,7 +190,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deployment Manager Manifests. Registered at `@swamp/gcp/deploymentmanager/manifests`. */
 export const model = {
   type: "@swamp/gcp/deploymentmanager/manifests",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -312,6 +314,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

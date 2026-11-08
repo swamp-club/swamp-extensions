@@ -272,7 +272,7 @@ const StateSchema = z.object({
     artifacts: z.string(),
     content: z.string(),
     outputs: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   errorCode: z.string().optional(),
   errorLogs: z.string().optional(),
   importExistingResources: z.boolean().optional(),
@@ -282,7 +282,7 @@ const StateSchema = z.object({
   name: z.string(),
   providerConfig: z.object({
     sourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   quotaValidation: z.string().optional(),
   serviceAccount: z.string().optional(),
   state: z.string().optional(),
@@ -294,19 +294,21 @@ const StateSchema = z.object({
       directory: z.string(),
       ref: z.string(),
       repo: z.string(),
-    }),
+    }).partial(),
     inputValues: z.record(z.string(), z.unknown()),
-  }).optional(),
-  tfErrors: z.array(z.object({
-    error: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    errorDescription: z.string(),
-    httpResponseCode: z.number(),
-    resourceAddress: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  tfErrors: z.array(
+    z.object({
+      error: z.object({
+        code: z.number(),
+        details: z.array(z.record(z.string(), z.unknown())),
+        message: z.string(),
+      }).partial(),
+      errorDescription: z.string(),
+      httpResponseCode: z.number(),
+      resourceAddress: z.string(),
+    }).partial(),
+  ).optional(),
   tfVersion: z.string().optional(),
   tfVersionConstraint: z.string().optional(),
   updateTime: z.string().optional(),
@@ -435,7 +437,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Infrastructure Manager Deployments. Registered at `@swamp/gcp/config/deployments`. */
 export const model = {
   type: "@swamp/gcp/config/deployments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -630,6 +632,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

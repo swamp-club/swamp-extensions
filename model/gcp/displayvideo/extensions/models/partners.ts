@@ -113,31 +113,33 @@ const StateSchema = z.object({
     measurementConfig: z.object({
       dv360ToCmCostReportingEnabled: z.boolean(),
       dv360ToCmDataSharingEnabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   billingConfig: z.object({
     billingProfileId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataAccessConfig: z.object({
     sdfConfig: z.object({
       adminEmail: z.string(),
       version: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   entityStatus: z.string().optional(),
   exchangeConfig: z.object({
-    enabledExchanges: z.array(z.object({
-      exchange: z.string(),
-      googleAdManagerAgencyId: z.string(),
-      googleAdManagerBuyerNetworkId: z.string(),
-      seatId: z.string(),
-    })),
-  }).optional(),
+    enabledExchanges: z.array(
+      z.object({
+        exchange: z.string(),
+        googleAdManagerAgencyId: z.string(),
+        googleAdManagerBuyerNetworkId: z.string(),
+        seatId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   generalConfig: z.object({
     currencyCode: z.string(),
     timeZone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   partnerId: z.string().optional(),
   updateTime: z.string().optional(),
@@ -181,7 +183,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Partners. Registered at `@swamp/gcp/displayvideo/partners`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/partners",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -315,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

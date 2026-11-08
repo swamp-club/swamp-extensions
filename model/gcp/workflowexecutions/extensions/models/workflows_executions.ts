@@ -190,17 +190,19 @@ const StateSchema = z.object({
     context: z.string(),
     payload: z.string(),
     stackTrace: z.object({
-      elements: z.array(z.object({
-        position: z.object({
-          column: z.unknown(),
-          length: z.unknown(),
-          line: z.unknown(),
-        }),
-        routine: z.string(),
-        step: z.string(),
-      })),
-    }),
-  }).optional(),
+      elements: z.array(
+        z.object({
+          position: z.object({
+            column: z.unknown(),
+            length: z.unknown(),
+            line: z.unknown(),
+          }).partial(),
+          routine: z.string(),
+          step: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   executionHistoryLevel: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -210,13 +212,15 @@ const StateSchema = z.object({
   stateError: z.object({
     details: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
-    currentSteps: z.array(z.object({
-      routine: z.string(),
-      step: z.string(),
-    })),
-  }).optional(),
+    currentSteps: z.array(
+      z.object({
+        routine: z.string(),
+        step: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   workflowRevisionId: z.string().optional(),
 }).passthrough();
 
@@ -287,7 +291,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workflow Executions Workflows.Executions. Registered at `@swamp/gcp/workflowexecutions/workflows-executions`. */
 export const model = {
   type: "@swamp/gcp/workflowexecutions/workflows-executions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -434,6 +438,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1254,71 +1254,75 @@ const StateSchema = z.object({
   config: z.object({
     autoscalingConfig: z.object({
       policyUri: z.string(),
-    }),
-    auxiliaryNodeGroups: z.array(z.object({
-      nodeGroup: z.object({
-        labels: z.record(z.string(), z.unknown()),
-        name: z.string(),
-        nodeGroupConfig: z.object({
-          accelerators: z.unknown(),
-          diskConfig: z.unknown(),
-          imageUri: z.unknown(),
-          instanceFlexibilityPolicy: z.unknown(),
-          instanceNames: z.unknown(),
-          instanceReferences: z.unknown(),
-          isPreemptible: z.unknown(),
-          machineTypeUri: z.unknown(),
-          managedGroupConfig: z.unknown(),
-          minCpuPlatform: z.unknown(),
-          minNumInstances: z.unknown(),
-          numInstances: z.unknown(),
-          preemptibility: z.unknown(),
-          startupConfig: z.unknown(),
-        }),
-        roles: z.array(z.unknown()),
-      }),
-      nodeGroupId: z.string(),
-    })),
+    }).partial(),
+    auxiliaryNodeGroups: z.array(
+      z.object({
+        nodeGroup: z.object({
+          labels: z.record(z.string(), z.unknown()),
+          name: z.string(),
+          nodeGroupConfig: z.object({
+            accelerators: z.unknown(),
+            diskConfig: z.unknown(),
+            imageUri: z.unknown(),
+            instanceFlexibilityPolicy: z.unknown(),
+            instanceNames: z.unknown(),
+            instanceReferences: z.unknown(),
+            isPreemptible: z.unknown(),
+            machineTypeUri: z.unknown(),
+            managedGroupConfig: z.unknown(),
+            minCpuPlatform: z.unknown(),
+            minNumInstances: z.unknown(),
+            numInstances: z.unknown(),
+            preemptibility: z.unknown(),
+            startupConfig: z.unknown(),
+          }).partial(),
+          roles: z.array(z.unknown()),
+        }).partial(),
+        nodeGroupId: z.string(),
+      }).partial(),
+    ),
     clusterTier: z.string(),
     clusterType: z.string(),
     configBucket: z.string(),
     dataprocMetricConfig: z.object({
-      metrics: z.array(z.object({
-        metricOverrides: z.array(z.unknown()),
-        metricSource: z.string(),
-      })),
-    }),
+      metrics: z.array(
+        z.object({
+          metricOverrides: z.array(z.unknown()),
+          metricSource: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     diagnosticBucket: z.string(),
     encryptionConfig: z.object({
       gcePdKmsKeyName: z.string(),
       kmsKey: z.string(),
-    }),
+    }).partial(),
     endpointConfig: z.object({
       enableHttpPortAccess: z.boolean(),
       httpPorts: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     engine: z.string(),
     gceClusterConfig: z.object({
       autoZoneExcludeZoneUris: z.array(z.string()),
       confidentialInstanceConfig: z.object({
         confidentialInstanceType: z.string(),
         enableConfidentialCompute: z.boolean(),
-      }),
+      }).partial(),
       internalIpOnly: z.boolean(),
       metadata: z.record(z.string(), z.unknown()),
       multiZoneConfig: z.object({
         targetShape: z.string(),
-      }),
+      }).partial(),
       networkUri: z.string(),
       nodeGroupAffinity: z.object({
         nodeGroupUri: z.string(),
-      }),
+      }).partial(),
       privateIpv6GoogleAccess: z.string(),
       reservationAffinity: z.object({
         consumeReservationType: z.string(),
         key: z.string(),
         values: z.array(z.string()),
-      }),
+      }).partial(),
       resourceManagerTags: z.record(z.string(), z.unknown()),
       serviceAccount: z.string(),
       serviceAccountScopes: z.array(z.string()),
@@ -1326,31 +1330,35 @@ const StateSchema = z.object({
         enableIntegrityMonitoring: z.boolean(),
         enableSecureBoot: z.boolean(),
         enableVtpm: z.boolean(),
-      }),
+      }).partial(),
       subnetworkUri: z.string(),
       tags: z.array(z.string()),
       zoneUri: z.string(),
-    }),
+    }).partial(),
     gkeClusterConfig: z.object({
       gkeClusterTarget: z.string(),
       namespacedGkeDeploymentTarget: z.object({
         clusterNamespace: z.string(),
         targetGkeCluster: z.string(),
-      }),
-      nodePoolTarget: z.array(z.object({
-        nodePool: z.string(),
-        nodePoolConfig: z.object({
-          autoscaling: z.unknown(),
-          config: z.unknown(),
-          locations: z.unknown(),
-        }),
-        roles: z.array(z.unknown()),
-      })),
-    }),
-    initializationActions: z.array(z.object({
-      executableFile: z.string(),
-      executionTimeout: z.string(),
-    })),
+      }).partial(),
+      nodePoolTarget: z.array(
+        z.object({
+          nodePool: z.string(),
+          nodePoolConfig: z.object({
+            autoscaling: z.unknown(),
+            config: z.unknown(),
+            locations: z.unknown(),
+          }).partial(),
+          roles: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+    initializationActions: z.array(
+      z.object({
+        executableFile: z.string(),
+        executionTimeout: z.string(),
+      }).partial(),
+    ),
     lifecycleConfig: z.object({
       autoDeleteTime: z.string(),
       autoDeleteTtl: z.string(),
@@ -1359,149 +1367,169 @@ const StateSchema = z.object({
       idleDeleteTtl: z.string(),
       idleStartTime: z.string(),
       idleStopTtl: z.string(),
-    }),
+    }).partial(),
     masterConfig: z.object({
-      accelerators: z.array(z.object({
-        acceleratorCount: z.number(),
-        acceleratorTypeUri: z.string(),
-      })),
+      accelerators: z.array(
+        z.object({
+          acceleratorCount: z.number(),
+          acceleratorTypeUri: z.string(),
+        }).partial(),
+      ),
       diskConfig: z.object({
-        attachedDiskConfigs: z.array(z.object({
-          diskSizeGb: z.unknown(),
-          diskType: z.unknown(),
-          provisionedIops: z.unknown(),
-          provisionedThroughput: z.unknown(),
-          type: z.unknown(),
-        })),
+        attachedDiskConfigs: z.array(
+          z.object({
+            diskSizeGb: z.unknown(),
+            diskType: z.unknown(),
+            provisionedIops: z.unknown(),
+            provisionedThroughput: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
         bootDiskProvisionedIops: z.string(),
         bootDiskProvisionedThroughput: z.string(),
         bootDiskSizeGb: z.number(),
         bootDiskType: z.string(),
         localSsdInterface: z.string(),
         numLocalSsds: z.number(),
-      }),
+      }).partial(),
       imageUri: z.string(),
       instanceFlexibilityPolicy: z.object({
         instanceMachineTypes: z.record(z.string(), z.unknown()),
-        instanceSelectionList: z.array(z.object({
-          diskConfig: z.unknown(),
-          machineTypes: z.unknown(),
-          rank: z.unknown(),
-        })),
-        instanceSelectionResults: z.array(z.object({
-          machineType: z.unknown(),
-          vmCount: z.unknown(),
-        })),
+        instanceSelectionList: z.array(
+          z.object({
+            diskConfig: z.unknown(),
+            machineTypes: z.unknown(),
+            rank: z.unknown(),
+          }).partial(),
+        ),
+        instanceSelectionResults: z.array(
+          z.object({
+            machineType: z.unknown(),
+            vmCount: z.unknown(),
+          }).partial(),
+        ),
         provisioningModelMix: z.object({
           standardCapacityBase: z.number(),
           standardCapacityPercentAboveBase: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       instanceNames: z.array(z.string()),
-      instanceReferences: z.array(z.object({
-        instanceId: z.string(),
-        instanceName: z.string(),
-        publicEciesKey: z.string(),
-        publicKey: z.string(),
-      })),
+      instanceReferences: z.array(
+        z.object({
+          instanceId: z.string(),
+          instanceName: z.string(),
+          publicEciesKey: z.string(),
+          publicKey: z.string(),
+        }).partial(),
+      ),
       isPreemptible: z.boolean(),
       machineTypeUri: z.string(),
       managedGroupConfig: z.object({
         instanceGroupManagerName: z.string(),
         instanceGroupManagerUri: z.string(),
         instanceTemplateName: z.string(),
-      }),
+      }).partial(),
       minCpuPlatform: z.string(),
       minNumInstances: z.number(),
       numInstances: z.number(),
       preemptibility: z.string(),
       startupConfig: z.object({
         requiredRegistrationFraction: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     masterFlexibleConfig: z.object({
       bootDiskSizeGb: z.number(),
       coreCount: z.number(),
       hardwareClass: z.string(),
       numInstances: z.number(),
-    }),
+    }).partial(),
     metastoreConfig: z.object({
       dataprocMetastoreService: z.string(),
-    }),
+    }).partial(),
     schedulingConfig: z.object({
       requestedRunDuration: z.string(),
       schedulingTimeout: z.string(),
-    }),
+    }).partial(),
     secondaryWorkerConfig: z.object({
-      accelerators: z.array(z.object({
-        acceleratorCount: z.number(),
-        acceleratorTypeUri: z.string(),
-      })),
+      accelerators: z.array(
+        z.object({
+          acceleratorCount: z.number(),
+          acceleratorTypeUri: z.string(),
+        }).partial(),
+      ),
       diskConfig: z.object({
-        attachedDiskConfigs: z.array(z.object({
-          diskSizeGb: z.unknown(),
-          diskType: z.unknown(),
-          provisionedIops: z.unknown(),
-          provisionedThroughput: z.unknown(),
-          type: z.unknown(),
-        })),
+        attachedDiskConfigs: z.array(
+          z.object({
+            diskSizeGb: z.unknown(),
+            diskType: z.unknown(),
+            provisionedIops: z.unknown(),
+            provisionedThroughput: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
         bootDiskProvisionedIops: z.string(),
         bootDiskProvisionedThroughput: z.string(),
         bootDiskSizeGb: z.number(),
         bootDiskType: z.string(),
         localSsdInterface: z.string(),
         numLocalSsds: z.number(),
-      }),
+      }).partial(),
       imageUri: z.string(),
       instanceFlexibilityPolicy: z.object({
         instanceMachineTypes: z.record(z.string(), z.unknown()),
-        instanceSelectionList: z.array(z.object({
-          diskConfig: z.unknown(),
-          machineTypes: z.unknown(),
-          rank: z.unknown(),
-        })),
-        instanceSelectionResults: z.array(z.object({
-          machineType: z.unknown(),
-          vmCount: z.unknown(),
-        })),
+        instanceSelectionList: z.array(
+          z.object({
+            diskConfig: z.unknown(),
+            machineTypes: z.unknown(),
+            rank: z.unknown(),
+          }).partial(),
+        ),
+        instanceSelectionResults: z.array(
+          z.object({
+            machineType: z.unknown(),
+            vmCount: z.unknown(),
+          }).partial(),
+        ),
         provisioningModelMix: z.object({
           standardCapacityBase: z.number(),
           standardCapacityPercentAboveBase: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       instanceNames: z.array(z.string()),
-      instanceReferences: z.array(z.object({
-        instanceId: z.string(),
-        instanceName: z.string(),
-        publicEciesKey: z.string(),
-        publicKey: z.string(),
-      })),
+      instanceReferences: z.array(
+        z.object({
+          instanceId: z.string(),
+          instanceName: z.string(),
+          publicEciesKey: z.string(),
+          publicKey: z.string(),
+        }).partial(),
+      ),
       isPreemptible: z.boolean(),
       machineTypeUri: z.string(),
       managedGroupConfig: z.object({
         instanceGroupManagerName: z.string(),
         instanceGroupManagerUri: z.string(),
         instanceTemplateName: z.string(),
-      }),
+      }).partial(),
       minCpuPlatform: z.string(),
       minNumInstances: z.number(),
       numInstances: z.number(),
       preemptibility: z.string(),
       startupConfig: z.object({
         requiredRegistrationFraction: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     secondaryWorkerFlexibleConfig: z.object({
       bootDiskSizeGb: z.number(),
       coreCount: z.number(),
       hardwareClass: z.string(),
       numInstances: z.number(),
-    }),
+    }).partial(),
     securityConfig: z.object({
       identityConfig: z.object({
         enableSsh: z.boolean(),
         userServiceAccountMapping: z.record(z.string(), z.unknown()),
-      }),
+      }).partial(),
       kerberosConfig: z.object({
         crossRealmTrustAdminServer: z.string(),
         crossRealmTrustKdc: z.string(),
@@ -1518,128 +1546,142 @@ const StateSchema = z.object({
         tgtLifetimeHours: z.number(),
         truststorePasswordUri: z.string(),
         truststoreUri: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     softwareConfig: z.object({
       imageVersion: z.string(),
       optionalComponents: z.array(z.string()),
       properties: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     tempBucket: z.string(),
     workerConfig: z.object({
-      accelerators: z.array(z.object({
-        acceleratorCount: z.number(),
-        acceleratorTypeUri: z.string(),
-      })),
+      accelerators: z.array(
+        z.object({
+          acceleratorCount: z.number(),
+          acceleratorTypeUri: z.string(),
+        }).partial(),
+      ),
       diskConfig: z.object({
-        attachedDiskConfigs: z.array(z.object({
-          diskSizeGb: z.unknown(),
-          diskType: z.unknown(),
-          provisionedIops: z.unknown(),
-          provisionedThroughput: z.unknown(),
-          type: z.unknown(),
-        })),
+        attachedDiskConfigs: z.array(
+          z.object({
+            diskSizeGb: z.unknown(),
+            diskType: z.unknown(),
+            provisionedIops: z.unknown(),
+            provisionedThroughput: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
         bootDiskProvisionedIops: z.string(),
         bootDiskProvisionedThroughput: z.string(),
         bootDiskSizeGb: z.number(),
         bootDiskType: z.string(),
         localSsdInterface: z.string(),
         numLocalSsds: z.number(),
-      }),
+      }).partial(),
       imageUri: z.string(),
       instanceFlexibilityPolicy: z.object({
         instanceMachineTypes: z.record(z.string(), z.unknown()),
-        instanceSelectionList: z.array(z.object({
-          diskConfig: z.unknown(),
-          machineTypes: z.unknown(),
-          rank: z.unknown(),
-        })),
-        instanceSelectionResults: z.array(z.object({
-          machineType: z.unknown(),
-          vmCount: z.unknown(),
-        })),
+        instanceSelectionList: z.array(
+          z.object({
+            diskConfig: z.unknown(),
+            machineTypes: z.unknown(),
+            rank: z.unknown(),
+          }).partial(),
+        ),
+        instanceSelectionResults: z.array(
+          z.object({
+            machineType: z.unknown(),
+            vmCount: z.unknown(),
+          }).partial(),
+        ),
         provisioningModelMix: z.object({
           standardCapacityBase: z.number(),
           standardCapacityPercentAboveBase: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       instanceNames: z.array(z.string()),
-      instanceReferences: z.array(z.object({
-        instanceId: z.string(),
-        instanceName: z.string(),
-        publicEciesKey: z.string(),
-        publicKey: z.string(),
-      })),
+      instanceReferences: z.array(
+        z.object({
+          instanceId: z.string(),
+          instanceName: z.string(),
+          publicEciesKey: z.string(),
+          publicKey: z.string(),
+        }).partial(),
+      ),
       isPreemptible: z.boolean(),
       machineTypeUri: z.string(),
       managedGroupConfig: z.object({
         instanceGroupManagerName: z.string(),
         instanceGroupManagerUri: z.string(),
         instanceTemplateName: z.string(),
-      }),
+      }).partial(),
       minCpuPlatform: z.string(),
       minNumInstances: z.number(),
       numInstances: z.number(),
       preemptibility: z.string(),
       startupConfig: z.object({
         requiredRegistrationFraction: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     workerFlexibleConfig: z.object({
       bootDiskSizeGb: z.number(),
       coreCount: z.number(),
       hardwareClass: z.string(),
       numInstances: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   metrics: z.object({
     hdfsMetrics: z.record(z.string(), z.unknown()),
     yarnMetrics: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   projectId: z.string().optional(),
   status: z.object({
     detail: z.string(),
     state: z.string(),
     stateStartTime: z.string(),
     substate: z.string(),
-  }).optional(),
-  statusHistory: z.array(z.object({
-    detail: z.string(),
-    state: z.string(),
-    stateStartTime: z.string(),
-    substate: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  statusHistory: z.array(
+    z.object({
+      detail: z.string(),
+      state: z.string(),
+      stateStartTime: z.string(),
+      substate: z.string(),
+    }).partial(),
+  ).optional(),
   virtualClusterConfig: z.object({
     auxiliaryServicesConfig: z.object({
       metastoreConfig: z.object({
         dataprocMetastoreService: z.string(),
-      }),
+      }).partial(),
       sparkHistoryServerConfig: z.object({
         dataprocCluster: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     kubernetesClusterConfig: z.object({
       gkeClusterConfig: z.object({
         gkeClusterTarget: z.string(),
         namespacedGkeDeploymentTarget: z.object({
           clusterNamespace: z.string(),
           targetGkeCluster: z.string(),
-        }),
-        nodePoolTarget: z.array(z.object({
-          nodePool: z.unknown(),
-          nodePoolConfig: z.unknown(),
-          roles: z.unknown(),
-        })),
-      }),
+        }).partial(),
+        nodePoolTarget: z.array(
+          z.object({
+            nodePool: z.unknown(),
+            nodePoolConfig: z.unknown(),
+            roles: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       kubernetesNamespace: z.string(),
       kubernetesSoftwareConfig: z.object({
         componentVersion: z.record(z.string(), z.unknown()),
         properties: z.record(z.string(), z.unknown()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     stagingBucket: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -2713,7 +2755,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Clusters. Registered at `@swamp/gcp/dataproc/clusters`. */
 export const model = {
   type: "@swamp/gcp/dataproc/clusters",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3040,6 +3082,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

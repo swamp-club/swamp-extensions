@@ -342,6 +342,87 @@ const TagSchema = z.object({
   ).describe("The tag key. Tag keys must be unique per resource."),
 });
 
+const VpcConfigStateSchema = z.object({
+  SecurityGroupIds: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const S3InputStateSchema = z.object({
+  LocalPath: z.string(),
+  S3CompressionType: z.string(),
+  S3DataDistributionType: z.string(),
+  S3DataType: z.string(),
+  S3InputMode: z.string(),
+  S3Uri: z.string(),
+}).partial();
+
+const AthenaDatasetDefinitionStateSchema = z.object({
+  Catalog: z.string(),
+  Database: z.string(),
+  OutputS3Uri: z.string(),
+  QueryString: z.string(),
+  WorkGroup: z.string(),
+  OutputFormat: z.string(),
+  KmsKeyId: z.string(),
+  OutputCompression: z.string(),
+}).partial();
+
+const RedshiftDatasetDefinitionStateSchema = z.object({
+  Database: z.string(),
+  DbUser: z.string(),
+  QueryString: z.string(),
+  ClusterId: z.string(),
+  ClusterRoleArn: z.string(),
+  OutputS3Uri: z.string(),
+  OutputFormat: z.string(),
+  KmsKeyId: z.string(),
+  OutputCompression: z.string(),
+}).partial();
+
+const DatasetDefinitionStateSchema = z.object({
+  AthenaDatasetDefinition: AthenaDatasetDefinitionStateSchema,
+  RedshiftDatasetDefinition: RedshiftDatasetDefinitionStateSchema,
+  DataDistributionType: z.string(),
+  InputMode: z.string(),
+  LocalPath: z.string(),
+}).partial();
+
+const ProcessingInputsObjectStateSchema = z.object({
+  S3Input: S3InputStateSchema,
+  DatasetDefinition: DatasetDefinitionStateSchema,
+  InputName: z.string(),
+  AppManaged: z.boolean(),
+}).partial();
+
+const S3OutputStateSchema = z.object({
+  LocalPath: z.string(),
+  S3UploadMode: z.string(),
+  S3Uri: z.string(),
+}).partial();
+
+const FeatureStoreOutputStateSchema = z.object({
+  FeatureGroupName: z.string(),
+}).partial();
+
+const ProcessingOutputsObjectStateSchema = z.object({
+  OutputName: z.string(),
+  AppManaged: z.boolean(),
+  S3Output: S3OutputStateSchema,
+  FeatureStoreOutput: FeatureStoreOutputStateSchema,
+}).partial();
+
+const ClusterConfigStateSchema = z.object({
+  InstanceCount: z.number(),
+  InstanceType: z.string(),
+  VolumeSizeInGB: z.number(),
+  VolumeKmsKeyId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -463,33 +544,33 @@ const StateSchema = z.object({
     ContainerArguments: z.array(z.string()),
     ContainerEntrypoint: z.array(z.string()),
     ImageUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Environment: z.record(z.string(), z.unknown()).optional(),
   ExperimentConfig: z.object({
     ExperimentName: z.string(),
     TrialName: z.string(),
     TrialComponentDisplayName: z.string(),
     RunName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   NetworkConfig: z.object({
     EnableInterContainerTrafficEncryption: z.boolean(),
     EnableNetworkIsolation: z.boolean(),
-    VpcConfig: VpcConfigSchema,
-  }).optional(),
-  ProcessingInputs: z.array(ProcessingInputsObjectSchema).optional(),
+    VpcConfig: VpcConfigStateSchema,
+  }).partial().optional(),
+  ProcessingInputs: z.array(ProcessingInputsObjectStateSchema).optional(),
   ProcessingJobName: z.string().optional(),
   ProcessingOutputConfig: z.object({
     KmsKeyId: z.string(),
-    Outputs: z.array(ProcessingOutputsObjectSchema),
-  }).optional(),
+    Outputs: z.array(ProcessingOutputsObjectStateSchema),
+  }).partial().optional(),
   ProcessingResources: z.object({
-    ClusterConfig: ClusterConfigSchema,
-  }).optional(),
+    ClusterConfig: ClusterConfigStateSchema,
+  }).partial().optional(),
   RoleArn: z.string().optional(),
   StoppingCondition: z.object({
     MaxRuntimeInSeconds: z.number(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ProcessingJobArn: z.string(),
   AutoMLJobArn: z.string().optional(),
   ExitMessage: z.string().optional(),
@@ -503,7 +584,7 @@ const StateSchema = z.object({
   ProcessingEndTime: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -630,7 +711,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ProcessingJob. Registered at `@swamp/aws/sagemaker/processing-job`. */
 export const model = {
   type: "@swamp/aws/sagemaker/processing-job",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -699,6 +780,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

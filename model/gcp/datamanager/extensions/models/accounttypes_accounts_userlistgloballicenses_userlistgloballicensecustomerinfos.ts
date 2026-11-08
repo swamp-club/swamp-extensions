@@ -101,17 +101,19 @@ const StateSchema = z.object({
   clientAccountDisplayName: z.string().optional(),
   clientAccountId: z.string().optional(),
   clientAccountType: z.string().optional(),
-  historicalPricings: z.array(z.object({
-    buyerApprovalState: z.string(),
-    costMicros: z.string(),
-    costType: z.string(),
-    currencyCode: z.string(),
-    endTime: z.string(),
-    maxCostMicros: z.string(),
-    pricingActive: z.boolean(),
-    pricingId: z.string(),
-    startTime: z.string(),
-  })).optional(),
+  historicalPricings: z.array(
+    z.object({
+      buyerApprovalState: z.string(),
+      costMicros: z.string(),
+      costType: z.string(),
+      currencyCode: z.string(),
+      endTime: z.string(),
+      maxCostMicros: z.string(),
+      pricingActive: z.boolean(),
+      pricingId: z.string(),
+      startTime: z.string(),
+    }).partial(),
+  ).optional(),
   licenseType: z.string().optional(),
   metrics: z.object({
     clickCount: z.string(),
@@ -119,7 +121,7 @@ const StateSchema = z.object({
     impressionCount: z.string(),
     revenueUsdMicros: z.string(),
     startDate: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   pricing: z.object({
     buyerApprovalState: z.string(),
@@ -131,7 +133,7 @@ const StateSchema = z.object({
     pricingActive: z.boolean(),
     pricingId: z.string(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.string().optional(),
   userListDisplayName: z.string().optional(),
   userListId: z.string().optional(),
@@ -179,7 +181,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/datamanager/accounttypes-accounts-userlistgloballicenses-userlistgloballicensecustomerinfos",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -313,6 +315,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

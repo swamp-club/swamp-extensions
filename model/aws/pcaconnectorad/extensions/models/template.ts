@@ -352,6 +352,223 @@ const TemplateV4Schema = z.object({
   Extensions: ExtensionsV4Schema,
 });
 
+const ValidityPeriodStateSchema = z.object({
+  PeriodType: z.string(),
+  Period: z.number(),
+}).partial();
+
+const CertificateValidityStateSchema = z.object({
+  ValidityPeriod: ValidityPeriodStateSchema,
+  RenewalPeriod: ValidityPeriodStateSchema,
+}).partial();
+
+const PrivateKeyAttributesV2StateSchema = z.object({
+  MinimalKeyLength: z.number(),
+  KeySpec: z.string(),
+  CryptoProviders: z.array(z.string()),
+}).partial();
+
+const PrivateKeyFlagsV2StateSchema = z.object({
+  ExportableKey: z.boolean(),
+  StrongKeyProtectionRequired: z.boolean(),
+  ClientVersion: z.string(),
+}).partial();
+
+const EnrollmentFlagsV2StateSchema = z.object({
+  IncludeSymmetricAlgorithms: z.boolean(),
+  UserInteractionRequired: z.boolean(),
+  RemoveInvalidCertificateFromPersonalStore: z.boolean(),
+  NoSecurityExtension: z.boolean(),
+  EnableKeyReuseOnNtTokenKeysetStorageFull: z.boolean(),
+}).partial();
+
+const SubjectNameFlagsV2StateSchema = z.object({
+  SanRequireDomainDns: z.boolean(),
+  SanRequireSpn: z.boolean(),
+  SanRequireDirectoryGuid: z.boolean(),
+  SanRequireUpn: z.boolean(),
+  SanRequireEmail: z.boolean(),
+  SanRequireDns: z.boolean(),
+  RequireDnsAsCn: z.boolean(),
+  RequireEmail: z.boolean(),
+  RequireCommonName: z.boolean(),
+  RequireDirectoryPath: z.boolean(),
+}).partial();
+
+const GeneralFlagsV2StateSchema = z.object({
+  AutoEnrollment: z.boolean(),
+  MachineType: z.boolean(),
+}).partial();
+
+const KeyUsageFlagsStateSchema = z.object({
+  DigitalSignature: z.boolean(),
+  NonRepudiation: z.boolean(),
+  KeyEncipherment: z.boolean(),
+  DataEncipherment: z.boolean(),
+  KeyAgreement: z.boolean(),
+}).partial();
+
+const KeyUsageStateSchema = z.object({
+  Critical: z.boolean(),
+  UsageFlags: KeyUsageFlagsStateSchema,
+}).partial();
+
+const ApplicationPoliciesStateSchema = z.object({
+  Critical: z.boolean(),
+  Policies: z.array(
+    z.object({
+      PolicyType: z.string(),
+      PolicyObjectIdentifier: z.string(),
+    }).partial(),
+  ),
+}).partial();
+
+const ExtensionsV2StateSchema = z.object({
+  KeyUsage: KeyUsageStateSchema,
+  ApplicationPolicies: ApplicationPoliciesStateSchema,
+}).partial();
+
+const TemplateV2StateSchema = z.object({
+  CertificateValidity: CertificateValidityStateSchema,
+  SupersededTemplates: z.array(z.string()),
+  PrivateKeyAttributes: PrivateKeyAttributesV2StateSchema,
+  PrivateKeyFlags: PrivateKeyFlagsV2StateSchema,
+  EnrollmentFlags: EnrollmentFlagsV2StateSchema,
+  SubjectNameFlags: SubjectNameFlagsV2StateSchema,
+  GeneralFlags: GeneralFlagsV2StateSchema,
+  Extensions: ExtensionsV2StateSchema,
+}).partial();
+
+const KeyUsagePropertyFlagsStateSchema = z.object({
+  Decrypt: z.boolean(),
+  KeyAgreement: z.boolean(),
+  Sign: z.boolean(),
+}).partial();
+
+const PrivateKeyAttributesV3StateSchema = z.object({
+  MinimalKeyLength: z.number(),
+  KeySpec: z.string(),
+  CryptoProviders: z.array(z.string()),
+  KeyUsageProperty: z.object({
+    PropertyType: z.string(),
+    PropertyFlags: KeyUsagePropertyFlagsStateSchema,
+  }).partial(),
+  Algorithm: z.string(),
+}).partial();
+
+const PrivateKeyFlagsV3StateSchema = z.object({
+  ExportableKey: z.boolean(),
+  StrongKeyProtectionRequired: z.boolean(),
+  RequireAlternateSignatureAlgorithm: z.boolean(),
+  ClientVersion: z.string(),
+}).partial();
+
+const EnrollmentFlagsV3StateSchema = z.object({
+  IncludeSymmetricAlgorithms: z.boolean(),
+  UserInteractionRequired: z.boolean(),
+  RemoveInvalidCertificateFromPersonalStore: z.boolean(),
+  NoSecurityExtension: z.boolean(),
+  EnableKeyReuseOnNtTokenKeysetStorageFull: z.boolean(),
+}).partial();
+
+const SubjectNameFlagsV3StateSchema = z.object({
+  SanRequireDomainDns: z.boolean(),
+  SanRequireSpn: z.boolean(),
+  SanRequireDirectoryGuid: z.boolean(),
+  SanRequireUpn: z.boolean(),
+  SanRequireEmail: z.boolean(),
+  SanRequireDns: z.boolean(),
+  RequireDnsAsCn: z.boolean(),
+  RequireEmail: z.boolean(),
+  RequireCommonName: z.boolean(),
+  RequireDirectoryPath: z.boolean(),
+}).partial();
+
+const GeneralFlagsV3StateSchema = z.object({
+  AutoEnrollment: z.boolean(),
+  MachineType: z.boolean(),
+}).partial();
+
+const ExtensionsV3StateSchema = z.object({
+  KeyUsage: KeyUsageStateSchema,
+  ApplicationPolicies: ApplicationPoliciesStateSchema,
+}).partial();
+
+const TemplateV3StateSchema = z.object({
+  CertificateValidity: CertificateValidityStateSchema,
+  SupersededTemplates: z.array(z.string()),
+  PrivateKeyAttributes: PrivateKeyAttributesV3StateSchema,
+  PrivateKeyFlags: PrivateKeyFlagsV3StateSchema,
+  EnrollmentFlags: EnrollmentFlagsV3StateSchema,
+  SubjectNameFlags: SubjectNameFlagsV3StateSchema,
+  GeneralFlags: GeneralFlagsV3StateSchema,
+  HashAlgorithm: z.string(),
+  Extensions: ExtensionsV3StateSchema,
+}).partial();
+
+const PrivateKeyAttributesV4StateSchema = z.object({
+  MinimalKeyLength: z.number(),
+  KeySpec: z.string(),
+  CryptoProviders: z.array(z.string()),
+  KeyUsageProperty: z.object({
+    PropertyType: z.string(),
+    PropertyFlags: KeyUsagePropertyFlagsStateSchema,
+  }).partial(),
+  Algorithm: z.string(),
+}).partial();
+
+const PrivateKeyFlagsV4StateSchema = z.object({
+  ExportableKey: z.boolean(),
+  StrongKeyProtectionRequired: z.boolean(),
+  RequireAlternateSignatureAlgorithm: z.boolean(),
+  RequireSameKeyRenewal: z.boolean(),
+  UseLegacyProvider: z.boolean(),
+  ClientVersion: z.string(),
+}).partial();
+
+const EnrollmentFlagsV4StateSchema = z.object({
+  IncludeSymmetricAlgorithms: z.boolean(),
+  UserInteractionRequired: z.boolean(),
+  RemoveInvalidCertificateFromPersonalStore: z.boolean(),
+  NoSecurityExtension: z.boolean(),
+  EnableKeyReuseOnNtTokenKeysetStorageFull: z.boolean(),
+}).partial();
+
+const SubjectNameFlagsV4StateSchema = z.object({
+  SanRequireDomainDns: z.boolean(),
+  SanRequireSpn: z.boolean(),
+  SanRequireDirectoryGuid: z.boolean(),
+  SanRequireUpn: z.boolean(),
+  SanRequireEmail: z.boolean(),
+  SanRequireDns: z.boolean(),
+  RequireDnsAsCn: z.boolean(),
+  RequireEmail: z.boolean(),
+  RequireCommonName: z.boolean(),
+  RequireDirectoryPath: z.boolean(),
+}).partial();
+
+const GeneralFlagsV4StateSchema = z.object({
+  AutoEnrollment: z.boolean(),
+  MachineType: z.boolean(),
+}).partial();
+
+const ExtensionsV4StateSchema = z.object({
+  KeyUsage: KeyUsageStateSchema,
+  ApplicationPolicies: ApplicationPoliciesStateSchema,
+}).partial();
+
+const TemplateV4StateSchema = z.object({
+  CertificateValidity: CertificateValidityStateSchema,
+  SupersededTemplates: z.array(z.string()),
+  PrivateKeyAttributes: PrivateKeyAttributesV4StateSchema,
+  PrivateKeyFlags: PrivateKeyFlagsV4StateSchema,
+  EnrollmentFlags: EnrollmentFlagsV4StateSchema,
+  SubjectNameFlags: SubjectNameFlagsV4StateSchema,
+  GeneralFlags: GeneralFlagsV4StateSchema,
+  HashAlgorithm: z.string(),
+  Extensions: ExtensionsV4StateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -388,17 +605,17 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ConnectorArn: z.string().optional(),
   Definition: z.object({
-    TemplateV2: TemplateV2Schema,
-    TemplateV3: TemplateV3Schema,
-    TemplateV4: TemplateV4Schema,
-  }).optional(),
+    TemplateV2: TemplateV2StateSchema,
+    TemplateV3: TemplateV3StateSchema,
+    TemplateV4: TemplateV4StateSchema,
+  }).partial().optional(),
   Name: z.string().optional(),
   ReenrollAllCertificateHolders: z.boolean().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   TemplateArn: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -442,7 +659,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCAConnectorAD Template. Registered at `@swamp/aws/pcaconnectorad/template`. */
 export const model = {
   type: "@swamp/aws/pcaconnectorad/template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -506,6 +723,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

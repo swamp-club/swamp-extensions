@@ -180,10 +180,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   id: z.string().optional(),
   link: z.array(z.string()).optional(),
-  name: z.array(z.object({
-    locale: z.string(),
-    text: z.string(),
-  })),
+  name: z.array(
+    z.object({
+      locale: z.string(),
+      text: z.string(),
+    }).partial(),
+  ),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -239,7 +241,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play EMM Storelayoutpages. Registered at `@swamp/gcp/androidenterprise/storelayoutpages`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/storelayoutpages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

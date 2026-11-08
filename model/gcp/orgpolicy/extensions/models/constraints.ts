@@ -96,8 +96,8 @@ const StateSchema = z.object({
       methodTypes: z.array(z.string()),
       parameters: z.record(z.string(), z.unknown()),
       resourceTypes: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   constraintDefault: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -105,7 +105,7 @@ const StateSchema = z.object({
   listConstraint: z.object({
     supportsIn: z.boolean(),
     supportsUnder: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   supportsDryRun: z.boolean().optional(),
   supportsSimulation: z.boolean().optional(),
@@ -152,7 +152,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Organization Policy Constraints. Registered at `@swamp/gcp/orgpolicy/constraints`. */
 export const model = {
   type: "@swamp/gcp/orgpolicy/constraints",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -286,6 +286,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

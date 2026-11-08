@@ -120,6 +120,88 @@ const ResourceTagSchema = z.object({
   Key: z.string(),
 });
 
+const TimePeriodStateSchema = z.object({
+  Start: z.string(),
+  End: z.string(),
+}).partial();
+
+const CostTypesStateSchema = z.object({
+  IncludeSupport: z.boolean(),
+  IncludeOtherSubscription: z.boolean(),
+  IncludeTax: z.boolean(),
+  IncludeSubscription: z.boolean(),
+  UseBlended: z.boolean(),
+  IncludeUpfront: z.boolean(),
+  IncludeDiscount: z.boolean(),
+  IncludeCredit: z.boolean(),
+  IncludeRecurring: z.boolean(),
+  UseAmortized: z.boolean(),
+  IncludeRefund: z.boolean(),
+}).partial();
+
+const SpendStateSchema = z.object({
+  Unit: z.string(),
+  Amount: z.number(),
+}).partial();
+
+const HistoricalOptionsStateSchema = z.object({
+  BudgetAdjustmentPeriod: z.number(),
+}).partial();
+
+const AutoAdjustDataStateSchema = z.object({
+  AutoAdjustType: z.string(),
+  HistoricalOptions: HistoricalOptionsStateSchema,
+}).partial();
+
+const ExpressionDimensionValuesStateSchema = z.object({
+  Values: z.array(z.string()),
+  Key: z.string(),
+  MatchOptions: z.array(z.string()),
+}).partial();
+
+const CostCategoryValuesStateSchema = z.object({
+  Values: z.array(z.string()),
+  Key: z.string(),
+  MatchOptions: z.array(z.string()),
+}).partial();
+
+const TagValuesStateSchema = z.object({
+  Values: z.array(z.string()),
+  Key: z.string(),
+  MatchOptions: z.array(z.string()),
+}).partial();
+
+const ExpressionStateSchema = z.object({
+  Not: z.record(z.string(), z.unknown()),
+  Or: z.array(z.record(z.string(), z.unknown())),
+  And: z.array(z.record(z.string(), z.unknown())),
+  Dimensions: ExpressionDimensionValuesStateSchema,
+  CostCategories: CostCategoryValuesStateSchema,
+  Tags: TagValuesStateSchema,
+}).partial();
+
+const SubscriberStateSchema = z.object({
+  Address: z.string(),
+  SubscriptionType: z.string(),
+}).partial();
+
+const NotificationStateSchema = z.object({
+  ComparisonOperator: z.string(),
+  NotificationType: z.string(),
+  Threshold: z.number(),
+  ThresholdType: z.string(),
+}).partial();
+
+const NotificationWithSubscribersStateSchema = z.object({
+  Subscribers: z.array(SubscriberStateSchema),
+  Notification: NotificationStateSchema,
+}).partial();
+
+const ResourceTagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -157,26 +239,26 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Budget: z.object({
-    TimePeriod: TimePeriodSchema,
+    TimePeriod: TimePeriodStateSchema,
     PlannedBudgetLimits: z.record(z.string(), z.unknown()),
     CostFilters: z.record(z.string(), z.unknown()),
-    CostTypes: CostTypesSchema,
+    CostTypes: CostTypesStateSchema,
     BudgetType: z.string(),
     Metrics: z.array(z.string()),
-    BudgetLimit: SpendSchema,
+    BudgetLimit: SpendStateSchema,
     BillingViewArn: z.string(),
-    AutoAdjustData: AutoAdjustDataSchema,
+    AutoAdjustData: AutoAdjustDataStateSchema,
     TimeUnit: z.string(),
-    FilterExpression: ExpressionSchema,
+    FilterExpression: ExpressionStateSchema,
     BudgetName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Id: z.string(),
-  NotificationsWithSubscribers: z.array(NotificationWithSubscribersSchema)
+  NotificationsWithSubscribers: z.array(NotificationWithSubscribersStateSchema)
     .optional(),
-  ResourceTags: z.array(ResourceTagSchema).optional(),
+  ResourceTags: z.array(ResourceTagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -222,7 +304,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Budgets Budget. Registered at `@swamp/aws/budgets/budget`. */
 export const model = {
   type: "@swamp/aws/budgets/budget",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -236,6 +318,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

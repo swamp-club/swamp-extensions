@@ -78,6 +78,36 @@ const TagSchema = z.object({
   Key: z.string(),
 });
 
+const FeatureDefinitionStateSchema = z.object({
+  FeatureName: z.string(),
+  FeatureType: z.string(),
+}).partial();
+
+const OnlineStoreSecurityConfigStateSchema = z.object({
+  KmsKeyId: z.string(),
+}).partial();
+
+const TtlDurationStateSchema = z.object({
+  Unit: z.string(),
+  Value: z.number(),
+}).partial();
+
+const S3StorageConfigStateSchema = z.object({
+  S3Uri: z.string(),
+  KmsKeyId: z.string(),
+}).partial();
+
+const DataCatalogConfigStateSchema = z.object({
+  TableName: z.string(),
+  Catalog: z.string(),
+  Database: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -145,32 +175,32 @@ const StateSchema = z.object({
   FeatureGroupName: z.string(),
   RecordIdentifierFeatureName: z.string().optional(),
   EventTimeFeatureName: z.string().optional(),
-  FeatureDefinitions: z.array(FeatureDefinitionSchema).optional(),
+  FeatureDefinitions: z.array(FeatureDefinitionStateSchema).optional(),
   OnlineStoreConfig: z.object({
-    SecurityConfig: OnlineStoreSecurityConfigSchema,
+    SecurityConfig: OnlineStoreSecurityConfigStateSchema,
     EnableOnlineStore: z.boolean(),
     StorageType: z.string(),
-    TtlDuration: TtlDurationSchema,
-  }).optional(),
+    TtlDuration: TtlDurationStateSchema,
+  }).partial().optional(),
   OfflineStoreConfig: z.object({
-    S3StorageConfig: S3StorageConfigSchema,
+    S3StorageConfig: S3StorageConfigStateSchema,
     DisableGlueTableCreation: z.boolean(),
-    DataCatalogConfig: DataCatalogConfigSchema,
+    DataCatalogConfig: DataCatalogConfigStateSchema,
     TableFormat: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ThroughputConfig: z.object({
     ThroughputMode: z.string(),
     ProvisionedReadCapacityUnits: z.number(),
     ProvisionedWriteCapacityUnits: z.number(),
-  }).optional(),
+  }).partial().optional(),
   RoleArn: z.string().optional(),
   Description: z.string().optional(),
   CreationTime: z.string().optional(),
   FeatureGroupStatus: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -246,7 +276,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker FeatureGroup. Registered at `@swamp/aws/sagemaker/feature-group`. */
 export const model = {
   type: "@swamp/aws/sagemaker/feature-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -315,6 +345,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

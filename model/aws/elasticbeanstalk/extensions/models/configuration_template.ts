@@ -50,6 +50,13 @@ const ConfigurationOptionSettingSchema = z.object({
     .optional(),
 });
 
+const ConfigurationOptionSettingStateSchema = z.object({
+  Namespace: z.string(),
+  OptionName: z.string(),
+  ResourceName: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -100,17 +107,17 @@ const StateSchema = z.object({
   ApplicationName: z.string(),
   Description: z.string().optional(),
   EnvironmentId: z.string().optional(),
-  OptionSettings: z.array(ConfigurationOptionSettingSchema).optional(),
+  OptionSettings: z.array(ConfigurationOptionSettingStateSchema).optional(),
   PlatformArn: z.string().optional(),
   SolutionStackName: z.string().optional(),
   SourceConfiguration: z.object({
     ApplicationName: z.string(),
     TemplateName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   TemplateName: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -166,7 +173,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticBeanstalk ConfigurationTemplate. Registered at `@swamp/aws/elasticbeanstalk/configuration-template`. */
 export const model = {
   type: "@swamp/aws/elasticbeanstalk/configuration-template",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +242,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

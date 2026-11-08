@@ -211,13 +211,13 @@ const StateSchema = z.object({
   androidAppStreamData: z.object({
     firebaseAppId: z.string(),
     packageName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   iosAppStreamData: z.object({
     bundleId: z.string(),
     firebaseAppId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   type: z.string().optional(),
   updateTime: z.string().optional(),
@@ -225,7 +225,7 @@ const StateSchema = z.object({
     defaultUri: z.string(),
     firebaseAppId: z.string(),
     measurementId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -314,7 +314,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Analytics Admin Properties.DataStreams. Registered at `@swamp/gcp/analyticsadmin/properties-datastreams`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/properties-datastreams",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -473,6 +473,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -126,6 +126,47 @@ const TagSchema = z.object({
   ).describe("The value for an AWS resource tag."),
 });
 
+const NfsMountOptionsStateSchema = z.object({
+  Version: z.string(),
+}).partial();
+
+const NFSStateSchema = z.object({
+  MountOptions: NfsMountOptionsStateSchema,
+}).partial();
+
+const SmbMountOptionsStateSchema = z.object({
+  Version: z.string(),
+}).partial();
+
+const CmkSecretConfigStateSchema = z.object({
+  SecretArn: z.string(),
+  KmsKeyArn: z.string(),
+}).partial();
+
+const CustomSecretConfigStateSchema = z.object({
+  SecretArn: z.string(),
+  SecretAccessRoleArn: z.string(),
+}).partial();
+
+const ManagedSecretConfigStateSchema = z.object({
+  SecretArn: z.string(),
+}).partial();
+
+const SMBStateSchema = z.object({
+  MountOptions: SmbMountOptionsStateSchema,
+  Domain: z.string(),
+  Password: z.string(),
+  User: z.string(),
+  CmkSecretConfig: CmkSecretConfigStateSchema,
+  CustomSecretConfig: CustomSecretConfigStateSchema,
+  ManagedSecretConfig: ManagedSecretConfigStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -178,16 +219,16 @@ const StateSchema = z.object({
   FsxFilesystemArn: z.string().optional(),
   SecurityGroupArns: z.array(z.string()).optional(),
   Protocol: z.object({
-    NFS: NFSSchema,
-    SMB: SMBSchema,
-  }).optional(),
+    NFS: NFSStateSchema,
+    SMB: SMBStateSchema,
+  }).partial().optional(),
   Subdirectory: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LocationArn: z.string(),
   LocationUri: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -245,7 +286,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationFSxONTAP. Registered at `@swamp/aws/datasync/location-fsx-ontap`. */
 export const model = {
   type: "@swamp/aws/datasync/location-fsx-ontap",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -264,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

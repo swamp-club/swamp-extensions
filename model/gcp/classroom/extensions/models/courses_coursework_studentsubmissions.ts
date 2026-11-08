@@ -363,32 +363,34 @@ const StateSchema = z.object({
   assignedGrade: z.number().optional(),
   assignedRubricGrades: z.record(z.string(), z.unknown()).optional(),
   assignmentSubmission: z.object({
-    attachments: z.array(z.object({
-      driveFile: z.object({
-        alternateLink: z.string(),
-        id: z.string(),
-        thumbnailUrl: z.string(),
-        title: z.string(),
-      }),
-      form: z.object({
-        formUrl: z.string(),
-        responseUrl: z.string(),
-        thumbnailUrl: z.string(),
-        title: z.string(),
-      }),
-      link: z.object({
-        thumbnailUrl: z.string(),
-        title: z.string(),
-        url: z.string(),
-      }),
-      youTubeVideo: z.object({
-        alternateLink: z.string(),
-        id: z.string(),
-        thumbnailUrl: z.string(),
-        title: z.string(),
-      }),
-    })),
-  }).optional(),
+    attachments: z.array(
+      z.object({
+        driveFile: z.object({
+          alternateLink: z.string(),
+          id: z.string(),
+          thumbnailUrl: z.string(),
+          title: z.string(),
+        }).partial(),
+        form: z.object({
+          formUrl: z.string(),
+          responseUrl: z.string(),
+          thumbnailUrl: z.string(),
+          title: z.string(),
+        }).partial(),
+        link: z.object({
+          thumbnailUrl: z.string(),
+          title: z.string(),
+          url: z.string(),
+        }).partial(),
+        youTubeVideo: z.object({
+          alternateLink: z.string(),
+          id: z.string(),
+          thumbnailUrl: z.string(),
+          title: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   associatedWithDeveloper: z.boolean().optional(),
   courseId: z.string().optional(),
   courseWorkId: z.string().optional(),
@@ -400,25 +402,27 @@ const StateSchema = z.object({
   late: z.boolean().optional(),
   multipleChoiceSubmission: z.object({
     answer: z.string(),
-  }).optional(),
+  }).partial().optional(),
   shortAnswerSubmission: z.object({
     answer: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
-  submissionHistory: z.array(z.object({
-    gradeHistory: z.object({
-      actorUserId: z.string(),
-      gradeChangeType: z.string(),
-      gradeTimestamp: z.string(),
-      maxPoints: z.number(),
-      pointsEarned: z.number(),
-    }),
-    stateHistory: z.object({
-      actorUserId: z.string(),
-      state: z.string(),
-      stateTimestamp: z.string(),
-    }),
-  })).optional(),
+  submissionHistory: z.array(
+    z.object({
+      gradeHistory: z.object({
+        actorUserId: z.string(),
+        gradeChangeType: z.string(),
+        gradeTimestamp: z.string(),
+        maxPoints: z.number(),
+        pointsEarned: z.number(),
+      }).partial(),
+      stateHistory: z.object({
+        actorUserId: z.string(),
+        state: z.string(),
+        stateTimestamp: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
   userId: z.string().optional(),
 }).passthrough();
@@ -638,7 +642,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Classroom Courses.CourseWork.StudentSubmissions. Registered at `@swamp/gcp/classroom/courses-coursework-studentsubmissions`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses-coursework-studentsubmissions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -767,6 +771,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

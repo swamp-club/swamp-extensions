@@ -172,6 +172,74 @@ const DistributionSchema = z.object({
   ).optional(),
 });
 
+const LaunchPermissionConfigurationStateSchema = z.object({
+  UserIds: z.array(z.string()),
+  UserGroups: z.array(z.string()),
+  OrganizationArns: z.array(z.string()),
+  OrganizationalUnitArns: z.array(z.string()),
+}).partial();
+
+const AmiDistributionConfigurationStateSchema = z.object({
+  Name: z.string(),
+  KmsKeyId: z.string(),
+  Description: z.string(),
+  AmiTags: z.record(z.string(), z.unknown()),
+  TargetAccountIds: z.array(z.string()),
+  LaunchPermissionConfiguration: LaunchPermissionConfigurationStateSchema,
+}).partial();
+
+const TargetContainerRepositoryStateSchema = z.object({
+  Service: z.string(),
+  RepositoryName: z.string(),
+}).partial();
+
+const ContainerDistributionConfigurationStateSchema = z.object({
+  Description: z.string(),
+  ContainerTags: z.array(z.string()),
+  TargetRepository: TargetContainerRepositoryStateSchema,
+}).partial();
+
+const LaunchTemplateConfigurationStateSchema = z.object({
+  LaunchTemplateId: z.string(),
+  AccountId: z.string(),
+  SetDefaultVersion: z.boolean(),
+}).partial();
+
+const FastLaunchLaunchTemplateSpecificationStateSchema = z.object({
+  LaunchTemplateId: z.string(),
+  LaunchTemplateName: z.string(),
+  LaunchTemplateVersion: z.string(),
+}).partial();
+
+const FastLaunchSnapshotConfigurationStateSchema = z.object({
+  TargetResourceCount: z.number(),
+}).partial();
+
+const FastLaunchConfigurationStateSchema = z.object({
+  AccountId: z.string(),
+  Enabled: z.boolean(),
+  LaunchTemplate: FastLaunchLaunchTemplateSpecificationStateSchema,
+  MaxParallelLaunches: z.number(),
+  SnapshotConfiguration: FastLaunchSnapshotConfigurationStateSchema,
+}).partial();
+
+const SsmParameterConfigurationStateSchema = z.object({
+  AmiAccountId: z.string(),
+  ParameterName: z.string(),
+  DataType: z.string(),
+}).partial();
+
+const DistributionStateSchema = z.object({
+  Region: z.string(),
+  AmiDistributionConfiguration: AmiDistributionConfigurationStateSchema,
+  ContainerDistributionConfiguration:
+    ContainerDistributionConfigurationStateSchema,
+  LicenseConfigurationArns: z.array(z.string()),
+  LaunchTemplateConfigurations: z.array(LaunchTemplateConfigurationStateSchema),
+  FastLaunchConfigurations: z.array(FastLaunchConfigurationStateSchema),
+  SsmParameterConfigurations: z.array(SsmParameterConfigurationStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -205,11 +273,11 @@ const StateSchema = z.object({
   Arn: z.string(),
   Name: z.string().optional(),
   Description: z.string().optional(),
-  Distributions: z.array(DistributionSchema).optional(),
+  Distributions: z.array(DistributionStateSchema).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -249,7 +317,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder DistributionConfiguration. Registered at `@swamp/aws/imagebuilder/distribution-configuration`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/distribution-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -313,6 +381,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

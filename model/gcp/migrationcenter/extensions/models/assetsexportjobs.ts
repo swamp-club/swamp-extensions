@@ -183,39 +183,41 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   condition: z.object({
     filter: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
-  inventory: z.object({}).optional(),
+  inventory: z.object({}).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  networkDependencies: z.object({}).optional(),
+  networkDependencies: z.object({}).partial().optional(),
   performanceData: z.object({
     maxDays: z.number(),
-  }).optional(),
-  recentExecutions: z.array(z.object({
-    endTime: z.string(),
-    executionId: z.string(),
-    expireTime: z.string(),
-    requestedAssetCount: z.number(),
-    result: z.object({
-      error: z.object({
-        code: z.number(),
-        details: z.array(z.unknown()),
-        message: z.string(),
-      }),
-      outputFiles: z.object({
-        entries: z.array(z.unknown()),
-      }),
-      signedUris: z.object({
-        signedUris: z.array(z.unknown()),
-      }),
-    }),
-    startTime: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  recentExecutions: z.array(
+    z.object({
+      endTime: z.string(),
+      executionId: z.string(),
+      expireTime: z.string(),
+      requestedAssetCount: z.number(),
+      result: z.object({
+        error: z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+        outputFiles: z.object({
+          entries: z.array(z.unknown()),
+        }).partial(),
+        signedUris: z.object({
+          signedUris: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+      startTime: z.string(),
+    }).partial(),
+  ).optional(),
   showHidden: z.boolean().optional(),
   signedUriDestination: z.object({
     fileFormat: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -294,7 +296,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Migration Center AssetsExportJobs. Registered at `@swamp/gcp/migrationcenter/assetsexportjobs`. */
 export const model = {
   type: "@swamp/gcp/migrationcenter/assetsexportjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -433,6 +435,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -239,7 +239,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  allow: z.object({}).optional(),
+  allow: z.object({}).partial().optional(),
   apiProxies: z.array(z.string()).optional(),
   conditionConfig: z.object({
     accessTokens: z.array(z.string()),
@@ -253,19 +253,21 @@ const StateSchema = z.object({
     ipAddressRanges: z.array(z.string()),
     regionCodes: z.array(z.string()),
     userAgents: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deny: z.object({
     responseCode: z.number(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   expireTime: z.string().optional(),
   flag: z.object({
-    headers: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })),
-  }).optional(),
+    headers: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   state: z.string().optional(),
   ttl: z.string().optional(),
@@ -388,7 +390,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Environments.SecurityActions. Registered at `@swamp/gcp/apigee/environments-securityactions`. */
 export const model = {
   type: "@swamp/gcp/apigee/environments-securityactions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -522,6 +524,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -96,6 +96,55 @@ const MemberSpecificationSchema = z.object({
   PaymentConfiguration: PaymentConfigurationSchema.optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const MLMemberAbilitiesStateSchema = z.object({
+  CustomMLMemberAbilities: z.array(z.string()),
+}).partial();
+
+const JobComputePaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
+const QueryComputePaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
+const ModelTrainingPaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
+const ModelInferencePaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
+const SyntheticDataGenerationPaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
+const MLPaymentConfigStateSchema = z.object({
+  ModelTraining: ModelTrainingPaymentConfigStateSchema,
+  ModelInference: ModelInferencePaymentConfigStateSchema,
+  SyntheticDataGeneration: SyntheticDataGenerationPaymentConfigStateSchema,
+}).partial();
+
+const PaymentConfigurationStateSchema = z.object({
+  JobCompute: JobComputePaymentConfigStateSchema,
+  QueryCompute: QueryComputePaymentConfigStateSchema,
+  MachineLearning: MLPaymentConfigStateSchema,
+}).partial();
+
+const MemberSpecificationStateSchema = z.object({
+  AccountId: z.string(),
+  MemberAbilities: z.array(z.string()),
+  MLMemberAbilities: MLMemberAbilitiesStateSchema,
+  DisplayName: z.string(),
+  PaymentConfiguration: PaymentConfigurationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -202,30 +251,36 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CollaborationIdentifier: z.string(),
   CreatorDisplayName: z.string().optional(),
   CreatorMemberAbilities: z.array(z.string()).optional(),
-  CreatorMLMemberAbilities: MLMemberAbilitiesSchema.optional(),
+  CreatorMLMemberAbilities: z.object({
+    CustomMLMemberAbilities: z.array(z.string()),
+  }).partial().optional(),
   DataEncryptionMetadata: z.object({
     AllowCleartext: z.boolean(),
     AllowDuplicates: z.boolean(),
     AllowJoinsOnColumnsWithDifferentNames: z.boolean(),
     PreserveNulls: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   Description: z.string().optional(),
-  Members: z.array(MemberSpecificationSchema).optional(),
+  Members: z.array(MemberSpecificationStateSchema).optional(),
   Name: z.string().optional(),
   JobLogStatus: z.string().optional(),
   QueryLogStatus: z.string().optional(),
   AnalyticsEngine: z.string().optional(),
-  CreatorPaymentConfiguration: PaymentConfigurationSchema.optional(),
+  CreatorPaymentConfiguration: z.object({
+    JobCompute: JobComputePaymentConfigStateSchema,
+    QueryCompute: QueryComputePaymentConfigStateSchema,
+    MachineLearning: MLPaymentConfigStateSchema,
+  }).partial().optional(),
   AutoApprovedChangeTypes: z.array(z.string()).optional(),
   AllowedResultRegions: z.array(z.string()).optional(),
   IsMetricsEnabled: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -340,7 +395,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms Collaboration. Registered at `@swamp/aws/cleanrooms/collaboration`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/collaboration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -404,6 +459,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

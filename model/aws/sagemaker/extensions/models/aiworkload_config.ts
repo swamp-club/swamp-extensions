@@ -73,6 +73,28 @@ const TagSchema = z.object({
   ).describe("The tag value."),
 });
 
+const AIWorkloadS3DataSourceStateSchema = z.object({
+  S3Uri: z.string(),
+}).partial();
+
+const AIWorkloadDataSourceStateSchema = z.object({
+  S3DataSource: AIWorkloadS3DataSourceStateSchema,
+}).partial();
+
+const AIWorkloadInputDataConfigStateSchema = z.object({
+  ChannelName: z.string(),
+  DataSource: AIWorkloadDataSourceStateSchema,
+}).partial();
+
+const WorkloadSpecStateSchema = z.object({
+  Inline: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -116,16 +138,16 @@ const StateSchema = z.object({
   AIWorkloadConfigName: z.string().optional(),
   AIWorkloadConfigArn: z.string(),
   DatasetConfig: z.object({
-    InputDataConfig: z.array(AIWorkloadInputDataConfigSchema),
-  }).optional(),
+    InputDataConfig: z.array(AIWorkloadInputDataConfigStateSchema),
+  }).partial().optional(),
   AIWorkloadConfigs: z.object({
-    WorkloadSpec: WorkloadSpecSchema,
-  }).optional(),
+    WorkloadSpec: WorkloadSpecStateSchema,
+  }).partial().optional(),
   CreationTime: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -175,7 +197,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker AIWorkloadConfig. Registered at `@swamp/aws/sagemaker/aiworkload-config`. */
 export const model = {
   type: "@swamp/aws/sagemaker/aiworkload-config",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -189,6 +211,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

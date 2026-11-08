@@ -252,41 +252,43 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   frameEndTime: z.string().optional(),
   name: z.string(),
   state: z.string().optional(),
   stateTime: z.string().optional(),
   timeFrame: z.string().optional(),
   vmCount: z.number().optional(),
-  vms: z.array(z.object({
-    utilization: z.object({
-      cpuAveragePercent: z.number(),
-      cpuMaxPercent: z.number(),
-      diskIoRateAverageKbps: z.string(),
-      diskIoRateMaxKbps: z.string(),
-      memoryAveragePercent: z.number(),
-      memoryMaxPercent: z.number(),
-      networkThroughputAverageKbps: z.string(),
-      networkThroughputMaxKbps: z.string(),
-    }),
-    vmId: z.string(),
-    vmwareVmDetails: z.object({
-      architecture: z.string(),
-      bootOption: z.string(),
-      committedStorageMb: z.string(),
-      cpuCount: z.number(),
-      datacenterDescription: z.string(),
-      datacenterId: z.string(),
-      diskCount: z.number(),
-      displayName: z.string(),
-      guestDescription: z.string(),
-      memoryMb: z.number(),
-      powerState: z.string(),
-      uuid: z.string(),
+  vms: z.array(
+    z.object({
+      utilization: z.object({
+        cpuAveragePercent: z.number(),
+        cpuMaxPercent: z.number(),
+        diskIoRateAverageKbps: z.string(),
+        diskIoRateMaxKbps: z.string(),
+        memoryAveragePercent: z.number(),
+        memoryMaxPercent: z.number(),
+        networkThroughputAverageKbps: z.string(),
+        networkThroughputMaxKbps: z.string(),
+      }).partial(),
       vmId: z.string(),
-    }),
-  })).optional(),
+      vmwareVmDetails: z.object({
+        architecture: z.string(),
+        bootOption: z.string(),
+        committedStorageMb: z.string(),
+        cpuCount: z.number(),
+        datacenterDescription: z.string(),
+        datacenterId: z.string(),
+        diskCount: z.number(),
+        displayName: z.string(),
+        guestDescription: z.string(),
+        memoryMb: z.number(),
+        powerState: z.string(),
+        uuid: z.string(),
+        vmId: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -414,7 +416,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VM Migration Sources.UtilizationReports. Registered at `@swamp/gcp/vmmigration/sources-utilizationreports`. */
 export const model = {
   type: "@swamp/gcp/vmmigration/sources-utilizationreports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -551,6 +553,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

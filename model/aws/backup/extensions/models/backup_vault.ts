@@ -75,16 +75,16 @@ const StateSchema = z.object({
   Notifications: z.object({
     BackupVaultEvents: z.array(z.string()),
     SNSTopicArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LockConfiguration: z.object({
     MinRetentionDays: z.number(),
     MaxRetentionDays: z.number(),
     ChangeableForDays: z.number(),
-  }).optional(),
+  }).partial().optional(),
   BackupVaultArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -126,7 +126,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup BackupVault. Registered at `@swamp/aws/backup/backup-vault`. */
 export const model = {
   type: "@swamp/aws/backup/backup-vault",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +200,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

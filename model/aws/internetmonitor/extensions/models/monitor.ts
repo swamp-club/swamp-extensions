@@ -55,6 +55,23 @@ const LocalHealthEventsConfigSchema = z.object({
   MinTrafficImpact: z.number().min(0).max(100).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const S3ConfigStateSchema = z.object({
+  BucketName: z.string(),
+  BucketPrefix: z.string(),
+  LogDeliveryStatus: z.string(),
+}).partial();
+
+const LocalHealthEventsConfigStateSchema = z.object({
+  Status: z.string(),
+  HealthScoreThreshold: z.number(),
+  MinTrafficImpact: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -108,21 +125,21 @@ const StateSchema = z.object({
   ResourcesToAdd: z.array(z.string()).optional(),
   ResourcesToRemove: z.array(z.string()).optional(),
   Status: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   MaxCityNetworksToMonitor: z.number().optional(),
   TrafficPercentageToMonitor: z.number().optional(),
   InternetMeasurementsLogDelivery: z.object({
-    S3Config: S3ConfigSchema,
-  }).optional(),
+    S3Config: S3ConfigStateSchema,
+  }).partial().optional(),
   HealthEventsConfig: z.object({
     AvailabilityScoreThreshold: z.number(),
     PerformanceScoreThreshold: z.number(),
-    AvailabilityLocalHealthEventsConfig: LocalHealthEventsConfigSchema,
-    PerformanceLocalHealthEventsConfig: LocalHealthEventsConfigSchema,
-  }).optional(),
+    AvailabilityLocalHealthEventsConfig: LocalHealthEventsConfigStateSchema,
+    PerformanceLocalHealthEventsConfig: LocalHealthEventsConfigStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -174,7 +191,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for InternetMonitor Monitor. Registered at `@swamp/aws/internetmonitor/monitor`. */
 export const model = {
   type: "@swamp/aws/internetmonitor/monitor",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -238,6 +255,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

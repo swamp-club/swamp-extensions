@@ -210,18 +210,20 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
-  deploymentUnits: z.array(z.object({
-    dependencies: z.array(z.string()),
-    deployment: z.string(),
-    id: z.string(),
-  })).optional(),
+  deploymentUnits: z.array(
+    z.object({
+      dependencies: z.array(z.string()),
+      deployment: z.string(),
+      id: z.string(),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   provisioningError: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   provisioningState: z.string().optional(),
   provisioningStateDescription: z.string().optional(),
   state: z.string().optional(),
@@ -296,7 +298,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Infrastructure Manager DeploymentGroups. Registered at `@swamp/gcp/config/deploymentgroups`. */
 export const model = {
   type: "@swamp/gcp/config/deploymentgroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -438,6 +440,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

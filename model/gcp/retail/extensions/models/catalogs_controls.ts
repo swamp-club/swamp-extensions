@@ -319,58 +319,64 @@ const StateSchema = z.object({
     boostAction: z.object({
       boost: z.number(),
       productsFilter: z.string(),
-    }),
+    }).partial(),
     condition: z.object({
-      activeTimeRange: z.array(z.object({
-        endTime: z.string(),
-        startTime: z.string(),
-      })),
+      activeTimeRange: z.array(
+        z.object({
+          endTime: z.string(),
+          startTime: z.string(),
+        }).partial(),
+      ),
       pageCategories: z.array(z.string()),
-      queryTerms: z.array(z.object({
-        fullMatch: z.boolean(),
-        value: z.string(),
-      })),
-    }),
+      queryTerms: z.array(
+        z.object({
+          fullMatch: z.boolean(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     doNotAssociateAction: z.object({
       doNotAssociateTerms: z.array(z.string()),
       queryTerms: z.array(z.string()),
       terms: z.array(z.string()),
-    }),
+    }).partial(),
     filterAction: z.object({
       filter: z.string(),
-    }),
+    }).partial(),
     forceReturnFacetAction: z.object({
-      facetPositionAdjustments: z.array(z.object({
-        attributeName: z.string(),
-        position: z.number(),
-      })),
-    }),
+      facetPositionAdjustments: z.array(
+        z.object({
+          attributeName: z.string(),
+          position: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
     ignoreAction: z.object({
       ignoreTerms: z.array(z.string()),
-    }),
+    }).partial(),
     onewaySynonymsAction: z.object({
       onewayTerms: z.array(z.string()),
       queryTerms: z.array(z.string()),
       synonyms: z.array(z.string()),
-    }),
+    }).partial(),
     pinAction: z.object({
       pinMap: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     redirectAction: z.object({
       redirectUri: z.string(),
-    }),
+    }).partial(),
     removeFacetAction: z.object({
       attributeNames: z.array(z.string()),
-    }),
+    }).partial(),
     replacementAction: z.object({
       queryTerms: z.array(z.string()),
       replacementTerm: z.string(),
       term: z.string(),
-    }),
+    }).partial(),
     twowaySynonymsAction: z.object({
       synonyms: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   searchSolutionUseCase: z.array(z.string()).optional(),
   solutionTypes: z.array(z.string()).optional(),
 }).passthrough();
@@ -564,7 +570,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AI Commerce Search Catalogs.Controls. Registered at `@swamp/gcp/retail/catalogs-controls`. */
 export const model = {
   type: "@swamp/gcp/retail/catalogs-controls",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -708,6 +714,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

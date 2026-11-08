@@ -225,23 +225,23 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   dataBoostIsolationReadOnly: z.object({
     computeBillingOwner: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
   multiClusterRoutingUseAny: z.object({
     clusterIds: z.array(z.string()),
-    rowAffinity: z.object({}),
-  }).optional(),
+    rowAffinity: z.object({}).partial(),
+  }).partial().optional(),
   name: z.string(),
   priority: z.string().optional(),
   singleClusterRouting: z.object({
     allowTransactionalWrites: z.boolean(),
     clusterId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   standardIsolation: z.object({
-    memoryConfig: z.object({}),
+    memoryConfig: z.object({}).partial(),
     priority: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -338,7 +338,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.AppProfiles. Registered at `@swamp/gcp/bigtableadmin/instances-appprofiles`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-appprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -502,6 +502,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

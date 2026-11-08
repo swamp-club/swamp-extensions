@@ -133,7 +133,7 @@ const StateSchema = z.object({
   TreatMissingData: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -217,7 +217,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive CloudWatchAlarmTemplate. Registered at `@swamp/aws/medialive/cloud-watch-alarm-template`. */
 export const model = {
   type: "@swamp/aws/medialive/cloud-watch-alarm-template",
-  version: "2026.11.08.2",
+  version: "2026.11.08.3",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -286,6 +286,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

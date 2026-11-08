@@ -78,6 +78,39 @@ const ResourceTagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const DataQueryStateSchema = z.object({
+  QueryStatement: z.string(),
+  TableConfigurations: z.record(z.string(), z.unknown()),
+}).partial();
+
+const S3OutputConfigurationsStateSchema = z.object({
+  OutputType: z.string(),
+  Format: z.string(),
+  Compression: z.string(),
+  Overwrite: z.string(),
+}).partial();
+
+const S3DestinationStateSchema = z.object({
+  S3Bucket: z.string(),
+  S3BucketOwner: z.string(),
+  S3Prefix: z.string(),
+  S3Region: z.string(),
+  S3OutputConfigurations: S3OutputConfigurationsStateSchema,
+}).partial();
+
+const DestinationConfigurationsStateSchema = z.object({
+  S3Destination: S3DestinationStateSchema,
+}).partial();
+
+const RefreshCadenceStateSchema = z.object({
+  Frequency: z.string(),
+}).partial();
+
+const ResourceTagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -110,15 +143,15 @@ const StateSchema = z.object({
     ExportArn: z.string(),
     Name: z.string(),
     Description: z.string(),
-    DataQuery: DataQuerySchema,
-    DestinationConfigurations: DestinationConfigurationsSchema,
-    RefreshCadence: RefreshCadenceSchema,
-  }).optional(),
+    DataQuery: DataQueryStateSchema,
+    DestinationConfigurations: DestinationConfigurationsStateSchema,
+    RefreshCadence: RefreshCadenceStateSchema,
+  }).partial().optional(),
   ExportArn: z.string(),
-  Tags: z.array(ResourceTagSchema).optional(),
+  Tags: z.array(ResourceTagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -157,7 +190,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BCMDataExports Export. Registered at `@swamp/aws/bcmdataexports/export`. */
 export const model = {
   type: "@swamp/aws/bcmdataexports/export",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -241,6 +274,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

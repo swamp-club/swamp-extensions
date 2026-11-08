@@ -73,6 +73,41 @@ const AccessScopePathRequestSchema = z.object({
   ThroughResources: z.array(ThroughResourcesStatementRequestSchema).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const PacketHeaderStatementRequestStateSchema = z.object({
+  SourceAddresses: z.array(z.string()),
+  DestinationAddresses: z.array(z.string()),
+  SourcePorts: z.array(z.string()),
+  DestinationPorts: z.array(z.string()),
+  SourcePrefixLists: z.array(z.string()),
+  DestinationPrefixLists: z.array(z.string()),
+  Protocols: z.array(z.string()),
+}).partial();
+
+const ResourceStatementRequestStateSchema = z.object({
+  Resources: z.array(z.string()),
+  ResourceTypes: z.array(z.string()),
+}).partial();
+
+const PathStatementRequestStateSchema = z.object({
+  PacketHeaderStatement: PacketHeaderStatementRequestStateSchema,
+  ResourceStatement: ResourceStatementRequestStateSchema,
+}).partial();
+
+const ThroughResourcesStatementRequestStateSchema = z.object({
+  ResourceStatement: ResourceStatementRequestStateSchema,
+}).partial();
+
+const AccessScopePathRequestStateSchema = z.object({
+  Source: PathStatementRequestStateSchema,
+  Destination: PathStatementRequestStateSchema,
+  ThroughResources: z.array(ThroughResourcesStatementRequestStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -99,12 +134,12 @@ const StateSchema = z.object({
   NetworkInsightsAccessScopeArn: z.string().optional(),
   CreatedDate: z.string().optional(),
   UpdatedDate: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  MatchPaths: z.array(AccessScopePathRequestSchema).optional(),
-  ExcludePaths: z.array(AccessScopePathRequestSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
+  MatchPaths: z.array(AccessScopePathRequestStateSchema).optional(),
+  ExcludePaths: z.array(AccessScopePathRequestStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -136,7 +171,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 NetworkInsightsAccessScope. Registered at `@swamp/aws/ec2/network-insights-access-scope`. */
 export const model = {
   type: "@swamp/aws/ec2/network-insights-access-scope",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +230,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

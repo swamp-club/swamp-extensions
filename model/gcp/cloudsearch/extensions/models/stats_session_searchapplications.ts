@@ -109,14 +109,16 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  stats: z.array(z.object({
-    date: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-    searchSessionsCount: z.string(),
-  })).optional(),
+  stats: z.array(
+    z.object({
+      date: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+      searchSessionsCount: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -157,7 +159,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Stats.Session.Searchapplications. Registered at `@swamp/gcp/cloudsearch/stats-session-searchapplications`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/stats-session-searchapplications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +273,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

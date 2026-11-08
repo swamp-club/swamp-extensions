@@ -87,17 +87,17 @@ const StateSchema = z.object({
   Name: z.string(),
   Values: z.object({
     StringList: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Purposes: z.array(z.string()).optional(),
   AttributeConfiguration: z.object({
     EnableValueValidationOnAssociation: z.boolean(),
     IsReadOnly: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   LastModifiedRegion: z.string().optional(),
   LastModifiedTime: z.number().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -152,7 +152,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect PredefinedAttribute. Registered at `@swamp/aws/connect/predefined-attribute`. */
 export const model = {
   type: "@swamp/aws/connect/predefined-attribute",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -216,6 +216,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

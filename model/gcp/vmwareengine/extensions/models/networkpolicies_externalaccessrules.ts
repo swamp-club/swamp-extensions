@@ -245,20 +245,24 @@ const StateSchema = z.object({
   action: z.string().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
-  destinationIpRanges: z.array(z.object({
-    externalAddress: z.string(),
-    ipAddress: z.string(),
-    ipAddressRange: z.string(),
-  })).optional(),
+  destinationIpRanges: z.array(
+    z.object({
+      externalAddress: z.string(),
+      ipAddress: z.string(),
+      ipAddressRange: z.string(),
+    }).partial(),
+  ).optional(),
   destinationPorts: z.array(z.string()).optional(),
   ipProtocol: z.string().optional(),
   name: z.string(),
   priority: z.number().optional(),
-  sourceIpRanges: z.array(z.object({
-    externalAddress: z.string(),
-    ipAddress: z.string(),
-    ipAddressRange: z.string(),
-  })).optional(),
+  sourceIpRanges: z.array(
+    z.object({
+      externalAddress: z.string(),
+      ipAddress: z.string(),
+      ipAddressRange: z.string(),
+    }).partial(),
+  ).optional(),
   sourcePorts: z.array(z.string()).optional(),
   state: z.string().optional(),
   uid: z.string().optional(),
@@ -359,7 +363,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VMware Engine NetworkPolicies.ExternalAccessRules. Registered at `@swamp/gcp/vmwareengine/networkpolicies-externalaccessrules`. */
 export const model = {
   type: "@swamp/gcp/vmwareengine/networkpolicies-externalaccessrules",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -508,6 +512,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

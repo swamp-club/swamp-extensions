@@ -109,17 +109,21 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  stats: z.array(z.object({
-    date: z.object({
-      day: z.number(),
-      month: z.number(),
-      year: z.number(),
-    }),
-    queryCountByStatus: z.array(z.object({
-      count: z.string(),
-      statusCode: z.number(),
-    })),
-  })).optional(),
+  stats: z.array(
+    z.object({
+      date: z.object({
+        day: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }).partial(),
+      queryCountByStatus: z.array(
+        z.object({
+          count: z.string(),
+          statusCode: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   totalQueryCount: z.string().optional(),
 }).passthrough();
 
@@ -161,7 +165,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Stats.Query.Searchapplications. Registered at `@swamp/gcp/cloudsearch/stats-query-searchapplications`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/stats-query-searchapplications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -275,6 +279,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

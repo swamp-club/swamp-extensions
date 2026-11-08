@@ -510,15 +510,17 @@ const StateSchema = z.object({
         interval: z.object({
           endTime: z.string(),
           startTime: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       regionsConfig: z.object({
-        regionIntervals: z.array(z.object({
-          interval: z.unknown(),
-          regionCode: z.unknown(),
-        })),
-      }),
-    }),
+        regionIntervals: z.array(
+          z.object({
+            interval: z.unknown(),
+            regionCode: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
     boundStreamId: z.string(),
     boundStreamLastUpdateTimeMs: z.string(),
     closedCaptionsType: z.string(),
@@ -535,12 +537,12 @@ const StateSchema = z.object({
       broadcastStreamDelayMs: z.number(),
       embedHtml: z.string(),
       enableMonitorStream: z.boolean(),
-    }),
+    }).partial(),
     projection: z.string(),
     recordFromStart: z.boolean(),
     startWithSlate: z.boolean(),
     stereoLayout: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -550,8 +552,8 @@ const StateSchema = z.object({
       pauseAdsUntil: z.string(),
       repeatIntervalSecs: z.number(),
       scheduleStrategy: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   snippet: z.object({
     actualEndTime: z.string(),
     actualStartTime: z.string(),
@@ -568,53 +570,53 @@ const StateSchema = z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       fhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       high: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       maxres: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       medium: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       qhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       shortsAspectRatio: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       standard: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       uhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   statistics: z.object({
     concurrentViewers: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     lifeCycleStatus: z.string(),
     liveBroadcastPriority: z.string(),
@@ -622,7 +624,7 @@ const StateSchema = z.object({
     privacyStatus: z.string(),
     recordingStatus: z.string(),
     selfDeclaredMadeForKids: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -986,7 +988,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data LiveBroadcasts. Registered at `@swamp/gcp/youtube/livebroadcasts`. */
 export const model = {
   type: "@swamp/gcp/youtube/livebroadcasts",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1145,6 +1147,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

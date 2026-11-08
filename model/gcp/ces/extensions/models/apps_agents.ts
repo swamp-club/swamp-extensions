@@ -508,42 +508,54 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  afterAgentCallbacks: z.array(z.object({
-    description: z.string(),
-    disabled: z.boolean(),
-    proactiveExecutionEnabled: z.boolean(),
-    pythonCode: z.string(),
-  })).optional(),
-  afterModelCallbacks: z.array(z.object({
-    description: z.string(),
-    disabled: z.boolean(),
-    proactiveExecutionEnabled: z.boolean(),
-    pythonCode: z.string(),
-  })).optional(),
-  afterToolCallbacks: z.array(z.object({
-    description: z.string(),
-    disabled: z.boolean(),
-    proactiveExecutionEnabled: z.boolean(),
-    pythonCode: z.string(),
-  })).optional(),
-  beforeAgentCallbacks: z.array(z.object({
-    description: z.string(),
-    disabled: z.boolean(),
-    proactiveExecutionEnabled: z.boolean(),
-    pythonCode: z.string(),
-  })).optional(),
-  beforeModelCallbacks: z.array(z.object({
-    description: z.string(),
-    disabled: z.boolean(),
-    proactiveExecutionEnabled: z.boolean(),
-    pythonCode: z.string(),
-  })).optional(),
-  beforeToolCallbacks: z.array(z.object({
-    description: z.string(),
-    disabled: z.boolean(),
-    proactiveExecutionEnabled: z.boolean(),
-    pythonCode: z.string(),
-  })).optional(),
+  afterAgentCallbacks: z.array(
+    z.object({
+      description: z.string(),
+      disabled: z.boolean(),
+      proactiveExecutionEnabled: z.boolean(),
+      pythonCode: z.string(),
+    }).partial(),
+  ).optional(),
+  afterModelCallbacks: z.array(
+    z.object({
+      description: z.string(),
+      disabled: z.boolean(),
+      proactiveExecutionEnabled: z.boolean(),
+      pythonCode: z.string(),
+    }).partial(),
+  ).optional(),
+  afterToolCallbacks: z.array(
+    z.object({
+      description: z.string(),
+      disabled: z.boolean(),
+      proactiveExecutionEnabled: z.boolean(),
+      pythonCode: z.string(),
+    }).partial(),
+  ).optional(),
+  beforeAgentCallbacks: z.array(
+    z.object({
+      description: z.string(),
+      disabled: z.boolean(),
+      proactiveExecutionEnabled: z.boolean(),
+      pythonCode: z.string(),
+    }).partial(),
+  ).optional(),
+  beforeModelCallbacks: z.array(
+    z.object({
+      description: z.string(),
+      disabled: z.boolean(),
+      proactiveExecutionEnabled: z.boolean(),
+      pythonCode: z.string(),
+    }).partial(),
+  ).optional(),
+  beforeToolCallbacks: z.array(
+    z.object({
+      description: z.string(),
+      disabled: z.boolean(),
+      proactiveExecutionEnabled: z.boolean(),
+      pythonCode: z.string(),
+    }).partial(),
+  ).optional(),
   childAgents: z.array(z.string()).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
@@ -552,64 +564,68 @@ const StateSchema = z.object({
   generatedSummary: z.string().optional(),
   guardrails: z.array(z.string()).optional(),
   instruction: z.string().optional(),
-  llmAgent: z.object({}).optional(),
+  llmAgent: z.object({}).partial().optional(),
   modelSettings: z.object({
     model: z.string(),
     temperature: z.number(),
     thinkingLevel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   remoteA2aAgent: z.object({
     a2aConfig: z.object({
       agentCard: z.object({
         description: z.string(),
         name: z.string(),
-        skills: z.array(z.object({
-          description: z.unknown(),
-          examples: z.unknown(),
-          id: z.unknown(),
-          inputModes: z.unknown(),
-          name: z.unknown(),
-          outputModes: z.unknown(),
-          tags: z.unknown(),
-        })),
-        supportedInterfaces: z.array(z.object({
-          protocolBinding: z.unknown(),
-          protocolVersion: z.unknown(),
-          tenant: z.unknown(),
-          url: z.unknown(),
-        })),
+        skills: z.array(
+          z.object({
+            description: z.unknown(),
+            examples: z.unknown(),
+            id: z.unknown(),
+            inputModes: z.unknown(),
+            name: z.unknown(),
+            outputModes: z.unknown(),
+            tags: z.unknown(),
+          }).partial(),
+        ),
+        supportedInterfaces: z.array(
+          z.object({
+            protocolBinding: z.unknown(),
+            protocolVersion: z.unknown(),
+            tenant: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+        ),
         version: z.string(),
-      }),
+      }).partial(),
       agentRegistry: z.string(),
       apiAuthentication: z.object({
         apiKeyConfig: z.object({
           apiKeySecretVersion: z.string(),
           keyName: z.string(),
           requestLocation: z.string(),
-        }),
+        }).partial(),
         bearerTokenConfig: z.object({
           token: z.string(),
-        }),
+        }).partial(),
         oauthConfig: z.object({
           clientId: z.string(),
           clientSecretVersion: z.string(),
           oauthGrantType: z.string(),
           scopes: z.array(z.unknown()),
           tokenEndpoint: z.string(),
-        }),
+        }).partial(),
         serviceAccountAuthConfig: z.object({
           scopes: z.array(z.unknown()),
           serviceAccount: z.string(),
-        }),
-        serviceAgentIdTokenAuthConfig: z.object({}),
-      }),
+        }).partial(),
+        serviceAgentIdTokenAuthConfig: z.object({}).partial(),
+      }).partial(),
       contextId: z.string(),
       inputVariableMapping: z.record(z.string(), z.unknown()),
       outputVariableMapping: z.record(z.string(), z.unknown()),
       streamingEnabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   remoteDialogflowAgent: z.object({
     agent: z.string(),
     environmentId: z.string(),
@@ -618,29 +634,33 @@ const StateSchema = z.object({
     languageCodeVariable: z.string(),
     outputVariableMapping: z.record(z.string(), z.unknown()),
     respectResponseInterruptionSettings: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   tools: z.array(z.string()).optional(),
-  toolsets: z.array(z.object({
-    toolIds: z.array(z.string()),
-    toolset: z.string(),
-  })).optional(),
-  transferRules: z.array(z.object({
-    childAgent: z.string(),
-    deterministicTransfer: z.object({
-      expressionCondition: z.object({
-        expression: z.string(),
-      }),
-      pythonCodeCondition: z.object({
-        pythonCode: z.string(),
-      }),
-    }),
-    direction: z.string(),
-    disablePlannerTransfer: z.object({
-      expressionCondition: z.object({
-        expression: z.string(),
-      }),
-    }),
-  })).optional(),
+  toolsets: z.array(
+    z.object({
+      toolIds: z.array(z.string()),
+      toolset: z.string(),
+    }).partial(),
+  ).optional(),
+  transferRules: z.array(
+    z.object({
+      childAgent: z.string(),
+      deterministicTransfer: z.object({
+        expressionCondition: z.object({
+          expression: z.string(),
+        }).partial(),
+        pythonCodeCondition: z.object({
+          pythonCode: z.string(),
+        }).partial(),
+      }).partial(),
+      direction: z.string(),
+      disablePlannerTransfer: z.object({
+        expressionCondition: z.object({
+          expression: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
   validationErrors: z.array(z.string()).optional(),
 }).passthrough();
@@ -1021,7 +1041,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Agents. Registered at `@swamp/gcp/ces/apps-agents`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-agents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1225,6 +1245,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

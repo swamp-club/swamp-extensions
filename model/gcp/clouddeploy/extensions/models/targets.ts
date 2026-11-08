@@ -335,47 +335,49 @@ const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   anthosCluster: z.object({
     membership: z.string(),
-  }).optional(),
+  }).partial().optional(),
   associatedEntities: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
   customTarget: z.object({
     customTargetType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deployParameters: z.record(z.string(), z.unknown()).optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
-  executionConfigs: z.array(z.object({
-    artifactStorage: z.string(),
-    defaultPool: z.object({
+  executionConfigs: z.array(
+    z.object({
       artifactStorage: z.string(),
+      defaultPool: z.object({
+        artifactStorage: z.string(),
+        serviceAccount: z.string(),
+      }).partial(),
+      executionTimeout: z.string(),
+      privatePool: z.object({
+        artifactStorage: z.string(),
+        serviceAccount: z.string(),
+        workerPool: z.string(),
+      }).partial(),
       serviceAccount: z.string(),
-    }),
-    executionTimeout: z.string(),
-    privatePool: z.object({
-      artifactStorage: z.string(),
-      serviceAccount: z.string(),
+      usages: z.array(z.string()),
+      verbose: z.boolean(),
       workerPool: z.string(),
-    }),
-    serviceAccount: z.string(),
-    usages: z.array(z.string()),
-    verbose: z.boolean(),
-    workerPool: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   gke: z.object({
     cluster: z.string(),
     dnsEndpoint: z.boolean(),
     internalIp: z.boolean(),
     proxyUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   multiTarget: z.object({
     targetIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   requireApproval: z.boolean().optional(),
   run: z.object({
     location: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetId: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -560,7 +562,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deploy Targets. Registered at `@swamp/gcp/clouddeploy/targets`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/targets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -732,6 +734,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

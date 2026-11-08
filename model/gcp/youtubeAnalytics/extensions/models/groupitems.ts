@@ -177,17 +177,19 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   errors: z.object({
     code: z.string(),
-    error: z.array(z.object({
-      argument: z.array(z.string()),
-      code: z.string(),
-      debugInfo: z.string(),
-      domain: z.string(),
-      externalErrorMessage: z.string(),
-      location: z.string(),
-      locationType: z.string(),
-    })),
+    error: z.array(
+      z.object({
+        argument: z.array(z.string()),
+        code: z.string(),
+        debugInfo: z.string(),
+        domain: z.string(),
+        externalErrorMessage: z.string(),
+        location: z.string(),
+        locationType: z.string(),
+      }).partial(),
+    ),
     requestId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   groupId: z.string().optional(),
   id: z.string().optional(),
@@ -195,7 +197,7 @@ const StateSchema = z.object({
   resource: z.object({
     id: z.string(),
     kind: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -293,7 +295,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Analytics GroupItems. Registered at `@swamp/gcp/youtubeanalytics/groupitems`. */
 export const model = {
   type: "@swamp/gcp/youtubeanalytics/groupitems",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -437,6 +439,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

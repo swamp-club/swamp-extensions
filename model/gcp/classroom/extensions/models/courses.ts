@@ -269,34 +269,38 @@ const StateSchema = z.object({
   alternateLink: z.string().optional(),
   calendarId: z.string().optional(),
   courseGroupEmail: z.string().optional(),
-  courseMaterialSets: z.array(z.object({
-    materials: z.array(z.object({
-      driveFile: z.object({
-        alternateLink: z.unknown(),
-        id: z.unknown(),
-        thumbnailUrl: z.unknown(),
-        title: z.unknown(),
-      }),
-      form: z.object({
-        formUrl: z.unknown(),
-        responseUrl: z.unknown(),
-        thumbnailUrl: z.unknown(),
-        title: z.unknown(),
-      }),
-      link: z.object({
-        thumbnailUrl: z.unknown(),
-        title: z.unknown(),
-        url: z.unknown(),
-      }),
-      youTubeVideo: z.object({
-        alternateLink: z.unknown(),
-        id: z.unknown(),
-        thumbnailUrl: z.unknown(),
-        title: z.unknown(),
-      }),
-    })),
-    title: z.string(),
-  })).optional(),
+  courseMaterialSets: z.array(
+    z.object({
+      materials: z.array(
+        z.object({
+          driveFile: z.object({
+            alternateLink: z.unknown(),
+            id: z.unknown(),
+            thumbnailUrl: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+          form: z.object({
+            formUrl: z.unknown(),
+            responseUrl: z.unknown(),
+            thumbnailUrl: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+          link: z.object({
+            thumbnailUrl: z.unknown(),
+            title: z.unknown(),
+            url: z.unknown(),
+          }).partial(),
+          youTubeVideo: z.object({
+            alternateLink: z.unknown(),
+            id: z.unknown(),
+            thumbnailUrl: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      title: z.string(),
+    }).partial(),
+  ).optional(),
   courseState: z.string().optional(),
   creationTime: z.string().optional(),
   description: z.string().optional(),
@@ -305,13 +309,15 @@ const StateSchema = z.object({
   gradebookSettings: z.object({
     calculationType: z.string(),
     displaySetting: z.string(),
-    gradeCategories: z.array(z.object({
-      defaultGradeDenominator: z.number(),
-      id: z.string(),
-      name: z.string(),
-      weight: z.number(),
-    })),
-  }).optional(),
+    gradeCategories: z.array(
+      z.object({
+        defaultGradeDenominator: z.number(),
+        id: z.string(),
+        name: z.string(),
+        weight: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   guardiansEnabled: z.boolean().optional(),
   id: z.string(),
   levels: z.string().optional(),
@@ -324,7 +330,7 @@ const StateSchema = z.object({
     alternateLink: z.string(),
     id: z.string(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   teacherGroupEmail: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -463,7 +469,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Classroom Courses. Registered at `@swamp/gcp/classroom/courses`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -622,6 +628,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

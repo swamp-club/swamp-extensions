@@ -48,6 +48,12 @@ const SourceConfigSchema = z.object({
   ),
 });
 
+const SourceConfigStateSchema = z.object({
+  S3Bucket: z.string(),
+  S3Key: z.string(),
+  Architecture: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -92,18 +98,18 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Name: z.string().optional(),
-  Sources: z.array(SourceConfigSchema).optional(),
+  Sources: z.array(SourceConfigStateSchema).optional(),
   Environment: z.string().optional(),
   RobotSoftwareSuite: z.object({
     Name: z.string(),
     Version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CurrentRevisionId: z.string().optional(),
   Arn: z.string(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -156,7 +162,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RoboMaker RobotApplication. Registered at `@swamp/aws/robomaker/robot-application`. */
 export const model = {
   type: "@swamp/aws/robomaker/robot-application",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -205,6 +211,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

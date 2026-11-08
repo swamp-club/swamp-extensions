@@ -74,6 +74,25 @@ const MLUserDataEncryptionSchema = z.object({
     .optional(),
 });
 
+const GlueTablesStateSchema = z.object({
+  CatalogId: z.string(),
+  ConnectionName: z.string(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+}).partial();
+
+const FindMatchesParametersStateSchema = z.object({
+  PrimaryKeyColumnName: z.string(),
+  AccuracyCostTradeoff: z.number(),
+  PrecisionRecallTradeoff: z.number(),
+  EnforceProvidedLabels: z.boolean(),
+}).partial();
+
+const MLUserDataEncryptionStateSchema = z.object({
+  MLUserDataEncryptionMode: z.string(),
+  KmsKeyId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -158,20 +177,20 @@ const StateSchema = z.object({
   NumberOfWorkers: z.number().optional(),
   WorkerType: z.string().optional(),
   InputRecordTables: z.object({
-    GlueTables: z.array(GlueTablesSchema),
-  }).optional(),
+    GlueTables: z.array(GlueTablesStateSchema),
+  }).partial().optional(),
   TransformParameters: z.object({
     TransformType: z.string(),
-    FindMatchesParameters: FindMatchesParametersSchema,
-  }).optional(),
+    FindMatchesParameters: FindMatchesParametersStateSchema,
+  }).partial().optional(),
   TransformEncryption: z.object({
-    MLUserDataEncryption: MLUserDataEncryptionSchema,
+    MLUserDataEncryption: MLUserDataEncryptionStateSchema,
     TaskRunSecurityConfigurationName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -254,7 +273,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue MLTransform. Registered at `@swamp/aws/glue/mltransform`. */
 export const model = {
   type: "@swamp/aws/glue/mltransform",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -273,6 +292,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

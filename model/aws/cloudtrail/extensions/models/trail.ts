@@ -126,6 +126,48 @@ const TagSchema = z.object({
   ),
 });
 
+const DataResourceStateSchema = z.object({
+  Type: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const EventSelectorStateSchema = z.object({
+  IncludeManagementEvents: z.boolean(),
+  ReadWriteType: z.string(),
+  ExcludeManagementEventSources: z.array(z.string()),
+  DataResources: z.array(DataResourceStateSchema),
+}).partial();
+
+const AggregationConfigurationStateSchema = z.object({
+  EventCategory: z.string(),
+  Templates: z.array(z.string()),
+}).partial();
+
+const AdvancedFieldSelectorStateSchema = z.object({
+  Field: z.string(),
+  Equals: z.array(z.string()),
+  NotStartsWith: z.array(z.string()),
+  NotEndsWith: z.array(z.string()),
+  StartsWith: z.array(z.string()),
+  EndsWith: z.array(z.string()),
+  NotEquals: z.array(z.string()),
+}).partial();
+
+const AdvancedEventSelectorStateSchema = z.object({
+  FieldSelectors: z.array(AdvancedFieldSelectorStateSchema),
+  Name: z.string(),
+}).partial();
+
+const InsightSelectorStateSchema = z.object({
+  InsightType: z.string(),
+  EventCategories: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -192,15 +234,16 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   IncludeGlobalServiceEvents: z.boolean().optional(),
-  EventSelectors: z.array(EventSelectorSchema).optional(),
+  EventSelectors: z.array(EventSelectorStateSchema).optional(),
   KMSKeyId: z.string().optional(),
-  AggregationConfigurations: z.array(AggregationConfigurationSchema).optional(),
+  AggregationConfigurations: z.array(AggregationConfigurationStateSchema)
+    .optional(),
   CloudWatchLogsRoleArn: z.string().optional(),
   S3KeyPrefix: z.string().optional(),
-  AdvancedEventSelectors: z.array(AdvancedEventSelectorSchema).optional(),
+  AdvancedEventSelectors: z.array(AdvancedEventSelectorStateSchema).optional(),
   TrailName: z.string(),
   IsOrganizationTrail: z.boolean().optional(),
-  InsightSelectors: z.array(InsightSelectorSchema).optional(),
+  InsightSelectors: z.array(InsightSelectorStateSchema).optional(),
   CloudWatchLogsLogGroupArn: z.string().optional(),
   SnsTopicName: z.string().optional(),
   IsMultiRegionTrail: z.boolean().optional(),
@@ -208,11 +251,11 @@ const StateSchema = z.object({
   SnsTopicArn: z.string().optional(),
   EnableLogFileValidation: z.boolean().optional(),
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   IsLogging: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -289,7 +332,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudTrail Trail. Registered at `@swamp/aws/cloudtrail/trail`. */
 export const model = {
   type: "@swamp/aws/cloudtrail/trail",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -363,6 +406,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

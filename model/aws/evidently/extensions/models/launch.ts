@@ -90,6 +90,43 @@ const TagSchema = z.object({
   ),
 });
 
+const GroupToWeightStateSchema = z.object({
+  GroupName: z.string(),
+  SplitWeight: z.number(),
+}).partial();
+
+const SegmentOverrideStateSchema = z.object({
+  Segment: z.string(),
+  EvaluationOrder: z.number(),
+  Weights: z.array(GroupToWeightStateSchema),
+}).partial();
+
+const StepConfigStateSchema = z.object({
+  StartTime: z.string(),
+  GroupWeights: z.array(GroupToWeightStateSchema),
+  SegmentOverrides: z.array(SegmentOverrideStateSchema),
+}).partial();
+
+const LaunchGroupObjectStateSchema = z.object({
+  GroupName: z.string(),
+  Description: z.string(),
+  Feature: z.string(),
+  Variation: z.string(),
+}).partial();
+
+const MetricDefinitionObjectStateSchema = z.object({
+  MetricName: z.string(),
+  EntityIdKey: z.string(),
+  ValueKey: z.string(),
+  EventPattern: z.string(),
+  UnitLabel: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -142,18 +179,18 @@ const StateSchema = z.object({
   Project: z.string().optional(),
   Description: z.string().optional(),
   RandomizationSalt: z.string().optional(),
-  ScheduledSplitsConfig: z.array(StepConfigSchema).optional(),
-  Groups: z.array(LaunchGroupObjectSchema).optional(),
-  MetricMonitors: z.array(MetricDefinitionObjectSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  ScheduledSplitsConfig: z.array(StepConfigStateSchema).optional(),
+  Groups: z.array(LaunchGroupObjectStateSchema).optional(),
+  MetricMonitors: z.array(MetricDefinitionObjectStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ExecutionStatus: z.object({
     Status: z.string(),
     DesiredState: z.string(),
     Reason: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -210,7 +247,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Evidently Launch. Registered at `@swamp/aws/evidently/launch`. */
 export const model = {
   type: "@swamp/aws/evidently/launch",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -269,6 +306,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -247,6 +247,138 @@ const TagSchema = z.object({
   Value: z.string().max(256).describe("The tag value."),
 });
 
+const ModelOverviewStateSchema = z.object({
+  ModelDescription: z.string(),
+  ModelOwner: z.string(),
+  ModelCreator: z.string(),
+  ProblemType: z.string(),
+  AlgorithmType: z.string(),
+  ModelId: z.string(),
+  ModelArtifact: z.array(z.string()),
+  ModelName: z.string(),
+  ModelVersion: z.number(),
+  InferenceEnvironment: z.object({
+    ContainerImage: z.array(z.string()),
+  }).partial(),
+}).partial();
+
+const ModelPackageCreatorStateSchema = z.object({
+  UserProfileName: z.string(),
+}).partial();
+
+const SourceAlgorithmStateSchema = z.object({
+  AlgorithmName: z.string(),
+  ModelDataUrl: z.string(),
+}).partial();
+
+const ContainerStateSchema = z.object({
+  ModelDataUrl: z.string(),
+  Image: z.string(),
+  NearestModelName: z.string(),
+}).partial();
+
+const InferenceSpecificationStateSchema = z.object({
+  Containers: z.array(ContainerStateSchema),
+}).partial();
+
+const ModelPackageDetailsStateSchema = z.object({
+  ModelPackageDescription: z.string(),
+  ModelPackageArn: z.string(),
+  CreatedBy: ModelPackageCreatorStateSchema,
+  ModelPackageStatus: z.string(),
+  ModelApprovalStatus: z.string(),
+  ApprovalDescription: z.string(),
+  ModelPackageGroupName: z.string(),
+  ModelPackageName: z.string(),
+  ModelPackageVersion: z.number(),
+  Domain: z.string(),
+  Task: z.string(),
+  SourceAlgorithms: z.array(SourceAlgorithmStateSchema),
+  InferenceSpecification: InferenceSpecificationStateSchema,
+}).partial();
+
+const IntendedUsesStateSchema = z.object({
+  PurposeOfModel: z.string(),
+  IntendedUses: z.string(),
+  FactorsAffectingModelEfficiency: z.string(),
+  RiskRating: z.string(),
+  ExplanationsForRiskRating: z.string(),
+}).partial();
+
+const BusinessDetailsStateSchema = z.object({
+  BusinessProblem: z.string(),
+  BusinessStakeholders: z.string(),
+  LineOfBusiness: z.string(),
+}).partial();
+
+const ObjectiveFunctionStateSchema = z.object({
+  Function: z.object({
+    Function: z.string(),
+    Facet: z.string(),
+    Condition: z.string(),
+  }).partial(),
+  Notes: z.string(),
+}).partial();
+
+const TrainingMetricStateSchema = z.object({
+  Name: z.string(),
+  Notes: z.string(),
+  Value: z.number(),
+}).partial();
+
+const TrainingHyperParameterStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TrainingDetailsStateSchema = z.object({
+  ObjectiveFunction: ObjectiveFunctionStateSchema,
+  TrainingObservations: z.string(),
+  TrainingJobDetails: z.object({
+    TrainingArn: z.string(),
+    TrainingDatasets: z.array(z.string()),
+    TrainingEnvironment: z.object({
+      ContainerImage: z.array(z.string()),
+    }).partial(),
+    TrainingMetrics: z.array(TrainingMetricStateSchema),
+    UserProvidedTrainingMetrics: z.array(TrainingMetricStateSchema),
+    HyperParameters: z.array(TrainingHyperParameterStateSchema),
+    UserProvidedHyperParameters: z.array(TrainingHyperParameterStateSchema),
+  }).partial(),
+}).partial();
+
+const MetricGroupStateSchema = z.object({
+  Name: z.string(),
+  MetricData: z.array(
+    z.object({
+      SimpleMetric: z.unknown(),
+      LinearGraphMetric: z.unknown(),
+      BarChartMetric: z.unknown(),
+      MatrixMetric: z.unknown(),
+    }).partial(),
+  ),
+}).partial();
+
+const EvaluationDetailStateSchema = z.object({
+  Name: z.string(),
+  EvaluationObservation: z.string(),
+  EvaluationJobArn: z.string(),
+  Datasets: z.array(z.string()),
+  Metadata: z.record(z.string(), z.unknown()),
+  MetricGroups: z.array(MetricGroupStateSchema),
+}).partial();
+
+const AdditionalInformationStateSchema = z.object({
+  EthicalConsiderations: z.string(),
+  CaveatsAndRecommendations: z.string(),
+  CustomDetails: z.record(z.string(), z.unknown()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -301,34 +433,34 @@ const StateSchema = z.object({
   ModelCardName: z.string(),
   SecurityConfig: z.object({
     KmsKeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ModelCardStatus: z.string().optional(),
   Content: z.object({
-    ModelOverview: ModelOverviewSchema,
-    ModelPackageDetails: ModelPackageDetailsSchema,
-    IntendedUses: IntendedUsesSchema,
-    BusinessDetails: BusinessDetailsSchema,
-    TrainingDetails: TrainingDetailsSchema,
-    EvaluationDetails: z.array(EvaluationDetailSchema),
-    AdditionalInformation: AdditionalInformationSchema,
-  }).optional(),
+    ModelOverview: ModelOverviewStateSchema,
+    ModelPackageDetails: ModelPackageDetailsStateSchema,
+    IntendedUses: IntendedUsesStateSchema,
+    BusinessDetails: BusinessDetailsStateSchema,
+    TrainingDetails: TrainingDetailsStateSchema,
+    EvaluationDetails: z.array(EvaluationDetailStateSchema),
+    AdditionalInformation: AdditionalInformationStateSchema,
+  }).partial().optional(),
   CreationTime: z.string().optional(),
   CreatedBy: z.object({
     UserProfileArn: z.string(),
     UserProfileName: z.string(),
     DomainId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   LastModifiedTime: z.string().optional(),
   LastModifiedBy: z.object({
     UserProfileArn: z.string(),
     UserProfileName: z.string(),
     DomainId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ModelCardProcessingStatus: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -389,7 +521,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ModelCard. Registered at `@swamp/aws/sagemaker/model-card`. */
 export const model = {
   type: "@swamp/aws/sagemaker/model-card",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -458,6 +590,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

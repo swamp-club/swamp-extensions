@@ -185,9 +185,11 @@ const StateSchema = z.object({
   lastRotationTimestampMicros: z.string().optional(),
   name: z.string(),
   notebooklmState: z.string().optional(),
-  singleRegionKeys: z.array(z.object({
-    kmsKey: z.string(),
-  })).optional(),
+  singleRegionKeys: z.array(
+    z.object({
+      kmsKey: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -275,7 +277,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine CmekConfigs. Registered at `@swamp/gcp/discoveryengine/cmekconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/cmekconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -419,6 +421,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

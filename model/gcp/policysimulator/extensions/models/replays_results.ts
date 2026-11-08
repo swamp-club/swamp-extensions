@@ -93,52 +93,60 @@ const StateSchema = z.object({
     fullResourceName: z.string(),
     permission: z.string(),
     principal: z.string(),
-  }).optional(),
+  }).partial().optional(),
   diff: z.object({
     accessDiff: z.object({
       accessChange: z.string(),
       baseline: z.object({
         accessState: z.string(),
-        errors: z.array(z.object({
-          code: z.unknown(),
-          details: z.unknown(),
-          message: z.unknown(),
-        })),
-        policies: z.array(z.object({
-          access: z.unknown(),
-          bindingExplanations: z.unknown(),
-          fullResourceName: z.unknown(),
-          policy: z.unknown(),
-          relevance: z.unknown(),
-        })),
-      }),
+        errors: z.array(
+          z.object({
+            code: z.unknown(),
+            details: z.unknown(),
+            message: z.unknown(),
+          }).partial(),
+        ),
+        policies: z.array(
+          z.object({
+            access: z.unknown(),
+            bindingExplanations: z.unknown(),
+            fullResourceName: z.unknown(),
+            policy: z.unknown(),
+            relevance: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
       simulated: z.object({
         accessState: z.string(),
-        errors: z.array(z.object({
-          code: z.unknown(),
-          details: z.unknown(),
-          message: z.unknown(),
-        })),
-        policies: z.array(z.object({
-          access: z.unknown(),
-          bindingExplanations: z.unknown(),
-          fullResourceName: z.unknown(),
-          policy: z.unknown(),
-          relevance: z.unknown(),
-        })),
-      }),
-    }),
-  }).optional(),
+        errors: z.array(
+          z.object({
+            code: z.unknown(),
+            details: z.unknown(),
+            message: z.unknown(),
+          }).partial(),
+        ),
+        policies: z.array(
+          z.object({
+            access: z.unknown(),
+            bindingExplanations: z.unknown(),
+            fullResourceName: z.unknown(),
+            policy: z.unknown(),
+            relevance: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lastSeenDate: z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   parent: z.string().optional(),
 }).passthrough();
@@ -184,7 +192,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Policy Simulator Replays.Results. Registered at `@swamp/gcp/policysimulator/replays-results`. */
 export const model = {
   type: "@swamp/gcp/policysimulator/replays-results",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -308,6 +316,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

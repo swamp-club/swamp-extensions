@@ -217,14 +217,16 @@ const StateSchema = z.object({
     kmsKeyVersionName: z.string(),
     name: z.string(),
     serviceAccountId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
-  indexConfigs: z.array(z.object({
-    createTime: z.string(),
-    fieldPath: z.string(),
-    type: z.string(),
-  })).optional(),
+  indexConfigs: z.array(
+    z.object({
+      createTime: z.string(),
+      fieldPath: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   lifecycleState: z.string().optional(),
   locked: z.boolean().optional(),
   name: z.string(),
@@ -322,7 +324,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Logging Buckets. Registered at `@swamp/gcp/logging/buckets`. */
 export const model = {
   type: "@swamp/gcp/logging/buckets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -461,6 +463,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

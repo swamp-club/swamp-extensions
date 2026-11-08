@@ -146,40 +146,44 @@ const StateSchema = z.object({
   elapsedTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   skippedMessage: z.string().optional(),
-  stackTraces: z.array(z.object({
-    exception: z.string(),
-  })).optional(),
+  stackTraces: z.array(
+    z.object({
+      exception: z.string(),
+    }).partial(),
+  ).optional(),
   startTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.string().optional(),
   testCaseId: z.string().optional(),
   testCaseReference: z.object({
     className: z.string(),
     name: z.string(),
     testSuiteName: z.string(),
-  }).optional(),
-  toolOutputs: z.array(z.object({
-    creationTime: z.object({
-      nanos: z.number(),
-      seconds: z.string(),
-    }),
-    output: z.object({
-      fileUri: z.string(),
-    }),
-    testCase: z.object({
-      className: z.string(),
-      name: z.string(),
-      testSuiteName: z.string(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  toolOutputs: z.array(
+    z.object({
+      creationTime: z.object({
+        nanos: z.number(),
+        seconds: z.string(),
+      }).partial(),
+      output: z.object({
+        fileUri: z.string(),
+      }).partial(),
+      testCase: z.object({
+        className: z.string(),
+        name: z.string(),
+        testSuiteName: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -225,7 +229,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tool Results Histories.Executions.Steps.TestCases. Registered at `@swamp/gcp/toolresults/histories-executions-steps-testcases`. */
 export const model = {
   type: "@swamp/gcp/toolresults/histories-executions-steps-testcases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -359,6 +363,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

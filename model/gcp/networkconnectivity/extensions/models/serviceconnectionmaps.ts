@@ -250,65 +250,71 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  consumerPscConfigs: z.array(z.object({
-    consumerInstanceProject: z.string(),
-    disableGlobalAccess: z.boolean(),
-    ipVersion: z.string(),
-    network: z.string(),
-    producerInstanceId: z.string(),
-    producerInstanceMetadata: z.record(z.string(), z.unknown()),
-    project: z.string(),
-    serviceAttachmentIpAddressMap: z.record(z.string(), z.unknown()),
-    state: z.string(),
-  })).optional(),
-  consumerPscConnections: z.array(z.object({
-    dnsAutomationStatus: z.object({
+  consumerPscConfigs: z.array(
+    z.object({
+      consumerInstanceProject: z.string(),
+      disableGlobalAccess: z.boolean(),
+      ipVersion: z.string(),
+      network: z.string(),
+      producerInstanceId: z.string(),
+      producerInstanceMetadata: z.record(z.string(), z.unknown()),
+      project: z.string(),
+      serviceAttachmentIpAddressMap: z.record(z.string(), z.unknown()),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
+  consumerPscConnections: z.array(
+    z.object({
+      dnsAutomationStatus: z.object({
+        error: z.object({
+          code: z.number(),
+          details: z.array(z.unknown()),
+          message: z.string(),
+        }).partial(),
+        fqdn: z.string(),
+        state: z.string(),
+      }).partial(),
       error: z.object({
         code: z.number(),
-        details: z.array(z.unknown()),
+        details: z.array(z.record(z.string(), z.unknown())),
         message: z.string(),
-      }),
-      fqdn: z.string(),
+      }).partial(),
+      errorInfo: z.object({
+        domain: z.string(),
+        metadata: z.record(z.string(), z.unknown()),
+        reason: z.string(),
+      }).partial(),
+      errorType: z.string(),
+      forwardingRule: z.string(),
+      gceOperation: z.string(),
+      ip: z.string(),
+      ipVersion: z.string(),
+      network: z.string(),
+      producerInstanceId: z.string(),
+      producerInstanceMetadata: z.record(z.string(), z.unknown()),
+      project: z.string(),
+      pscConnectionId: z.string(),
+      selectedSubnetwork: z.string(),
+      serviceAttachmentUri: z.string(),
       state: z.string(),
-    }),
-    error: z.object({
-      code: z.number(),
-      details: z.array(z.record(z.string(), z.unknown())),
-      message: z.string(),
-    }),
-    errorInfo: z.object({
-      domain: z.string(),
-      metadata: z.record(z.string(), z.unknown()),
-      reason: z.string(),
-    }),
-    errorType: z.string(),
-    forwardingRule: z.string(),
-    gceOperation: z.string(),
-    ip: z.string(),
-    ipVersion: z.string(),
-    network: z.string(),
-    producerInstanceId: z.string(),
-    producerInstanceMetadata: z.record(z.string(), z.unknown()),
-    project: z.string(),
-    pscConnectionId: z.string(),
-    selectedSubnetwork: z.string(),
-    serviceAttachmentUri: z.string(),
-    state: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
   infrastructure: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  producerPscConfigs: z.array(z.object({
-    automatedDnsCreationSpec: z.object({
-      dnsSuffix: z.string(),
-      hostname: z.string(),
-      ttl: z.string(),
-    }),
-    serviceAttachmentUri: z.string(),
-  })).optional(),
+  producerPscConfigs: z.array(
+    z.object({
+      automatedDnsCreationSpec: z.object({
+        dnsSuffix: z.string(),
+        hostname: z.string(),
+        ttl: z.string(),
+      }).partial(),
+      serviceAttachmentUri: z.string(),
+    }).partial(),
+  ).optional(),
   serviceClass: z.string().optional(),
   serviceClassUri: z.string().optional(),
   token: z.string().optional(),
@@ -427,7 +433,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity ServiceConnectionMaps. Registered at `@swamp/gcp/networkconnectivity/serviceconnectionmaps`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/serviceconnectionmaps",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -571,6 +577,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

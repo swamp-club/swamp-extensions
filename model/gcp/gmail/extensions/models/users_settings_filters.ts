@@ -198,7 +198,7 @@ const StateSchema = z.object({
     addLabelIds: z.array(z.string()),
     forward: z.string(),
     removeLabelIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   criteria: z.object({
     excludeChats: z.boolean(),
     from: z.string(),
@@ -209,7 +209,7 @@ const StateSchema = z.object({
     sizeComparison: z.string(),
     subject: z.string(),
     to: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string(),
 }).passthrough();
 
@@ -293,7 +293,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Settings.Filters. Registered at `@swamp/gcp/gmail/users-settings-filters`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-settings-filters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -457,6 +457,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

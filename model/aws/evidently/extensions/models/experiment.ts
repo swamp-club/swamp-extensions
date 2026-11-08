@@ -79,6 +79,32 @@ const TagSchema = z.object({
   ),
 });
 
+const TreatmentObjectStateSchema = z.object({
+  TreatmentName: z.string(),
+  Description: z.string(),
+  Feature: z.string(),
+  Variation: z.string(),
+}).partial();
+
+const MetricGoalObjectStateSchema = z.object({
+  MetricName: z.string(),
+  EntityIdKey: z.string(),
+  ValueKey: z.string(),
+  EventPattern: z.string(),
+  UnitLabel: z.string(),
+  DesiredChange: z.string(),
+}).partial();
+
+const TreatmentToWeightStateSchema = z.object({
+  Treatment: z.string(),
+  SplitWeight: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -150,21 +176,21 @@ const StateSchema = z.object({
     AnalysisCompleteTime: z.string(),
     Reason: z.string(),
     DesiredState: z.string(),
-  }).optional(),
+  }).partial().optional(),
   RandomizationSalt: z.string().optional(),
-  Treatments: z.array(TreatmentObjectSchema).optional(),
-  MetricGoals: z.array(MetricGoalObjectSchema).optional(),
+  Treatments: z.array(TreatmentObjectStateSchema).optional(),
+  MetricGoals: z.array(MetricGoalObjectStateSchema).optional(),
   SamplingRate: z.number().optional(),
   OnlineAbConfig: z.object({
     ControlTreatmentName: z.string(),
-    TreatmentWeights: z.array(TreatmentToWeightSchema),
-  }).optional(),
+    TreatmentWeights: z.array(TreatmentToWeightStateSchema),
+  }).partial().optional(),
   Segment: z.string().optional(),
   RemoveSegment: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -236,7 +262,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Evidently Experiment. Registered at `@swamp/aws/evidently/experiment`. */
 export const model = {
   type: "@swamp/aws/evidently/experiment",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -295,6 +321,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

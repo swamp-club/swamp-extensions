@@ -206,48 +206,60 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   executionReport: z.object({
     executionErrors: z.object({
-      fileValidations: z.array(z.object({
-        fileErrors: z.array(z.unknown()),
-        fileName: z.string(),
-        partialReport: z.boolean(),
-        rowErrors: z.array(z.unknown()),
-      })),
-      jobErrors: z.array(z.object({
-        errorDetails: z.string(),
-        severity: z.string(),
-      })),
-    }),
+      fileValidations: z.array(
+        z.object({
+          fileErrors: z.array(z.unknown()),
+          fileName: z.string(),
+          partialReport: z.boolean(),
+          rowErrors: z.array(z.unknown()),
+        }).partial(),
+      ),
+      jobErrors: z.array(
+        z.object({
+          errorDetails: z.string(),
+          severity: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     framesReported: z.number(),
     totalRowsCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
   validationReport: z.object({
-    fileValidations: z.array(z.object({
-      fileErrors: z.array(z.object({
-        errorDetails: z.unknown(),
-        severity: z.unknown(),
-      })),
-      fileName: z.string(),
-      partialReport: z.boolean(),
-      rowErrors: z.array(z.object({
-        archiveError: z.unknown(),
-        assetTitle: z.unknown(),
-        csvError: z.unknown(),
-        errors: z.unknown(),
-        rowNumber: z.unknown(),
-        vmName: z.unknown(),
-        vmUuid: z.unknown(),
-        xlsxError: z.unknown(),
-      })),
-    })),
-    jobErrors: z.array(z.object({
-      errorDetails: z.string(),
-      severity: z.string(),
-    })),
-  }).optional(),
+    fileValidations: z.array(
+      z.object({
+        fileErrors: z.array(
+          z.object({
+            errorDetails: z.unknown(),
+            severity: z.unknown(),
+          }).partial(),
+        ),
+        fileName: z.string(),
+        partialReport: z.boolean(),
+        rowErrors: z.array(
+          z.object({
+            archiveError: z.unknown(),
+            assetTitle: z.unknown(),
+            csvError: z.unknown(),
+            errors: z.unknown(),
+            rowNumber: z.unknown(),
+            vmName: z.unknown(),
+            vmUuid: z.unknown(),
+            xlsxError: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+    jobErrors: z.array(
+      z.object({
+        errorDetails: z.string(),
+        severity: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -304,7 +316,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Migration Center ImportJobs. Registered at `@swamp/gcp/migrationcenter/importjobs`. */
 export const model = {
   type: "@swamp/gcp/migrationcenter/importjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -455,6 +467,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

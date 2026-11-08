@@ -217,21 +217,27 @@ const StateSchema = z.object({
   description: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  rules: z.array(z.object({
-    destinations: z.array(z.object({
-      hosts: z.array(z.unknown()),
-      httpHeaderMatch: z.object({
-        headerName: z.unknown(),
-        regexMatch: z.unknown(),
-      }),
-      methods: z.array(z.unknown()),
-      ports: z.array(z.unknown()),
-    })),
-    sources: z.array(z.object({
-      ipBlocks: z.array(z.unknown()),
-      principals: z.array(z.unknown()),
-    })),
-  })).optional(),
+  rules: z.array(
+    z.object({
+      destinations: z.array(
+        z.object({
+          hosts: z.array(z.unknown()),
+          httpHeaderMatch: z.object({
+            headerName: z.unknown(),
+            regexMatch: z.unknown(),
+          }).partial(),
+          methods: z.array(z.unknown()),
+          ports: z.array(z.unknown()),
+        }).partial(),
+      ),
+      sources: z.array(
+        z.object({
+          ipBlocks: z.array(z.unknown()),
+          principals: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -327,7 +333,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security AuthorizationPolicies. Registered at `@swamp/gcp/networksecurity/authorizationpolicies`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/authorizationpolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -497,6 +503,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -231,7 +231,7 @@ const StateSchema = z.object({
   accessLoggingConfig: z.object({
     enabled: z.boolean(),
     filter: z.string(),
-  }).optional(),
+  }).partial().optional(),
   consumerAcceptList: z.array(z.string()).optional(),
   createdAt: z.string().optional(),
   description: z.string().optional(),
@@ -244,23 +244,25 @@ const StateSchema = z.object({
   location: z.string().optional(),
   maintenanceUpdatePolicy: z.object({
     maintenanceChannel: z.string(),
-    maintenanceWindows: z.array(z.object({
-      day: z.string(),
-      startTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
-  }).optional(),
+    maintenanceWindows: z.array(
+      z.object({
+        day: z.string(),
+        startTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
   peeringCidrRange: z.string().optional(),
   port: z.string().optional(),
   runtimeVersion: z.string().optional(),
   scheduledMaintenance: z.object({
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   serviceAttachment: z.string().optional(),
   state: z.string().optional(),
 }).passthrough();
@@ -376,7 +378,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Instances. Registered at `@swamp/gcp/apigee/instances`. */
 export const model = {
   type: "@swamp/gcp/apigee/instances",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -513,6 +515,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

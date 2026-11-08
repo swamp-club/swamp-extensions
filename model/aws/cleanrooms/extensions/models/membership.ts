@@ -90,6 +90,58 @@ const MembershipJobComputePaymentConfigSchema = z.object({
   IsResponsible: z.boolean(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ProtectedQueryS3OutputConfigurationStateSchema = z.object({
+  ResultFormat: z.string(),
+  Bucket: z.string(),
+  KeyPrefix: z.string(),
+  SingleFileOutput: z.boolean(),
+}).partial();
+
+const MembershipProtectedQueryOutputConfigurationStateSchema = z.object({
+  S3: ProtectedQueryS3OutputConfigurationStateSchema,
+}).partial();
+
+const ProtectedJobS3OutputConfigurationInputStateSchema = z.object({
+  Bucket: z.string(),
+  KeyPrefix: z.string(),
+}).partial();
+
+const MembershipProtectedJobOutputConfigurationStateSchema = z.object({
+  S3: ProtectedJobS3OutputConfigurationInputStateSchema,
+}).partial();
+
+const MembershipQueryComputePaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
+const MembershipModelTrainingPaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
+const MembershipModelInferencePaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
+const MembershipSyntheticDataGenerationPaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
+const MembershipMLPaymentConfigStateSchema = z.object({
+  ModelTraining: MembershipModelTrainingPaymentConfigStateSchema,
+  ModelInference: MembershipModelInferencePaymentConfigStateSchema,
+  SyntheticDataGeneration:
+    MembershipSyntheticDataGenerationPaymentConfigStateSchema,
+}).partial();
+
+const MembershipJobComputePaymentConfigStateSchema = z.object({
+  IsResponsible: z.boolean(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -132,7 +184,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CollaborationArn: z.string().optional(),
   CollaborationCreatorAccountId: z.string().optional(),
   CollaborationIdentifier: z.string().optional(),
@@ -140,22 +192,22 @@ const StateSchema = z.object({
   QueryLogStatus: z.string().optional(),
   JobLogStatus: z.string().optional(),
   DefaultResultConfiguration: z.object({
-    OutputConfiguration: MembershipProtectedQueryOutputConfigurationSchema,
+    OutputConfiguration: MembershipProtectedQueryOutputConfigurationStateSchema,
     RoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DefaultJobResultConfiguration: z.object({
-    OutputConfiguration: MembershipProtectedJobOutputConfigurationSchema,
+    OutputConfiguration: MembershipProtectedJobOutputConfigurationStateSchema,
     RoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   PaymentConfiguration: z.object({
-    QueryCompute: MembershipQueryComputePaymentConfigSchema,
-    MachineLearning: MembershipMLPaymentConfigSchema,
-    JobCompute: MembershipJobComputePaymentConfigSchema,
-  }).optional(),
+    QueryCompute: MembershipQueryComputePaymentConfigStateSchema,
+    MachineLearning: MembershipMLPaymentConfigStateSchema,
+    JobCompute: MembershipJobComputePaymentConfigStateSchema,
+  }).partial().optional(),
   IsMetricsEnabled: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -208,7 +260,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms Membership. Registered at `@swamp/aws/cleanrooms/membership`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/membership",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -272,6 +324,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

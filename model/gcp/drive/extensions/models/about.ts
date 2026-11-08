@@ -88,11 +88,13 @@ const StateSchema = z.object({
   appInstalled: z.boolean().optional(),
   canCreateDrives: z.boolean().optional(),
   canCreateTeamDrives: z.boolean().optional(),
-  driveThemes: z.array(z.object({
-    backgroundImageLink: z.string(),
-    colorRgb: z.string(),
-    id: z.string(),
-  })).optional(),
+  driveThemes: z.array(
+    z.object({
+      backgroundImageLink: z.string(),
+      colorRgb: z.string(),
+      id: z.string(),
+    }).partial(),
+  ).optional(),
   exportFormats: z.record(z.string(), z.unknown()).optional(),
   folderColorPalette: z.array(z.string()).optional(),
   importFormats: z.record(z.string(), z.unknown()).optional(),
@@ -104,12 +106,14 @@ const StateSchema = z.object({
     usage: z.string(),
     usageInDrive: z.string(),
     usageInDriveTrash: z.string(),
-  }).optional(),
-  teamDriveThemes: z.array(z.object({
-    backgroundImageLink: z.string(),
-    colorRgb: z.string(),
-    id: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  teamDriveThemes: z.array(
+    z.object({
+      backgroundImageLink: z.string(),
+      colorRgb: z.string(),
+      id: z.string(),
+    }).partial(),
+  ).optional(),
   user: z.object({
     displayName: z.string(),
     emailAddress: z.string(),
@@ -117,7 +121,7 @@ const StateSchema = z.object({
     me: z.boolean(),
     permissionId: z.string(),
     photoLink: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -158,7 +162,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive About. Registered at `@swamp/gcp/drive/about`. */
 export const model = {
   type: "@swamp/gcp/drive/about",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -272,6 +276,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

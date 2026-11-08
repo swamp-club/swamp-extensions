@@ -141,7 +141,7 @@ const StateSchema = z.object({
   applicationEndpoint: z.object({
     host: z.string(),
     port: z.number(),
-  }).optional(),
+  }).partial().optional(),
   connectors: z.array(z.string()).optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
@@ -151,7 +151,7 @@ const StateSchema = z.object({
     l7psc: z.string(),
     type: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   satisfiesPzi: z.boolean().optional(),
@@ -203,7 +203,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BeyondCorp AppConnections. Registered at `@swamp/gcp/beyondcorp/appconnections`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/appconnections",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -408,6 +408,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

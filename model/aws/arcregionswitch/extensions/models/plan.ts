@@ -537,6 +537,291 @@ const WorkflowSchema = z.object({
   WorkflowDescription: z.string().optional(),
 });
 
+const S3ReportOutputConfigurationStateSchema = z.object({
+  BucketPath: z.string(),
+  BucketOwner: z.string(),
+}).partial();
+
+const TriggerConditionStateSchema = z.object({
+  AssociatedAlarmName: z.string(),
+  Condition: z.string(),
+}).partial();
+
+const TriggerStateSchema = z.object({
+  Description: z.string(),
+  TargetRegion: z.string(),
+  Action: z.string(),
+  Conditions: z.array(TriggerConditionStateSchema),
+  MinDelayMinutesBetweenExecutions: z.number(),
+}).partial();
+
+const LambdasStateSchema = z.object({
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  Arn: z.string(),
+  Payload: z.string(),
+}).partial();
+
+const LambdaUngracefulStateSchema = z.object({
+  Behavior: z.string(),
+}).partial();
+
+const CustomActionLambdaConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  Lambdas: z.array(LambdasStateSchema),
+  RetryIntervalMinutes: z.number(),
+  RegionToRun: z.string(),
+  Ungraceful: LambdaUngracefulStateSchema,
+}).partial();
+
+const AsgStateSchema = z.object({
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  Arn: z.string(),
+}).partial();
+
+const Ec2UngracefulStateSchema = z.object({
+  MinimumSuccessPercentage: z.number(),
+}).partial();
+
+const Ec2AsgCapacityIncreaseConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  Asgs: z.array(AsgStateSchema),
+  Ungraceful: Ec2UngracefulStateSchema,
+  TargetPercent: z.number(),
+  CapacityMonitoringApproach: z.string(),
+  WaitELBTargetGroupHealthy: z.string(),
+}).partial();
+
+const ExecutionApprovalConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  ApprovalRole: z.string(),
+}).partial();
+
+const ArcRoutingControlConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  RegionAndRoutingControls: z.record(z.string(), z.unknown()),
+}).partial();
+
+const AuroraProvisionedScalingConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  GlobalClusterIdentifier: z.string(),
+  RegionDatabaseClusterArns: z.record(z.string(), z.unknown()),
+  InstanceArns: z.record(z.string(), z.unknown()),
+}).partial();
+
+const AuroraServerlessScalingConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  GlobalClusterIdentifier: z.string(),
+  RegionDatabaseClusterArns: z.record(z.string(), z.unknown()),
+  TargetPercent: z.number(),
+}).partial();
+
+const GlobalAuroraUngracefulStateSchema = z.object({
+  Ungraceful: z.string(),
+}).partial();
+
+const GlobalAuroraConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  Behavior: z.string(),
+  Ungraceful: GlobalAuroraUngracefulStateSchema,
+  GlobalClusterIdentifier: z.string(),
+  DatabaseClusterArns: z.array(z.string()),
+}).partial();
+
+const ParallelExecutionBlockConfigurationStateSchema = z.object({
+  Steps: z.array(z.record(z.string(), z.unknown())),
+}).partial();
+
+const RegionSwitchPlanConfigurationStateSchema = z.object({
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  Arn: z.string(),
+}).partial();
+
+const ServiceStateSchema = z.object({
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  ClusterArn: z.string(),
+  ServiceArn: z.string(),
+}).partial();
+
+const EcsUngracefulStateSchema = z.object({
+  MinimumSuccessPercentage: z.number(),
+}).partial();
+
+const EcsCapacityIncreaseConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  Services: z.array(ServiceStateSchema),
+  Ungraceful: EcsUngracefulStateSchema,
+  TargetPercent: z.number(),
+  CapacityMonitoringApproach: z.string(),
+  WaitELBTargetGroupHealthy: z.string(),
+}).partial();
+
+const KubernetesResourceTypeStateSchema = z.object({
+  ApiVersion: z.string(),
+  Kind: z.string(),
+}).partial();
+
+const EksClusterStateSchema = z.object({
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  ClusterArn: z.string(),
+}).partial();
+
+const EksResourceScalingUngracefulStateSchema = z.object({
+  MinimumSuccessPercentage: z.number(),
+}).partial();
+
+const EksResourceScalingConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  KubernetesResourceType: KubernetesResourceTypeStateSchema,
+  ScalingResources: z.array(z.record(z.string(), z.unknown())),
+  EksClusters: z.array(EksClusterStateSchema),
+  Ungraceful: EksResourceScalingUngracefulStateSchema,
+  TargetPercent: z.number(),
+  CapacityMonitoringApproach: z.string(),
+}).partial();
+
+const Route53ResourceRecordSetStateSchema = z.object({
+  RecordSetIdentifier: z.string(),
+  Region: z.string(),
+}).partial();
+
+const Route53HealthCheckConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  HostedZoneId: z.string(),
+  RecordName: z.string(),
+  RecordSets: z.array(Route53ResourceRecordSetStateSchema),
+}).partial();
+
+const DocumentDbUngracefulStateSchema = z.object({
+  Ungraceful: z.string(),
+}).partial();
+
+const DocumentDbConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  Behavior: z.string(),
+  Ungraceful: DocumentDbUngracefulStateSchema,
+  GlobalClusterIdentifier: z.string(),
+  DatabaseClusterArns: z.array(z.string()),
+}).partial();
+
+const RdsPromoteReadReplicaConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  DbInstanceArnMap: z.record(z.string(), z.unknown()),
+}).partial();
+
+const RdsCreateCrossRegionReplicaConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  DbInstanceArnMap: z.record(z.string(), z.unknown()),
+}).partial();
+
+const LambdaEventSourceMappingUngracefulStateSchema = z.object({
+  Behavior: z.string(),
+}).partial();
+
+const LambdaEventSourceMappingConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  Action: z.string(),
+  RegionEventSourceMappings: z.record(z.string(), z.unknown()),
+  Ungraceful: LambdaEventSourceMappingUngracefulStateSchema,
+}).partial();
+
+const NeptuneUngracefulStateSchema = z.object({
+  Ungraceful: z.string(),
+}).partial();
+
+const NeptuneGlobalDatabaseConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  Behavior: z.string(),
+  Ungraceful: NeptuneUngracefulStateSchema,
+  GlobalClusterIdentifier: z.string(),
+  RegionDatabaseClusterArns: z.record(z.string(), z.unknown()),
+}).partial();
+
+const RdsUngracefulStateSchema = z.object({
+  Ungraceful: z.string(),
+}).partial();
+
+const RdsSwitchoverReadReplicaConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  CrossAccountRole: z.string(),
+  ExternalId: z.string(),
+  DbInstanceArnMap: z.record(z.string(), z.unknown()),
+  Ungraceful: RdsUngracefulStateSchema,
+}).partial();
+
+const SsmSendCommandUngracefulStateSchema = z.object({
+  Behavior: z.string(),
+}).partial();
+
+const SsmSendCommandConfigurationStateSchema = z.object({
+  TimeoutMinutes: z.number(),
+  RegionDocuments: z.record(z.string(), z.unknown()),
+  RetryIntervalMinutes: z.number(),
+  Ungraceful: SsmSendCommandUngracefulStateSchema,
+}).partial();
+
+const StepStateSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  ExecutionBlockConfiguration: z.object({
+    CustomActionLambdaConfig: CustomActionLambdaConfigurationStateSchema,
+    Ec2AsgCapacityIncreaseConfig:
+      Ec2AsgCapacityIncreaseConfigurationStateSchema,
+    ExecutionApprovalConfig: ExecutionApprovalConfigurationStateSchema,
+    ArcRoutingControlConfig: ArcRoutingControlConfigurationStateSchema,
+    AuroraProvisionedScalingConfig:
+      AuroraProvisionedScalingConfigurationStateSchema,
+    AuroraServerlessScalingConfig:
+      AuroraServerlessScalingConfigurationStateSchema,
+    GlobalAuroraConfig: GlobalAuroraConfigurationStateSchema,
+    ParallelConfig: ParallelExecutionBlockConfigurationStateSchema,
+    RegionSwitchPlanConfig: RegionSwitchPlanConfigurationStateSchema,
+    EcsCapacityIncreaseConfig: EcsCapacityIncreaseConfigurationStateSchema,
+    EksResourceScalingConfig: EksResourceScalingConfigurationStateSchema,
+    Route53HealthCheckConfig: Route53HealthCheckConfigurationStateSchema,
+    DocumentDbConfig: DocumentDbConfigurationStateSchema,
+    RdsPromoteReadReplicaConfig: RdsPromoteReadReplicaConfigurationStateSchema,
+    RdsCreateCrossRegionReadReplicaConfig:
+      RdsCreateCrossRegionReplicaConfigurationStateSchema,
+    LambdaEventSourceMappingConfig:
+      LambdaEventSourceMappingConfigurationStateSchema,
+    NeptuneGlobalDatabaseConfig: NeptuneGlobalDatabaseConfigurationStateSchema,
+    RdsSwitchoverReadReplicaConfig:
+      RdsSwitchoverReadReplicaConfigurationStateSchema,
+    SsmSendCommandConfig: SsmSendCommandConfigurationStateSchema,
+  }).partial(),
+  ExecutionBlockType: z.string(),
+}).partial();
+
+const WorkflowStateSchema = z.object({
+  Steps: z.array(StepStateSchema),
+  WorkflowTargetAction: z.string(),
+  WorkflowTargetRegion: z.string(),
+  WorkflowDescription: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -596,26 +881,28 @@ const StateSchema = z.object({
   RecoveryTimeObjectiveMinutes: z.number().optional(),
   Regions: z.array(z.string()).optional(),
   ReportConfiguration: z.object({
-    ReportOutput: z.array(z.object({
-      S3Configuration: S3ReportOutputConfigurationSchema,
-    })),
-  }).optional(),
+    ReportOutput: z.array(
+      z.object({
+        S3Configuration: S3ReportOutputConfigurationStateSchema,
+      }).partial(),
+    ),
+  }).partial().optional(),
   ServiceQuotaChecksEnabled: z.boolean().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
-  Triggers: z.array(TriggerSchema).optional(),
+  Triggers: z.array(TriggerStateSchema).optional(),
   Version: z.string().optional(),
-  Workflows: z.array(WorkflowSchema).optional(),
+  Workflows: z.array(WorkflowStateSchema).optional(),
   HealthChecksForPlan: z.record(z.string(), z.unknown()).optional(),
   Route53HealthChecks: z.object({
     HealthCheckIds: z.array(z.string()),
     RecordNames: z.array(z.string()),
     Regions: z.array(z.string()),
     HostedZoneIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   PlanHealthChecks: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -673,7 +960,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ARCRegionSwitch Plan. Registered at `@swamp/aws/arcregionswitch/plan`. */
 export const model = {
   type: "@swamp/aws/arcregionswitch/plan",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -747,6 +1034,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

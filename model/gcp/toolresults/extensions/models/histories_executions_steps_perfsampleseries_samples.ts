@@ -116,7 +116,7 @@ const StateSchema = z.object({
   sampleTime: z.object({
     nanos: z.number(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   value: z.number().optional(),
 }).passthrough();
 
@@ -163,7 +163,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/toolresults/histories-executions-steps-perfsampleseries-samples",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -292,6 +292,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -392,9 +392,11 @@ const StateSchema = z.object({
     computeCount: z.number(),
     computeModel: z.string(),
     cpuCount: z.number(),
-    customerContacts: z.array(z.object({
-      email: z.string(),
-    })),
+    customerContacts: z.array(
+      z.object({
+        email: z.string(),
+      }).partial(),
+    ),
     dataStorageSizeTb: z.number(),
     databaseServerType: z.string(),
     dbNodeStorageSizeGb: z.number(),
@@ -404,7 +406,7 @@ const StateSchema = z.object({
       availableVmStorageSizeGb: z.number(),
       totalStorageSizeGb: z.number(),
       totalVmStorageSizeGb: z.number(),
-    }),
+    }).partial(),
     maintenanceWindow: z.object({
       customActionTimeoutMins: z.number(),
       daysOfWeek: z.array(z.string()),
@@ -415,7 +417,7 @@ const StateSchema = z.object({
       patchingMode: z.string(),
       preference: z.string(),
       weeksOfMonth: z.array(z.number()),
-    }),
+    }).partial(),
     maxCpuCount: z.number(),
     maxDataStorageTb: z.number(),
     maxDbNodeStorageSizeGb: z.number(),
@@ -434,7 +436,7 @@ const StateSchema = z.object({
     storageServerType: z.string(),
     storageServerVersion: z.string(),
     totalStorageSizeGb: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -678,7 +680,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud CloudExadataInfrastructures. Registered at `@swamp/gcp/oracledatabase/cloudexadatainfrastructures`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/cloudexadatainfrastructures",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -837,6 +839,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

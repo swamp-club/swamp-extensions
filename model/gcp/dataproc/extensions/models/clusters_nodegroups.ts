@@ -314,72 +314,82 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   nodeGroupConfig: z.object({
-    accelerators: z.array(z.object({
-      acceleratorCount: z.number(),
-      acceleratorTypeUri: z.string(),
-    })),
+    accelerators: z.array(
+      z.object({
+        acceleratorCount: z.number(),
+        acceleratorTypeUri: z.string(),
+      }).partial(),
+    ),
     diskConfig: z.object({
-      attachedDiskConfigs: z.array(z.object({
-        diskSizeGb: z.number(),
-        diskType: z.string(),
-        provisionedIops: z.string(),
-        provisionedThroughput: z.string(),
-        type: z.string(),
-      })),
+      attachedDiskConfigs: z.array(
+        z.object({
+          diskSizeGb: z.number(),
+          diskType: z.string(),
+          provisionedIops: z.string(),
+          provisionedThroughput: z.string(),
+          type: z.string(),
+        }).partial(),
+      ),
       bootDiskProvisionedIops: z.string(),
       bootDiskProvisionedThroughput: z.string(),
       bootDiskSizeGb: z.number(),
       bootDiskType: z.string(),
       localSsdInterface: z.string(),
       numLocalSsds: z.number(),
-    }),
+    }).partial(),
     imageUri: z.string(),
     instanceFlexibilityPolicy: z.object({
       instanceMachineTypes: z.record(z.string(), z.unknown()),
-      instanceSelectionList: z.array(z.object({
-        diskConfig: z.object({
-          attachedDiskConfigs: z.unknown(),
-          bootDiskProvisionedIops: z.unknown(),
-          bootDiskProvisionedThroughput: z.unknown(),
-          bootDiskSizeGb: z.unknown(),
-          bootDiskType: z.unknown(),
-          localSsdInterface: z.unknown(),
-          numLocalSsds: z.unknown(),
-        }),
-        machineTypes: z.array(z.unknown()),
-        rank: z.number(),
-      })),
-      instanceSelectionResults: z.array(z.object({
-        machineType: z.string(),
-        vmCount: z.number(),
-      })),
+      instanceSelectionList: z.array(
+        z.object({
+          diskConfig: z.object({
+            attachedDiskConfigs: z.unknown(),
+            bootDiskProvisionedIops: z.unknown(),
+            bootDiskProvisionedThroughput: z.unknown(),
+            bootDiskSizeGb: z.unknown(),
+            bootDiskType: z.unknown(),
+            localSsdInterface: z.unknown(),
+            numLocalSsds: z.unknown(),
+          }).partial(),
+          machineTypes: z.array(z.unknown()),
+          rank: z.number(),
+        }).partial(),
+      ),
+      instanceSelectionResults: z.array(
+        z.object({
+          machineType: z.string(),
+          vmCount: z.number(),
+        }).partial(),
+      ),
       provisioningModelMix: z.object({
         standardCapacityBase: z.number(),
         standardCapacityPercentAboveBase: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     instanceNames: z.array(z.string()),
-    instanceReferences: z.array(z.object({
-      instanceId: z.string(),
-      instanceName: z.string(),
-      publicEciesKey: z.string(),
-      publicKey: z.string(),
-    })),
+    instanceReferences: z.array(
+      z.object({
+        instanceId: z.string(),
+        instanceName: z.string(),
+        publicEciesKey: z.string(),
+        publicKey: z.string(),
+      }).partial(),
+    ),
     isPreemptible: z.boolean(),
     machineTypeUri: z.string(),
     managedGroupConfig: z.object({
       instanceGroupManagerName: z.string(),
       instanceGroupManagerUri: z.string(),
       instanceTemplateName: z.string(),
-    }),
+    }).partial(),
     minCpuPlatform: z.string(),
     minNumInstances: z.number(),
     numInstances: z.number(),
     preemptibility: z.string(),
     startupConfig: z.object({
       requiredRegistrationFraction: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   roles: z.array(z.string()).optional(),
 }).passthrough();
 
@@ -625,7 +635,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Clusters.NodeGroups. Registered at `@swamp/gcp/dataproc/clusters-nodegroups`. */
 export const model = {
   type: "@swamp/gcp/dataproc/clusters-nodegroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -834,6 +844,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

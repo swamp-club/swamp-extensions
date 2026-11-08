@@ -70,6 +70,22 @@ const TagSchema = z.object({
   ).describe("The name of the tag.").optional(),
 });
 
+const DocumentRequiresStateSchema = z.object({
+  Version: z.string(),
+  Name: z.string(),
+}).partial();
+
+const AttachmentsSourceStateSchema = z.object({
+  Values: z.array(z.string()),
+  Key: z.string(),
+  Name: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -132,18 +148,18 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   DocumentFormat: z.string().optional(),
-  Requires: z.array(DocumentRequiresSchema).optional(),
+  Requires: z.array(DocumentRequiresStateSchema).optional(),
   Content: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   TargetType: z.string().optional(),
   DocumentType: z.string().optional(),
   VersionName: z.string().optional(),
   UpdateMethod: z.string().optional(),
-  Attachments: z.array(AttachmentsSourceSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Attachments: z.array(AttachmentsSourceStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Name: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -216,7 +232,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSM Document. Registered at `@swamp/aws/ssm/document`. */
 export const model = {
   type: "@swamp/aws/ssm/document",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -290,6 +306,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

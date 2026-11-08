@@ -149,7 +149,7 @@ const StateSchema = z.object({
     clientExecutionTime: z.string(),
     resultCode: z.string(),
     resultType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   commandState: z.string().optional(),
   commandType: z.string().optional(),
   issueTime: z.string().optional(),
@@ -207,7 +207,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.Profiles.Commands. Registered at `@swamp/gcp/chromemanagement/customers-profiles-commands`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-profiles-commands",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -354,6 +354,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

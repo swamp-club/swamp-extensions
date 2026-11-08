@@ -97,7 +97,7 @@ const StateSchema = z.object({
   integerRestrictions: z.object({
     maxValue: z.string(),
     minValue: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   recommendedIntegerValue: z.string().optional(),
   recommendedStringValue: z.string().optional(),
@@ -106,7 +106,7 @@ const StateSchema = z.object({
   stringRestrictions: z.object({
     allowedValues: z.array(z.string()),
     caseAgnostic: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   supportedDbVersions: z.array(z.string()).optional(),
   valueType: z.string().optional(),
 }).passthrough();
@@ -152,7 +152,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AlloyDB SupportedDatabaseFlags. Registered at `@swamp/gcp/alloydb/supporteddatabaseflags`. */
 export const model = {
   type: "@swamp/gcp/alloydb/supporteddatabaseflags",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +271,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -236,7 +236,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inpageTagFormats: z.array(z.string()).optional(),
   interstitialTagFormats: z.array(z.string()).optional(),
   kind: z.string().optional(),
@@ -250,10 +250,10 @@ const StateSchema = z.object({
       programmaticPlacementAccepted: z.boolean(),
       pubPaidPlacementAccepted: z.boolean(),
       publisherPortalOnly: z.boolean(),
-    }),
+    }).partial(),
     instreamVideoPlacementAccepted: z.boolean(),
     interstitialPlacementAccepted: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   url: z.string().optional(),
 }).passthrough();
 
@@ -370,7 +370,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 DirectorySites. Registered at `@swamp/gcp/dfareporting/directorysites`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/directorysites",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -494,6 +494,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

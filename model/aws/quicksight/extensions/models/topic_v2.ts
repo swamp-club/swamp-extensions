@@ -63,6 +63,31 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256).describe("Tag value."),
 });
 
+const DataSetReferenceStateSchema = z.object({
+  DataSetArn: z.string(),
+  DataSetName: z.string(),
+}).partial();
+
+const DataSetRelationEndpointStateSchema = z.object({
+  DataSetArn: z.string(),
+  ColumnNames: z.array(z.string()),
+}).partial();
+
+const DataSetRelationStateSchema = z.object({
+  Left: DataSetRelationEndpointStateSchema,
+  Right: DataSetRelationEndpointStateSchema,
+}).partial();
+
+const ResourcePermissionStateSchema = z.object({
+  Principal: z.string(),
+  Actions: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -101,18 +126,18 @@ const StateSchema = z.object({
   AwsAccountId: z.string(),
   CustomInstructions: z.object({
     CustomInstructionsString: z.string(),
-  }).optional(),
-  DataSets: z.array(DataSetReferenceSchema).optional(),
-  DataSetRelations: z.array(DataSetRelationSchema).optional(),
+  }).partial().optional(),
+  DataSets: z.array(DataSetReferenceStateSchema).optional(),
+  DataSetRelations: z.array(DataSetRelationStateSchema).optional(),
   Description: z.string().optional(),
   FolderArns: z.array(z.string()).optional(),
   Name: z.string().optional(),
-  Permissions: z.array(ResourcePermissionSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Permissions: z.array(ResourcePermissionStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   TopicId: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -156,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight TopicV2. Registered at `@swamp/aws/quicksight/topic-v2`. */
 export const model = {
   type: "@swamp/aws/quicksight/topic-v2",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -175,6 +200,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -109,6 +109,45 @@ const TagSchema = z.object({
   ),
 });
 
+const AwsIdcStateSchema = z.object({
+  IdcInstanceArn: z.string(),
+  IdcRegion: z.string(),
+  IdcManagedApplicationArn: z.string(),
+}).partial();
+
+const SsoIdentityStateSchema = z.object({
+  Id: z.string(),
+  Type: z.string(),
+}).partial();
+
+const ArgoCdRoleMappingStateSchema = z.object({
+  Role: z.string(),
+  Identities: z.array(SsoIdentityStateSchema),
+}).partial();
+
+const NetworkAccessStateSchema = z.object({
+  VpceIds: z.array(z.string()),
+}).partial();
+
+const ArgoCdStateSchema = z.object({
+  Namespace: z.string(),
+  EndpointPrefix: z.string(),
+  AwsIdc: AwsIdcStateSchema,
+  RbacRoleMappings: z.array(ArgoCdRoleMappingStateSchema),
+  NetworkAccess: NetworkAccessStateSchema,
+  ServerUrl: z.string(),
+}).partial();
+
+const AckStateSchema = z.object({
+  EnableCrossNamespace: z.boolean(),
+  DisabledServices: z.array(z.string()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -164,18 +203,18 @@ const StateSchema = z.object({
   RoleArn: z.string().optional(),
   DeletePropagationPolicy: z.string().optional(),
   Configuration: z.object({
-    ArgoCd: ArgoCdSchema,
-    Ack: AckSchema,
-  }).optional(),
+    ArgoCd: ArgoCdStateSchema,
+    Ack: AckStateSchema,
+  }).partial().optional(),
   Arn: z.string(),
   Status: z.string().optional(),
   CreatedAt: z.string().optional(),
   ModifiedAt: z.string().optional(),
   Version: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -234,7 +273,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Capability. Registered at `@swamp/aws/eks/capability`. */
 export const model = {
   type: "@swamp/aws/eks/capability",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -318,6 +357,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

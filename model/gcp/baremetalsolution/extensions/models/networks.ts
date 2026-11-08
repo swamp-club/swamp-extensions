@@ -230,19 +230,23 @@ const StateSchema = z.object({
   jumboFramesEnabled: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   macAddress: z.array(z.string()).optional(),
-  mountPoints: z.array(z.object({
-    defaultGateway: z.boolean(),
-    instance: z.string(),
-    ipAddress: z.string(),
-    logicalInterface: z.string(),
-  })).optional(),
+  mountPoints: z.array(
+    z.object({
+      defaultGateway: z.boolean(),
+      instance: z.string(),
+      ipAddress: z.string(),
+      logicalInterface: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   pod: z.string().optional(),
-  reservations: z.array(z.object({
-    endAddress: z.string(),
-    note: z.string(),
-    startAddress: z.string(),
-  })).optional(),
+  reservations: z.array(
+    z.object({
+      endAddress: z.string(),
+      note: z.string(),
+      startAddress: z.string(),
+    }).partial(),
+  ).optional(),
   servicesCidr: z.string().optional(),
   state: z.string().optional(),
   type: z.string().optional(),
@@ -251,20 +255,22 @@ const StateSchema = z.object({
     name: z.string(),
     qosPolicy: z.object({
       bandwidthGbps: z.number(),
-    }),
+    }).partial(),
     state: z.string(),
-    vlanAttachments: z.array(z.object({
-      id: z.string(),
-      interconnectAttachment: z.string(),
-      pairingKey: z.string(),
-      peerIp: z.string(),
-      peerVlanId: z.string(),
-      qosPolicy: z.object({
-        bandwidthGbps: z.number(),
-      }),
-      routerIp: z.string(),
-    })),
-  }).optional(),
+    vlanAttachments: z.array(
+      z.object({
+        id: z.string(),
+        interconnectAttachment: z.string(),
+        pairingKey: z.string(),
+        peerIp: z.string(),
+        peerVlanId: z.string(),
+        qosPolicy: z.object({
+          bandwidthGbps: z.number(),
+        }).partial(),
+        routerIp: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   vrfAttachment: z.string().optional(),
 }).passthrough();
 
@@ -402,7 +408,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bare Metal Solution Networks. Registered at `@swamp/gcp/baremetalsolution/networks`. */
 export const model = {
   type: "@swamp/gcp/baremetalsolution/networks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -541,6 +547,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

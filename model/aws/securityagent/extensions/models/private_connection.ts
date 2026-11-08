@@ -76,6 +76,26 @@ const TagSchema = z.object({
   Value: z.string().describe("The value for the tag."),
 });
 
+const ServiceManagedStateSchema = z.object({
+  HostAddress: z.string(),
+  VpcId: z.string(),
+  SubnetIds: z.array(z.string()),
+  SecurityGroupIds: z.array(z.string()),
+  IpAddressType: z.string(),
+  Ipv4AddressesPerEni: z.number(),
+  PortRanges: z.array(z.string()),
+  DnsResolution: z.string(),
+}).partial();
+
+const SelfManagedStateSchema = z.object({
+  ResourceConfigurationId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -117,9 +137,9 @@ const StateSchema = z.object({
   Arn: z.string(),
   PrivateConnectionName: z.string().optional(),
   Mode: z.object({
-    ServiceManaged: ServiceManagedSchema,
-    SelfManaged: SelfManagedSchema,
-  }).optional(),
+    ServiceManaged: ServiceManagedStateSchema,
+    SelfManaged: SelfManagedStateSchema,
+  }).partial().optional(),
   Certificate: z.string().optional(),
   Type: z.string().optional(),
   Status: z.string().optional(),
@@ -129,10 +149,10 @@ const StateSchema = z.object({
   ResourceConfigurationId: z.string().optional(),
   CertificateExpiryTime: z.string().optional(),
   DnsResolution: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -180,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent PrivateConnection. Registered at `@swamp/aws/securityagent/private-connection`. */
 export const model = {
   type: "@swamp/aws/securityagent/private-connection",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.25.1",
@@ -189,6 +209,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -174,21 +174,21 @@ const StateSchema = z.object({
       endPosition: z.string(),
       startOffset: z.string(),
       startPosition: z.string(),
-    }),
+    }).partial(),
     contentVersion: z.string(),
     gbImageRange: z.object({
       endOffset: z.string(),
       endPosition: z.string(),
       startOffset: z.string(),
       startPosition: z.string(),
-    }),
+    }).partial(),
     gbTextRange: z.object({
       endOffset: z.string(),
       endPosition: z.string(),
       startOffset: z.string(),
       startPosition: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   data: z.string().optional(),
   deleted: z.boolean().optional(),
   id: z.string().optional(),
@@ -246,7 +246,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Books Layers.VolumeAnnotations. Registered at `@swamp/gcp/books/layers-volumeannotations`. */
 export const model = {
   type: "@swamp/gcp/books/layers-volumeannotations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -370,6 +370,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

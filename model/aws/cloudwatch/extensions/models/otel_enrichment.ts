@@ -47,6 +47,11 @@ const OTelEnrichmentMetricSelectorSchema = z.object({
   ).optional(),
 });
 
+const OTelEnrichmentMetricSelectorStateSchema = z.object({
+  Namespace: z.string(),
+  MetricNames: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -74,11 +79,11 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   AccountId: z.string(),
   Status: z.string().optional(),
-  IncludeFilters: z.array(OTelEnrichmentMetricSelectorSchema).optional(),
-  ExcludeFilters: z.array(OTelEnrichmentMetricSelectorSchema).optional(),
+  IncludeFilters: z.array(OTelEnrichmentMetricSelectorStateSchema).optional(),
+  ExcludeFilters: z.array(OTelEnrichmentMetricSelectorStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -113,7 +118,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch OTelEnrichment. Registered at `@swamp/aws/cloudwatch/otel-enrichment`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/otel-enrichment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -152,6 +157,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

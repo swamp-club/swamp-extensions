@@ -46,6 +46,16 @@ const TagSchema = z.object({
   ).describe("Tag value"),
 });
 
+const EntityTypeInfoStateSchema = z.object({
+  EntityType: z.string(),
+  EntityMetadata: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -84,19 +94,16 @@ const StateSchema = z.object({
   EncryptionConfiguration: z.object({
     KmsKeyId: z.string(),
     KmsEncryptionContext: z.record(z.string(), z.unknown()),
-  }).optional(),
-  EntityTypes: z.array(z.object({
-    EntityType: z.string(),
-    EntityMetadata: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  EntityTypes: z.array(EntityTypeInfoStateSchema).optional(),
   LibraryArn: z.string(),
   LibraryDescription: z.string().optional(),
   LibraryName: z.string().optional(),
   Status: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -140,7 +147,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock DataAutomationLibrary. Registered at `@swamp/aws/bedrock/data-automation-library`. */
 export const model = {
   type: "@swamp/aws/bedrock/data-automation-library",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -189,6 +196,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

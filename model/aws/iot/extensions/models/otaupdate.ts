@@ -169,6 +169,97 @@ const TagSchema = z.object({
   Value: z.string().max(256),
 });
 
+const AwsJobRateIncreaseCriteriaStateSchema = z.object({
+  NumberOfNotifiedThings: z.number(),
+  NumberOfSucceededThings: z.number(),
+}).partial();
+
+const AwsJobExponentialRolloutRateStateSchema = z.object({
+  BaseRatePerMinute: z.number(),
+  IncrementFactor: z.number(),
+  RateIncreaseCriteria: AwsJobRateIncreaseCriteriaStateSchema,
+}).partial();
+
+const AwsJobAbortCriteriaStateSchema = z.object({
+  FailureType: z.string(),
+  Action: z.string(),
+  ThresholdPercentage: z.number(),
+  MinNumberOfExecutedThings: z.number(),
+}).partial();
+
+const StreamStateSchema = z.object({
+  StreamId: z.string(),
+  FileId: z.number(),
+}).partial();
+
+const S3LocationStateSchema = z.object({
+  Bucket: z.string(),
+  Key: z.string(),
+  Version: z.string(),
+}).partial();
+
+const FileLocationStateSchema = z.object({
+  Stream: StreamStateSchema,
+  S3Location: S3LocationStateSchema,
+}).partial();
+
+const SigningProfileParameterStateSchema = z.object({
+  CertificateArn: z.string(),
+  Platform: z.string(),
+  CertificatePathOnDevice: z.string(),
+}).partial();
+
+const S3DestinationStateSchema = z.object({
+  Bucket: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const DestinationStateSchema = z.object({
+  S3Destination: S3DestinationStateSchema,
+}).partial();
+
+const StartSigningJobParameterStateSchema = z.object({
+  SigningProfileParameter: SigningProfileParameterStateSchema,
+  SigningProfileName: z.string(),
+  Destination: DestinationStateSchema,
+}).partial();
+
+const CodeSigningSignatureStateSchema = z.object({
+  InlineDocument: z.string(),
+}).partial();
+
+const CodeSigningCertificateChainStateSchema = z.object({
+  CertificateName: z.string(),
+  InlineDocument: z.string(),
+}).partial();
+
+const CustomCodeSigningStateSchema = z.object({
+  Signature: CodeSigningSignatureStateSchema,
+  CertificateChain: CodeSigningCertificateChainStateSchema,
+  HashAlgorithm: z.string(),
+  SignatureAlgorithm: z.string(),
+}).partial();
+
+const CodeSigningStateSchema = z.object({
+  AwsSignerJobId: z.string(),
+  StartSigningJobParameter: StartSigningJobParameterStateSchema,
+  CustomCodeSigning: CustomCodeSigningStateSchema,
+}).partial();
+
+const OTAUpdateFileStateSchema = z.object({
+  FileName: z.string(),
+  FileType: z.number(),
+  FileVersion: z.string(),
+  FileLocation: FileLocationStateSchema,
+  CodeSigning: CodeSigningStateSchema,
+  Attributes: z.record(z.string(), z.unknown()),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -242,27 +333,27 @@ const StateSchema = z.object({
   TargetSelection: z.string().optional(),
   AwsJobExecutionsRolloutConfig: z.object({
     MaximumPerMinute: z.number(),
-    ExponentialRate: AwsJobExponentialRolloutRateSchema,
-  }).optional(),
+    ExponentialRate: AwsJobExponentialRolloutRateStateSchema,
+  }).partial().optional(),
   AwsJobPresignedUrlConfig: z.object({
     ExpiresInSec: z.number(),
-  }).optional(),
+  }).partial().optional(),
   AwsJobAbortConfig: z.object({
-    AbortCriteriaList: z.array(AwsJobAbortCriteriaSchema),
-  }).optional(),
+    AbortCriteriaList: z.array(AwsJobAbortCriteriaStateSchema),
+  }).partial().optional(),
   AwsJobTimeoutConfig: z.object({
     InProgressTimeoutInMinutes: z.number(),
-  }).optional(),
-  Files: z.array(OTAUpdateFileSchema).optional(),
+  }).partial().optional(),
+  Files: z.array(OTAUpdateFileStateSchema).optional(),
   RoleArn: z.string().optional(),
   AdditionalParameters: z.record(z.string(), z.unknown()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   OtaUpdateStatus: z.string().optional(),
   CreationDate: z.string().optional(),
   LastModifiedDate: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -337,10 +428,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT OTAUpdate. Registered at `@swamp/aws/iot/otaupdate`. */
 export const model = {
   type: "@swamp/aws/iot/otaupdate",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

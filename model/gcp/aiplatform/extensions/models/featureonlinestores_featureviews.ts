@@ -289,21 +289,23 @@ const StateSchema = z.object({
   bigQuerySource: z.object({
     entityIdColumns: z.array(z.string()),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   bigtableMetadata: z.object({
     readAppProfile: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   etag: z.string().optional(),
   featureRegistrySource: z.object({
-    featureGroups: z.array(z.object({
-      featureGroupId: z.string(),
-      featureIds: z.array(z.string()),
-    })),
+    featureGroups: z.array(
+      z.object({
+        featureGroupId: z.string(),
+        featureIds: z.array(z.string()),
+      }).partial(),
+    ),
     projectNumber: z.string(),
-  }).optional(),
+  }).partial().optional(),
   indexConfig: z.object({
-    bruteForceConfig: z.object({}),
+    bruteForceConfig: z.object({}).partial(),
     crowdingColumn: z.string(),
     distanceMeasureType: z.string(),
     embeddingColumn: z.string(),
@@ -311,16 +313,16 @@ const StateSchema = z.object({
     filterColumns: z.array(z.string()),
     treeAhConfig: z.object({
       leafNodeEmbeddingCount: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   optimizedConfig: z.object({
     automaticResources: z.object({
       maxReplicaCount: z.number(),
       minReplicaCount: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   serviceAccountEmail: z.string().optional(),
@@ -328,12 +330,12 @@ const StateSchema = z.object({
   syncConfig: z.object({
     continuous: z.boolean(),
     cron: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   vertexRagSource: z.object({
     ragCorpusId: z.string(),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -493,7 +495,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform FeatureOnlineStores.FeatureViews. Registered at `@swamp/gcp/aiplatform/featureonlinestores-featureviews`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/featureonlinestores-featureviews",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -706,6 +708,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

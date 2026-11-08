@@ -116,10 +116,12 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  attributes: z.array(z.object({
-    key: z.string(),
-    value: z.string(),
-  })).optional(),
+  attributes: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   childCidrOverlapAllowed: z.boolean().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
@@ -132,7 +134,7 @@ const StateSchema = z.object({
     sourceSubId: z.string(),
     state: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ipv4CidrRange: z.string().optional(),
   ipv6CidrRange: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -184,7 +186,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Number Registry DiscoveredRanges. Registered at `@swamp/gcp/cloudnumberregistry/discoveredranges`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/discoveredranges",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.05.19.1",
@@ -283,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

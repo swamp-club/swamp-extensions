@@ -251,17 +251,21 @@ const StateSchema = z.object({
   courseId: z.string().optional(),
   courseWorkId: z.string().optional(),
   creationTime: z.string().optional(),
-  criteria: z.array(z.object({
-    description: z.string(),
-    id: z.string(),
-    levels: z.array(z.object({
+  criteria: z.array(
+    z.object({
       description: z.string(),
       id: z.string(),
-      points: z.number(),
+      levels: z.array(
+        z.object({
+          description: z.string(),
+          id: z.string(),
+          points: z.number(),
+          title: z.string(),
+        }).partial(),
+      ),
       title: z.string(),
-    })),
-    title: z.string(),
-  })).optional(),
+    }).partial(),
+  ).optional(),
   id: z.string(),
   sourceSpreadsheetId: z.string().optional(),
   updateTime: z.string().optional(),
@@ -336,7 +340,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Classroom Courses.CourseWork.Rubrics. Registered at `@swamp/gcp/classroom/courses-coursework-rubrics`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses-coursework-rubrics",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -460,6 +464,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

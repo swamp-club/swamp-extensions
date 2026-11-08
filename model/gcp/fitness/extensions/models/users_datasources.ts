@@ -267,25 +267,27 @@ const StateSchema = z.object({
     name: z.string(),
     packageName: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dataQualityStandard: z.array(z.string()).optional(),
   dataStreamId: z.string().optional(),
   dataStreamName: z.string().optional(),
   dataType: z.object({
-    field: z.array(z.object({
-      format: z.string(),
-      name: z.string(),
-      optional: z.boolean(),
-    })),
+    field: z.array(
+      z.object({
+        format: z.string(),
+        name: z.string(),
+        optional: z.boolean(),
+      }).partial(),
+    ),
     name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   device: z.object({
     manufacturer: z.string(),
     model: z.string(),
     type: z.string(),
     uid: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   type: z.string().optional(),
 }).passthrough();
@@ -404,7 +406,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Fitness Users.DataSources. Registered at `@swamp/gcp/fitness/users-datasources`. */
 export const model = {
   type: "@swamp/gcp/fitness/users-datasources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -538,6 +540,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

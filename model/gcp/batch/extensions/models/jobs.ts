@@ -154,6 +154,23 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   allocationPolicy: z.object({
+    instanceFlexibilityPolicy: z.object({
+      instanceSelections: z.record(
+        z.string(),
+        z.object({
+          machineTypes: z.array(z.unknown()).describe(
+            "Required. The Compute Engine machine type IDs. Only the machine type ID is supported, such as `n1-standard-16`. Full or partial URLs are not accepted. The total maximum number of machine types across all instance selections is 200. Exceeding this limit results in a validation error with code `INVALID_ARGUMENT`.",
+          ).optional(),
+          rank: z.number().int().describe(
+            "Optional. Indicates the preference of this instance selection. Lower number means higher preference. First try is to create a VM based on the machine-type with lowest rank and fallback to next rank based on availability. Machine types and instance selections with the same rank have the same preference.",
+          ).optional(),
+        }),
+      ).describe(
+        "Required. Named instance selections configuring properties that the group will use when creating new VMs. The map key is a user-specified name for the instance selection. The key must be 1-63 characters long, and comply with [RFC1035](https://www.ietf.org/rfc/rfc1035.txt). Specifically, the key must consist of lowercase letters, numbers, and hyphens. The first character must be a lowercase letter, and the last character must be a lowercase letter or number. The maximum number of instance selections is 50. Exceeding this limit results in a validation error with code `INVALID_ARGUMENT`.",
+      ).optional(),
+    }).describe(
+      "Optional. The instance flexibility policy for the job. This configuration overrides the `instances` configuration. Only allowed in job level. Not allowed in task group level.",
+    ).optional(),
     instances: z.array(z.object({
       blockProjectSshKeys: z.boolean().describe(
         "Optional. Set this field to `true` if you want Batch to block project-level SSH keys from accessing this job's VMs. Alternatively, you can configure the job to specify a VM instance template that blocks project-level SSH keys. In either case, Batch blocks project-level SSH keys while creating the VMs for this job. Batch allows project-level SSH keys for a job's VMs only if all the following are true: + This field is undefined or set to `false`. + The job's VM instance template (if any) doesn't block project-level SSH keys. Notably, you can override this behavior by manually updating a VM to block or allow project-level SSH keys. For more information about blocking project-level SSH keys, see the Compute Engine documentation: https://cloud.google.com/compute/docs/connect/restrict-ssh-keys#block-keys",
@@ -165,7 +182,7 @@ const GlobalArgsSchema = z.object({
         "Optional. Set this field true if you want Batch to install Ops Agent on your behalf. Default is false.",
       ).optional(),
       instanceTemplate: z.string().describe(
-        "Name of an instance template used to create VMs. Named the field as 'instance_template' instead of 'template' to avoid C++ keyword conflict. Batch only supports global instance templates from the same project as the job. You can specify the global instance template as a full or partial URL.",
+        "An instance template used to create VMs. Batch supports global and regional instance templates from the same project as the job. In case of a regional instance template, the job and the instance template must be in the same region. As shown in the following examples, you can specify the instance template as either only its ID, only its name (not unique), or a partial or full URL. If you specify only its name, then Batch checks for a global instance template first. The following formats are valid for global instance templates: * `{instance_template_id_number}` * `{instance_template_name}` (not unique) * `projects/{project}/global/instanceTemplates/{instance_template_id_number}` * `projects/{project}/global/instanceTemplates/{instance_template_name}` * `https://www.googleapis.com/compute/v1/projects/{project}/global/instanceTemplates/{instance_template_id_number}` * `https://www.googleapis.com/compute/v1/projects/{project}/global/instanceTemplates/{instance_template_name}` The following formats are valid for regional instance templates: * `{instance_template_id_number}` * `{instance_template_name}` (not unique) * `projects/{project}/regions/{region}/instanceTemplates/{instance_template_id_number}` * `projects/{project}/regions/{region}/instanceTemplates/{instance_template_name}` * `https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}/instanceTemplates/{instance_template_id_number}` * `https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}/instanceTemplates/{instance_template_name}`",
       ).optional(),
       policy: z.object({
         accelerators: z.array(z.unknown()).describe(
@@ -475,141 +492,162 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   allocationPolicy: z.object({
-    instances: z.array(z.object({
-      blockProjectSshKeys: z.boolean(),
-      installGpuDrivers: z.boolean(),
-      installOpsAgent: z.boolean(),
-      instanceTemplate: z.string(),
-      policy: z.object({
-        accelerators: z.array(z.unknown()),
-        bootDisk: z.object({
-          diskInterface: z.unknown(),
-          image: z.unknown(),
-          sizeGb: z.unknown(),
-          snapshot: z.unknown(),
-          type: z.unknown(),
-        }),
-        disks: z.array(z.unknown()),
-        machineType: z.string(),
-        minCpuPlatform: z.string(),
-        provisioningModel: z.string(),
-        reservation: z.string(),
-      }),
-    })),
+    instanceFlexibilityPolicy: z.object({
+      instanceSelections: z.record(z.string(), z.unknown()),
+    }).partial(),
+    instances: z.array(
+      z.object({
+        blockProjectSshKeys: z.boolean(),
+        installGpuDrivers: z.boolean(),
+        installOpsAgent: z.boolean(),
+        instanceTemplate: z.string(),
+        policy: z.object({
+          accelerators: z.array(z.unknown()),
+          bootDisk: z.object({
+            diskInterface: z.unknown(),
+            image: z.unknown(),
+            sizeGb: z.unknown(),
+            snapshot: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          disks: z.array(z.unknown()),
+          machineType: z.string(),
+          minCpuPlatform: z.string(),
+          provisioningModel: z.string(),
+          reservation: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     labels: z.record(z.string(), z.unknown()),
     location: z.object({
       allowedLocations: z.array(z.string()),
-    }),
+    }).partial(),
     network: z.object({
-      networkInterfaces: z.array(z.object({
-        network: z.string(),
-        nicType: z.string(),
-        noExternalIpAddress: z.boolean(),
-        subnetwork: z.string(),
-      })),
-    }),
+      networkInterfaces: z.array(
+        z.object({
+          network: z.string(),
+          nicType: z.string(),
+          noExternalIpAddress: z.boolean(),
+          subnetwork: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     placement: z.object({
       collocation: z.string(),
       maxDistance: z.string(),
-    }),
+    }).partial(),
     serviceAccount: z.object({
       email: z.string(),
       scopes: z.array(z.string()),
-    }),
+    }).partial(),
     tags: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   logsPolicy: z.object({
     cloudLoggingOption: z.object({
       useGenericTaskMonitoredResource: z.boolean(),
-    }),
+    }).partial(),
     destination: z.string(),
     logsPath: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
-  notifications: z.array(z.object({
-    message: z.object({
-      newJobState: z.string(),
-      newTaskState: z.string(),
-      type: z.string(),
-    }),
-    pubsubTopic: z.string(),
-  })).optional(),
+  notifications: z.array(
+    z.object({
+      message: z.object({
+        newJobState: z.string(),
+        newTaskState: z.string(),
+        type: z.string(),
+      }).partial(),
+      pubsubTopic: z.string(),
+    }).partial(),
+  ).optional(),
   priority: z.string().optional(),
   status: z.object({
     runDuration: z.string(),
     state: z.string(),
-    statusEvents: z.array(z.object({
-      description: z.string(),
-      eventTime: z.string(),
-      taskExecution: z.object({
-        exitCode: z.number(),
-      }),
-      taskState: z.string(),
-      type: z.string(),
-    })),
+    statusEvents: z.array(
+      z.object({
+        description: z.string(),
+        eventTime: z.string(),
+        taskExecution: z.object({
+          exitCode: z.number(),
+        }).partial(),
+        taskState: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     taskGroups: z.record(z.string(), z.unknown()),
-  }).optional(),
-  taskGroups: z.array(z.object({
-    name: z.string(),
-    parallelism: z.string(),
-    permissiveSsh: z.boolean(),
-    requireHostsFile: z.boolean(),
-    runAsNonRoot: z.boolean(),
-    schedulingPolicy: z.string(),
-    taskCount: z.string(),
-    taskCountPerNode: z.string(),
-    taskEnvironments: z.array(z.object({
-      encryptedVariables: z.object({
-        cipherText: z.unknown(),
-        keyName: z.unknown(),
-      }),
-      secretVariables: z.record(z.string(), z.unknown()),
-      variables: z.record(z.string(), z.unknown()),
-    })),
-    taskSpec: z.object({
-      computeResource: z.object({
-        bootDiskMib: z.string(),
-        cpuMilli: z.string(),
-        memoryMib: z.string(),
-      }),
-      environment: z.object({
-        encryptedVariables: z.object({
-          cipherText: z.unknown(),
-          keyName: z.unknown(),
-        }),
-        secretVariables: z.record(z.string(), z.unknown()),
-        variables: z.record(z.string(), z.unknown()),
-      }),
-      environments: z.record(z.string(), z.unknown()),
-      lifecyclePolicies: z.array(z.object({
-        action: z.unknown(),
-        actionCondition: z.unknown(),
-      })),
-      maxRetryCount: z.number(),
-      maxRunDuration: z.string(),
-      runnables: z.array(z.object({
-        alwaysRun: z.unknown(),
-        background: z.unknown(),
-        barrier: z.unknown(),
-        container: z.unknown(),
-        displayName: z.unknown(),
-        environment: z.unknown(),
-        ignoreExitStatus: z.unknown(),
-        labels: z.unknown(),
-        script: z.unknown(),
-        timeout: z.unknown(),
-      })),
-      volumes: z.array(z.object({
-        deviceName: z.unknown(),
-        gcs: z.unknown(),
-        mountOptions: z.unknown(),
-        mountPath: z.unknown(),
-        nfs: z.unknown(),
-      })),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  taskGroups: z.array(
+    z.object({
+      name: z.string(),
+      parallelism: z.string(),
+      permissiveSsh: z.boolean(),
+      requireHostsFile: z.boolean(),
+      runAsNonRoot: z.boolean(),
+      schedulingPolicy: z.string(),
+      taskCount: z.string(),
+      taskCountPerNode: z.string(),
+      taskEnvironments: z.array(
+        z.object({
+          encryptedVariables: z.object({
+            cipherText: z.unknown(),
+            keyName: z.unknown(),
+          }).partial(),
+          secretVariables: z.record(z.string(), z.unknown()),
+          variables: z.record(z.string(), z.unknown()),
+        }).partial(),
+      ),
+      taskSpec: z.object({
+        computeResource: z.object({
+          bootDiskMib: z.string(),
+          cpuMilli: z.string(),
+          memoryMib: z.string(),
+        }).partial(),
+        environment: z.object({
+          encryptedVariables: z.object({
+            cipherText: z.unknown(),
+            keyName: z.unknown(),
+          }).partial(),
+          secretVariables: z.record(z.string(), z.unknown()),
+          variables: z.record(z.string(), z.unknown()),
+        }).partial(),
+        environments: z.record(z.string(), z.unknown()),
+        lifecyclePolicies: z.array(
+          z.object({
+            action: z.unknown(),
+            actionCondition: z.unknown(),
+          }).partial(),
+        ),
+        maxRetryCount: z.number(),
+        maxRunDuration: z.string(),
+        runnables: z.array(
+          z.object({
+            alwaysRun: z.unknown(),
+            background: z.unknown(),
+            barrier: z.unknown(),
+            container: z.unknown(),
+            displayName: z.unknown(),
+            environment: z.unknown(),
+            ignoreExitStatus: z.unknown(),
+            labels: z.unknown(),
+            script: z.unknown(),
+            timeout: z.unknown(),
+          }).partial(),
+        ),
+        volumes: z.array(
+          z.object({
+            deviceName: z.unknown(),
+            gcs: z.unknown(),
+            mountOptions: z.unknown(),
+            mountPath: z.unknown(),
+            nfs: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -625,6 +663,23 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   allocationPolicy: z.object({
+    instanceFlexibilityPolicy: z.object({
+      instanceSelections: z.record(
+        z.string(),
+        z.object({
+          machineTypes: z.array(z.unknown()).describe(
+            "Required. The Compute Engine machine type IDs. Only the machine type ID is supported, such as `n1-standard-16`. Full or partial URLs are not accepted. The total maximum number of machine types across all instance selections is 200. Exceeding this limit results in a validation error with code `INVALID_ARGUMENT`.",
+          ).optional(),
+          rank: z.number().int().describe(
+            "Optional. Indicates the preference of this instance selection. Lower number means higher preference. First try is to create a VM based on the machine-type with lowest rank and fallback to next rank based on availability. Machine types and instance selections with the same rank have the same preference.",
+          ).optional(),
+        }),
+      ).describe(
+        "Required. Named instance selections configuring properties that the group will use when creating new VMs. The map key is a user-specified name for the instance selection. The key must be 1-63 characters long, and comply with [RFC1035](https://www.ietf.org/rfc/rfc1035.txt). Specifically, the key must consist of lowercase letters, numbers, and hyphens. The first character must be a lowercase letter, and the last character must be a lowercase letter or number. The maximum number of instance selections is 50. Exceeding this limit results in a validation error with code `INVALID_ARGUMENT`.",
+      ).optional(),
+    }).describe(
+      "Optional. The instance flexibility policy for the job. This configuration overrides the `instances` configuration. Only allowed in job level. Not allowed in task group level.",
+    ).optional(),
     instances: z.array(z.object({
       blockProjectSshKeys: z.boolean().describe(
         "Optional. Set this field to `true` if you want Batch to block project-level SSH keys from accessing this job's VMs. Alternatively, you can configure the job to specify a VM instance template that blocks project-level SSH keys. In either case, Batch blocks project-level SSH keys while creating the VMs for this job. Batch allows project-level SSH keys for a job's VMs only if all the following are true: + This field is undefined or set to `false`. + The job's VM instance template (if any) doesn't block project-level SSH keys. Notably, you can override this behavior by manually updating a VM to block or allow project-level SSH keys. For more information about blocking project-level SSH keys, see the Compute Engine documentation: https://cloud.google.com/compute/docs/connect/restrict-ssh-keys#block-keys",
@@ -636,7 +691,7 @@ const InputsSchema = z.object({
         "Optional. Set this field true if you want Batch to install Ops Agent on your behalf. Default is false.",
       ).optional(),
       instanceTemplate: z.string().describe(
-        "Name of an instance template used to create VMs. Named the field as 'instance_template' instead of 'template' to avoid C++ keyword conflict. Batch only supports global instance templates from the same project as the job. You can specify the global instance template as a full or partial URL.",
+        "An instance template used to create VMs. Batch supports global and regional instance templates from the same project as the job. In case of a regional instance template, the job and the instance template must be in the same region. As shown in the following examples, you can specify the instance template as either only its ID, only its name (not unique), or a partial or full URL. If you specify only its name, then Batch checks for a global instance template first. The following formats are valid for global instance templates: * `{instance_template_id_number}` * `{instance_template_name}` (not unique) * `projects/{project}/global/instanceTemplates/{instance_template_id_number}` * `projects/{project}/global/instanceTemplates/{instance_template_name}` * `https://www.googleapis.com/compute/v1/projects/{project}/global/instanceTemplates/{instance_template_id_number}` * `https://www.googleapis.com/compute/v1/projects/{project}/global/instanceTemplates/{instance_template_name}` The following formats are valid for regional instance templates: * `{instance_template_id_number}` * `{instance_template_name}` (not unique) * `projects/{project}/regions/{region}/instanceTemplates/{instance_template_id_number}` * `projects/{project}/regions/{region}/instanceTemplates/{instance_template_name}` * `https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}/instanceTemplates/{instance_template_id_number}` * `https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}/instanceTemplates/{instance_template_name}`",
       ).optional(),
       policy: z.object({
         accelerators: z.array(z.unknown()).describe(
@@ -970,7 +1025,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Batch Jobs. Registered at `@swamp/gcp/batch/jobs`. */
 export const model = {
   type: "@swamp/gcp/batch/jobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1117,6 +1172,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

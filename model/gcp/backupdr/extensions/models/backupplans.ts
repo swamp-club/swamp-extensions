@@ -328,43 +328,47 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  backupRules: z.array(z.object({
-    backupRetentionDays: z.number(),
-    ruleId: z.string(),
-    standardSchedule: z.object({
-      backupWindow: z.object({
-        endHourOfDay: z.number(),
-        startHourOfDay: z.number(),
-      }),
-      daysOfMonth: z.array(z.number()),
-      daysOfWeek: z.array(z.string()),
-      hourlyFrequency: z.number(),
-      months: z.array(z.string()),
-      recurrenceType: z.string(),
-      timeZone: z.string(),
-      weekDayOfMonth: z.object({
-        dayOfWeek: z.string(),
-        weekOfMonth: z.string(),
-      }),
-    }),
-  })).optional(),
+  backupRules: z.array(
+    z.object({
+      backupRetentionDays: z.number(),
+      ruleId: z.string(),
+      standardSchedule: z.object({
+        backupWindow: z.object({
+          endHourOfDay: z.number(),
+          startHourOfDay: z.number(),
+        }).partial(),
+        daysOfMonth: z.array(z.number()),
+        daysOfWeek: z.array(z.string()),
+        hourlyFrequency: z.number(),
+        months: z.array(z.string()),
+        recurrenceType: z.string(),
+        timeZone: z.string(),
+        weekDayOfMonth: z.object({
+          dayOfWeek: z.string(),
+          weekOfMonth: z.string(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   backupVault: z.string().optional(),
   backupVaultServiceAccount: z.string().optional(),
   computeInstanceBackupPlanProperties: z.object({
     bootDiskOnly: z.boolean(),
     diskExclusionLabels: z.object({
-      labels: z.array(z.object({
-        key: z.string(),
-        value: z.string(),
-      })),
-    }),
+      labels: z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     guestFlush: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   diskBackupPlanProperties: z.object({
     guestFlush: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   logRetentionDays: z.string().optional(),
@@ -569,7 +573,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupPlans. Registered at `@swamp/gcp/backupdr/backupplans`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupplans",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -753,6 +757,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

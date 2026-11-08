@@ -275,14 +275,14 @@ const StateSchema = z.object({
   encryptionConfig: z.object({
     cryptoKeyName: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   expireTime: z.string().optional(),
   hcx: z.object({
     fqdn: z.string(),
     internalIp: z.string(),
     state: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   managementCluster: z.object({
     clusterId: z.string(),
     nodeTypeConfigs: z.record(z.string(), z.unknown()),
@@ -292,8 +292,8 @@ const StateSchema = z.object({
       preferredLocationPlacementGroup: z.string(),
       secondaryLocation: z.string(),
       secondaryLocationPlacementGroup: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   networkConfig: z.object({
     dnsServerIp: z.string(),
@@ -301,13 +301,13 @@ const StateSchema = z.object({
     managementIpAddressLayoutVersion: z.number(),
     vmwareEngineNetwork: z.string(),
     vmwareEngineNetworkCanonical: z.string(),
-  }).optional(),
+  }).partial().optional(),
   nsx: z.object({
     fqdn: z.string(),
     internalIp: z.string(),
     state: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   type: z.string().optional(),
   uid: z.string().optional(),
@@ -317,7 +317,7 @@ const StateSchema = z.object({
     internalIp: z.string(),
     state: z.string(),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -440,7 +440,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VMware Engine PrivateClouds. Registered at `@swamp/gcp/vmwareengine/privateclouds`. */
 export const model = {
   type: "@swamp/gcp/vmwareengine/privateclouds",
-  version: "2026.10.26.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -641,6 +641,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

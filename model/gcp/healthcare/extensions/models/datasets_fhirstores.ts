@@ -396,19 +396,19 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   bulkExportGcsDestination: z.object({
     uriPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   complexDataTypeReferenceParsing: z.string().optional(),
   consentConfig: z.object({
     accessDeterminationLogConfig: z.object({
       logLevel: z.string(),
-    }),
+    }).partial(),
     accessEnforced: z.boolean(),
     consentHeaderHandling: z.object({
       profile: z.string(),
-    }),
+    }).partial(),
     enforcedAdminConsents: z.array(z.string()),
     version: z.string(),
-  }).optional(),
+  }).partial().optional(),
   defaultSearchHandlingStrict: z.boolean().optional(),
   disableReferentialIntegrity: z.boolean().optional(),
   disableResourceVersioning: z.boolean().optional(),
@@ -418,53 +418,57 @@ const StateSchema = z.object({
   notificationConfig: z.object({
     pubsubTopic: z.string(),
     sendForBulkImport: z.boolean(),
-  }).optional(),
-  notificationConfigs: z.array(z.object({
-    pubsubTopic: z.string(),
-    sendFullResource: z.boolean(),
-    sendPreviousResourceOnDelete: z.boolean(),
-  })).optional(),
-  streamConfigs: z.array(z.object({
-    bigqueryDestination: z.object({
-      datasetUri: z.string(),
-      force: z.boolean(),
-      schemaConfig: z.object({
-        lastUpdatedPartitionConfig: z.object({
-          expirationMs: z.unknown(),
-          type: z.unknown(),
-        }),
-        recursiveStructureDepth: z.string(),
-        schemaType: z.string(),
-      }),
-      writeDisposition: z.string(),
-    }),
-    deidentifiedStoreDestination: z.object({
-      config: z.object({
-        dicom: z.object({
-          filterProfile: z.unknown(),
-          keepList: z.unknown(),
-          removeList: z.unknown(),
-          skipIdRedaction: z.unknown(),
-        }),
-        fhir: z.object({
-          defaultKeepExtensions: z.unknown(),
-          fieldMetadataList: z.unknown(),
-        }),
-        image: z.object({
-          customRegexes: z.unknown(),
-          textRedactionMode: z.unknown(),
-        }),
-        text: z.object({
-          additionalTransformations: z.unknown(),
-          excludeInfoTypes: z.unknown(),
-          transformations: z.unknown(),
-        }),
-        useRegionalDataProcessing: z.boolean(),
-      }),
-      store: z.string(),
-    }),
-    resourceTypes: z.array(z.string()),
-  })).optional(),
+  }).partial().optional(),
+  notificationConfigs: z.array(
+    z.object({
+      pubsubTopic: z.string(),
+      sendFullResource: z.boolean(),
+      sendPreviousResourceOnDelete: z.boolean(),
+    }).partial(),
+  ).optional(),
+  streamConfigs: z.array(
+    z.object({
+      bigqueryDestination: z.object({
+        datasetUri: z.string(),
+        force: z.boolean(),
+        schemaConfig: z.object({
+          lastUpdatedPartitionConfig: z.object({
+            expirationMs: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          recursiveStructureDepth: z.string(),
+          schemaType: z.string(),
+        }).partial(),
+        writeDisposition: z.string(),
+      }).partial(),
+      deidentifiedStoreDestination: z.object({
+        config: z.object({
+          dicom: z.object({
+            filterProfile: z.unknown(),
+            keepList: z.unknown(),
+            removeList: z.unknown(),
+            skipIdRedaction: z.unknown(),
+          }).partial(),
+          fhir: z.object({
+            defaultKeepExtensions: z.unknown(),
+            fieldMetadataList: z.unknown(),
+          }).partial(),
+          image: z.object({
+            customRegexes: z.unknown(),
+            textRedactionMode: z.unknown(),
+          }).partial(),
+          text: z.object({
+            additionalTransformations: z.unknown(),
+            excludeInfoTypes: z.unknown(),
+            transformations: z.unknown(),
+          }).partial(),
+          useRegionalDataProcessing: z.boolean(),
+        }).partial(),
+        store: z.string(),
+      }).partial(),
+      resourceTypes: z.array(z.string()),
+    }).partial(),
+  ).optional(),
   validationConfig: z.object({
     disableFhirpathValidation: z.boolean(),
     disableProfileValidation: z.boolean(),
@@ -472,7 +476,7 @@ const StateSchema = z.object({
     disableRequiredFieldValidation: z.boolean(),
     enableFhirpathProfileValidation: z.boolean(),
     enabledImplementationGuides: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   version: z.string().optional(),
 }).passthrough();
 
@@ -745,7 +749,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Healthcare Datasets.FhirStores. Registered at `@swamp/gcp/healthcare/datasets-fhirstores`. */
 export const model = {
   type: "@swamp/gcp/healthcare/datasets-fhirstores",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -991,6 +995,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

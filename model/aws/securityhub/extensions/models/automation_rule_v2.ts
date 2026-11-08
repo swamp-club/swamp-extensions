@@ -231,6 +231,93 @@ const AutomationRulesActionV2Schema = z.object({
     ).optional(),
 });
 
+const StringFilterStateSchema = z.object({
+  Value: z.string(),
+  Comparison: z.string(),
+}).partial();
+
+const OcsfStringFilterStateSchema = z.object({
+  FieldName: z.string(),
+  Filter: StringFilterStateSchema,
+}).partial();
+
+const DateRangeStateSchema = z.object({
+  Unit: z.string(),
+  Value: z.number(),
+}).partial();
+
+const DateFilterStateSchema = z.object({
+  DateRange: DateRangeStateSchema,
+  End: z.string(),
+  Start: z.string(),
+}).partial();
+
+const OcsfDateFilterStateSchema = z.object({
+  FieldName: z.string(),
+  Filter: DateFilterStateSchema,
+}).partial();
+
+const BooleanFilterStateSchema = z.object({
+  Value: z.boolean(),
+}).partial();
+
+const OcsfBooleanFilterStateSchema = z.object({
+  FieldName: z.string(),
+  Filter: BooleanFilterStateSchema,
+}).partial();
+
+const NumberFilterStateSchema = z.object({
+  Eq: z.number(),
+  Gte: z.number(),
+  Lte: z.number(),
+}).partial();
+
+const OcsfNumberFilterStateSchema = z.object({
+  FieldName: z.string(),
+  Filter: NumberFilterStateSchema,
+}).partial();
+
+const MapFilterStateSchema = z.object({
+  Comparison: z.string(),
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const OcsfMapFilterStateSchema = z.object({
+  FieldName: z.string(),
+  Filter: MapFilterStateSchema,
+}).partial();
+
+const CompositeFilterStateSchema = z.object({
+  StringFilters: z.array(OcsfStringFilterStateSchema),
+  DateFilters: z.array(OcsfDateFilterStateSchema),
+  BooleanFilters: z.array(OcsfBooleanFilterStateSchema),
+  NumberFilters: z.array(OcsfNumberFilterStateSchema),
+  MapFilters: z.array(OcsfMapFilterStateSchema),
+  Operator: z.string(),
+}).partial();
+
+const OcsfFindingFiltersStateSchema = z.object({
+  CompositeFilters: z.array(CompositeFilterStateSchema),
+  CompositeOperator: z.string(),
+}).partial();
+
+const AutomationRulesFindingFieldsUpdateV2StateSchema = z.object({
+  SeverityId: z.number(),
+  Comment: z.string(),
+  StatusId: z.number(),
+}).partial();
+
+const ExternalIntegrationConfigurationStateSchema = z.object({
+  ConnectorArn: z.string(),
+}).partial();
+
+const AutomationRulesActionV2StateSchema = z.object({
+  Type: z.string(),
+  FindingFieldsUpdate: AutomationRulesFindingFieldsUpdateV2StateSchema,
+  ExternalIntegrationConfiguration: ExternalIntegrationConfigurationStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -280,9 +367,9 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   RuleOrder: z.number().optional(),
   Criteria: z.object({
-    OcsfFindingCriteria: OcsfFindingFiltersSchema,
-  }).optional(),
-  Actions: z.array(AutomationRulesActionV2Schema).optional(),
+    OcsfFindingCriteria: OcsfFindingFiltersStateSchema,
+  }).partial().optional(),
+  Actions: z.array(AutomationRulesActionV2StateSchema).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   RuleArn: z.string(),
   RuleId: z.string().optional(),
@@ -290,7 +377,7 @@ const StateSchema = z.object({
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -344,7 +431,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub AutomationRuleV2. Registered at `@swamp/aws/securityhub/automation-rule-v2`. */
 export const model = {
   type: "@swamp/aws/securityhub/automation-rule-v2",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -408,6 +495,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

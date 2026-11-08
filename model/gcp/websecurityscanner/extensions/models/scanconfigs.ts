@@ -372,17 +372,17 @@ const StateSchema = z.object({
       loginUrl: z.string(),
       password: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     googleAccount: z.object({
       password: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     iapCredential: z.object({
       iapTestServiceAccountInfo: z.object({
         targetAudienceClientId: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   blacklistPatterns: z.array(z.string()).optional(),
   displayName: z.string().optional(),
   exportToSecurityCommandCenter: z.string().optional(),
@@ -395,8 +395,8 @@ const StateSchema = z.object({
       scanConfigError: z.object({
         code: z.string(),
         fieldName: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     executionState: z.string(),
     hasVulnerabilities: z.boolean(),
     name: z.string(),
@@ -405,10 +405,12 @@ const StateSchema = z.object({
     startTime: z.string(),
     urlsCrawledCount: z.string(),
     urlsTestedCount: z.string(),
-    warningTraces: z.array(z.object({
-      code: z.string(),
-    })),
-  }).optional(),
+    warningTraces: z.array(
+      z.object({
+        code: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   managedScan: z.boolean().optional(),
   maxQps: z.number().optional(),
   name: z.string(),
@@ -416,7 +418,7 @@ const StateSchema = z.object({
   schedule: z.object({
     intervalDurationDays: z.number(),
     scheduleTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   startingUrls: z.array(z.string()).optional(),
   staticIpScan: z.boolean().optional(),
   targetPlatforms: z.array(z.string()).optional(),
@@ -673,7 +675,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Web Security Scanner ScanConfigs. Registered at `@swamp/gcp/websecurityscanner/scanconfigs`. */
 export const model = {
   type: "@swamp/gcp/websecurityscanner/scanconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -812,6 +814,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

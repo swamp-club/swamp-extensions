@@ -206,30 +206,34 @@ const StateSchema = z.object({
   autoAcceptInvitations: z.boolean().optional(),
   conferenceProperties: z.object({
     allowedConferenceSolutionTypes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   dataOwner: z.string().optional(),
   description: z.string().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   labelProperties: z.object({
-    eventLabels: z.array(z.object({
-      backgroundColor: z.string(),
-      id: z.string(),
-      name: z.string(),
-    })),
-  }).optional(),
+    eventLabels: z.array(
+      z.object({
+        backgroundColor: z.string(),
+        id: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   location: z.string().optional(),
   summary: z.string().optional(),
   timeZone: z.string().optional(),
   workingHours: z.object({
-    availableTimes: z.array(z.object({
-      dayOfWeek: z.string(),
-      periodEnd: z.number(),
-      periodStart: z.number(),
-    })),
+    availableTimes: z.array(
+      z.object({
+        dayOfWeek: z.string(),
+        periodEnd: z.number(),
+        periodStart: z.number(),
+      }).partial(),
+    ),
     workingHoursEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -332,7 +336,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar Calendars. Registered at `@swamp/gcp/calendar/calendars`. */
 export const model = {
   type: "@swamp/gcp/calendar/calendars",
-  version: "2026.11.04.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -492,6 +496,11 @@ export const model = {
     {
       toVersion: "2026.11.04.1",
       description: "Added: workingHours",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

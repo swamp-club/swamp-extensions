@@ -537,41 +537,49 @@ const StateSchema = z.object({
         bootDisk: z.object({
           sizeGb: z.string(),
           type: z.string(),
-        }),
+        }).partial(),
         count: z.string(),
         enableOsLogin: z.boolean(),
         enablePublicIps: z.boolean(),
-        instances: z.array(z.object({
-          instance: z.unknown(),
-        })),
+        instances: z.array(
+          z.object({
+            instance: z.unknown(),
+          }).partial(),
+        ),
         labels: z.record(z.string(), z.unknown()),
         machineType: z.string(),
         startupScript: z.string(),
-        storageConfigs: z.array(z.object({
-          id: z.unknown(),
-          localMount: z.unknown(),
-        })),
+        storageConfigs: z.array(
+          z.object({
+            id: z.unknown(),
+            localMount: z.unknown(),
+          }).partial(),
+        ),
         zone: z.string(),
-      }),
-      nodeSets: z.array(z.object({
-        computeId: z.string(),
-        computeInstance: z.object({
-          bootDisk: z.unknown(),
-          labels: z.unknown(),
-          startupScript: z.unknown(),
-        }),
-        id: z.string(),
-        maxDynamicNodeCount: z.string(),
-        staticNodeCount: z.string(),
-        storageConfigs: z.array(z.unknown()),
-      })),
-      partitions: z.array(z.object({
-        id: z.string(),
-        nodeSetIds: z.array(z.unknown()),
-      })),
+      }).partial(),
+      nodeSets: z.array(
+        z.object({
+          computeId: z.string(),
+          computeInstance: z.object({
+            bootDisk: z.unknown(),
+            labels: z.unknown(),
+            startupScript: z.unknown(),
+          }).partial(),
+          id: z.string(),
+          maxDynamicNodeCount: z.string(),
+          staticNodeCount: z.string(),
+          storageConfigs: z.array(z.unknown()),
+        }).partial(),
+      ),
+      partitions: z.array(
+        z.object({
+          id: z.string(),
+          nodeSetIds: z.array(z.unknown()),
+        }).partial(),
+      ),
       prologBashScripts: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
   storageResources: z.record(z.string(), z.unknown()).optional(),
   uid: z.string().optional(),
@@ -966,7 +974,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Cluster Director Clusters. Registered at `@swamp/gcp/hypercomputecluster/clusters`. */
 export const model = {
   type: "@swamp/gcp/hypercomputecluster/clusters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1170,6 +1178,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

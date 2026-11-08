@@ -93,6 +93,37 @@ const GlobalAcceleratorForDirectorySchema = z.object({
   ).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const AccessEndpointStateSchema = z.object({
+  AccessEndpointType: z.string(),
+  VpcEndpointId: z.string(),
+}).partial();
+
+const AccessEndpointConfigStateSchema = z.object({
+  AccessEndpoints: z.array(AccessEndpointStateSchema),
+  InternetFallbackProtocols: z.array(z.string()),
+}).partial();
+
+const UserSettingStateSchema = z.object({
+  Action: z.string(),
+  Permission: z.string(),
+  MaximumLength: z.number(),
+}).partial();
+
+const StorageConnectorStateSchema = z.object({
+  ConnectorType: z.string(),
+  Status: z.string(),
+}).partial();
+
+const GlobalAcceleratorForDirectoryStateSchema = z.object({
+  Mode: z.string(),
+  PreferredProtocol: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -317,7 +348,7 @@ const StateSchema = z.object({
   SubnetIds: z.array(z.string()).optional(),
   EnableSelfService: z.boolean().optional(),
   Tenancy: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   WorkspaceDirectoryName: z.string().optional(),
   WorkspaceDirectoryDescription: z.string().optional(),
   UserIdentityType: z.string().optional(),
@@ -325,12 +356,12 @@ const StateSchema = z.object({
   MicrosoftEntraConfig: z.object({
     TenantId: z.string(),
     ApplicationConfigSecretArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   WorkspaceType: z.string().optional(),
   ActiveDirectoryConfig: z.object({
     DomainName: z.string(),
     ServiceAccountSecretArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   State: z.string().optional(),
   Alias: z.string().optional(),
   DirectoryName: z.string().optional(),
@@ -348,7 +379,7 @@ const StateSchema = z.object({
     UserEnabledAsLocalAdministrator: z.boolean(),
     EnableMaintenanceMode: z.boolean(),
     InstanceIamRoleArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   IpGroupIds: z.array(z.string()).optional(),
   WorkspaceAccessProperties: z.object({
     DeviceTypeWindows: z.string(),
@@ -360,38 +391,38 @@ const StateSchema = z.object({
     DeviceTypeZeroClient: z.string(),
     DeviceTypeLinux: z.string(),
     DeviceTypeWorkSpacesThinClient: z.string(),
-    AccessEndpointConfig: AccessEndpointConfigSchema,
-  }).optional(),
+    AccessEndpointConfig: AccessEndpointConfigStateSchema,
+  }).partial().optional(),
   SelfservicePermissions: z.object({
     RestartWorkspace: z.string(),
     IncreaseVolumeSize: z.string(),
     ChangeComputeType: z.string(),
     SwitchRunningMode: z.string(),
     RebuildWorkspace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SamlProperties: z.object({
     Status: z.string(),
     UserAccessUrl: z.string(),
     RelayStateParameterName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CertificateBasedAuthProperties: z.object({
     Status: z.string(),
     CertificateAuthorityArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EndpointEncryptionMode: z.string().optional(),
   IDCConfig: z.object({
     InstanceArn: z.string(),
     ApplicationArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   StreamingProperties: z.object({
     StreamingExperiencePreferredProtocol: z.string(),
-    UserSettings: z.array(UserSettingSchema),
-    StorageConnectors: z.array(StorageConnectorSchema),
-    GlobalAccelerator: GlobalAcceleratorForDirectorySchema,
-  }).optional(),
+    UserSettings: z.array(UserSettingStateSchema),
+    StorageConnectors: z.array(StorageConnectorStateSchema),
+    GlobalAccelerator: GlobalAcceleratorForDirectoryStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -620,7 +651,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WorkSpaces Directory. Registered at `@swamp/aws/workspaces/directory`. */
 export const model = {
   type: "@swamp/aws/workspaces/directory",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -629,6 +660,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

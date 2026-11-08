@@ -382,7 +382,7 @@ const StateSchema = z.object({
     isChatSponsor: z.boolean(),
     isVerified: z.boolean(),
     profileImageUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
@@ -394,7 +394,7 @@ const StateSchema = z.object({
       amountMicros: z.string(),
       currency: z.string(),
       userComment: z.string(),
-    }),
+    }).partial(),
     giftDetails: z.object({
       altText: z.string(),
       comboCount: z.number(),
@@ -404,43 +404,45 @@ const StateSchema = z.object({
       hasVisualEffect: z.boolean(),
       jewelsAmount: z.number(),
       language: z.string(),
-    }),
+    }).partial(),
     giftMembershipReceivedDetails: z.object({
       associatedMembershipGiftingMessageId: z.string(),
       gifterChannelId: z.string(),
       memberLevelName: z.string(),
-    }),
+    }).partial(),
     hasDisplayContent: z.boolean(),
     liveChatId: z.string(),
     memberMilestoneChatDetails: z.object({
       memberLevelName: z.string(),
       memberMonth: z.number(),
       userComment: z.string(),
-    }),
+    }).partial(),
     membershipGiftingDetails: z.object({
       giftMembershipsCount: z.number(),
       giftMembershipsLevelName: z.string(),
-    }),
+    }).partial(),
     messageDeletedDetails: z.object({
       deletedMessageId: z.string(),
-    }),
+    }).partial(),
     messageRetractedDetails: z.object({
       retractedMessageId: z.string(),
-    }),
+    }).partial(),
     newSponsorDetails: z.object({
       isUpgrade: z.boolean(),
       memberLevelName: z.string(),
-    }),
+    }).partial(),
     pollDetails: z.object({
       metadata: z.object({
-        options: z.array(z.object({
-          optionText: z.unknown(),
-          tally: z.unknown(),
-        })),
+        options: z.array(
+          z.object({
+            optionText: z.unknown(),
+            tally: z.unknown(),
+          }).partial(),
+        ),
         questionText: z.string(),
-      }),
+      }).partial(),
       status: z.string(),
-    }),
+    }).partial(),
     publishedAt: z.string(),
     superChatDetails: z.object({
       amountDisplayString: z.string(),
@@ -448,7 +450,7 @@ const StateSchema = z.object({
       currency: z.string(),
       tier: z.number(),
       userComment: z.string(),
-    }),
+    }).partial(),
     superStickerDetails: z.object({
       amountDisplayString: z.string(),
       amountMicros: z.string(),
@@ -457,12 +459,12 @@ const StateSchema = z.object({
         altText: z.string(),
         altTextLanguage: z.string(),
         stickerId: z.string(),
-      }),
+      }).partial(),
       tier: z.number(),
-    }),
+    }).partial(),
     textMessageDetails: z.object({
       messageText: z.string(),
-    }),
+    }).partial(),
     type: z.string(),
     userBannedDetails: z.object({
       banDurationSeconds: z.string(),
@@ -472,9 +474,9 @@ const StateSchema = z.object({
         channelUrl: z.string(),
         displayName: z.string(),
         profileImageUrl: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -749,7 +751,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data LiveChatMessages. Registered at `@swamp/gcp/youtube/livechatmessages`. */
 export const model = {
   type: "@swamp/gcp/youtube/livechatmessages",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -898,6 +900,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

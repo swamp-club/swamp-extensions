@@ -193,6 +193,128 @@ const InstanceLaunchTemplateSchema = z.object({
   Monitoring: z.enum(["BASIC", "DETAILED"]).optional(),
 });
 
+const ManagedScalingStateSchema = z.object({
+  Status: z.string(),
+  MinimumScalingStepSize: z.number(),
+  InstanceWarmupPeriod: z.number(),
+  TargetCapacity: z.number(),
+  MaximumScalingStepSize: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const AutoRepairConfigurationStateSchema = z.object({
+  ActionsStatus: z.string(),
+}).partial();
+
+const ManagedInstancesStorageConfigurationStateSchema = z.object({
+  StorageSizeGiB: z.number(),
+}).partial();
+
+const ManagedInstancesNetworkConfigurationStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+}).partial();
+
+const NetworkInterfaceCountRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const MemoryGiBPerVCpuRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const VCpuCountRangeRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const NetworkBandwidthGbpsRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorCountRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const BaselineEbsBandwidthMbpsRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorTotalMemoryMiBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const MemoryMiBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const TotalLocalStorageGBRequestStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const InstanceRequirementsRequestStateSchema = z.object({
+  LocalStorageTypes: z.array(z.string()),
+  InstanceGenerations: z.array(z.string()),
+  NetworkInterfaceCount: NetworkInterfaceCountRequestStateSchema,
+  MemoryGiBPerVCpu: MemoryGiBPerVCpuRequestStateSchema,
+  AcceleratorTypes: z.array(z.string()),
+  VCpuCount: VCpuCountRangeRequestStateSchema,
+  ExcludedInstanceTypes: z.array(z.string()),
+  AcceleratorManufacturers: z.array(z.string()),
+  AllowedInstanceTypes: z.array(z.string()),
+  LocalStorage: z.string(),
+  CpuManufacturers: z.array(z.string()),
+  NetworkBandwidthGbps: NetworkBandwidthGbpsRequestStateSchema,
+  AcceleratorCount: AcceleratorCountRequestStateSchema,
+  BareMetal: z.string(),
+  RequireHibernateSupport: z.boolean(),
+  MaxSpotPriceAsPercentageOfOptimalOnDemandPrice: z.number(),
+  SpotMaxPricePercentageOverLowestPrice: z.number(),
+  BaselineEbsBandwidthMbps: BaselineEbsBandwidthMbpsRequestStateSchema,
+  OnDemandMaxPricePercentageOverLowestPrice: z.number(),
+  AcceleratorNames: z.array(z.string()),
+  AcceleratorTotalMemoryMiB: AcceleratorTotalMemoryMiBRequestStateSchema,
+  BurstablePerformance: z.string(),
+  MemoryMiB: MemoryMiBRequestStateSchema,
+  TotalLocalStorageGB: TotalLocalStorageGBRequestStateSchema,
+}).partial();
+
+const CapacityReservationRequestStateSchema = z.object({
+  ReservationGroupArn: z.string(),
+  ReservationPreference: z.string(),
+}).partial();
+
+const ManagedInstancesLocalStorageConfigurationStateSchema = z.object({
+  UseLocalStorage: z.boolean(),
+}).partial();
+
+const InstanceLaunchTemplateStateSchema = z.object({
+  Ec2InstanceProfileArn: z.string(),
+  CapacityOptionType: z.string(),
+  FipsEnabled: z.boolean(),
+  InstanceMetadataTagsPropagation: z.boolean(),
+  NitroEnclavesEnabled: z.boolean(),
+  StorageConfiguration: ManagedInstancesStorageConfigurationStateSchema,
+  NetworkConfiguration: ManagedInstancesNetworkConfigurationStateSchema,
+  InstanceRequirements: InstanceRequirementsRequestStateSchema,
+  CapacityReservations: CapacityReservationRequestStateSchema,
+  LocalStorageConfiguration:
+    ManagedInstancesLocalStorageConfigurationStateSchema,
+  Monitoring: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -234,26 +356,26 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   AutoScalingGroupProvider: z.object({
-    ManagedScaling: ManagedScalingSchema,
+    ManagedScaling: ManagedScalingStateSchema,
     AutoScalingGroupArn: z.string(),
     ManagedTerminationProtection: z.string(),
     ManagedDraining: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ClusterName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Name: z.string(),
   ManagedInstancesProvider: z.object({
     InfrastructureRoleArn: z.string(),
-    AutoRepairConfiguration: AutoRepairConfigurationSchema,
+    AutoRepairConfiguration: AutoRepairConfigurationStateSchema,
     PropagateTags: z.string(),
     InfrastructureOptimization: z.object({
       ScaleInAfter: z.number(),
-    }),
-    InstanceLaunchTemplate: InstanceLaunchTemplateSchema,
-  }).optional(),
+    }).partial(),
+    InstanceLaunchTemplate: InstanceLaunchTemplateStateSchema,
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -305,7 +427,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS CapacityProvider. Registered at `@swamp/aws/ecs/capacity-provider`. */
 export const model = {
   type: "@swamp/aws/ecs/capacity-provider",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -389,6 +511,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -99,6 +99,29 @@ const ManifestConfigSourceS3Schema = z.object({
     ).optional(),
 });
 
+const FilterRuleStateSchema = z.object({
+  FilterType: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TaskReportConfigDestinationS3StateSchema = z.object({
+  Subdirectory: z.string(),
+  BucketAccessRoleArn: z.string(),
+  S3BucketArn: z.string(),
+}).partial();
+
+const ManifestConfigSourceS3StateSchema = z.object({
+  ManifestObjectPath: z.string(),
+  BucketAccessRoleArn: z.string(),
+  S3BucketArn: z.string(),
+  ManifestObjectVersionId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -287,9 +310,9 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Excludes: z.array(FilterRuleSchema).optional(),
-  Includes: z.array(FilterRuleSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Excludes: z.array(FilterRuleStateSchema).optional(),
+  Includes: z.array(FilterRuleStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   CloudWatchLogGroupArn: z.string().optional(),
   DestinationLocationArn: z.string().optional(),
   Name: z.string().optional(),
@@ -310,40 +333,40 @@ const StateSchema = z.object({
     VerifyMode: z.string(),
     ObjectTags: z.string(),
     ObjectMetadata: z.string(),
-  }).optional(),
+  }).partial().optional(),
   TaskReportConfig: z.object({
     Destination: z.object({
-      S3: TaskReportConfigDestinationS3Schema,
-    }),
+      S3: TaskReportConfigDestinationS3StateSchema,
+    }).partial(),
     OutputType: z.string(),
     ReportLevel: z.string(),
     ObjectVersionIds: z.string(),
     Overrides: z.object({
       Transferred: z.object({
         ReportLevel: z.string(),
-      }),
+      }).partial(),
       Verified: z.object({
         ReportLevel: z.string(),
-      }),
+      }).partial(),
       Deleted: z.object({
         ReportLevel: z.string(),
-      }),
+      }).partial(),
       Skipped: z.object({
         ReportLevel: z.string(),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   ManifestConfig: z.object({
     Action: z.string(),
     Format: z.string(),
     Source: z.object({
-      S3: ManifestConfigSourceS3Schema,
-    }),
-  }).optional(),
+      S3: ManifestConfigSourceS3StateSchema,
+    }).partial(),
+  }).partial().optional(),
   Schedule: z.object({
     ScheduleExpression: z.string(),
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SourceLocationArn: z.string().optional(),
   TaskArn: z.string(),
   TaskMode: z.string().optional(),
@@ -352,7 +375,7 @@ const StateSchema = z.object({
   DestinationNetworkInterfaceArns: z.array(z.string()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -551,7 +574,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync Task. Registered at `@swamp/aws/datasync/task`. */
 export const model = {
   type: "@swamp/aws/datasync/task",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.09.17.1",
@@ -580,6 +603,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

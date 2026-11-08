@@ -116,149 +116,171 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   id: z.string().optional(),
-  labelsAdded: z.array(z.object({
-    labelIds: z.array(z.string()),
-    message: z.object({
-      classificationLabelValues: z.array(z.object({
-        fields: z.unknown(),
-        labelId: z.unknown(),
-      })),
+  labelsAdded: z.array(
+    z.object({
+      labelIds: z.array(z.string()),
+      message: z.object({
+        classificationLabelValues: z.array(
+          z.object({
+            fields: z.unknown(),
+            labelId: z.unknown(),
+          }).partial(),
+        ),
+        historyId: z.string(),
+        id: z.string(),
+        internalDate: z.string(),
+        labelIds: z.array(z.string()),
+        payload: z.object({
+          body: z.object({
+            attachmentId: z.unknown(),
+            data: z.unknown(),
+            size: z.unknown(),
+          }).partial(),
+          filename: z.string(),
+          headers: z.array(z.unknown()),
+          mimeType: z.string(),
+          partId: z.string(),
+          parts: z.array(z.unknown()),
+        }).partial(),
+        raw: z.string(),
+        sizeEstimate: z.number(),
+        snippet: z.string(),
+        threadId: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  labelsRemoved: z.array(
+    z.object({
+      labelIds: z.array(z.string()),
+      message: z.object({
+        classificationLabelValues: z.array(
+          z.object({
+            fields: z.unknown(),
+            labelId: z.unknown(),
+          }).partial(),
+        ),
+        historyId: z.string(),
+        id: z.string(),
+        internalDate: z.string(),
+        labelIds: z.array(z.string()),
+        payload: z.object({
+          body: z.object({
+            attachmentId: z.unknown(),
+            data: z.unknown(),
+            size: z.unknown(),
+          }).partial(),
+          filename: z.string(),
+          headers: z.array(z.unknown()),
+          mimeType: z.string(),
+          partId: z.string(),
+          parts: z.array(z.unknown()),
+        }).partial(),
+        raw: z.string(),
+        sizeEstimate: z.number(),
+        snippet: z.string(),
+        threadId: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  messages: z.array(
+    z.object({
+      classificationLabelValues: z.array(
+        z.object({
+          fields: z.array(z.unknown()),
+          labelId: z.string(),
+        }).partial(),
+      ),
       historyId: z.string(),
       id: z.string(),
       internalDate: z.string(),
       labelIds: z.array(z.string()),
       payload: z.object({
         body: z.object({
-          attachmentId: z.unknown(),
-          data: z.unknown(),
-          size: z.unknown(),
-        }),
+          attachmentId: z.string(),
+          data: z.string(),
+          size: z.number(),
+        }).partial(),
         filename: z.string(),
-        headers: z.array(z.unknown()),
+        headers: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
         mimeType: z.string(),
         partId: z.string(),
-        parts: z.array(z.unknown()),
-      }),
+        parts: z.array(z.record(z.string(), z.unknown())),
+      }).partial(),
       raw: z.string(),
       sizeEstimate: z.number(),
       snippet: z.string(),
       threadId: z.string(),
-    }),
-  })).optional(),
-  labelsRemoved: z.array(z.object({
-    labelIds: z.array(z.string()),
-    message: z.object({
-      classificationLabelValues: z.array(z.object({
-        fields: z.unknown(),
-        labelId: z.unknown(),
-      })),
-      historyId: z.string(),
-      id: z.string(),
-      internalDate: z.string(),
-      labelIds: z.array(z.string()),
-      payload: z.object({
-        body: z.object({
-          attachmentId: z.unknown(),
-          data: z.unknown(),
-          size: z.unknown(),
-        }),
-        filename: z.string(),
-        headers: z.array(z.unknown()),
-        mimeType: z.string(),
-        partId: z.string(),
-        parts: z.array(z.unknown()),
-      }),
-      raw: z.string(),
-      sizeEstimate: z.number(),
-      snippet: z.string(),
-      threadId: z.string(),
-    }),
-  })).optional(),
-  messages: z.array(z.object({
-    classificationLabelValues: z.array(z.object({
-      fields: z.array(z.unknown()),
-      labelId: z.string(),
-    })),
-    historyId: z.string(),
-    id: z.string(),
-    internalDate: z.string(),
-    labelIds: z.array(z.string()),
-    payload: z.object({
-      body: z.object({
-        attachmentId: z.string(),
-        data: z.string(),
-        size: z.number(),
-      }),
-      filename: z.string(),
-      headers: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-      })),
-      mimeType: z.string(),
-      partId: z.string(),
-      parts: z.array(z.record(z.string(), z.unknown())),
-    }),
-    raw: z.string(),
-    sizeEstimate: z.number(),
-    snippet: z.string(),
-    threadId: z.string(),
-  })).optional(),
-  messagesAdded: z.array(z.object({
-    message: z.object({
-      classificationLabelValues: z.array(z.object({
-        fields: z.unknown(),
-        labelId: z.unknown(),
-      })),
-      historyId: z.string(),
-      id: z.string(),
-      internalDate: z.string(),
-      labelIds: z.array(z.string()),
-      payload: z.object({
-        body: z.object({
-          attachmentId: z.unknown(),
-          data: z.unknown(),
-          size: z.unknown(),
-        }),
-        filename: z.string(),
-        headers: z.array(z.unknown()),
-        mimeType: z.string(),
-        partId: z.string(),
-        parts: z.array(z.unknown()),
-      }),
-      raw: z.string(),
-      sizeEstimate: z.number(),
-      snippet: z.string(),
-      threadId: z.string(),
-    }),
-  })).optional(),
-  messagesDeleted: z.array(z.object({
-    message: z.object({
-      classificationLabelValues: z.array(z.object({
-        fields: z.unknown(),
-        labelId: z.unknown(),
-      })),
-      historyId: z.string(),
-      id: z.string(),
-      internalDate: z.string(),
-      labelIds: z.array(z.string()),
-      payload: z.object({
-        body: z.object({
-          attachmentId: z.unknown(),
-          data: z.unknown(),
-          size: z.unknown(),
-        }),
-        filename: z.string(),
-        headers: z.array(z.unknown()),
-        mimeType: z.string(),
-        partId: z.string(),
-        parts: z.array(z.unknown()),
-      }),
-      raw: z.string(),
-      sizeEstimate: z.number(),
-      snippet: z.string(),
-      threadId: z.string(),
-    }),
-  })).optional(),
+    }).partial(),
+  ).optional(),
+  messagesAdded: z.array(
+    z.object({
+      message: z.object({
+        classificationLabelValues: z.array(
+          z.object({
+            fields: z.unknown(),
+            labelId: z.unknown(),
+          }).partial(),
+        ),
+        historyId: z.string(),
+        id: z.string(),
+        internalDate: z.string(),
+        labelIds: z.array(z.string()),
+        payload: z.object({
+          body: z.object({
+            attachmentId: z.unknown(),
+            data: z.unknown(),
+            size: z.unknown(),
+          }).partial(),
+          filename: z.string(),
+          headers: z.array(z.unknown()),
+          mimeType: z.string(),
+          partId: z.string(),
+          parts: z.array(z.unknown()),
+        }).partial(),
+        raw: z.string(),
+        sizeEstimate: z.number(),
+        snippet: z.string(),
+        threadId: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  messagesDeleted: z.array(
+    z.object({
+      message: z.object({
+        classificationLabelValues: z.array(
+          z.object({
+            fields: z.unknown(),
+            labelId: z.unknown(),
+          }).partial(),
+        ),
+        historyId: z.string(),
+        id: z.string(),
+        internalDate: z.string(),
+        labelIds: z.array(z.string()),
+        payload: z.object({
+          body: z.object({
+            attachmentId: z.unknown(),
+            data: z.unknown(),
+            size: z.unknown(),
+          }).partial(),
+          filename: z.string(),
+          headers: z.array(z.unknown()),
+          mimeType: z.string(),
+          partId: z.string(),
+          parts: z.array(z.unknown()),
+        }).partial(),
+        raw: z.string(),
+        sizeEstimate: z.number(),
+        snippet: z.string(),
+        threadId: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -302,7 +324,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.History. Registered at `@swamp/gcp/gmail/users-history`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-history",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -431,6 +453,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

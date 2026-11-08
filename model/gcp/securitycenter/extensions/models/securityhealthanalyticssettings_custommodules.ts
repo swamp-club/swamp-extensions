@@ -214,29 +214,31 @@ const StateSchema = z.object({
   cloudProvider: z.string().optional(),
   customConfig: z.object({
     customOutput: z.object({
-      properties: z.array(z.object({
-        name: z.string(),
-        valueExpression: z.object({
-          description: z.unknown(),
-          expression: z.unknown(),
-          location: z.unknown(),
-          title: z.unknown(),
-        }),
-      })),
-    }),
+      properties: z.array(
+        z.object({
+          name: z.string(),
+          valueExpression: z.object({
+            description: z.unknown(),
+            expression: z.unknown(),
+            location: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     description: z.string(),
     predicate: z.object({
       description: z.string(),
       expression: z.string(),
       location: z.string(),
       title: z.string(),
-    }),
+    }).partial(),
     recommendation: z.string(),
     resourceSelector: z.object({
       resourceTypes: z.array(z.string()),
-    }),
+    }).partial(),
     severity: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   enablementState: z.string().optional(),
   lastEditor: z.string().optional(),
@@ -333,7 +335,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/securitycenter/securityhealthanalyticssettings-custommodules",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -477,6 +479,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

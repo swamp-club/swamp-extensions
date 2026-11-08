@@ -118,11 +118,13 @@ const StateSchema = z.object({
     adult: z.boolean(),
     ageGroup: z.string(),
     brand: z.string(),
-    certifications: z.array(z.object({
-      authority: z.string(),
-      code: z.string(),
-      name: z.string(),
-    })),
+    certifications: z.array(
+      z.object({
+        authority: z.string(),
+        code: z.string(),
+        name: z.string(),
+      }).partial(),
+    ),
     color: z.string(),
     cppAdsRedirect: z.string(),
     cppLink: z.string(),
@@ -143,35 +145,35 @@ const StateSchema = z.object({
       amount: z.object({
         amountMicros: z.string(),
         currencyCode: z.string(),
-      }),
+      }).partial(),
       downpayment: z.object({
         amountMicros: z.string(),
         currencyCode: z.string(),
-      }),
+      }).partial(),
       months: z.string(),
-    }),
+    }).partial(),
     headlineOfferLink: z.string(),
     headlineOfferMobileLink: z.string(),
     headlineOfferPrice: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     headlineOfferShippingPrice: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     headlineOfferSubscriptionCost: z.object({
       amount: z.object({
         amountMicros: z.string(),
         currencyCode: z.string(),
-      }),
+      }).partial(),
       period: z.string(),
       periodLength: z.string(),
-    }),
+    }).partial(),
     highPrice: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     imageLink: z.string(),
     includedDestinations: z.array(z.string()),
     isBundle: z.boolean(),
@@ -179,7 +181,7 @@ const StateSchema = z.object({
     lowPrice: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
-    }),
+    }).partial(),
     material: z.string(),
     maxRating: z.string(),
     minRating: z.string(),
@@ -188,64 +190,72 @@ const StateSchema = z.object({
     numberOfOffers: z.string(),
     pattern: z.string(),
     pause: z.string(),
-    productDetails: z.array(z.object({
-      attributeName: z.string(),
-      attributeValue: z.string(),
-      sectionName: z.string(),
-    })),
+    productDetails: z.array(
+      z.object({
+        attributeName: z.string(),
+        attributeValue: z.string(),
+        sectionName: z.string(),
+      }).partial(),
+    ),
     productHeight: z.object({
       unit: z.string(),
       value: z.number(),
-    }),
+    }).partial(),
     productHighlights: z.array(z.string()),
     productLength: z.object({
       unit: z.string(),
       value: z.number(),
-    }),
+    }).partial(),
     productTypes: z.array(z.string()),
     productWeight: z.object({
       unit: z.string(),
       value: z.number(),
-    }),
+    }).partial(),
     productWidth: z.object({
       unit: z.string(),
       value: z.number(),
-    }),
+    }).partial(),
     rating: z.number(),
     reviewCount: z.string(),
     size: z.string(),
     sizeSystem: z.string(),
     sizeTypes: z.array(z.string()),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentLanguage: z.string().optional(),
   cssProductStatus: z.object({
     creationDate: z.string(),
-    destinationStatuses: z.array(z.object({
-      approvedCountries: z.array(z.string()),
-      destination: z.string(),
-      disapprovedCountries: z.array(z.string()),
-      pendingCountries: z.array(z.string()),
-    })),
+    destinationStatuses: z.array(
+      z.object({
+        approvedCountries: z.array(z.string()),
+        destination: z.string(),
+        disapprovedCountries: z.array(z.string()),
+        pendingCountries: z.array(z.string()),
+      }).partial(),
+    ),
     googleExpirationDate: z.string(),
-    itemLevelIssues: z.array(z.object({
-      applicableCountries: z.array(z.string()),
-      attribute: z.string(),
-      code: z.string(),
-      description: z.string(),
-      destination: z.string(),
-      detail: z.string(),
-      documentation: z.string(),
-      resolution: z.string(),
-      servability: z.string(),
-    })),
+    itemLevelIssues: z.array(
+      z.object({
+        applicableCountries: z.array(z.string()),
+        attribute: z.string(),
+        code: z.string(),
+        description: z.string(),
+        destination: z.string(),
+        detail: z.string(),
+        documentation: z.string(),
+        resolution: z.string(),
+        servability: z.string(),
+      }).partial(),
+    ),
     lastUpdateDate: z.string(),
-  }).optional(),
-  customAttributes: z.array(z.object({
-    groupValues: z.array(z.record(z.string(), z.unknown())),
-    name: z.string(),
-    value: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  customAttributes: z.array(
+    z.object({
+      groupValues: z.array(z.record(z.string(), z.unknown())),
+      name: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   feedLabel: z.string().optional(),
   name: z.string(),
   rawProvidedId: z.string().optional(),
@@ -292,7 +302,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud CSS Accounts.CssProducts. Registered at `@swamp/gcp/css/accounts-cssproducts`. */
 export const model = {
   type: "@swamp/gcp/css/accounts-cssproducts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -416,6 +426,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

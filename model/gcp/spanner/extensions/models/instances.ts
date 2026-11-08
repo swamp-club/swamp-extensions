@@ -322,35 +322,37 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   autoscalingConfig: z.object({
-    asymmetricAutoscalingOptions: z.array(z.object({
-      overrides: z.object({
-        autoscalingLimits: z.object({
-          maxNodes: z.unknown(),
-          maxProcessingUnits: z.unknown(),
-          minNodes: z.unknown(),
-          minProcessingUnits: z.unknown(),
-        }),
-        autoscalingTargetHighPriorityCpuUtilizationPercent: z.number(),
-        autoscalingTargetTotalCpuUtilizationPercent: z.number(),
-        disableHighPriorityCpuAutoscaling: z.boolean(),
-        disableTotalCpuAutoscaling: z.boolean(),
-      }),
-      replicaSelection: z.object({
-        location: z.string(),
-      }),
-    })),
+    asymmetricAutoscalingOptions: z.array(
+      z.object({
+        overrides: z.object({
+          autoscalingLimits: z.object({
+            maxNodes: z.unknown(),
+            maxProcessingUnits: z.unknown(),
+            minNodes: z.unknown(),
+            minProcessingUnits: z.unknown(),
+          }).partial(),
+          autoscalingTargetHighPriorityCpuUtilizationPercent: z.number(),
+          autoscalingTargetTotalCpuUtilizationPercent: z.number(),
+          disableHighPriorityCpuAutoscaling: z.boolean(),
+          disableTotalCpuAutoscaling: z.boolean(),
+        }).partial(),
+        replicaSelection: z.object({
+          location: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     autoscalingLimits: z.object({
       maxNodes: z.number(),
       maxProcessingUnits: z.number(),
       minNodes: z.number(),
       minProcessingUnits: z.number(),
-    }),
+    }).partial(),
     autoscalingTargets: z.object({
       highPriorityCpuUtilizationPercent: z.number(),
       storageUtilizationPercent: z.number(),
       totalCpuUtilizationPercent: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   config: z.string().optional(),
   createTime: z.string().optional(),
   defaultBackupScheduleType: z.string().optional(),
@@ -361,19 +363,21 @@ const StateSchema = z.object({
     expireBehavior: z.string(),
     expireTime: z.string(),
     upgradeTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   instanceType: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   nodeCount: z.number().optional(),
   processingUnits: z.number().optional(),
-  replicaComputeCapacity: z.array(z.object({
-    nodeCount: z.number(),
-    processingUnits: z.number(),
-    replicaSelection: z.object({
-      location: z.string(),
-    }),
-  })).optional(),
+  replicaComputeCapacity: z.array(
+    z.object({
+      nodeCount: z.number(),
+      processingUnits: z.number(),
+      replicaSelection: z.object({
+        location: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   tags: z.record(z.string(), z.unknown()).optional(),
   updateTime: z.string().optional(),
@@ -575,7 +579,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Spanner Instances. Registered at `@swamp/gcp/spanner/instances`. */
 export const model = {
   type: "@swamp/gcp/spanner/instances",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -724,6 +728,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

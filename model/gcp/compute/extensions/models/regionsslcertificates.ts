@@ -248,7 +248,7 @@ const StateSchema = z.object({
     domainStatus: z.record(z.string(), z.unknown()),
     domains: z.array(z.string()),
     status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   privateKey: z.string().optional(),
   region: z.string().optional(),
@@ -256,7 +256,7 @@ const StateSchema = z.object({
   selfManaged: z.object({
     certificate: z.string(),
     privateKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   subjectAlternativeNames: z.array(z.string()).optional(),
   type: z.string().optional(),
 }).passthrough();
@@ -359,7 +359,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionSslCertificates. Registered at `@swamp/gcp/compute/regionsslcertificates`. */
 export const model = {
   type: "@swamp/gcp/compute/regionsslcertificates",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -498,6 +498,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

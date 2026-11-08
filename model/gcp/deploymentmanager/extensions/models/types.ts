@@ -102,24 +102,26 @@ const StateSchema = z.object({
     details: z.object({
       data: z.record(z.string(), z.unknown()),
       message: z.string(),
-    }),
+    }).partial(),
     endTime: z.string(),
     error: z.object({
-      errors: z.array(z.object({
-        arguments: z.array(z.unknown()),
-        code: z.string(),
-        debugInfo: z.object({
-          detail: z.unknown(),
-          stackEntries: z.unknown(),
-        }),
-        errorDetails: z.array(z.unknown()),
-        location: z.string(),
-        message: z.string(),
-      })),
-    }),
+      errors: z.array(
+        z.object({
+          arguments: z.array(z.unknown()),
+          code: z.string(),
+          debugInfo: z.object({
+            detail: z.unknown(),
+            stackEntries: z.unknown(),
+          }).partial(),
+          errorDetails: z.array(z.unknown()),
+          location: z.string(),
+          message: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     firewallPolicyRuleOperationMetadata: z.object({
       allocatedPriority: z.number(),
-    }),
+    }).partial(),
     getHealthOperationMetadata: z.object({
       healthInfo: z.object({
         availabilitySloStatus: z.string(),
@@ -127,14 +129,14 @@ const StateSchema = z.object({
         repairCategory: z.string(),
         unhealthyReason: z.string(),
         updateTime: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     getVersionOperationMetadata: z.object({
       inlineSbomInfo: z.object({
         currentComponentVersions: z.record(z.string(), z.unknown()),
         targetComponentVersions: z.record(z.string(), z.unknown()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     httpErrorMessage: z.string(),
     httpErrorStatusCode: z.number(),
     id: z.string(),
@@ -142,10 +144,10 @@ const StateSchema = z.object({
     instancesBulkInsertOperationMetadata: z.object({
       machineType: z.string(),
       perLocationStatus: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     instancesTroubleshootOperationMetadata: z.object({
       troubleshootOutput: z.string(),
-    }),
+    }).partial(),
     kind: z.string(),
     name: z.string(),
     operationGroupId: z.string(),
@@ -157,27 +159,31 @@ const StateSchema = z.object({
     setAutoscalerLinkOperationMetadata: z.object({
       zonalIgmIds: z.array(z.string()),
       zoneToIgmIds: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     setCommonInstanceMetadataOperationMetadata: z.object({
       clientOperationId: z.string(),
       perLocationOperations: z.record(z.string(), z.unknown()),
-    }),
+    }).partial(),
     startTime: z.string(),
     status: z.string(),
     statusMessage: z.string(),
     targetId: z.string(),
     targetLink: z.string(),
     user: z.string(),
-    warnings: z.array(z.object({
-      code: z.string(),
-      data: z.array(z.object({
-        key: z.unknown(),
-        value: z.unknown(),
-      })),
-      message: z.string(),
-    })),
+    warnings: z.array(
+      z.object({
+        code: z.string(),
+        data: z.array(
+          z.object({
+            key: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        message: z.string(),
+      }).partial(),
+    ),
     zone: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selfLink: z.string().optional(),
 }).passthrough();
 
@@ -219,7 +225,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deployment Manager Types. Registered at `@swamp/gcp/deploymentmanager/types`. */
 export const model = {
   type: "@swamp/gcp/deploymentmanager/types",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -353,6 +359,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -354,11 +354,13 @@ const StateSchema = z.object({
   cloudRouterIpv6InterfaceId: z.string().optional(),
   configurationConstraints: z.object({
     bgpMd5: z.string(),
-    bgpPeerAsnRanges: z.array(z.object({
-      max: z.number(),
-      min: z.number(),
-    })),
-  }).optional(),
+    bgpPeerAsnRanges: z.array(
+      z.object({
+        max: z.number(),
+        min: z.number(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   creationTimestamp: z.string().optional(),
   customerRouterIpAddress: z.string().optional(),
   customerRouterIpv6Address: z.string().optional(),
@@ -377,10 +379,10 @@ const StateSchema = z.object({
     defaultApplianceIpAddress: z.string(),
     geneveHeader: z.object({
       vni: z.number(),
-    }),
+    }).partial(),
     network: z.string(),
     tunnelEndpointIpAddress: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labelFingerprint: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   mtu: z.number().optional(),
@@ -389,16 +391,16 @@ const StateSchema = z.object({
   pairingKey: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   partnerAsn: z.string().optional(),
   partnerMetadata: z.object({
     interconnectName: z.string(),
     partnerName: z.string(),
     portalUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   privateInterconnectInfo: z.object({
     tag8021q: z.number(),
-  }).optional(),
+  }).partial().optional(),
   region: z.string().optional(),
   remoteService: z.string().optional(),
   router: z.string().optional(),
@@ -578,7 +580,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InterconnectAttachments. Registered at `@swamp/gcp/compute/interconnectattachments`. */
 export const model = {
   type: "@swamp/gcp/compute/interconnectattachments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -746,6 +748,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

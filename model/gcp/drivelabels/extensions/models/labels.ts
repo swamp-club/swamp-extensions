@@ -435,131 +435,137 @@ const StateSchema = z.object({
     canApply: z.boolean(),
     canRead: z.boolean(),
     canRemove: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   appliedLabelPolicy: z.object({
     copyMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   creator: z.object({
     person: z.string(),
-  }).optional(),
+  }).partial().optional(),
   customer: z.string().optional(),
   disableTime: z.string().optional(),
   disabler: z.object({
     person: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayHints: z.object({
     disabled: z.boolean(),
     hiddenInSearch: z.boolean(),
     priority: z.string(),
     shownInApply: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   enabledAppSettings: z.object({
-    enabledApps: z.array(z.object({
-      app: z.string(),
-    })),
-  }).optional(),
-  fields: z.array(z.object({
-    appliedCapabilities: z.object({
-      canRead: z.boolean(),
-      canSearch: z.boolean(),
-      canWrite: z.boolean(),
-    }),
-    createTime: z.string(),
-    creator: z.object({
-      person: z.string(),
-    }),
-    dateOptions: z.object({
-      dateFormat: z.string(),
-      dateFormatType: z.string(),
-      maxValue: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-      minValue: z.object({
-        day: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }),
-    }),
-    disableTime: z.string(),
-    disabler: z.object({
-      person: z.string(),
-    }),
-    displayHints: z.object({
-      disabled: z.boolean(),
-      hiddenInSearch: z.boolean(),
-      required: z.boolean(),
-      shownInApply: z.boolean(),
-    }),
-    id: z.string(),
-    integerOptions: z.object({
-      maxValue: z.string(),
-      minValue: z.string(),
-    }),
-    lifecycle: z.object({
-      disabledPolicy: z.object({
-        hideInSearch: z.boolean(),
-        showInApply: z.boolean(),
-      }),
-      hasUnpublishedChanges: z.boolean(),
-      state: z.string(),
-    }),
-    lockStatus: z.object({
-      locked: z.boolean(),
-    }),
-    properties: z.object({
-      displayName: z.string(),
-      insertBeforeField: z.string(),
-      required: z.boolean(),
-    }),
-    publisher: z.object({
-      person: z.string(),
-    }),
-    queryKey: z.string(),
-    schemaCapabilities: z.object({
-      canDelete: z.boolean(),
-      canDisable: z.boolean(),
-      canEnable: z.boolean(),
-      canUpdate: z.boolean(),
-    }),
-    selectionOptions: z.object({
-      choices: z.array(z.object({
-        appliedCapabilities: z.unknown(),
-        createTime: z.unknown(),
-        creator: z.unknown(),
-        disableTime: z.unknown(),
-        disabler: z.unknown(),
-        displayHints: z.unknown(),
-        id: z.unknown(),
-        lifecycle: z.unknown(),
-        lockStatus: z.unknown(),
-        properties: z.unknown(),
-        publishTime: z.unknown(),
-        publisher: z.unknown(),
-        schemaCapabilities: z.unknown(),
-        updateTime: z.unknown(),
-        updater: z.unknown(),
-      })),
-      listOptions: z.object({
-        maxEntries: z.number(),
-      }),
-    }),
-    textOptions: z.object({
-      maxLength: z.number(),
-      minLength: z.number(),
-    }),
-    updateTime: z.string(),
-    updater: z.object({
-      person: z.string(),
-    }),
-    userOptions: z.object({
-      listOptions: z.object({
-        maxEntries: z.number(),
-      }),
-    }),
-  })).optional(),
+    enabledApps: z.array(
+      z.object({
+        app: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  fields: z.array(
+    z.object({
+      appliedCapabilities: z.object({
+        canRead: z.boolean(),
+        canSearch: z.boolean(),
+        canWrite: z.boolean(),
+      }).partial(),
+      createTime: z.string(),
+      creator: z.object({
+        person: z.string(),
+      }).partial(),
+      dateOptions: z.object({
+        dateFormat: z.string(),
+        dateFormatType: z.string(),
+        maxValue: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+        minValue: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }).partial(),
+      }).partial(),
+      disableTime: z.string(),
+      disabler: z.object({
+        person: z.string(),
+      }).partial(),
+      displayHints: z.object({
+        disabled: z.boolean(),
+        hiddenInSearch: z.boolean(),
+        required: z.boolean(),
+        shownInApply: z.boolean(),
+      }).partial(),
+      id: z.string(),
+      integerOptions: z.object({
+        maxValue: z.string(),
+        minValue: z.string(),
+      }).partial(),
+      lifecycle: z.object({
+        disabledPolicy: z.object({
+          hideInSearch: z.boolean(),
+          showInApply: z.boolean(),
+        }).partial(),
+        hasUnpublishedChanges: z.boolean(),
+        state: z.string(),
+      }).partial(),
+      lockStatus: z.object({
+        locked: z.boolean(),
+      }).partial(),
+      properties: z.object({
+        displayName: z.string(),
+        insertBeforeField: z.string(),
+        required: z.boolean(),
+      }).partial(),
+      publisher: z.object({
+        person: z.string(),
+      }).partial(),
+      queryKey: z.string(),
+      schemaCapabilities: z.object({
+        canDelete: z.boolean(),
+        canDisable: z.boolean(),
+        canEnable: z.boolean(),
+        canUpdate: z.boolean(),
+      }).partial(),
+      selectionOptions: z.object({
+        choices: z.array(
+          z.object({
+            appliedCapabilities: z.unknown(),
+            createTime: z.unknown(),
+            creator: z.unknown(),
+            disableTime: z.unknown(),
+            disabler: z.unknown(),
+            displayHints: z.unknown(),
+            id: z.unknown(),
+            lifecycle: z.unknown(),
+            lockStatus: z.unknown(),
+            properties: z.unknown(),
+            publishTime: z.unknown(),
+            publisher: z.unknown(),
+            schemaCapabilities: z.unknown(),
+            updateTime: z.unknown(),
+            updater: z.unknown(),
+          }).partial(),
+        ),
+        listOptions: z.object({
+          maxEntries: z.number(),
+        }).partial(),
+      }).partial(),
+      textOptions: z.object({
+        maxLength: z.number(),
+        minLength: z.number(),
+      }).partial(),
+      updateTime: z.string(),
+      updater: z.object({
+        person: z.string(),
+      }).partial(),
+      userOptions: z.object({
+        listOptions: z.object({
+          maxEntries: z.number(),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   labelType: z.string().optional(),
   learnMoreUri: z.string().optional(),
@@ -567,33 +573,33 @@ const StateSchema = z.object({
     disabledPolicy: z.object({
       hideInSearch: z.boolean(),
       showInApply: z.boolean(),
-    }),
+    }).partial(),
     hasUnpublishedChanges: z.boolean(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   lockStatus: z.object({
     locked: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   properties: z.object({
     description: z.string(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   publishTime: z.string().optional(),
   publisher: z.object({
     person: z.string(),
-  }).optional(),
+  }).partial().optional(),
   revisionCreateTime: z.string().optional(),
   revisionCreator: z.object({
     person: z.string(),
-  }).optional(),
+  }).partial().optional(),
   revisionId: z.string().optional(),
   schemaCapabilities: z.object({
     canDelete: z.boolean(),
     canDisable: z.boolean(),
     canEnable: z.boolean(),
     canUpdate: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -898,7 +904,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Drive Labels Labels. Registered at `@swamp/gcp/drivelabels/labels`. */
 export const model = {
   type: "@swamp/gcp/drivelabels/labels",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1053,6 +1059,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

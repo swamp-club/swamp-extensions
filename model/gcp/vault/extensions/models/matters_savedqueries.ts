@@ -338,62 +338,62 @@ const StateSchema = z.object({
   query: z.object({
     accountInfo: z.object({
       emails: z.array(z.string()),
-    }),
+    }).partial(),
     calendarOptions: z.object({
       locationQuery: z.array(z.string()),
       minusWords: z.array(z.string()),
       peopleQuery: z.array(z.string()),
       responseStatuses: z.array(z.string()),
       versionDate: z.string(),
-    }),
+    }).partial(),
     corpus: z.string(),
     dataScope: z.string(),
     driveDocumentInfo: z.object({
       documentIds: z.object({
         ids: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     driveOptions: z.object({
       clientSideEncryptedOption: z.string(),
       includeSharedDrives: z.boolean(),
       includeTeamDrives: z.boolean(),
       sharedDrivesOption: z.string(),
       versionDate: z.string(),
-    }),
+    }).partial(),
     endTime: z.string(),
-    geminiInWorkspaceOptions: z.object({}),
-    geminiOptions: z.object({}),
+    geminiInWorkspaceOptions: z.object({}).partial(),
+    geminiOptions: z.object({}).partial(),
     hangoutsChatInfo: z.object({
       roomId: z.array(z.string()),
-    }),
+    }).partial(),
     hangoutsChatOptions: z.object({
       includeRooms: z.boolean(),
-    }),
+    }).partial(),
     mailOptions: z.object({
       clientSideEncryptedOption: z.string(),
       excludeDrafts: z.boolean(),
-    }),
+    }).partial(),
     method: z.string(),
     orgUnitInfo: z.object({
       orgUnitId: z.string(),
-    }),
+    }).partial(),
     searchMethod: z.string(),
     sharedDriveInfo: z.object({
       sharedDriveIds: z.array(z.string()),
-    }),
+    }).partial(),
     sitesUrlInfo: z.object({
       urls: z.array(z.string()),
-    }),
+    }).partial(),
     startTime: z.string(),
     teamDriveInfo: z.object({
       teamDriveIds: z.array(z.string()),
-    }),
+    }).partial(),
     terms: z.string(),
     timeZone: z.string(),
     voiceOptions: z.object({
       coveredData: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   savedQueryId: z.string().optional(),
 }).passthrough();
 
@@ -619,7 +619,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Vault Matters.SavedQueries. Registered at `@swamp/gcp/vault/matters-savedqueries`. */
 export const model = {
   type: "@swamp/gcp/vault/matters-savedqueries",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -748,6 +748,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

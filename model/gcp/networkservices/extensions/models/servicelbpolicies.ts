@@ -208,16 +208,16 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   autoCapacityDrain: z.object({
     enable: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   failoverConfig: z.object({
     failoverHealthThreshold: z.number(),
-  }).optional(),
+  }).partial().optional(),
   isolationConfig: z.object({
     isolationGranularity: z.string(),
     isolationMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   loadBalancingAlgorithm: z.string().optional(),
   name: z.string(),
@@ -310,7 +310,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services ServiceLbPolicies. Registered at `@swamp/gcp/networkservices/servicelbpolicies`. */
 export const model = {
   type: "@swamp/gcp/networkservices/servicelbpolicies",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -454,6 +454,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

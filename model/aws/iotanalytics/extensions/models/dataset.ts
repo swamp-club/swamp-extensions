@@ -155,6 +155,114 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256),
 });
 
+const DatasetContentVersionValueStateSchema = z.object({
+  DatasetName: z.string(),
+}).partial();
+
+const OutputFileUriValueStateSchema = z.object({
+  FileName: z.string(),
+}).partial();
+
+const VariableStateSchema = z.object({
+  VariableName: z.string(),
+  DatasetContentVersionValue: DatasetContentVersionValueStateSchema,
+  StringValue: z.string(),
+  DoubleValue: z.number(),
+  OutputFileUriValue: OutputFileUriValueStateSchema,
+}).partial();
+
+const ResourceConfigurationStateSchema = z.object({
+  VolumeSizeInGB: z.number(),
+  ComputeType: z.string(),
+}).partial();
+
+const ContainerActionStateSchema = z.object({
+  Variables: z.array(VariableStateSchema),
+  ExecutionRoleArn: z.string(),
+  Image: z.string(),
+  ResourceConfiguration: ResourceConfigurationStateSchema,
+}).partial();
+
+const DeltaTimeStateSchema = z.object({
+  OffsetSeconds: z.number(),
+  TimeExpression: z.string(),
+}).partial();
+
+const FilterStateSchema = z.object({
+  DeltaTime: DeltaTimeStateSchema,
+}).partial();
+
+const QueryActionStateSchema = z.object({
+  Filters: z.array(FilterStateSchema),
+  SqlQuery: z.string(),
+}).partial();
+
+const ActionStateSchema = z.object({
+  ActionName: z.string(),
+  ContainerAction: ContainerActionStateSchema,
+  QueryAction: QueryActionStateSchema,
+}).partial();
+
+const DeltaTimeSessionWindowConfigurationStateSchema = z.object({
+  TimeoutInMinutes: z.number(),
+}).partial();
+
+const LateDataRuleConfigurationStateSchema = z.object({
+  DeltaTimeSessionWindowConfiguration:
+    DeltaTimeSessionWindowConfigurationStateSchema,
+}).partial();
+
+const LateDataRuleStateSchema = z.object({
+  RuleConfiguration: LateDataRuleConfigurationStateSchema,
+  RuleName: z.string(),
+}).partial();
+
+const IotEventsDestinationConfigurationStateSchema = z.object({
+  InputName: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const GlueConfigurationStateSchema = z.object({
+  DatabaseName: z.string(),
+  TableName: z.string(),
+}).partial();
+
+const S3DestinationConfigurationStateSchema = z.object({
+  GlueConfiguration: GlueConfigurationStateSchema,
+  Bucket: z.string(),
+  Key: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const DatasetContentDeliveryRuleDestinationStateSchema = z.object({
+  IotEventsDestinationConfiguration:
+    IotEventsDestinationConfigurationStateSchema,
+  S3DestinationConfiguration: S3DestinationConfigurationStateSchema,
+}).partial();
+
+const DatasetContentDeliveryRuleStateSchema = z.object({
+  Destination: DatasetContentDeliveryRuleDestinationStateSchema,
+  EntryName: z.string(),
+}).partial();
+
+const TriggeringDatasetStateSchema = z.object({
+  DatasetName: z.string(),
+}).partial();
+
+const ScheduleStateSchema = z.object({
+  ScheduleExpression: z.string(),
+}).partial();
+
+const TriggerStateSchema = z.object({
+  TriggeringDataset: TriggeringDatasetStateSchema,
+  Schedule: ScheduleStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -187,24 +295,25 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Actions: z.array(ActionSchema).optional(),
-  LateDataRules: z.array(LateDataRuleSchema).optional(),
+  Actions: z.array(ActionStateSchema).optional(),
+  LateDataRules: z.array(LateDataRuleStateSchema).optional(),
   DatasetName: z.string(),
-  ContentDeliveryRules: z.array(DatasetContentDeliveryRuleSchema).optional(),
-  Triggers: z.array(TriggerSchema).optional(),
+  ContentDeliveryRules: z.array(DatasetContentDeliveryRuleStateSchema)
+    .optional(),
+  Triggers: z.array(TriggerStateSchema).optional(),
   VersioningConfiguration: z.object({
     Unlimited: z.boolean(),
     MaxVersions: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Id: z.string().optional(),
   RetentionPeriod: z.object({
     NumberOfDays: z.number(),
     Unlimited: z.boolean(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -248,7 +357,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTAnalytics Dataset. Registered at `@swamp/aws/iotanalytics/dataset`. */
 export const model = {
   type: "@swamp/aws/iotanalytics/dataset",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -312,6 +421,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

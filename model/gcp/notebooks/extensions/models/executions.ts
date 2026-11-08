@@ -243,11 +243,11 @@ const StateSchema = z.object({
     acceleratorConfig: z.object({
       coreCount: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     containerImageUri: z.string(),
     dataprocParameters: z.object({
       cluster: z.string(),
-    }),
+    }).partial(),
     inputNotebookFile: z.string(),
     jobType: z.string(),
     kernelSpec: z.string(),
@@ -262,8 +262,8 @@ const StateSchema = z.object({
     vertexAiParameters: z.object({
       env: z.record(z.string(), z.unknown()),
       network: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   jobUri: z.string().optional(),
   name: z.string(),
   outputNotebookFile: z.string().optional(),
@@ -398,7 +398,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Notebooks Executions. Registered at `@swamp/gcp/notebooks/executions`. */
 export const model = {
   type: "@swamp/gcp/notebooks/executions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -417,6 +417,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

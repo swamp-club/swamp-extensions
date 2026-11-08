@@ -110,14 +110,16 @@ const StateSchema = z.object({
     createTime: z.string(),
     iamPolicy: z.object({
       policyBlob: z.string(),
-    }),
+    }).partial(),
     name: z.string(),
     resourceProperties: z.record(z.string(), z.unknown()),
     securityCenterProperties: z.object({
-      folders: z.array(z.object({
-        resourceFolder: z.string(),
-        resourceFolderDisplayName: z.string(),
-      })),
+      folders: z.array(
+        z.object({
+          resourceFolder: z.string(),
+          resourceFolderDisplayName: z.string(),
+        }).partial(),
+      ),
       resourceDisplayName: z.string(),
       resourceName: z.string(),
       resourceOwners: z.array(z.string()),
@@ -126,14 +128,14 @@ const StateSchema = z.object({
       resourceProject: z.string(),
       resourceProjectDisplayName: z.string(),
       resourceType: z.string(),
-    }),
+    }).partial(),
     securityMarks: z.object({
       canonicalName: z.string(),
       marks: z.record(z.string(), z.unknown()),
       name: z.string(),
-    }),
+    }).partial(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   stateChange: z.string().optional(),
 }).passthrough();
 
@@ -178,7 +180,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center Assets. Registered at `@swamp/gcp/securitycenter/assets`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/assets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -317,6 +319,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

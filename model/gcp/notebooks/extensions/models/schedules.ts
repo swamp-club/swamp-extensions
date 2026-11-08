@@ -255,11 +255,11 @@ const StateSchema = z.object({
     acceleratorConfig: z.object({
       coreCount: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     containerImageUri: z.string(),
     dataprocParameters: z.object({
       cluster: z.string(),
-    }),
+    }).partial(),
     inputNotebookFile: z.string(),
     jobType: z.string(),
     kernelSpec: z.string(),
@@ -274,44 +274,46 @@ const StateSchema = z.object({
     vertexAiParameters: z.object({
       env: z.record(z.string(), z.unknown()),
       network: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
-  recentExecutions: z.array(z.object({
-    createTime: z.string(),
-    description: z.string(),
-    displayName: z.string(),
-    executionTemplate: z.object({
-      acceleratorConfig: z.object({
-        coreCount: z.string(),
-        type: z.string(),
-      }),
-      containerImageUri: z.string(),
-      dataprocParameters: z.object({
-        cluster: z.string(),
-      }),
-      inputNotebookFile: z.string(),
-      jobType: z.string(),
-      kernelSpec: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-      masterType: z.string(),
-      outputNotebookFolder: z.string(),
-      parameters: z.string(),
-      paramsYamlFile: z.string(),
-      scaleTier: z.string(),
-      serviceAccount: z.string(),
-      tensorboard: z.string(),
-      vertexAiParameters: z.object({
-        env: z.record(z.string(), z.unknown()),
-        network: z.string(),
-      }),
-    }),
-    jobUri: z.string(),
-    name: z.string(),
-    outputNotebookFile: z.string(),
-    state: z.string(),
-    updateTime: z.string(),
-  })).optional(),
+  recentExecutions: z.array(
+    z.object({
+      createTime: z.string(),
+      description: z.string(),
+      displayName: z.string(),
+      executionTemplate: z.object({
+        acceleratorConfig: z.object({
+          coreCount: z.string(),
+          type: z.string(),
+        }).partial(),
+        containerImageUri: z.string(),
+        dataprocParameters: z.object({
+          cluster: z.string(),
+        }).partial(),
+        inputNotebookFile: z.string(),
+        jobType: z.string(),
+        kernelSpec: z.string(),
+        labels: z.record(z.string(), z.unknown()),
+        masterType: z.string(),
+        outputNotebookFolder: z.string(),
+        parameters: z.string(),
+        paramsYamlFile: z.string(),
+        scaleTier: z.string(),
+        serviceAccount: z.string(),
+        tensorboard: z.string(),
+        vertexAiParameters: z.object({
+          env: z.record(z.string(), z.unknown()),
+          network: z.string(),
+        }).partial(),
+      }).partial(),
+      jobUri: z.string(),
+      name: z.string(),
+      outputNotebookFile: z.string(),
+      state: z.string(),
+      updateTime: z.string(),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
   timeZone: z.string().optional(),
   updateTime: z.string().optional(),
@@ -455,7 +457,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Notebooks Schedules. Registered at `@swamp/gcp/notebooks/schedules`. */
 export const model = {
   type: "@swamp/gcp/notebooks/schedules",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -474,6 +476,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

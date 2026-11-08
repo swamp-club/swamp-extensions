@@ -49,6 +49,11 @@ const SubscriptionTargetFormSchema = z.object({
   ),
 });
 
+const SubscriptionTargetFormStateSchema = z.object({
+  FormName: z.string(),
+  Content: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -109,13 +114,14 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   ProjectId: z.string().optional(),
   Provider: z.string().optional(),
-  SubscriptionTargetConfig: z.array(SubscriptionTargetFormSchema).optional(),
+  SubscriptionTargetConfig: z.array(SubscriptionTargetFormStateSchema)
+    .optional(),
   Type: z.string().optional(),
   UpdatedAt: z.string().optional(),
   UpdatedBy: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -172,7 +178,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone SubscriptionTarget. Registered at `@swamp/aws/datazone/subscription-target`. */
 export const model = {
   type: "@swamp/aws/datazone/subscription-target",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -236,6 +242,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

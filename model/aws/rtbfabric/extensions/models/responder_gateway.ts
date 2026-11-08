@@ -49,6 +49,11 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -101,7 +106,7 @@ const StateSchema = z.object({
   UpdatedTimestamp: z.string().optional(),
   TrustStoreConfiguration: z.object({
     CertificateAuthorityCertificates: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Description: z.string().optional(),
   CreatedTimestamp: z.string().optional(),
   DomainName: z.string().optional(),
@@ -114,17 +119,17 @@ const StateSchema = z.object({
   SecurityGroupIds: z.array(z.string()).optional(),
   ListenerConfig: z.object({
     Protocols: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   VpcId: z.string().optional(),
   ResponderGatewayStatus: z.string().optional(),
   CertificateAssociationStatus: z.string().optional(),
   Arn: z.string(),
   Protocol: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   AcmCertificateArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -184,7 +189,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RTBFabric ResponderGateway. Registered at `@swamp/aws/rtbfabric/responder-gateway`. */
 export const model = {
   type: "@swamp/aws/rtbfabric/responder-gateway",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -258,6 +263,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

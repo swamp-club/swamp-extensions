@@ -196,12 +196,12 @@ const StateSchema = z.object({
     mimeType: z.string(),
     startTimestamp: z.string(),
     timeUnit: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reportDefinitionId: z.string().optional(),
   result: z.object({
     expires: z.string(),
     self: z.string(),
-  }).optional(),
+  }).partial().optional(),
   resultFileSize: z.string().optional(),
   resultRows: z.string().optional(),
   self: z.string().optional(),
@@ -291,7 +291,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee HostSecurityReports. Registered at `@swamp/gcp/apigee/hostsecurityreports`. */
 export const model = {
   type: "@swamp/gcp/apigee/hostsecurityreports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -415,6 +415,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

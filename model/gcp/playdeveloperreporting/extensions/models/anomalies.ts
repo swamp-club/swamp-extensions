@@ -96,26 +96,28 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  dimensions: z.array(z.object({
-    dimension: z.string(),
-    int64Value: z.string(),
-    stringValue: z.string(),
-    valueLabel: z.string(),
-  })).optional(),
+  dimensions: z.array(
+    z.object({
+      dimension: z.string(),
+      int64Value: z.string(),
+      stringValue: z.string(),
+      valueLabel: z.string(),
+    }).partial(),
+  ).optional(),
   metric: z.object({
     decimalValue: z.object({
       value: z.string(),
-    }),
+    }).partial(),
     decimalValueConfidenceInterval: z.object({
       lowerBound: z.object({
         value: z.string(),
-      }),
+      }).partial(),
       upperBound: z.object({
         value: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     metric: z.string(),
-  }).optional(),
+  }).partial().optional(),
   metricSet: z.string().optional(),
   name: z.string(),
   timelineSpec: z.object({
@@ -130,10 +132,10 @@ const StateSchema = z.object({
       timeZone: z.object({
         id: z.string(),
         version: z.string(),
-      }),
+      }).partial(),
       utcOffset: z.string(),
       year: z.number(),
-    }),
+    }).partial(),
     startTime: z.object({
       day: z.number(),
       hours: z.number(),
@@ -144,11 +146,11 @@ const StateSchema = z.object({
       timeZone: z.object({
         id: z.string(),
         version: z.string(),
-      }),
+      }).partial(),
       utcOffset: z.string(),
       year: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -192,7 +194,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Developer Reporting Anomalies. Registered at `@swamp/gcp/playdeveloperreporting/anomalies`. */
 export const model = {
   type: "@swamp/gcp/playdeveloperreporting/anomalies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -306,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

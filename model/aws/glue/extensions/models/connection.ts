@@ -133,6 +133,52 @@ const PhysicalConnectionRequirementsSchema = z.object({
     .optional(),
 });
 
+const BasicAuthenticationCredentialsStateSchema = z.object({
+  Password: z.string(),
+  Username: z.string(),
+}).partial();
+
+const AuthorizationCodePropertiesStateSchema = z.object({
+  AuthorizationCode: z.string(),
+  RedirectUri: z.string(),
+}).partial();
+
+const OAuth2ClientApplicationStateSchema = z.object({
+  AWSManagedClientApplicationReference: z.string(),
+  UserManagedClientApplicationClientId: z.string(),
+}).partial();
+
+const OAuth2CredentialsStateSchema = z.object({
+  AccessToken: z.string(),
+  JwtToken: z.string(),
+  RefreshToken: z.string(),
+  UserManagedClientApplicationClientSecret: z.string(),
+}).partial();
+
+const OAuth2PropertiesStateSchema = z.object({
+  AuthorizationCodeProperties: AuthorizationCodePropertiesStateSchema,
+  OAuth2ClientApplication: OAuth2ClientApplicationStateSchema,
+  OAuth2Credentials: OAuth2CredentialsStateSchema,
+  OAuth2GrantType: z.string(),
+  TokenUrl: z.string(),
+  TokenUrlParametersMap: z.record(z.string(), z.unknown()),
+}).partial();
+
+const AuthenticationConfigurationStateSchema = z.object({
+  AuthenticationType: z.string(),
+  BasicAuthenticationCredentials: BasicAuthenticationCredentialsStateSchema,
+  CustomAuthenticationCredentials: z.record(z.string(), z.unknown()),
+  KmsKeyArn: z.string(),
+  OAuth2Properties: OAuth2PropertiesStateSchema,
+  SecretArn: z.string(),
+}).partial();
+
+const PhysicalConnectionRequirementsStateSchema = z.object({
+  AvailabilityZone: z.string(),
+  SecurityGroupIdList: z.array(z.string()),
+  SubnetId: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -192,24 +238,24 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ConnectionInput: z.object({
     AthenaProperties: z.record(z.string(), z.unknown()),
-    AuthenticationConfiguration: AuthenticationConfigurationSchema,
+    AuthenticationConfiguration: AuthenticationConfigurationStateSchema,
     ConnectionProperties: z.record(z.string(), z.unknown()),
     ConnectionType: z.string(),
     Description: z.string(),
     MatchCriteria: z.array(z.string()),
     Name: z.string(),
-    PhysicalConnectionRequirements: PhysicalConnectionRequirementsSchema,
+    PhysicalConnectionRequirements: PhysicalConnectionRequirementsStateSchema,
     PythonProperties: z.record(z.string(), z.unknown()),
     SparkProperties: z.record(z.string(), z.unknown()),
     ValidateCredentials: z.boolean(),
     ValidateForComputeEnvironments: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   CatalogId: z.string(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   Name: z.string(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -276,7 +322,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Connection. Registered at `@swamp/aws/glue/connection`. */
 export const model = {
   type: "@swamp/aws/glue/connection",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -295,6 +341,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

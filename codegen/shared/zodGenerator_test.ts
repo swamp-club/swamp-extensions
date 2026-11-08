@@ -4,6 +4,7 @@ import { generateZodSchemas } from "./zodGenerator.ts";
 import { resolveResidualRefs } from "./schema/loader.ts";
 import { normalizeOnlyProperties, splitAwsProperties } from "./schema/split.ts";
 import type { CfProperty, CfSchema, OnlyProperties } from "./schema/types.ts";
+import { z } from "zod";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -596,4 +597,274 @@ Deno.test("generateZodSchemas - Budget-shaped schema survives resolve, split and
     declarations,
     "Not: z.record(z.string(), z.unknown()).optional(),",
   );
+});
+
+// ---------------------------------------------------------------------------
+// StateSchema nested optionality (swamp-club #2487)
+// ---------------------------------------------------------------------------
+
+/** EKS-cluster-shaped resource properties, trimmed to the parts #2487 names. */
+function eksLikeProperties(): Record<string, CfProperty> {
+  return {
+    Name: { type: "string" },
+    KubernetesNetworkConfig: {
+      type: "object",
+      properties: {
+        ServiceIpv4Cidr: { type: "string" },
+        ServiceIpv6Cidr: { type: "string" },
+        IpFamily: { type: "string", enum: ["ipv4", "ipv6"] },
+      },
+    },
+    AccessConfig: {
+      type: "object",
+      properties: {
+        BootstrapClusterCreatorAdminPermissions: { type: "boolean" },
+        AuthenticationMode: { type: "string" },
+      },
+    },
+    OutpostConfig: {
+      type: "object",
+      required: ["OutpostArns", "ControlPlaneInstanceType"],
+      properties: {
+        OutpostArns: { type: "array", items: { type: "string" } },
+        ControlPlaneInstanceType: { type: "string" },
+      },
+    },
+    Logging: {
+      type: "object",
+      properties: {
+        ClusterLogging: {
+          type: "object",
+          title: "ClusterLogging",
+          required: ["EnabledTypes"],
+          properties: {
+            EnabledTypes: {
+              type: "array",
+              items: {
+                type: "object",
+                title: "LoggingTypeConfig",
+                required: ["Type"],
+                properties: {
+                  Type: { type: "string", enum: ["api", "audit"] },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  } as unknown as Record<string, CfProperty>;
+}
+
+function generateEksLike() {
+  const props = eksLikeProperties();
+  return generateZodSchemas(
+    props,
+    props,
+    makeCfSchema({
+      properties: props,
+      primaryIdentifier: ["/properties/Name"],
+    }),
+    makeOnlyProperties({ primaryIdentifier: ["Name"] }),
+  );
+}
+
+/** Evaluates the generated extracted schemas + StateSchema with real zod. */
+function buildStateSchema(
+  result: ReturnType<typeof generateZodSchemas>,
+): z.ZodType {
+  const code = [
+    ...result.extractedSchemas.map((s) => s.declaration),
+    `const StateSchema = z.object({\n${result.resourceSchemaBody}\n}).passthrough();`,
+    "return StateSchema;",
+  ].join("\n");
+  return new Function("z", code)(z) as z.ZodType;
+}
+
+Deno.test("generateZodSchemas - StateSchema inline nested children are optional (#2487)", () => {
+  const result = generateEksLike();
+  const body = result.resourceSchemaBody;
+
+  // Every nested object is .partial(), so none of its children is required —
+  // including those a CF nested required list names (OutpostConfig).
+  assertStringIncludes(
+    body,
+    "    ServiceIpv6Cidr: z.string(),\n    IpFamily: z.string(),\n  }).partial().optional(),",
+  );
+  assertStringIncludes(
+    body,
+    "    BootstrapClusterCreatorAdminPermissions: z.boolean(),\n    AuthenticationMode: z.string(),\n  }).partial().optional(),",
+  );
+  assertStringIncludes(
+    body,
+    "    ControlPlaneInstanceType: z.string(),\n  }).partial().optional(),",
+  );
+  // No nested z.object(...) is left without .partial()
+  assertEquals(/\n {2}\}\)(?!\.partial\(\))/.test(body), false);
+  // Top-level primary identifier stays required
+  assertStringIncludes(body, "  Name: z.string(),");
+});
+
+Deno.test("generateZodSchemas - StateSchema array-item inline objects have optional children", () => {
+  const props = {
+    Id: { type: "string" },
+    Rules: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["Action"],
+        properties: { Action: { type: "string" } },
+      },
+    },
+  } as unknown as Record<string, CfProperty>;
+  const result = generateZodSchemas(
+    props,
+    props,
+    makeCfSchema({ properties: props }),
+    makeOnlyProperties(),
+  );
+  assertStringIncludes(
+    result.resourceSchemaBody,
+    "Action: z.string(),\n  }).partial()).optional(),",
+  );
+});
+
+Deno.test("generateZodSchemas - titled nested objects get simplified StateSchema copies (#2487)", () => {
+  const result = generateEksLike();
+  const byName = new Map(
+    result.extractedSchemas.map((s) => [s.name, s.declaration]),
+  );
+
+  // Input side is unchanged: required children and enums kept
+  assertStringIncludes(
+    byName.get("LoggingTypeConfigSchema")!,
+    'Type: z.enum(["api", "audit"]),',
+  );
+  assertStringIncludes(
+    byName.get("ClusterLoggingSchema")!,
+    "EnabledTypes: z.array(LoggingTypeConfigSchema),",
+  );
+
+  // State side: separate, constraint-free, all-optional copies
+  assertEquals(
+    byName.get("LoggingTypeConfigStateSchema"),
+    "const LoggingTypeConfigStateSchema = z.object({\n  Type: z.string(),\n}).partial();",
+  );
+  assertEquals(
+    byName.get("ClusterLoggingStateSchema"),
+    "const ClusterLoggingStateSchema = z.object({\n  EnabledTypes: z.array(LoggingTypeConfigStateSchema),\n}).partial();",
+  );
+  assertStringIncludes(
+    result.resourceSchemaBody,
+    "ClusterLogging: ClusterLoggingStateSchema,\n  }).partial().optional(),",
+  );
+  assertEquals(
+    result.resourceSchemaBody.includes("ClusterLoggingSchema"),
+    false,
+  );
+
+  // Declared child-first, so each copy follows the schemas it references
+  const names = result.extractedSchemas.map((s) => s.name);
+  assertEquals(
+    names.indexOf("LoggingTypeConfigStateSchema") <
+      names.indexOf("ClusterLoggingStateSchema"),
+    true,
+  );
+});
+
+Deno.test("generateZodSchemas - StateSchema copy names avoid collisions", () => {
+  // An input-side title "FooState" extracts as FooStateSchema; the state copy
+  // of title "Foo" would otherwise take the same name.
+  const props = {
+    Id: { type: "string" },
+    Wrapper: {
+      type: "object",
+      properties: {
+        A: {
+          type: "object",
+          title: "FooState",
+          properties: { X: { type: "string" } },
+        },
+        B: {
+          type: "object",
+          title: "Foo",
+          properties: { Y: { type: "string" } },
+        },
+      },
+    },
+  } as unknown as Record<string, CfProperty>;
+  const result = generateZodSchemas(
+    props,
+    props,
+    makeCfSchema({ properties: props }),
+    makeOnlyProperties(),
+  );
+  const names = result.extractedSchemas.map((s) => s.name);
+  assertEquals(new Set(names).size, names.length);
+  assertEquals(names.includes("_FooStateSchema"), true);
+  assertStringIncludes(result.resourceSchemaBody, "B: _FooStateSchema");
+  // Names reserved by the model generators are never taken
+  for (const reserved of ["StateSchema", "GlobalArgsSchema", "InputsSchema"]) {
+    assertEquals(
+      names.filter((n) => n === reserved).length,
+      0,
+      `${reserved} must not be emitted as an extracted schema`,
+    );
+  }
+});
+
+Deno.test("generateZodSchemas - recursive titled object in StateSchema terminates", () => {
+  const node: Record<string, unknown> = {
+    type: "object",
+    title: "Node",
+    properties: { Value: { type: "string" } },
+  };
+  (node.properties as Record<string, unknown>).Child = node;
+  const props = {
+    Id: { type: "string" },
+    Root: { type: "object", properties: { Node: node } },
+  } as unknown as Record<string, CfProperty>;
+  const result = generateZodSchemas(
+    props,
+    props,
+    makeCfSchema({ properties: props }),
+    makeOnlyProperties(),
+  );
+  const decl = result.extractedSchemas.find((s) =>
+    s.name === "NodeStateSchema"
+  )!;
+  assertStringIncludes(decl.declaration, "Child: z.unknown(),");
+});
+
+Deno.test("generateZodSchemas - EKS DescribeCluster payload parses against StateSchema (#2487)", () => {
+  // The payload from the issue: an IPv4 cluster, no Outposts, and no
+  // create-only BootstrapClusterCreatorAdminPermissions on read.
+  const payload = {
+    Name: "demo",
+    KubernetesNetworkConfig: {
+      ServiceIpv4Cidr: "10.100.0.0/16",
+      IpFamily: "ipv4",
+    },
+    AccessConfig: { AuthenticationMode: "API_AND_CONFIG_MAP" },
+    Logging: { ClusterLogging: { EnabledTypes: [{ Type: "authenticator" }] } },
+    Unmodelled: "kept by passthrough",
+  };
+  const parsed = buildStateSchema(generateEksLike()).safeParse(payload);
+  assertEquals(parsed.success, true, JSON.stringify(parsed.error?.issues));
+
+  // Negative control: the pre-fix shape (required nested children) rejects the
+  // same payload, so this test detects the bug it guards against.
+  const preFix = z.object({
+    Name: z.string(),
+    KubernetesNetworkConfig: z.object({
+      ServiceIpv4Cidr: z.string(),
+      ServiceIpv6Cidr: z.string(),
+      IpFamily: z.string(),
+    }).optional(),
+    AccessConfig: z.object({
+      BootstrapClusterCreatorAdminPermissions: z.boolean(),
+      AuthenticationMode: z.string(),
+    }).optional(),
+  }).passthrough();
+  assertEquals(preFix.safeParse(payload).success, false);
 });

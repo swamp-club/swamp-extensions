@@ -43,6 +43,11 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).optional(),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -89,16 +94,16 @@ const StateSchema = z.object({
     DlClass: z.string(),
     NumberOfDevicesRequested: z.number(),
     NumberOfDevicesInGroup: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string().optional(),
   Id: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Status: z.string().optional(),
   AssociateWirelessDevice: z.string().optional(),
   DisassociateWirelessDevice: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -147,7 +152,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTWireless MulticastGroup. Registered at `@swamp/aws/iotwireless/multicast-group`. */
 export const model = {
   type: "@swamp/aws/iotwireless/multicast-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -211,6 +216,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

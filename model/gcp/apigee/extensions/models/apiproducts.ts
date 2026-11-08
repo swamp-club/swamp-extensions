@@ -427,109 +427,139 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   apiResources: z.array(z.string()).optional(),
   approvalType: z.string().optional(),
-  attributes: z.array(z.object({
-    name: z.string(),
-    value: z.string(),
-  })).optional(),
+  attributes: z.array(
+    z.object({
+      name: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   createdAt: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   environments: z.array(z.string()).optional(),
   graphqlOperationGroup: z.object({
     operationConfigType: z.string(),
-    operationConfigs: z.array(z.object({
-      apiSource: z.string(),
-      attributes: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-      })),
-      operations: z.array(z.object({
-        operation: z.unknown(),
-        operationTypes: z.unknown(),
-      })),
-      quota: z.object({
-        interval: z.string(),
-        limit: z.string(),
-        timeUnit: z.string(),
-      }),
-    })),
-  }).optional(),
+    operationConfigs: z.array(
+      z.object({
+        apiSource: z.string(),
+        attributes: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        operations: z.array(
+          z.object({
+            operation: z.unknown(),
+            operationTypes: z.unknown(),
+          }).partial(),
+        ),
+        quota: z.object({
+          interval: z.string(),
+          limit: z.string(),
+          timeUnit: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   grpcOperationGroup: z.object({
-    operationConfigs: z.array(z.object({
-      apiSource: z.string(),
-      attributes: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-      })),
-      methods: z.array(z.string()),
-      quota: z.object({
-        interval: z.string(),
-        limit: z.string(),
-        timeUnit: z.string(),
-      }),
-      service: z.string(),
-    })),
-  }).optional(),
+    operationConfigs: z.array(
+      z.object({
+        apiSource: z.string(),
+        attributes: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        methods: z.array(z.string()),
+        quota: z.object({
+          interval: z.string(),
+          limit: z.string(),
+          timeUnit: z.string(),
+        }).partial(),
+        service: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   lastModifiedAt: z.string().optional(),
   llmOperationGroup: z.object({
-    operationConfigs: z.array(z.object({
-      apiSource: z.string(),
-      attributes: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-      })),
-      llmOperations: z.array(z.object({
-        methods: z.unknown(),
-        model: z.unknown(),
-        resource: z.unknown(),
-      })),
-      llmTokenQuota: z.object({
-        interval: z.string(),
-        limit: z.string(),
-        timeUnit: z.string(),
-      }),
-    })),
-  }).optional(),
+    operationConfigs: z.array(
+      z.object({
+        apiSource: z.string(),
+        attributes: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        llmOperations: z.array(
+          z.object({
+            methods: z.unknown(),
+            model: z.unknown(),
+            resource: z.unknown(),
+          }).partial(),
+        ),
+        llmTokenQuota: z.object({
+          interval: z.string(),
+          limit: z.string(),
+          timeUnit: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   llmQuota: z.string().optional(),
   llmQuotaInterval: z.string().optional(),
   llmQuotaTimeUnit: z.string().optional(),
   name: z.string(),
   operationGroup: z.object({
     operationConfigType: z.string(),
-    operationConfigs: z.array(z.object({
-      apiSource: z.string(),
-      attributes: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-      })),
-      operations: z.array(z.object({
-        methods: z.unknown(),
-        resource: z.unknown(),
-      })),
-      quota: z.object({
-        interval: z.string(),
-        limit: z.string(),
-        timeUnit: z.string(),
-      }),
-    })),
-  }).optional(),
+    operationConfigs: z.array(
+      z.object({
+        apiSource: z.string(),
+        attributes: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        operations: z.array(
+          z.object({
+            methods: z.unknown(),
+            resource: z.unknown(),
+          }).partial(),
+        ),
+        quota: z.object({
+          interval: z.string(),
+          limit: z.string(),
+          timeUnit: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   payloadOperationGroup: z.object({
-    operationConfigs: z.array(z.object({
-      apiSource: z.string(),
-      attributes: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-      })),
-      operations: z.array(z.object({
-        operation: z.unknown(),
-      })),
-      quota: z.object({
-        interval: z.string(),
-        limit: z.string(),
-        timeUnit: z.string(),
-      }),
-    })),
-  }).optional(),
+    operationConfigs: z.array(
+      z.object({
+        apiSource: z.string(),
+        attributes: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        operations: z.array(
+          z.object({
+            operation: z.unknown(),
+          }).partial(),
+        ),
+        quota: z.object({
+          interval: z.string(),
+          limit: z.string(),
+          timeUnit: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   proxies: z.array(z.string()).optional(),
   quota: z.string().optional(),
   quotaCounterScope: z.string().optional(),
@@ -839,7 +869,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Apiproducts. Registered at `@swamp/gcp/apigee/apiproducts`. */
 export const model = {
   type: "@swamp/gcp/apigee/apiproducts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -988,6 +1018,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

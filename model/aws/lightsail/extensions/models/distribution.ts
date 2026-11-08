@@ -82,6 +82,31 @@ const TagSchema = z.object({
   ).optional(),
 });
 
+const CacheBehaviorPerPathStateSchema = z.object({
+  Behavior: z.string(),
+  Path: z.string(),
+}).partial();
+
+const CookieObjectStateSchema = z.object({
+  CookiesAllowList: z.array(z.string()),
+  Option: z.string(),
+}).partial();
+
+const HeaderObjectStateSchema = z.object({
+  HeadersAllowList: z.array(z.string()),
+  Option: z.string(),
+}).partial();
+
+const QueryStringObjectStateSchema = z.object({
+  QueryStringsAllowList: z.array(z.string()),
+  Option: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -167,33 +192,33 @@ const StateSchema = z.object({
   DistributionArn: z.string().optional(),
   BundleId: z.string().optional(),
   IpAddressType: z.string().optional(),
-  CacheBehaviors: z.array(CacheBehaviorPerPathSchema).optional(),
+  CacheBehaviors: z.array(CacheBehaviorPerPathStateSchema).optional(),
   CacheBehaviorSettings: z.object({
     AllowedHTTPMethods: z.string(),
     CachedHTTPMethods: z.string(),
     DefaultTTL: z.number(),
     MaximumTTL: z.number(),
     MinimumTTL: z.number(),
-    ForwardedCookies: CookieObjectSchema,
-    ForwardedHeaders: HeaderObjectSchema,
-    ForwardedQueryStrings: QueryStringObjectSchema,
-  }).optional(),
+    ForwardedCookies: CookieObjectStateSchema,
+    ForwardedHeaders: HeaderObjectStateSchema,
+    ForwardedQueryStrings: QueryStringObjectStateSchema,
+  }).partial().optional(),
   DefaultCacheBehavior: z.object({
     Behavior: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Origin: z.object({
     Name: z.string(),
     ProtocolPolicy: z.string(),
     RegionName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Status: z.string().optional(),
   AbleToUpdateBundle: z.boolean().optional(),
   IsEnabled: z.boolean().optional(),
   CertificateName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -286,7 +311,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail Distribution. Registered at `@swamp/aws/lightsail/distribution`. */
 export const model = {
   type: "@swamp/aws/lightsail/distribution",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -350,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

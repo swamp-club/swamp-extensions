@@ -62,6 +62,20 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const SamlProviderConfigurationStateSchema = z.object({
+  AuthenticationUrl: z.string(),
+}).partial();
+
+const OpenIDConnectProviderConfigurationStateSchema = z.object({
+  SecretsArn: z.string(),
+  SecretsRole: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -126,14 +140,14 @@ const StateSchema = z.object({
   CreatedAt: z.string().optional(),
   DefaultEndpoint: z.string().optional(),
   IdentityProviderConfiguration: z.object({
-    SamlConfiguration: SamlProviderConfigurationSchema,
-    OpenIDConnectConfiguration: OpenIDConnectProviderConfigurationSchema,
-  }).optional(),
+    SamlConfiguration: SamlProviderConfigurationStateSchema,
+    OpenIDConnectConfiguration: OpenIDConnectProviderConfigurationStateSchema,
+  }).partial().optional(),
   RoleArn: z.string().optional(),
   SamplePromptsControlMode: z.string().optional(),
   Status: z.string().optional(),
   Subtitle: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Title: z.string().optional(),
   UpdatedAt: z.string().optional(),
   WebExperienceArn: z.string().optional(),
@@ -145,13 +159,13 @@ const StateSchema = z.object({
     LogoUrl: z.string(),
     FontUrl: z.string(),
     FaviconUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   BrowserExtensionConfiguration: z.object({
     EnabledBrowserExtensions: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -221,7 +235,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QBusiness WebExperience. Registered at `@swamp/aws/qbusiness/web-experience`. */
 export const model = {
   type: "@swamp/aws/qbusiness/web-experience",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -285,6 +299,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

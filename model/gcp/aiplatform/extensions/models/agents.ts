@@ -300,16 +300,18 @@ const StateSchema = z.object({
     tenant: z.object({
       id: z.string(),
       type: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   aiApplication: z.string().optional(),
   allowedTeammates: z.object({
-    teammates: z.array(z.object({
-      email: z.string(),
-      expansionMode: z.string(),
-      gaiaId: z.string(),
-    })),
-  }).optional(),
+    teammates: z.array(
+      z.object({
+        email: z.string(),
+        expansionMode: z.string(),
+        gaiaId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   base_agent: z.string().optional(),
   base_environment: z.string().optional(),
   created: z.string().optional(),
@@ -317,47 +319,49 @@ const StateSchema = z.object({
   effectiveIdentity: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   memoryConfig: z.object({
     disableMemory: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   modelConfig: z.object({
     model: z.string(),
     temperature: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   object: z.string().optional(),
   observabilityConfig: z.object({
     observabilityEnabled: z.boolean(),
     sensitiveLoggingEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   owner: z.object({
     id: z.string(),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   persona: z.object({
     avatarUrl: z.string(),
     displayName: z.string(),
     personality: z.string(),
     role: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     deleteTime: z.string(),
     state: z.string(),
     suspensionReason: z.object({
       reason: z.string(),
       suspensionTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   system_instruction: z.string().optional(),
-  tools: z.array(z.object({
-    headers: z.record(z.string(), z.unknown()),
-    name: z.string(),
-    type: z.string(),
-    url: z.string(),
-  })).optional(),
+  tools: z.array(
+    z.object({
+      headers: z.record(z.string(), z.unknown()),
+      name: z.string(),
+      type: z.string(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   updated: z.string().optional(),
 }).passthrough();
 
@@ -529,7 +533,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -631,6 +635,11 @@ export const model = {
       toVersion: "2026.11.07.1",
       description:
         "Added: agentIdentity, allowedTeammates, encryptionSpec, memoryConfig, owner, persona",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

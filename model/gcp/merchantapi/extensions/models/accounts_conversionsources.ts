@@ -249,27 +249,31 @@ const StateSchema = z.object({
     attributionSettings: z.object({
       attributionLookbackWindowDays: z.number(),
       attributionModel: z.string(),
-      conversionType: z.array(z.object({
-        name: z.string(),
-        report: z.boolean(),
-      })),
-    }),
+      conversionType: z.array(
+        z.object({
+          name: z.string(),
+          report: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     property: z.string(),
     propertyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   merchantCenterDestination: z.object({
     attributionSettings: z.object({
       attributionLookbackWindowDays: z.number(),
       attributionModel: z.string(),
-      conversionType: z.array(z.object({
-        name: z.string(),
-        report: z.boolean(),
-      })),
-    }),
+      conversionType: z.array(
+        z.object({
+          name: z.string(),
+          report: z.boolean(),
+        }).partial(),
+      ),
+    }).partial(),
     currencyCode: z.string(),
     destination: z.string(),
     displayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   state: z.string().optional(),
 }).passthrough();
@@ -391,7 +395,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.ConversionSources. Registered at `@swamp/gcp/merchantapi/accounts-conversionsources`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-conversionsources",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -410,6 +414,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

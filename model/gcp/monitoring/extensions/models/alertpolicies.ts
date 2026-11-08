@@ -520,128 +520,140 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   alertStrategy: z.object({
     autoClose: z.string(),
-    notificationChannelStrategy: z.array(z.object({
-      notificationChannelNames: z.array(z.string()),
-      renotifyInterval: z.string(),
-    })),
+    notificationChannelStrategy: z.array(
+      z.object({
+        notificationChannelNames: z.array(z.string()),
+        renotifyInterval: z.string(),
+      }).partial(),
+    ),
     notificationPrompts: z.array(z.string()),
     notificationRateLimit: z.object({
       period: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   combiner: z.string().optional(),
-  conditions: z.array(z.object({
-    conditionAbsent: z.object({
-      aggregations: z.array(z.object({
-        alignmentPeriod: z.unknown(),
-        crossSeriesReducer: z.unknown(),
-        groupByFields: z.unknown(),
-        perSeriesAligner: z.unknown(),
-      })),
-      duration: z.string(),
-      filter: z.string(),
-      trigger: z.object({
-        count: z.number(),
-        percent: z.number(),
-      }),
-    }),
-    conditionMatchedLog: z.object({
-      filter: z.string(),
-      labelExtractors: z.record(z.string(), z.unknown()),
-    }),
-    conditionMonitoringQueryLanguage: z.object({
-      duration: z.string(),
-      evaluationMissingData: z.string(),
-      query: z.string(),
-      trigger: z.object({
-        count: z.number(),
-        percent: z.number(),
-      }),
-    }),
-    conditionPrometheusQueryLanguage: z.object({
-      alertRule: z.string(),
-      disableMetricValidation: z.boolean(),
-      duration: z.string(),
-      evaluationInterval: z.string(),
-      labels: z.record(z.string(), z.unknown()),
-      query: z.string(),
-      ruleGroup: z.string(),
-    }),
-    conditionSql: z.object({
-      booleanTest: z.object({
-        column: z.string(),
-      }),
-      daily: z.object({
-        executionTime: z.object({
-          hours: z.unknown(),
-          minutes: z.unknown(),
-          nanos: z.unknown(),
-          seconds: z.unknown(),
-        }),
-        periodicity: z.number(),
-      }),
-      hourly: z.object({
-        minuteOffset: z.number(),
-        periodicity: z.number(),
-      }),
-      minutes: z.object({
-        periodicity: z.number(),
-      }),
-      query: z.string(),
-      rowCountTest: z.object({
+  conditions: z.array(
+    z.object({
+      conditionAbsent: z.object({
+        aggregations: z.array(
+          z.object({
+            alignmentPeriod: z.unknown(),
+            crossSeriesReducer: z.unknown(),
+            groupByFields: z.unknown(),
+            perSeriesAligner: z.unknown(),
+          }).partial(),
+        ),
+        duration: z.string(),
+        filter: z.string(),
+        trigger: z.object({
+          count: z.number(),
+          percent: z.number(),
+        }).partial(),
+      }).partial(),
+      conditionMatchedLog: z.object({
+        filter: z.string(),
+        labelExtractors: z.record(z.string(), z.unknown()),
+      }).partial(),
+      conditionMonitoringQueryLanguage: z.object({
+        duration: z.string(),
+        evaluationMissingData: z.string(),
+        query: z.string(),
+        trigger: z.object({
+          count: z.number(),
+          percent: z.number(),
+        }).partial(),
+      }).partial(),
+      conditionPrometheusQueryLanguage: z.object({
+        alertRule: z.string(),
+        disableMetricValidation: z.boolean(),
+        duration: z.string(),
+        evaluationInterval: z.string(),
+        labels: z.record(z.string(), z.unknown()),
+        query: z.string(),
+        ruleGroup: z.string(),
+      }).partial(),
+      conditionSql: z.object({
+        booleanTest: z.object({
+          column: z.string(),
+        }).partial(),
+        daily: z.object({
+          executionTime: z.object({
+            hours: z.unknown(),
+            minutes: z.unknown(),
+            nanos: z.unknown(),
+            seconds: z.unknown(),
+          }).partial(),
+          periodicity: z.number(),
+        }).partial(),
+        hourly: z.object({
+          minuteOffset: z.number(),
+          periodicity: z.number(),
+        }).partial(),
+        minutes: z.object({
+          periodicity: z.number(),
+        }).partial(),
+        query: z.string(),
+        rowCountTest: z.object({
+          comparison: z.string(),
+          threshold: z.string(),
+        }).partial(),
+      }).partial(),
+      conditionThreshold: z.object({
+        aggregations: z.array(
+          z.object({
+            alignmentPeriod: z.unknown(),
+            crossSeriesReducer: z.unknown(),
+            groupByFields: z.unknown(),
+            perSeriesAligner: z.unknown(),
+          }).partial(),
+        ),
         comparison: z.string(),
-        threshold: z.string(),
-      }),
-    }),
-    conditionThreshold: z.object({
-      aggregations: z.array(z.object({
-        alignmentPeriod: z.unknown(),
-        crossSeriesReducer: z.unknown(),
-        groupByFields: z.unknown(),
-        perSeriesAligner: z.unknown(),
-      })),
-      comparison: z.string(),
-      denominatorAggregations: z.array(z.object({
-        alignmentPeriod: z.unknown(),
-        crossSeriesReducer: z.unknown(),
-        groupByFields: z.unknown(),
-        perSeriesAligner: z.unknown(),
-      })),
-      denominatorFilter: z.string(),
-      duration: z.string(),
-      evaluationMissingData: z.string(),
-      filter: z.string(),
-      forecastOptions: z.object({
-        forecastHorizon: z.string(),
-      }),
-      thresholdValue: z.number(),
-      trigger: z.object({
-        count: z.number(),
-        percent: z.number(),
-      }),
-    }),
-    displayName: z.string(),
-    name: z.string(),
-  })).optional(),
+        denominatorAggregations: z.array(
+          z.object({
+            alignmentPeriod: z.unknown(),
+            crossSeriesReducer: z.unknown(),
+            groupByFields: z.unknown(),
+            perSeriesAligner: z.unknown(),
+          }).partial(),
+        ),
+        denominatorFilter: z.string(),
+        duration: z.string(),
+        evaluationMissingData: z.string(),
+        filter: z.string(),
+        forecastOptions: z.object({
+          forecastHorizon: z.string(),
+        }).partial(),
+        thresholdValue: z.number(),
+        trigger: z.object({
+          count: z.number(),
+          percent: z.number(),
+        }).partial(),
+      }).partial(),
+      displayName: z.string(),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   creationRecord: z.object({
     mutateTime: z.string(),
     mutatedBy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   documentation: z.object({
     content: z.string(),
-    links: z.array(z.object({
-      displayName: z.string(),
-      url: z.string(),
-    })),
+    links: z.array(
+      z.object({
+        displayName: z.string(),
+        url: z.string(),
+      }).partial(),
+    ),
     mimeType: z.string(),
     subject: z.string(),
-  }).optional(),
+  }).partial().optional(),
   enabled: z.boolean().optional(),
   mutationRecord: z.object({
     mutateTime: z.string(),
     mutatedBy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   notificationChannels: z.array(z.string()).optional(),
   severity: z.string().optional(),
@@ -650,7 +662,7 @@ const StateSchema = z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1053,7 +1065,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring AlertPolicies. Registered at `@swamp/gcp/monitoring/alertpolicies`. */
 export const model = {
   type: "@swamp/gcp/monitoring/alertpolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1192,6 +1204,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

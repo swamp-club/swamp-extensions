@@ -97,6 +97,39 @@ const TagSchema = z.object({
   ),
 });
 
+const NodeGroupConfigurationStateSchema = z.object({
+  Slots: z.string(),
+  PrimaryAvailabilityZone: z.string(),
+  ReplicaAvailabilityZones: z.array(z.string()),
+  NodeGroupId: z.string(),
+  ReplicaCount: z.number(),
+}).partial();
+
+const CloudWatchLogsDestinationDetailsStateSchema = z.object({
+  LogGroup: z.string(),
+}).partial();
+
+const KinesisFirehoseDestinationDetailsStateSchema = z.object({
+  DeliveryStream: z.string(),
+}).partial();
+
+const DestinationDetailsStateSchema = z.object({
+  CloudWatchLogsDetails: CloudWatchLogsDestinationDetailsStateSchema,
+  KinesisFirehoseDetails: KinesisFirehoseDestinationDetailsStateSchema,
+}).partial();
+
+const LogDeliveryConfigurationRequestStateSchema = z.object({
+  DestinationDetails: DestinationDetailsStateSchema,
+  DestinationType: z.string(),
+  LogFormat: z.string(),
+  LogType: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -238,27 +271,27 @@ const StateSchema = z.object({
   PrimaryEndPoint: z.object({
     Address: z.string(),
     Port: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CacheSecurityGroupNames: z.array(z.string()).optional(),
-  NodeGroupConfiguration: z.array(NodeGroupConfigurationSchema).optional(),
-  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestSchema)
+  NodeGroupConfiguration: z.array(NodeGroupConfigurationStateSchema).optional(),
+  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestStateSchema)
     .optional(),
   SnapshotArns: z.array(z.string()).optional(),
   UserGroupIds: z.array(z.string()).optional(),
   ConfigurationEndPoint: z.object({
     Address: z.string(),
     Port: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ReadEndPoint: z.object({
     Addresses: z.string(),
     AddressesList: z.array(z.string()),
     Ports: z.string(),
     PortsList: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   ReaderEndPoint: z.object({
     Address: z.string(),
     Port: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Port: z.number().optional(),
   NumNodeGroups: z.number().optional(),
   NotificationTopicArn: z.string().optional(),
@@ -269,7 +302,7 @@ const StateSchema = z.object({
   MultiAZEnabled: z.boolean().optional(),
   TransitEncryptionEnabled: z.boolean().optional(),
   Engine: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   NumCacheClusters: z.number().optional(),
   EngineVersion: z.string().optional(),
   KmsKeyId: z.string().optional(),
@@ -295,7 +328,7 @@ const StateSchema = z.object({
   EffectiveDurability: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -443,7 +476,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElastiCache ReplicationGroup. Registered at `@swamp/aws/elasticache/replication-group`. */
 export const model = {
   type: "@swamp/aws/elasticache/replication-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -527,6 +560,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

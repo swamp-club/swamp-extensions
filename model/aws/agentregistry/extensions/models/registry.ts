@@ -109,6 +109,44 @@ const TagSchema = z.object({
     .describe("The key of the tag."),
 });
 
+const RecordTypeSchemaOverrideStateSchema = z.object({
+  RecordType: z.string(),
+  Schema: z.string(),
+}).partial();
+
+const ClaimMatchValueTypeStateSchema = z.object({
+  MatchValueString: z.string(),
+  MatchValueStringList: z.array(z.string()),
+}).partial();
+
+const AuthorizingClaimMatchValueTypeStateSchema = z.object({
+  ClaimMatchValue: ClaimMatchValueTypeStateSchema,
+  ClaimMatchOperator: z.string(),
+}).partial();
+
+const CustomClaimValidationTypeStateSchema = z.object({
+  AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeStateSchema,
+  InboundTokenClaimName: z.string(),
+  InboundTokenClaimValueType: z.string(),
+}).partial();
+
+const CustomJWTAuthorizerConfigurationStateSchema = z.object({
+  DiscoveryUrl: z.string(),
+  AllowedAudience: z.array(z.string()),
+  CustomClaims: z.array(CustomClaimValidationTypeStateSchema),
+  AllowedClients: z.array(z.string()),
+  AllowedScopes: z.array(z.string()),
+}).partial();
+
+const AuthorizerConfigurationStateSchema = z.object({
+  CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -183,19 +221,19 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   ApprovalConfiguration: z.object({
     AutoApprovalRules: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   AuthorizerType: z.string().optional(),
   EncryptionConfiguration: z.object({
     KmsKeyArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CreatedAt: z.string().optional(),
   CustomMetadataSchemaConfiguration: z.object({
-    RecordTypeSchemaOverrides: z.array(RecordTypeSchemaOverrideSchema),
+    RecordTypeSchemaOverrides: z.array(RecordTypeSchemaOverrideStateSchema),
     DefaultSchema: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DiscoveryConfiguration: z.object({
-    AuthorizerConfiguration: AuthorizerConfigurationSchema,
-  }).optional(),
+    AuthorizerConfiguration: AuthorizerConfigurationStateSchema,
+  }).partial().optional(),
   AutoDetectionEnabled: z.boolean().optional(),
   UpdatedAt: z.string().optional(),
   Name: z.string().optional(),
@@ -203,10 +241,10 @@ const StateSchema = z.object({
   AutoDetectionStatus: z.string().optional(),
   RegistryId: z.string().optional(),
   RegistryArn: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -286,7 +324,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry Registry. Registered at `@swamp/aws/agentregistry/registry`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.03.1",
@@ -306,6 +344,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

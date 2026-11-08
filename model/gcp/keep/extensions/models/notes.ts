@@ -159,39 +159,45 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  attachments: z.array(z.object({
-    mimeType: z.array(z.string()),
-    name: z.string(),
-  })).optional(),
+  attachments: z.array(
+    z.object({
+      mimeType: z.array(z.string()),
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   body: z.object({
     list: z.object({
-      listItems: z.array(z.object({
-        checked: z.boolean(),
-        childListItems: z.array(z.unknown()),
-        text: z.object({
-          text: z.unknown(),
-        }),
-      })),
-    }),
+      listItems: z.array(
+        z.object({
+          checked: z.boolean(),
+          childListItems: z.array(z.unknown()),
+          text: z.object({
+            text: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
     text: z.object({
       text: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   name: z.string(),
-  permissions: z.array(z.object({
-    deleted: z.boolean(),
-    email: z.string(),
-    family: z.object({}),
-    group: z.object({
+  permissions: z.array(
+    z.object({
+      deleted: z.boolean(),
       email: z.string(),
-    }),
-    name: z.string(),
-    role: z.string(),
-    user: z.object({
-      email: z.string(),
-    }),
-  })).optional(),
+      family: z.object({}).partial(),
+      group: z.object({
+        email: z.string(),
+      }).partial(),
+      name: z.string(),
+      role: z.string(),
+      user: z.object({
+        email: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   title: z.string().optional(),
   trashTime: z.string().optional(),
   trashed: z.boolean().optional(),
@@ -267,7 +273,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Keep Notes. Registered at `@swamp/gcp/keep/notes`. */
 export const model = {
   type: "@swamp/gcp/keep/notes",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -396,6 +402,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

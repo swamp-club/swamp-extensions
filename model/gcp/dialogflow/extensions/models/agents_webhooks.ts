@@ -269,7 +269,7 @@ const StateSchema = z.object({
       scopes: z.array(z.string()),
       secretVersionForClientSecret: z.string(),
       tokenEndpoint: z.string(),
-    }),
+    }).partial(),
     parameterMapping: z.record(z.string(), z.unknown()),
     password: z.string(),
     requestBody: z.string(),
@@ -278,12 +278,12 @@ const StateSchema = z.object({
     secretVersionsForRequestHeaders: z.record(z.string(), z.unknown()),
     serviceAccountAuthConfig: z.object({
       serviceAccount: z.string(),
-    }),
+    }).partial(),
     serviceAgentAuth: z.string(),
     uri: z.string(),
     username: z.string(),
     webhookType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   serviceDirectory: z.object({
     genericWebService: z.object({
@@ -295,7 +295,7 @@ const StateSchema = z.object({
         scopes: z.array(z.string()),
         secretVersionForClientSecret: z.string(),
         tokenEndpoint: z.string(),
-      }),
+      }).partial(),
       parameterMapping: z.record(z.string(), z.unknown()),
       password: z.string(),
       requestBody: z.string(),
@@ -304,14 +304,14 @@ const StateSchema = z.object({
       secretVersionsForRequestHeaders: z.record(z.string(), z.unknown()),
       serviceAccountAuthConfig: z.object({
         serviceAccount: z.string(),
-      }),
+      }).partial(),
       serviceAgentAuth: z.string(),
       uri: z.string(),
       username: z.string(),
       webhookType: z.string(),
-    }),
+    }).partial(),
     service: z.string(),
-  }).optional(),
+  }).partial().optional(),
   timeout: z.string().optional(),
 }).passthrough();
 
@@ -453,7 +453,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Agents.Webhooks. Registered at `@swamp/gcp/dialogflow/agents-webhooks`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-webhooks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -587,6 +587,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

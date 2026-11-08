@@ -65,6 +65,29 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(255),
 });
 
+const SubnetMappingStateSchema = z.object({
+  SubnetId: z.string(),
+  IPAddressType: z.string(),
+}).partial();
+
+const AvailabilityZoneMappingStateSchema = z.object({
+  AvailabilityZone: z.string(),
+}).partial();
+
+const NatGatewayMappingStateSchema = z.object({
+  NatGatewayId: z.string(),
+}).partial();
+
+const ListenerPropertyStateSchema = z.object({
+  Port: z.number(),
+  Type: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -127,8 +150,9 @@ const StateSchema = z.object({
   FirewallId: z.string().optional(),
   FirewallPolicyArn: z.string().optional(),
   VpcId: z.string().optional(),
-  SubnetMappings: z.array(SubnetMappingSchema).optional(),
-  AvailabilityZoneMappings: z.array(AvailabilityZoneMappingSchema).optional(),
+  SubnetMappings: z.array(SubnetMappingStateSchema).optional(),
+  AvailabilityZoneMappings: z.array(AvailabilityZoneMappingStateSchema)
+    .optional(),
   DeleteProtection: z.boolean().optional(),
   SubnetChangeProtection: z.boolean().optional(),
   AvailabilityZoneChangeProtection: z.boolean().optional(),
@@ -139,19 +163,19 @@ const StateSchema = z.object({
   EndpointIds: z.array(z.string()).optional(),
   EnabledAnalysisTypes: z.array(z.string()).optional(),
   NoSourcePreservation: z.boolean().optional(),
-  NatGatewayMappings: z.array(NatGatewayMappingSchema).optional(),
+  NatGatewayMappings: z.array(NatGatewayMappingStateSchema).optional(),
   ProxySettings: z.object({
-    ListenerProperties: z.array(ListenerPropertySchema),
-  }).optional(),
+    ListenerProperties: z.array(ListenerPropertyStateSchema),
+  }).partial().optional(),
   VpcEndpoint: z.object({
     VpcId: z.string(),
-    SubnetMappings: z.array(SubnetMappingSchema),
-  }).optional(),
+    SubnetMappings: z.array(SubnetMappingStateSchema),
+  }).partial().optional(),
   NumberOfAssociations: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -218,7 +242,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkFirewall Firewall. Registered at `@swamp/aws/networkfirewall/firewall`. */
 export const model = {
   type: "@swamp/aws/networkfirewall/firewall",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -288,6 +312,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

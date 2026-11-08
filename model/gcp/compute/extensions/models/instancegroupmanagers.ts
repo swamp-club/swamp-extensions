@@ -516,12 +516,14 @@ const StateSchema = z.object({
       exposeHostTopology: z.boolean(),
       labels: z.record(z.string(), z.unknown()),
       metadata: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
-  autoHealingPolicies: z.array(z.object({
-    healthCheck: z.string(),
-    initialDelaySec: z.number(),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  autoHealingPolicies: z.array(
+    z.object({
+      healthCheck: z.string(),
+      initialDelaySec: z.number(),
+    }).partial(),
+  ).optional(),
   baseInstanceName: z.string().optional(),
   creationTimestamp: z.string().optional(),
   currentActions: z.object({
@@ -538,19 +540,21 @@ const StateSchema = z.object({
     stopping: z.number(),
     suspending: z.number(),
     verifying: z.number(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   distributionPolicy: z.object({
     targetShape: z.string(),
-    zones: z.array(z.object({
-      zone: z.string(),
-    })),
-  }).optional(),
+    zones: z.array(
+      z.object({
+        zone: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   fingerprint: z.string().optional(),
   id: z.string().optional(),
   instanceFlexibilityPolicy: z.object({
     instanceSelections: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   instanceGroup: z.string().optional(),
   instanceLifecyclePolicy: z.object({
     defaultActionOnFailure: z.string(),
@@ -558,59 +562,63 @@ const StateSchema = z.object({
     onFailedHealthCheck: z.string(),
     onRepair: z.object({
       allowChangingZone: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   instanceTemplate: z.string().optional(),
   kind: z.string().optional(),
   listManagedInstancesResults: z.string().optional(),
   name: z.string(),
-  namedPorts: z.array(z.object({
-    name: z.string(),
-    port: z.number(),
-  })).optional(),
+  namedPorts: z.array(
+    z.object({
+      name: z.string(),
+      port: z.number(),
+    }).partial(),
+  ).optional(),
   region: z.string().optional(),
   resourcePolicies: z.object({
     workloadPolicy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   selfLink: z.string().optional(),
   standbyPolicy: z.object({
     initialDelaySec: z.number(),
     mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   statefulPolicy: z.object({
     preservedState: z.object({
       disks: z.record(z.string(), z.unknown()),
       externalIPs: z.record(z.string(), z.unknown()),
       internalIPs: z.record(z.string(), z.unknown()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   status: z.object({
     allInstancesConfig: z.object({
       currentRevision: z.string(),
       effective: z.boolean(),
-    }),
-    appliedAcceleratorTopologies: z.array(z.object({
-      acceleratorTopology: z.string(),
-      state: z.string(),
-      stateDetails: z.object({
-        error: z.object({
-          errors: z.unknown(),
-        }),
-        timestamp: z.string(),
-      }),
-    })),
+    }).partial(),
+    appliedAcceleratorTopologies: z.array(
+      z.object({
+        acceleratorTopology: z.string(),
+        state: z.string(),
+        stateDetails: z.object({
+          error: z.object({
+            errors: z.unknown(),
+          }).partial(),
+          timestamp: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     autoscaler: z.string(),
     bulkInstanceOperation: z.object({
       inProgress: z.boolean(),
       lastProgressCheck: z.object({
         error: z.object({
           errors: z.array(z.unknown()),
-        }),
+        }).partial(),
         timestamp: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     currentInstanceStatuses: z.object({
       deprovisioning: z.number(),
       nonExistent: z.number(),
@@ -625,23 +633,23 @@ const StateSchema = z.object({
       suspended: z.number(),
       suspending: z.number(),
       terminated: z.number(),
-    }),
+    }).partial(),
     isStable: z.boolean(),
     stateful: z.object({
       hasStatefulConfig: z.boolean(),
       perInstanceConfigs: z.object({
         allEffective: z.boolean(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     versionTarget: z.object({
       isReached: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   targetPools: z.array(z.string()).optional(),
   targetSize: z.number().optional(),
   targetSizePolicy: z.object({
     mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetStoppedSize: z.number().optional(),
   targetSuspendedSize: z.number().optional(),
   updatePolicy: z.object({
@@ -650,26 +658,28 @@ const StateSchema = z.object({
       calculated: z.number(),
       fixed: z.number(),
       percent: z.number(),
-    }),
+    }).partial(),
     maxUnavailable: z.object({
       calculated: z.number(),
       fixed: z.number(),
       percent: z.number(),
-    }),
+    }).partial(),
     minimalAction: z.string(),
     mostDisruptiveAllowedAction: z.string(),
     replacementMethod: z.string(),
     type: z.string(),
-  }).optional(),
-  versions: z.array(z.object({
-    instanceTemplate: z.string(),
-    name: z.string(),
-    targetSize: z.object({
-      calculated: z.number(),
-      fixed: z.number(),
-      percent: z.number(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  versions: z.array(
+    z.object({
+      instanceTemplate: z.string(),
+      name: z.string(),
+      targetSize: z.object({
+        calculated: z.number(),
+        fixed: z.number(),
+        percent: z.number(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   zone: z.string().optional(),
 }).passthrough();
 
@@ -1011,7 +1021,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagers. Registered at `@swamp/gcp/compute/instancegroupmanagers`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1279,6 +1289,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

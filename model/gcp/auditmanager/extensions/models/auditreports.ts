@@ -113,35 +113,37 @@ const StateSchema = z.object({
   cloudControlParameterStates: z.record(z.string(), z.unknown()).optional(),
   complianceFramework: z.string().optional(),
   complianceStandard: z.string().optional(),
-  controlDetails: z.array(z.object({
-    complianceState: z.string(),
-    control: z.object({
-      controlFamily: z.object({
+  controlDetails: z.array(
+    z.object({
+      complianceState: z.string(),
+      control: z.object({
+        controlFamily: z.object({
+          displayName: z.string(),
+          familyId: z.string(),
+        }).partial(),
+        customerResponsibilityDescription: z.string(),
+        customerResponsibilityImplementation: z.string(),
+        description: z.string(),
         displayName: z.string(),
-        familyId: z.string(),
-      }),
-      customerResponsibilityDescription: z.string(),
-      customerResponsibilityImplementation: z.string(),
-      description: z.string(),
-      displayName: z.string(),
-      family: z.string(),
-      googleResponsibilityDescription: z.string(),
-      googleResponsibilityImplementation: z.string(),
-      id: z.string(),
-      responsibilityType: z.string(),
-    }),
-    controlReportSummary: z.object({
-      compliantCount: z.number(),
-      errorCount: z.number(),
-      manualReviewNeededCount: z.number(),
-      totalCount: z.number(),
-      violationCount: z.number(),
-    }),
-  })).optional(),
+        family: z.string(),
+        googleResponsibilityDescription: z.string(),
+        googleResponsibilityImplementation: z.string(),
+        id: z.string(),
+        responsibilityType: z.string(),
+      }).partial(),
+      controlReportSummary: z.object({
+        compliantCount: z.number(),
+        errorCount: z.number(),
+        manualReviewNeededCount: z.number(),
+        totalCount: z.number(),
+        violationCount: z.number(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   destinationDetails: z.object({
     gcsBucketUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   operationId: z.string().optional(),
   reportGenerationState: z.string().optional(),
@@ -151,7 +153,7 @@ const StateSchema = z.object({
     manualReviewNeededCount: z.number(),
     totalCount: z.number(),
     violationCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   scope: z.string().optional(),
   scopeId: z.string().optional(),
 }).passthrough();
@@ -197,7 +199,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Audit Manager AuditReports. Registered at `@swamp/gcp/auditmanager/auditreports`. */
 export const model = {
   type: "@swamp/gcp/auditmanager/auditreports",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.06.1",
@@ -216,6 +218,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

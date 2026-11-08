@@ -101,11 +101,13 @@ const StateSchema = z.object({
   kind: z.string().optional(),
   snippet: z.object({
     label: z.string(),
-    secondaryReasons: z.array(z.object({
-      id: z.string(),
-      label: z.string(),
-    })),
-  }).optional(),
+    secondaryReasons: z.array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -149,7 +151,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data VideoAbuseReportReasons. Registered at `@swamp/gcp/youtube/videoabusereportreasons`. */
 export const model = {
   type: "@swamp/gcp/youtube/videoabusereportreasons",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -268,6 +270,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

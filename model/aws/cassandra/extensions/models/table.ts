@@ -88,6 +88,51 @@ const ReplicaSpecificationSchema = z.object({
   ).optional(),
 });
 
+const ColumnStateSchema = z.object({
+  ColumnName: z.string(),
+  ColumnType: z.string(),
+}).partial();
+
+const ClusteringKeyColumnStateSchema = z.object({
+  Column: ColumnStateSchema,
+  OrderBy: z.string(),
+}).partial();
+
+const ProvisionedThroughputStateSchema = z.object({
+  ReadCapacityUnits: z.number(),
+  WriteCapacityUnits: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const TargetTrackingScalingPolicyConfigurationStateSchema = z.object({
+  DisableScaleIn: z.boolean(),
+  ScaleInCooldown: z.number(),
+  ScaleOutCooldown: z.number(),
+  TargetValue: z.number(),
+}).partial();
+
+const ScalingPolicyStateSchema = z.object({
+  TargetTrackingScalingPolicyConfiguration:
+    TargetTrackingScalingPolicyConfigurationStateSchema,
+}).partial();
+
+const AutoScalingSettingStateSchema = z.object({
+  AutoScalingDisabled: z.boolean(),
+  MinimumUnits: z.number(),
+  MaximumUnits: z.number(),
+  ScalingPolicy: ScalingPolicyStateSchema,
+}).partial();
+
+const ReplicaSpecificationStateSchema = z.object({
+  Region: z.string(),
+  ReadCapacityUnits: z.number(),
+  ReadCapacityAutoScaling: AutoScalingSettingStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -179,38 +224,38 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   KeyspaceName: z.string(),
   TableName: z.string(),
-  RegularColumns: z.array(ColumnSchema).optional(),
-  PartitionKeyColumns: z.array(ColumnSchema).optional(),
-  ClusteringKeyColumns: z.array(ClusteringKeyColumnSchema).optional(),
+  RegularColumns: z.array(ColumnStateSchema).optional(),
+  PartitionKeyColumns: z.array(ColumnStateSchema).optional(),
+  ClusteringKeyColumns: z.array(ClusteringKeyColumnStateSchema).optional(),
   BillingMode: z.object({
     Mode: z.string(),
-    ProvisionedThroughput: ProvisionedThroughputSchema,
-  }).optional(),
+    ProvisionedThroughput: ProvisionedThroughputStateSchema,
+  }).partial().optional(),
   PointInTimeRecoveryEnabled: z.boolean().optional(),
   ClientSideTimestampsEnabled: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   DefaultTimeToLive: z.number().optional(),
   EncryptionSpecification: z.object({
     EncryptionType: z.string(),
     KmsKeyIdentifier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   AutoScalingSpecifications: z.object({
-    WriteCapacityAutoScaling: AutoScalingSettingSchema,
-    ReadCapacityAutoScaling: AutoScalingSettingSchema,
-  }).optional(),
+    WriteCapacityAutoScaling: AutoScalingSettingStateSchema,
+    ReadCapacityAutoScaling: AutoScalingSettingStateSchema,
+  }).partial().optional(),
   CdcSpecification: z.object({
     Status: z.string(),
     ViewType: z.string(),
-    Tags: z.array(TagSchema),
-  }).optional(),
-  ReplicaSpecifications: z.array(ReplicaSpecificationSchema).optional(),
+    Tags: z.array(TagStateSchema),
+  }).partial().optional(),
+  ReplicaSpecifications: z.array(ReplicaSpecificationStateSchema).optional(),
   WarmThroughput: z.object({
     ReadUnitsPerSecond: z.number(),
     WriteUnitsPerSecond: z.number(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -309,7 +354,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cassandra Table. Registered at `@swamp/aws/cassandra/table`. */
 export const model = {
   type: "@swamp/aws/cassandra/table",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +418,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

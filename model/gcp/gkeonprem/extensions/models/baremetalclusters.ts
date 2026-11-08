@@ -538,36 +538,42 @@ const StateSchema = z.object({
   bareMetalVersion: z.string().optional(),
   binaryAuthorization: z.object({
     evaluationMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   clusterOperations: z.object({
     enableApplicationLogs: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   controlPlane: z.object({
-    apiServerArgs: z.array(z.object({
-      argument: z.string(),
-      value: z.string(),
-    })),
+    apiServerArgs: z.array(
+      z.object({
+        argument: z.string(),
+        value: z.string(),
+      }).partial(),
+    ),
     controlPlaneNodePoolConfig: z.object({
       nodePoolConfig: z.object({
         kubeletConfig: z.object({
           registryBurst: z.number(),
           registryPullQps: z.number(),
           serializeImagePullsDisabled: z.boolean(),
-        }),
+        }).partial(),
         labels: z.record(z.string(), z.unknown()),
-        nodeConfigs: z.array(z.object({
-          labels: z.unknown(),
-          nodeIp: z.unknown(),
-        })),
+        nodeConfigs: z.array(
+          z.object({
+            labels: z.unknown(),
+            nodeIp: z.unknown(),
+          }).partial(),
+        ),
         operatingSystem: z.string(),
-        taints: z.array(z.object({
-          effect: z.unknown(),
-          key: z.unknown(),
-          value: z.unknown(),
-        })),
-      }),
-    }),
-  }).optional(),
+        taints: z.array(
+          z.object({
+            effect: z.unknown(),
+            key: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   description: z.string().optional(),
@@ -575,169 +581,187 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   fleet: z.object({
     membership: z.string(),
-  }).optional(),
+  }).partial().optional(),
   loadBalancer: z.object({
     bgpLbConfig: z.object({
-      addressPools: z.array(z.object({
-        addresses: z.array(z.unknown()),
-        avoidBuggyIps: z.boolean(),
-        manualAssign: z.boolean(),
-        pool: z.string(),
-      })),
+      addressPools: z.array(
+        z.object({
+          addresses: z.array(z.unknown()),
+          avoidBuggyIps: z.boolean(),
+          manualAssign: z.boolean(),
+          pool: z.string(),
+        }).partial(),
+      ),
       asn: z.string(),
-      bgpPeerConfigs: z.array(z.object({
-        asn: z.string(),
-        controlPlaneNodes: z.array(z.unknown()),
-        ipAddress: z.string(),
-      })),
+      bgpPeerConfigs: z.array(
+        z.object({
+          asn: z.string(),
+          controlPlaneNodes: z.array(z.unknown()),
+          ipAddress: z.string(),
+        }).partial(),
+      ),
       loadBalancerNodePoolConfig: z.object({
         nodePoolConfig: z.object({
           kubeletConfig: z.object({
             registryBurst: z.unknown(),
             registryPullQps: z.unknown(),
             serializeImagePullsDisabled: z.unknown(),
-          }),
+          }).partial(),
           labels: z.record(z.string(), z.unknown()),
           nodeConfigs: z.array(z.unknown()),
           operatingSystem: z.string(),
           taints: z.array(z.unknown()),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     manualLbConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     metalLbConfig: z.object({
-      addressPools: z.array(z.object({
-        addresses: z.array(z.unknown()),
-        avoidBuggyIps: z.boolean(),
-        manualAssign: z.boolean(),
-        pool: z.string(),
-      })),
+      addressPools: z.array(
+        z.object({
+          addresses: z.array(z.unknown()),
+          avoidBuggyIps: z.boolean(),
+          manualAssign: z.boolean(),
+          pool: z.string(),
+        }).partial(),
+      ),
       loadBalancerNodePoolConfig: z.object({
         nodePoolConfig: z.object({
           kubeletConfig: z.object({
             registryBurst: z.unknown(),
             registryPullQps: z.unknown(),
             serializeImagePullsDisabled: z.unknown(),
-          }),
+          }).partial(),
           labels: z.record(z.string(), z.unknown()),
           nodeConfigs: z.array(z.unknown()),
           operatingSystem: z.string(),
           taints: z.array(z.unknown()),
-        }),
-      }),
-    }),
+        }).partial(),
+      }).partial(),
+    }).partial(),
     portConfig: z.object({
       controlPlaneLoadBalancerPort: z.number(),
-    }),
+    }).partial(),
     vipConfig: z.object({
       controlPlaneVip: z.string(),
       ingressVip: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   localName: z.string().optional(),
   localNamespace: z.string().optional(),
   maintenanceConfig: z.object({
     maintenanceAddressCidrBlocks: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   maintenanceStatus: z.object({
     machineDrainStatus: z.object({
-      drainedMachines: z.array(z.object({
-        nodeIp: z.string(),
-      })),
-      drainingMachines: z.array(z.object({
-        nodeIp: z.string(),
-        podCount: z.number(),
-      })),
-    }),
-  }).optional(),
+      drainedMachines: z.array(
+        z.object({
+          nodeIp: z.string(),
+        }).partial(),
+      ),
+      drainingMachines: z.array(
+        z.object({
+          nodeIp: z.string(),
+          podCount: z.number(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   name: z.string(),
   networkConfig: z.object({
     advancedNetworking: z.boolean(),
     islandModeCidr: z.object({
       podAddressCidrBlocks: z.array(z.string()),
       serviceAddressCidrBlocks: z.array(z.string()),
-    }),
+    }).partial(),
     multipleNetworkInterfacesConfig: z.object({
       enabled: z.boolean(),
-    }),
+    }).partial(),
     srIovConfig: z.object({
       enabled: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   nodeAccessConfig: z.object({
     loginUser: z.string(),
-  }).optional(),
+  }).partial().optional(),
   nodeConfig: z.object({
     containerRuntime: z.string(),
     maxPodsPerNode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   osEnvironmentConfig: z.object({
     packageRepoExcluded: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   proxy: z.object({
     noProxy: z.array(z.string()),
     uri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   reconciling: z.boolean().optional(),
   securityConfig: z.object({
     authorization: z.object({
-      adminUsers: z.array(z.object({
-        username: z.string(),
-      })),
-    }),
-  }).optional(),
+      adminUsers: z.array(
+        z.object({
+          username: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
   status: z.object({
-    conditions: z.array(z.object({
-      lastTransitionTime: z.string(),
-      message: z.string(),
-      reason: z.string(),
-      state: z.string(),
-      type: z.string(),
-    })),
+    conditions: z.array(
+      z.object({
+        lastTransitionTime: z.string(),
+        message: z.string(),
+        reason: z.string(),
+        state: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     errorMessage: z.string(),
     version: z.string(),
     versions: z.object({
-      versions: z.array(z.object({
-        count: z.string(),
-        version: z.string(),
-      })),
-    }),
-  }).optional(),
+      versions: z.array(
+        z.object({
+          count: z.string(),
+          version: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   storage: z.object({
     lvpNodeMountsConfig: z.object({
       path: z.string(),
       storageClass: z.string(),
-    }),
+    }).partial(),
     lvpShareConfig: z.object({
       lvpConfig: z.object({
         path: z.string(),
         storageClass: z.string(),
-      }),
+      }).partial(),
       sharedPathPvCount: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   upgradePolicy: z.object({
     pause: z.boolean(),
     policy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   validationCheck: z.object({
     option: z.string(),
     scenario: z.string(),
     status: z.object({
-      result: z.array(z.object({
-        category: z.string(),
-        description: z.string(),
-        details: z.string(),
-        reason: z.string(),
-        state: z.string(),
-      })),
-    }),
-  }).optional(),
+      result: z.array(
+        z.object({
+          category: z.string(),
+          description: z.string(),
+          details: z.string(),
+          reason: z.string(),
+          state: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1110,7 +1134,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE On-Prem BareMetalClusters. Registered at `@swamp/gcp/gkeonprem/baremetalclusters`. */
 export const model = {
   type: "@swamp/gcp/gkeonprem/baremetalclusters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1340,6 +1364,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

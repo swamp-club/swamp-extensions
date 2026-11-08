@@ -223,18 +223,22 @@ const StateSchema = z.object({
   expireTime: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  policies: z.array(z.object({
-    authorizationRule: z.object({
-      description: z.string(),
-      expression: z.string(),
-      location: z.string(),
-      title: z.string(),
-    }),
-    resourceAttributes: z.array(z.object({
-      attributeDefinitionId: z.string(),
-      values: z.array(z.unknown()),
-    })),
-  })).optional(),
+  policies: z.array(
+    z.object({
+      authorizationRule: z.object({
+        description: z.string(),
+        expression: z.string(),
+        location: z.string(),
+        title: z.string(),
+      }).partial(),
+      resourceAttributes: z.array(
+        z.object({
+          attributeDefinitionId: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   revisionCreateTime: z.string().optional(),
   revisionId: z.string().optional(),
   state: z.string().optional(),
@@ -341,7 +345,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Healthcare Datasets.ConsentStores.Consents. Registered at `@swamp/gcp/healthcare/datasets-consentstores-consents`. */
 export const model = {
   type: "@swamp/gcp/healthcare/datasets-consentstores-consents",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -490,6 +494,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

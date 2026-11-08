@@ -441,90 +441,102 @@ const StateSchema = z.object({
   perimeterType: z.string().optional(),
   spec: z.object({
     accessLevels: z.array(z.string()),
-    egressPolicies: z.array(z.object({
-      egressFrom: z.object({
-        identities: z.array(z.unknown()),
-        identityType: z.string(),
-        sourceRestriction: z.string(),
-        sources: z.array(z.unknown()),
-      }),
-      egressTo: z.object({
-        externalResources: z.array(z.unknown()),
-        operations: z.array(z.unknown()),
-        resources: z.array(z.unknown()),
-        roles: z.array(z.unknown()),
-      }),
-      title: z.string(),
-    })),
-    ingressPolicies: z.array(z.object({
-      ingressFrom: z.object({
-        identities: z.array(z.unknown()),
-        identityType: z.string(),
-        sources: z.array(z.unknown()),
-      }),
-      ingressTo: z.object({
-        operations: z.array(z.unknown()),
-        resources: z.array(z.unknown()),
-        roles: z.array(z.unknown()),
-      }),
-      title: z.string(),
-    })),
+    egressPolicies: z.array(
+      z.object({
+        egressFrom: z.object({
+          identities: z.array(z.unknown()),
+          identityType: z.string(),
+          sourceRestriction: z.string(),
+          sources: z.array(z.unknown()),
+        }).partial(),
+        egressTo: z.object({
+          externalResources: z.array(z.unknown()),
+          operations: z.array(z.unknown()),
+          resources: z.array(z.unknown()),
+          roles: z.array(z.unknown()),
+        }).partial(),
+        title: z.string(),
+      }).partial(),
+    ),
+    ingressPolicies: z.array(
+      z.object({
+        ingressFrom: z.object({
+          identities: z.array(z.unknown()),
+          identityType: z.string(),
+          sources: z.array(z.unknown()),
+        }).partial(),
+        ingressTo: z.object({
+          operations: z.array(z.unknown()),
+          resources: z.array(z.unknown()),
+          roles: z.array(z.unknown()),
+        }).partial(),
+        title: z.string(),
+      }).partial(),
+    ),
     resources: z.array(z.string()),
     restrictedServices: z.array(z.string()),
     vpcAccessibleServices: z.object({
-      allowedServicePatterns: z.array(z.object({
-        modifiers: z.array(z.unknown()),
-        pattern: z.string(),
-        service: z.string(),
-      })),
+      allowedServicePatterns: z.array(
+        z.object({
+          modifiers: z.array(z.unknown()),
+          pattern: z.string(),
+          service: z.string(),
+        }).partial(),
+      ),
       allowedServices: z.array(z.string()),
       enableRestriction: z.boolean(),
       servicePatternsEnforcementScopes: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   status: z.object({
     accessLevels: z.array(z.string()),
-    egressPolicies: z.array(z.object({
-      egressFrom: z.object({
-        identities: z.array(z.unknown()),
-        identityType: z.string(),
-        sourceRestriction: z.string(),
-        sources: z.array(z.unknown()),
-      }),
-      egressTo: z.object({
-        externalResources: z.array(z.unknown()),
-        operations: z.array(z.unknown()),
-        resources: z.array(z.unknown()),
-        roles: z.array(z.unknown()),
-      }),
-      title: z.string(),
-    })),
-    ingressPolicies: z.array(z.object({
-      ingressFrom: z.object({
-        identities: z.array(z.unknown()),
-        identityType: z.string(),
-        sources: z.array(z.unknown()),
-      }),
-      ingressTo: z.object({
-        operations: z.array(z.unknown()),
-        resources: z.array(z.unknown()),
-        roles: z.array(z.unknown()),
-      }),
-      title: z.string(),
-    })),
+    egressPolicies: z.array(
+      z.object({
+        egressFrom: z.object({
+          identities: z.array(z.unknown()),
+          identityType: z.string(),
+          sourceRestriction: z.string(),
+          sources: z.array(z.unknown()),
+        }).partial(),
+        egressTo: z.object({
+          externalResources: z.array(z.unknown()),
+          operations: z.array(z.unknown()),
+          resources: z.array(z.unknown()),
+          roles: z.array(z.unknown()),
+        }).partial(),
+        title: z.string(),
+      }).partial(),
+    ),
+    ingressPolicies: z.array(
+      z.object({
+        ingressFrom: z.object({
+          identities: z.array(z.unknown()),
+          identityType: z.string(),
+          sources: z.array(z.unknown()),
+        }).partial(),
+        ingressTo: z.object({
+          operations: z.array(z.unknown()),
+          resources: z.array(z.unknown()),
+          roles: z.array(z.unknown()),
+        }).partial(),
+        title: z.string(),
+      }).partial(),
+    ),
     resources: z.array(z.string()),
     restrictedServices: z.array(z.string()),
     vpcAccessibleServices: z.object({
-      allowedServicePatterns: z.array(z.object({
-        modifiers: z.array(z.unknown()),
-        pattern: z.string(),
-        service: z.string(),
-      })),
+      allowedServicePatterns: z.array(
+        z.object({
+          modifiers: z.array(z.unknown()),
+          pattern: z.string(),
+          service: z.string(),
+        }).partial(),
+      ),
       allowedServices: z.array(z.string()),
       enableRestriction: z.boolean(),
       servicePatternsEnforcementScopes: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   title: z.string().optional(),
   useExplicitDryRunSpec: z.boolean().optional(),
 }).passthrough();
@@ -838,7 +850,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Context Manager AccessPolicies.ServicePerimeters. Registered at `@swamp/gcp/accesscontextmanager/accesspolicies-serviceperimeters`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/accesspolicies-serviceperimeters",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1047,6 +1059,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

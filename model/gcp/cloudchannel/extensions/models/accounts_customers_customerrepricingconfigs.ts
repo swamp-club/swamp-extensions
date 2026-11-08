@@ -245,33 +245,35 @@ const StateSchema = z.object({
       percentageAdjustment: z.object({
         percentage: z.object({
           value: z.string(),
-        }),
-      }),
-    }),
-    channelPartnerGranularity: z.object({}),
-    conditionalOverrides: z.array(z.object({
-      adjustment: z.object({
-        percentageAdjustment: z.object({
-          percentage: z.unknown(),
-        }),
-      }),
-      rebillingBasis: z.string(),
-      repricingCondition: z.object({
-        skuGroupCondition: z.object({
-          skuGroup: z.unknown(),
-        }),
-      }),
-    })),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+    channelPartnerGranularity: z.object({}).partial(),
+    conditionalOverrides: z.array(
+      z.object({
+        adjustment: z.object({
+          percentageAdjustment: z.object({
+            percentage: z.unknown(),
+          }).partial(),
+        }).partial(),
+        rebillingBasis: z.string(),
+        repricingCondition: z.object({
+          skuGroupCondition: z.object({
+            skuGroup: z.unknown(),
+          }).partial(),
+        }).partial(),
+      }).partial(),
+    ),
     effectiveInvoiceMonth: z.object({
       day: z.number(),
       month: z.number(),
       year: z.number(),
-    }),
+    }).partial(),
     entitlementGranularity: z.object({
       entitlement: z.string(),
-    }),
+    }).partial(),
     rebillingBasis: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -390,7 +392,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Channel Accounts.Customers.CustomerRepricingConfigs. Registered at `@swamp/gcp/cloudchannel/accounts-customers-customerrepricingconfigs`. */
 export const model = {
   type: "@swamp/gcp/cloudchannel/accounts-customers-customerrepricingconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -519,6 +521,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

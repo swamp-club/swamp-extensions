@@ -68,6 +68,22 @@ const EvaluationModeConfigurationSchema = z.object({
   ).optional(),
 });
 
+const CustomPolicyDetailsStateSchema = z.object({
+  EnableDebugLogDelivery: z.boolean(),
+  PolicyText: z.string(),
+  PolicyRuntime: z.string(),
+}).partial();
+
+const SourceDetailStateSchema = z.object({
+  EventSource: z.string(),
+  MaximumExecutionFrequency: z.string(),
+  MessageType: z.string(),
+}).partial();
+
+const EvaluationModeConfigurationStateSchema = z.object({
+  Mode: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -138,25 +154,25 @@ const StateSchema = z.object({
     ComplianceResourceTypes: z.array(z.string()),
     TagValue: z.string(),
     ComplianceResourceId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ConfigRuleName: z.string(),
   Arn: z.string().optional(),
   Compliance: z.object({
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   MaximumExecutionFrequency: z.string().optional(),
   Source: z.object({
-    CustomPolicyDetails: CustomPolicyDetailsSchema,
+    CustomPolicyDetails: CustomPolicyDetailsStateSchema,
     SourceIdentifier: z.string(),
     Owner: z.string(),
-    SourceDetails: z.array(SourceDetailSchema),
-  }).optional(),
+    SourceDetails: z.array(SourceDetailStateSchema),
+  }).partial().optional(),
   InputParameters: z.union([z.string(), z.record(z.string(), z.unknown())])
     .optional(),
-  EvaluationModes: z.array(EvaluationModeConfigurationSchema).optional(),
+  EvaluationModes: z.array(EvaluationModeConfigurationStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -231,7 +247,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Config ConfigRule. Registered at `@swamp/aws/config/config-rule`. */
 export const model = {
   type: "@swamp/aws/config/config-rule",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -310,6 +326,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

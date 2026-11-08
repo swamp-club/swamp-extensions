@@ -119,7 +119,7 @@ const StateSchema = z.object({
   destinationGeoLocation: z.object({
     formattedAddress: z.string(),
     regionCode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   interval: z.string().optional(),
   monitoringEnabled: z.boolean().optional(),
@@ -127,11 +127,13 @@ const StateSchema = z.object({
   monitoringPolicyId: z.string().optional(),
   monitoringStatus: z.string().optional(),
   name: z.string(),
-  providerTags: z.array(z.object({
-    category: z.string(),
-    resourceType: z.string(),
-    value: z.string(),
-  })).optional(),
+  providerTags: z.array(
+    z.object({
+      category: z.string(),
+      resourceType: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   providerUiUri: z.string().optional(),
   relatedNetworkPathId: z.string().optional(),
   sourceMonitoringPointId: z.string().optional(),
@@ -183,7 +185,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Management NetworkMonitoringProviders.WebPaths. Registered at `@swamp/gcp/networkmanagement/networkmonitoringproviders-webpaths`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/networkmonitoringproviders-webpaths",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -202,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

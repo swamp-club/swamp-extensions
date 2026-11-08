@@ -472,7 +472,7 @@ const StateSchema = z.object({
       sharedStorage: z.string(),
       sid: z.string(),
       vmsMultiplier: z.number(),
-    }),
+    }).partial(),
     database: z.object({
       databaseServiceAccount: z.string(),
       diskType: z.string(),
@@ -483,7 +483,7 @@ const StateSchema = z.object({
       secondaryDbVm: z.string(),
       secretManagerSecret: z.string(),
       sid: z.string(),
-    }),
+    }).partial(),
     deploymentModel: z.string(),
     environmentType: z.string(),
     gcpProjectId: z.string(),
@@ -500,13 +500,13 @@ const StateSchema = z.object({
       vpcName: z.string(),
       zone1Name: z.string(),
       zone2Name: z.string(),
-    }),
+    }).partial(),
     mediaBucketName: z.string(),
     sapBootDiskImage: z.string(),
     scalingMethod: z.string(),
     version: z.string(),
     vmPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   serviceAccount: z.string().optional(),
   sqlServerWorkload: z.object({
     activeDirectory: z.object({
@@ -515,7 +515,7 @@ const StateSchema = z.object({
       domainUsername: z.string(),
       secretManagerSecret: z.string(),
       type: z.string(),
-    }),
+    }).partial(),
     computeEngineServiceAccount: z.string(),
     database: z.object({
       diskType: z.string(),
@@ -529,7 +529,7 @@ const StateSchema = z.object({
       soleTenantNodeType: z.string(),
       tempdbOnSsd: z.boolean(),
       tenancyModel: z.string(),
-    }),
+    }).partial(),
     deploymentModel: z.string(),
     environmentType: z.string(),
     fciType: z.string(),
@@ -545,7 +545,7 @@ const StateSchema = z.object({
       secondaryZone: z.string(),
       subnetwork: z.string(),
       tertiaryZone: z.string(),
-    }),
+    }).partial(),
     mediaBucket: z.string(),
     operatingSystemType: z.string(),
     osImage: z.string(),
@@ -557,11 +557,11 @@ const StateSchema = z.object({
       pacemakerClusterUsername: z.string(),
       sqlPacemakerSecret: z.string(),
       sqlPacemakerUsername: z.string(),
-    }),
+    }).partial(),
     sqlServerEdition: z.string(),
     sqlServerVersion: z.string(),
     vmPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   terraformVariables: z.record(z.string(), z.unknown()).optional(),
   updateTime: z.string().optional(),
@@ -905,7 +905,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workload Manager Deployments. Registered at `@swamp/gcp/workloadmanager/deployments`. */
 export const model = {
   type: "@swamp/gcp/workloadmanager/deployments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1064,6 +1064,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

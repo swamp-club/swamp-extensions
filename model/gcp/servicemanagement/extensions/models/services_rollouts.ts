@@ -158,13 +158,13 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   createdBy: z.string().optional(),
-  deleteServiceStrategy: z.object({}).optional(),
+  deleteServiceStrategy: z.object({}).partial().optional(),
   rolloutId: z.string().optional(),
   serviceName: z.string().optional(),
   status: z.string().optional(),
   trafficPercentStrategy: z.object({
     percentages: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -236,7 +236,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Service Management Services.Rollouts. Registered at `@swamp/gcp/servicemanagement/services-rollouts`. */
 export const model = {
   type: "@swamp/gcp/servicemanagement/services-rollouts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -365,6 +365,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

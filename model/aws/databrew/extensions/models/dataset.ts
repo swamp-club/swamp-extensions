@@ -133,6 +133,85 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const JsonOptionsStateSchema = z.object({
+  MultiLine: z.boolean(),
+}).partial();
+
+const ExcelOptionsStateSchema = z.object({
+  SheetNames: z.array(z.string()),
+  SheetIndexes: z.array(z.number()),
+  HeaderRow: z.boolean(),
+}).partial();
+
+const CsvOptionsStateSchema = z.object({
+  Delimiter: z.string(),
+  HeaderRow: z.boolean(),
+}).partial();
+
+const S3LocationStateSchema = z.object({
+  Bucket: z.string(),
+  Key: z.string(),
+  BucketOwner: z.string(),
+}).partial();
+
+const DataCatalogInputDefinitionStateSchema = z.object({
+  CatalogId: z.string(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  TempDirectory: S3LocationStateSchema,
+}).partial();
+
+const DatabaseInputDefinitionStateSchema = z.object({
+  GlueConnectionName: z.string(),
+  DatabaseTableName: z.string(),
+  TempDirectory: S3LocationStateSchema,
+  QueryString: z.string(),
+}).partial();
+
+const MetadataStateSchema = z.object({
+  SourceArn: z.string(),
+}).partial();
+
+const FilesLimitStateSchema = z.object({
+  MaxFiles: z.number(),
+  OrderedBy: z.string(),
+  Order: z.string(),
+}).partial();
+
+const FilterValueStateSchema = z.object({
+  ValueReference: z.string(),
+  Value: z.string(),
+}).partial();
+
+const FilterExpressionStateSchema = z.object({
+  Expression: z.string(),
+  ValuesMap: z.array(FilterValueStateSchema),
+}).partial();
+
+const DatetimeOptionsStateSchema = z.object({
+  Format: z.string(),
+  TimezoneOffset: z.string(),
+  LocaleCode: z.string(),
+}).partial();
+
+const DatasetParameterStateSchema = z.object({
+  Name: z.string(),
+  Type: z.string(),
+  DatetimeOptions: DatetimeOptionsStateSchema,
+  CreateColumn: z.boolean(),
+  Filter: FilterExpressionStateSchema,
+}).partial();
+
+const PathParameterStateSchema = z.object({
+  PathParameterName: z.string(),
+  DatasetParameter: DatasetParameterStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -176,26 +255,26 @@ const StateSchema = z.object({
   Name: z.string(),
   Format: z.string().optional(),
   FormatOptions: z.object({
-    Json: JsonOptionsSchema,
-    Excel: ExcelOptionsSchema,
-    Csv: CsvOptionsSchema,
-  }).optional(),
+    Json: JsonOptionsStateSchema,
+    Excel: ExcelOptionsStateSchema,
+    Csv: CsvOptionsStateSchema,
+  }).partial().optional(),
   Input: z.object({
-    S3InputDefinition: S3LocationSchema,
-    DataCatalogInputDefinition: DataCatalogInputDefinitionSchema,
-    DatabaseInputDefinition: DatabaseInputDefinitionSchema,
-    Metadata: MetadataSchema,
-  }).optional(),
+    S3InputDefinition: S3LocationStateSchema,
+    DataCatalogInputDefinition: DataCatalogInputDefinitionStateSchema,
+    DatabaseInputDefinition: DatabaseInputDefinitionStateSchema,
+    Metadata: MetadataStateSchema,
+  }).partial().optional(),
   Source: z.string().optional(),
   PathOptions: z.object({
-    FilesLimit: FilesLimitSchema,
-    LastModifiedDateCondition: FilterExpressionSchema,
-    Parameters: z.array(PathParameterSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    FilesLimit: FilesLimitStateSchema,
+    LastModifiedDateCondition: FilterExpressionStateSchema,
+    Parameters: z.array(PathParameterStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -247,7 +326,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataBrew Dataset. Registered at `@swamp/aws/databrew/dataset`. */
 export const model = {
   type: "@swamp/aws/databrew/dataset",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -311,6 +390,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

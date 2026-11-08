@@ -454,71 +454,77 @@ const StateSchema = z.object({
       etag: z.string(),
       inheritFromParent: z.boolean(),
       reset: z.boolean(),
-      rules: z.array(z.object({
-        allowAll: z.boolean(),
-        condition: z.object({
-          description: z.unknown(),
-          expression: z.unknown(),
-          location: z.unknown(),
-          title: z.unknown(),
-        }),
-        denyAll: z.boolean(),
-        enforce: z.boolean(),
-        parameters: z.record(z.string(), z.unknown()),
-        values: z.object({
-          allowedValues: z.unknown(),
-          deniedValues: z.unknown(),
-        }),
-      })),
+      rules: z.array(
+        z.object({
+          allowAll: z.boolean(),
+          condition: z.object({
+            description: z.unknown(),
+            expression: z.unknown(),
+            location: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+          denyAll: z.boolean(),
+          enforce: z.boolean(),
+          parameters: z.record(z.string(), z.unknown()),
+          values: z.object({
+            allowedValues: z.unknown(),
+            deniedValues: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
       updateTime: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   dryRunSpec: z.object({
     etag: z.string(),
     inheritFromParent: z.boolean(),
     reset: z.boolean(),
-    rules: z.array(z.object({
-      allowAll: z.boolean(),
-      condition: z.object({
-        description: z.string(),
-        expression: z.string(),
-        location: z.string(),
-        title: z.string(),
-      }),
-      denyAll: z.boolean(),
-      enforce: z.boolean(),
-      parameters: z.record(z.string(), z.unknown()),
-      values: z.object({
-        allowedValues: z.array(z.unknown()),
-        deniedValues: z.array(z.unknown()),
-      }),
-    })),
+    rules: z.array(
+      z.object({
+        allowAll: z.boolean(),
+        condition: z.object({
+          description: z.string(),
+          expression: z.string(),
+          location: z.string(),
+          title: z.string(),
+        }).partial(),
+        denyAll: z.boolean(),
+        enforce: z.boolean(),
+        parameters: z.record(z.string(), z.unknown()),
+        values: z.object({
+          allowedValues: z.array(z.unknown()),
+          deniedValues: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    ),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   name: z.string(),
   spec: z.object({
     etag: z.string(),
     inheritFromParent: z.boolean(),
     reset: z.boolean(),
-    rules: z.array(z.object({
-      allowAll: z.boolean(),
-      condition: z.object({
-        description: z.string(),
-        expression: z.string(),
-        location: z.string(),
-        title: z.string(),
-      }),
-      denyAll: z.boolean(),
-      enforce: z.boolean(),
-      parameters: z.record(z.string(), z.unknown()),
-      values: z.object({
-        allowedValues: z.array(z.unknown()),
-        deniedValues: z.array(z.unknown()),
-      }),
-    })),
+    rules: z.array(
+      z.object({
+        allowAll: z.boolean(),
+        condition: z.object({
+          description: z.string(),
+          expression: z.string(),
+          location: z.string(),
+          title: z.string(),
+        }).partial(),
+        denyAll: z.boolean(),
+        enforce: z.boolean(),
+        parameters: z.record(z.string(), z.unknown()),
+        values: z.object({
+          allowedValues: z.array(z.unknown()),
+          deniedValues: z.array(z.unknown()),
+        }).partial(),
+      }).partial(),
+    ),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -741,7 +747,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Organization Policy Policies. Registered at `@swamp/gcp/orgpolicy/policies`. */
 export const model = {
   type: "@swamp/gcp/orgpolicy/policies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -935,6 +941,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

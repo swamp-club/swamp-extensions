@@ -428,7 +428,7 @@ const StateSchema = z.object({
     consistencyGroupPolicyId: z.string(),
     disk: z.string(),
     diskId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   asyncSecondaryDisks: z.record(z.string(), z.unknown()).optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
@@ -438,11 +438,13 @@ const StateSchema = z.object({
     rawKey: z.string(),
     rsaEncryptedKey: z.string(),
     sha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   enableConfidentialCompute: z.boolean().optional(),
-  guestOsFeatures: z.array(z.object({
-    type: z.string(),
-  })).optional(),
+  guestOsFeatures: z.array(
+    z.object({
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   labelFingerprint: z.string().optional(),
@@ -456,7 +458,7 @@ const StateSchema = z.object({
   options: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   physicalBlockSizeBytes: z.string().optional(),
   provisionedIops: z.string().optional(),
   provisionedThroughput: z.string().optional(),
@@ -466,9 +468,9 @@ const StateSchema = z.object({
   resourceStatus: z.object({
     asyncPrimaryDisk: z.object({
       state: z.string(),
-    }),
+    }).partial(),
     asyncSecondaryDisks: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   selfLink: z.string().optional(),
@@ -484,7 +486,7 @@ const StateSchema = z.object({
     rawKey: z.string(),
     rsaEncryptedKey: z.string(),
     sha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceImageId: z.string().optional(),
   sourceInstantSnapshot: z.string().optional(),
   sourceInstantSnapshotId: z.string().optional(),
@@ -495,7 +497,7 @@ const StateSchema = z.object({
     rawKey: z.string(),
     rsaEncryptedKey: z.string(),
     sha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceSnapshotId: z.string().optional(),
   sourceStorageObject: z.string().optional(),
   status: z.string().optional(),
@@ -511,7 +513,7 @@ const StateSchema = z.object({
     rawKey: z.string(),
     rsaEncryptedKey: z.string(),
     sha256: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sourceMachineImageId: z.string().optional(),
 }).passthrough();
 
@@ -760,7 +762,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Disks. Registered at `@swamp/gcp/compute/disks`. */
 export const model = {
   type: "@swamp/gcp/compute/disks",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1039,6 +1041,11 @@ export const model = {
       toVersion: "2026.10.30.1",
       description:
         "Added: sourceMachineImage, sourceMachineImageDiskDeviceName, sourceMachineImageEncryptionKey",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

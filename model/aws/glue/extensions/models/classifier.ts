@@ -115,7 +115,7 @@ const StateSchema = z.object({
     RowTag: z.string(),
     Classification: z.string(),
     Name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CsvClassifier: z.object({
     ContainsCustomDatatype: z.array(z.string()),
     QuoteSymbol: z.string(),
@@ -126,21 +126,21 @@ const StateSchema = z.object({
     CustomDatatypeConfigured: z.boolean(),
     DisableValueTrimming: z.boolean(),
     Name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Name: z.string(),
   GrokClassifier: z.object({
     CustomPatterns: z.string(),
     GrokPattern: z.string(),
     Classification: z.string(),
     Name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   JsonClassifier: z.object({
     JsonPath: z.string(),
     Name: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -223,7 +223,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Classifier. Registered at `@swamp/aws/glue/classifier`. */
 export const model = {
   type: "@swamp/aws/glue/classifier",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -247,6 +247,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

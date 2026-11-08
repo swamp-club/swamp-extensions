@@ -238,6 +238,100 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const KeywordMatchConfigurationStateSchema = z.object({
+  RuleName: z.string(),
+  Keywords: z.array(z.string()),
+  Negate: z.boolean(),
+}).partial();
+
+const SentimentConfigurationStateSchema = z.object({
+  RuleName: z.string(),
+  SentimentType: z.string(),
+  TimePeriod: z.number(),
+}).partial();
+
+const IssueDetectionConfigurationStateSchema = z.object({
+  RuleName: z.string(),
+}).partial();
+
+const RealTimeAlertRuleStateSchema = z.object({
+  Type: z.string(),
+  KeywordMatchConfiguration: KeywordMatchConfigurationStateSchema,
+  SentimentConfiguration: SentimentConfigurationStateSchema,
+  IssueDetectionConfiguration: IssueDetectionConfigurationStateSchema,
+}).partial();
+
+const PostCallAnalyticsSettingsStateSchema = z.object({
+  OutputLocation: z.string(),
+  DataAccessRoleArn: z.string(),
+  ContentRedactionOutput: z.string(),
+  OutputEncryptionKMSKeyId: z.string(),
+}).partial();
+
+const AmazonTranscribeCallAnalyticsProcessorConfigurationStateSchema = z.object(
+  {
+    LanguageCode: z.string(),
+    VocabularyName: z.string(),
+    VocabularyFilterName: z.string(),
+    VocabularyFilterMethod: z.string(),
+    LanguageModelName: z.string(),
+    EnablePartialResultsStabilization: z.boolean(),
+    PartialResultsStability: z.string(),
+    ContentIdentificationType: z.string(),
+    ContentRedactionType: z.string(),
+    PiiEntityTypes: z.string(),
+    FilterPartialResults: z.boolean(),
+    PostCallAnalyticsSettings: PostCallAnalyticsSettingsStateSchema,
+    CallAnalyticsStreamCategories: z.array(z.string()),
+  },
+).partial();
+
+const AmazonTranscribeProcessorConfigurationStateSchema = z.object({
+  LanguageCode: z.string(),
+  VocabularyName: z.string(),
+  VocabularyFilterName: z.string(),
+  VocabularyFilterMethod: z.string(),
+  ShowSpeakerLabel: z.boolean(),
+  EnablePartialResultsStabilization: z.boolean(),
+  PartialResultsStability: z.string(),
+  ContentIdentificationType: z.string(),
+  ContentRedactionType: z.string(),
+  PiiEntityTypes: z.string(),
+  LanguageModelName: z.string(),
+  FilterPartialResults: z.boolean(),
+  IdentifyLanguage: z.boolean(),
+  IdentifyMultipleLanguages: z.boolean(),
+  LanguageOptions: z.string(),
+  PreferredLanguage: z.string(),
+  VocabularyNames: z.string(),
+  VocabularyFilterNames: z.string(),
+}).partial();
+
+const KinesisDataStreamSinkConfigurationStateSchema = z.object({
+  InsightsTarget: z.string(),
+}).partial();
+
+const S3RecordingSinkConfigurationStateSchema = z.object({
+  Destination: z.string(),
+  RecordingFileFormat: z.string(),
+}).partial();
+
+const MediaInsightsPipelineConfigurationElementStateSchema = z.object({
+  Type: z.string(),
+  AmazonTranscribeCallAnalyticsProcessorConfiguration:
+    AmazonTranscribeCallAnalyticsProcessorConfigurationStateSchema,
+  AmazonTranscribeProcessorConfiguration:
+    AmazonTranscribeProcessorConfigurationStateSchema,
+  KinesisDataStreamSinkConfiguration:
+    KinesisDataStreamSinkConfigurationStateSchema,
+  S3RecordingSinkConfiguration: S3RecordingSinkConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -282,16 +376,17 @@ const StateSchema = z.object({
   ResourceAccessRoleArn: z.string().optional(),
   RealTimeAlertConfiguration: z.object({
     Disabled: z.boolean(),
-    Rules: z.array(RealTimeAlertRuleSchema),
-  }).optional(),
-  Elements: z.array(MediaInsightsPipelineConfigurationElementSchema).optional(),
+    Rules: z.array(RealTimeAlertRuleStateSchema),
+  }).partial().optional(),
+  Elements: z.array(MediaInsightsPipelineConfigurationElementStateSchema)
+    .optional(),
   MediaInsightsPipelineConfigurationId: z.string().optional(),
   CreatedTimestamp: z.string().optional(),
   UpdatedTimestamp: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -340,7 +435,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime MediaInsightsPipelineConfiguration. Registered at `@swamp/aws/chime/media-insights-pipeline-configuration`. */
 export const model = {
   type: "@swamp/aws/chime/media-insights-pipeline-configuration",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -354,6 +449,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

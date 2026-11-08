@@ -175,10 +175,10 @@ const StateSchema = z.object({
       caviumCerts: z.array(z.string()),
       googleCardCerts: z.array(z.string()),
       googlePartitionCerts: z.array(z.string()),
-    }),
+    }).partial(),
     content: z.string(),
     format: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   cryptoKeyBackend: z.string().optional(),
   expireEventTime: z.string().optional(),
@@ -190,7 +190,7 @@ const StateSchema = z.object({
   publicKey: z.object({
     data: z.string(),
     pem: z.string(),
-  }).optional(),
+  }).partial().optional(),
   publicKeyFormat: z.string().optional(),
   state: z.string().optional(),
 }).passthrough();
@@ -269,7 +269,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Key Management Service (KMS) KeyRings.ImportJobs. Registered at `@swamp/gcp/cloudkms/keyrings-importjobs`. */
 export const model = {
   type: "@swamp/gcp/cloudkms/keyrings-importjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -437,6 +437,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

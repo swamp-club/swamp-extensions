@@ -47,6 +47,16 @@ const TagSchema = z.object({
   Key: z.string(),
 });
 
+const AccessEndpointStateSchema = z.object({
+  EndpointType: z.string(),
+  VpceId: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -100,23 +110,23 @@ const StateSchema = z.object({
   VpcConfig: z.object({
     SubnetIds: z.array(z.string()),
     SecurityGroupIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   DomainJoinInfo: z.object({
     DirectoryName: z.string(),
     OrganizationalUnitDistinguishedName: z.string(),
-  }).optional(),
-  AccessEndpoints: z.array(AccessEndpointSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  AccessEndpoints: z.array(AccessEndpointStateSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   StreamingUrl: z.string().optional(),
   SoftwaresToInstall: z.array(z.string()).optional(),
   SoftwaresToUninstall: z.array(z.string()).optional(),
   RootVolumeConfig: z.object({
     VolumeSizeInGb: z.number(),
-  }).optional(),
+  }).partial().optional(),
   DisableIMDSV1: z.boolean().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -169,7 +179,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream ImageBuilder. Registered at `@swamp/aws/appstream/image-builder`. */
 export const model = {
   type: "@swamp/aws/appstream/image-builder",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -243,6 +253,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

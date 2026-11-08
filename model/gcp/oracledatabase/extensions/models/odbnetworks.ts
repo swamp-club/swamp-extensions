@@ -214,8 +214,8 @@ const StateSchema = z.object({
   serviceConnectivityConfig: z.object({
     pscInterfaceConfig: z.object({
       networkAttachment: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -288,7 +288,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud OdbNetworks. Registered at `@swamp/gcp/oracledatabase/odbnetworks`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/odbnetworks",
-  version: "2026.11.03.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -432,6 +432,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

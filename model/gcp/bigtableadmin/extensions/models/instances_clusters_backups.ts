@@ -193,10 +193,10 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
+    }).partial(),
     encryptionType: z.string(),
     kmsKeyVersion: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endTime: z.string().optional(),
   expireTime: z.string().optional(),
   hotToStandardTime: z.string().optional(),
@@ -269,7 +269,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Clusters.Backups. Registered at `@swamp/gcp/bigtableadmin/instances-clusters-backups`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-clusters-backups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -411,6 +411,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

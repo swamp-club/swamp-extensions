@@ -283,32 +283,38 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  dataSourceRestrictions: z.array(z.object({
-    filterOptions: z.array(z.object({
-      filter: z.object({
-        compositeFilter: z.unknown(),
-        valueFilter: z.unknown(),
-      }),
+  dataSourceRestrictions: z.array(
+    z.object({
+      filterOptions: z.array(
+        z.object({
+          filter: z.object({
+            compositeFilter: z.unknown(),
+            valueFilter: z.unknown(),
+          }).partial(),
+          objectType: z.string(),
+        }).partial(),
+      ),
+      source: z.object({
+        name: z.string(),
+        predefinedSource: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
+  defaultFacetOptions: z.array(
+    z.object({
+      integerFacetingOptions: z.object({
+        integerBuckets: z.array(z.string()),
+      }).partial(),
+      numFacetBuckets: z.number(),
       objectType: z.string(),
-    })),
-    source: z.object({
-      name: z.string(),
-      predefinedSource: z.string(),
-    }),
-  })).optional(),
-  defaultFacetOptions: z.array(z.object({
-    integerFacetingOptions: z.object({
-      integerBuckets: z.array(z.string()),
-    }),
-    numFacetBuckets: z.number(),
-    objectType: z.string(),
-    operatorName: z.string(),
-    sourceName: z.string(),
-  })).optional(),
+      operatorName: z.string(),
+      sourceName: z.string(),
+    }).partial(),
+  ).optional(),
   defaultSortOptions: z.object({
     operatorName: z.string(),
     sortOrder: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   enableAuditLog: z.boolean().optional(),
   name: z.string(),
@@ -316,25 +322,27 @@ const StateSchema = z.object({
   queryInterpretationConfig: z.object({
     forceDisableSupplementalResults: z.boolean(),
     forceVerbatimMode: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   returnResultThumbnailUrls: z.boolean().optional(),
   scoringConfig: z.object({
     disableFreshness: z.boolean(),
     disablePersonalization: z.boolean(),
-  }).optional(),
-  sourceConfig: z.array(z.object({
-    crowdingConfig: z.object({
-      numResults: z.number(),
-      numSuggestions: z.number(),
-    }),
-    scoringConfig: z.object({
-      sourceImportance: z.string(),
-    }),
-    source: z.object({
-      name: z.string(),
-      predefinedSource: z.string(),
-    }),
-  })).optional(),
+  }).partial().optional(),
+  sourceConfig: z.array(
+    z.object({
+      crowdingConfig: z.object({
+        numResults: z.number(),
+        numSuggestions: z.number(),
+      }).partial(),
+      scoringConfig: z.object({
+        sourceImportance: z.string(),
+      }).partial(),
+      source: z.object({
+        name: z.string(),
+        predefinedSource: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -500,7 +508,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Settings.Searchapplications. Registered at `@swamp/gcp/cloudsearch/settings-searchapplications`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/settings-searchapplications",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -639,6 +647,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

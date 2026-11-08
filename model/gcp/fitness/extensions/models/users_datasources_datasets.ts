@@ -232,21 +232,25 @@ const StateSchema = z.object({
   maxEndTimeNs: z.string().optional(),
   minStartTimeNs: z.string().optional(),
   nextPageToken: z.string().optional(),
-  point: z.array(z.object({
-    computationTimeMillis: z.string(),
-    dataTypeName: z.string(),
-    endTimeNanos: z.string(),
-    modifiedTimeMillis: z.string(),
-    originDataSourceId: z.string(),
-    rawTimestampNanos: z.string(),
-    startTimeNanos: z.string(),
-    value: z.array(z.object({
-      fpVal: z.number(),
-      intVal: z.number(),
-      mapVal: z.array(z.unknown()),
-      stringVal: z.string(),
-    })),
-  })).optional(),
+  point: z.array(
+    z.object({
+      computationTimeMillis: z.string(),
+      dataTypeName: z.string(),
+      endTimeNanos: z.string(),
+      modifiedTimeMillis: z.string(),
+      originDataSourceId: z.string(),
+      rawTimestampNanos: z.string(),
+      startTimeNanos: z.string(),
+      value: z.array(
+        z.object({
+          fpVal: z.number(),
+          intVal: z.number(),
+          mapVal: z.array(z.unknown()),
+          stringVal: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -343,7 +347,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Fitness Users.DataSources.Datasets. Registered at `@swamp/gcp/fitness/users-datasources-datasets`. */
 export const model = {
   type: "@swamp/gcp/fitness/users-datasources-datasets",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -472,6 +476,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

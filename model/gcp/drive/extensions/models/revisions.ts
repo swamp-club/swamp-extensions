@@ -234,7 +234,7 @@ const StateSchema = z.object({
     me: z.boolean(),
     permissionId: z.string(),
     photoLink: z.string(),
-  }).optional(),
+  }).partial().optional(),
   md5Checksum: z.string().optional(),
   mimeType: z.string().optional(),
   modifiedTime: z.string().optional(),
@@ -343,7 +343,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Revisions. Registered at `@swamp/gcp/drive/revisions`. */
 export const model = {
   type: "@swamp/gcp/drive/revisions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -487,6 +487,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

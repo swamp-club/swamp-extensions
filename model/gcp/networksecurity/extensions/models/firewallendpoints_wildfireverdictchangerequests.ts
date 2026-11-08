@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Network Security FirewallEndpoints.WildfireVerdictChangeRequests.
  *
- * Message for a WildfireVerdictChangeRequest.
+ * Message for an Advanced malware sandbox verdict change request (`WildfireVerdictChangeRequest`).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -126,7 +126,7 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   comment: z.string().describe(
-    "Required. The justification for the verdict change request. Max length 2048 characters.",
+    "Required. The justification for the verdict change request. The maximum length is 2048 characters.",
   ).optional(),
   newVerdict: z.enum([
     "WILDFIRE_SAMPLE_VERDICT_UNKNOWN",
@@ -134,10 +134,10 @@ const GlobalArgsSchema = z.object({
     "MALWARE",
     "GRAYWARE",
     "PHISHING",
-  ]).describe("Required. The suggested verdict to apply to the Malware Sample.")
+  ]).describe("Required. The suggested verdict to apply to the malware sample.")
     .optional(),
   sha256: z.string().describe(
-    "Required. The SHA256 hash of the Malware Sample to change the verdict of.",
+    "Required. The SHA256 hash ([FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final)) of the malware sample that requires a verdict change.",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -172,7 +172,7 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   comment: z.string().describe(
-    "Required. The justification for the verdict change request. Max length 2048 characters.",
+    "Required. The justification for the verdict change request. The maximum length is 2048 characters.",
   ).optional(),
   newVerdict: z.enum([
     "WILDFIRE_SAMPLE_VERDICT_UNKNOWN",
@@ -180,10 +180,10 @@ const InputsSchema = z.object({
     "MALWARE",
     "GRAYWARE",
     "PHISHING",
-  ]).describe("Required. The suggested verdict to apply to the Malware Sample.")
+  ]).describe("Required. The suggested verdict to apply to the malware sample.")
     .optional(),
   sha256: z.string().describe(
-    "Required. The SHA256 hash of the Malware Sample to change the verdict of.",
+    "Required. The SHA256 hash ([FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final)) of the malware sample that requires a verdict change.",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -217,7 +217,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/networksecurity/firewallendpoints-wildfireverdictchangerequests",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -229,12 +229,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Message for a WildfireVerdictChangeRequest.",
+      description:
+        "Message for an Advanced malware sandbox verdict change request (`WildfireVerd...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -390,10 +396,10 @@ export const model = {
       description: "List wildfireVerdictChangeRequests resources",
       arguments: z.object({
         filter: z.string().describe(
-          'Optional. Filter expression to filter the results. See AIP-160 for filtering syntax. Supported fields are: - `sha256` (string, equality only, e.g. `sha256 = "..."`) - `state` (enum, equality only, e.g. `state = "ACTIVE"`) - `create_time` (timestamp, comparisons, e.g. `create_time > "2026-01-01T00:00:00Z"`)',
+          'Optional. Filter expression to filter the results. Supported fields are: - `sha256` (string, equality only, for example, `sha256 = "..."`) - `state` (enum, equality only, valid values are `OPEN`, `CLOSED`, or `PENDING`, for example, `state = "PENDING"`) - `create_time` (timestamp, comparisons, for example, `create_time >= "2026-01-01T00:00:00Z" AND create_time <= "2026-01-31T23:59:59Z"`). If filtering by `create_time`, you must specify both a start time and an end time. If `create_time` is not specified, the query defaults to the past 30 days.',
         ).optional(),
         pageSize: z.number().describe(
-          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+          "Optional. Requested page size. The server might return fewer items than requested. If unspecified, the server picks an appropriate default.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

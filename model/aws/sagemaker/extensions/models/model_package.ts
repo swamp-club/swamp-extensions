@@ -347,6 +347,159 @@ const ModelPackageStatusItemSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const ModelAccessConfigStateSchema = z.object({
+  AcceptEula: z.boolean(),
+}).partial();
+
+const S3ModelDataSourceStateSchema = z.object({
+  S3DataType: z.string(),
+  S3Uri: z.string(),
+  CompressionType: z.string(),
+  ModelAccessConfig: ModelAccessConfigStateSchema,
+}).partial();
+
+const ModelDataSourceStateSchema = z.object({
+  S3DataSource: S3ModelDataSourceStateSchema,
+}).partial();
+
+const ModelPackageContainerDefinitionStateSchema = z.object({
+  ContainerHostname: z.string(),
+  Environment: z.record(z.string(), z.unknown()),
+  ModelInput: z.object({
+    DataInputConfig: z.string(),
+  }).partial(),
+  Image: z.string(),
+  ImageDigest: z.string(),
+  ModelDataUrl: z.string(),
+  ModelDataSource: ModelDataSourceStateSchema,
+  Framework: z.string(),
+  FrameworkVersion: z.string(),
+  NearestModelName: z.string(),
+}).partial();
+
+const AdditionalInferenceSpecificationDefinitionStateSchema = z.object({
+  Containers: z.array(ModelPackageContainerDefinitionStateSchema),
+  Description: z.string(),
+  Name: z.string(),
+  SupportedContentTypes: z.array(z.string()),
+  SupportedRealtimeInferenceInstanceTypes: z.array(z.string()),
+  SupportedResponseMIMETypes: z.array(z.string()),
+  SupportedTransformInstanceTypes: z.array(z.string()),
+}).partial();
+
+const MetricsSourceStateSchema = z.object({
+  ContentDigest: z.string(),
+  ContentType: z.string(),
+  S3Uri: z.string(),
+}).partial();
+
+const FileSourceStateSchema = z.object({
+  ContentDigest: z.string(),
+  ContentType: z.string(),
+  S3Uri: z.string(),
+}).partial();
+
+const DriftCheckBiasStateSchema = z.object({
+  PostTrainingConstraints: MetricsSourceStateSchema,
+  PreTrainingConstraints: MetricsSourceStateSchema,
+  ConfigFile: FileSourceStateSchema,
+}).partial();
+
+const DriftCheckExplainabilityStateSchema = z.object({
+  Constraints: MetricsSourceStateSchema,
+  ConfigFile: FileSourceStateSchema,
+}).partial();
+
+const DriftCheckModelDataQualityStateSchema = z.object({
+  Constraints: MetricsSourceStateSchema,
+  Statistics: MetricsSourceStateSchema,
+}).partial();
+
+const DriftCheckModelQualityStateSchema = z.object({
+  Constraints: MetricsSourceStateSchema,
+  Statistics: MetricsSourceStateSchema,
+}).partial();
+
+const BiasStateSchema = z.object({
+  Report: MetricsSourceStateSchema,
+  PreTrainingReport: MetricsSourceStateSchema,
+  PostTrainingReport: MetricsSourceStateSchema,
+}).partial();
+
+const ExplainabilityStateSchema = z.object({
+  Report: MetricsSourceStateSchema,
+}).partial();
+
+const ModelDataQualityStateSchema = z.object({
+  Constraints: MetricsSourceStateSchema,
+  Statistics: MetricsSourceStateSchema,
+}).partial();
+
+const ModelQualityStateSchema = z.object({
+  Constraints: MetricsSourceStateSchema,
+  Statistics: MetricsSourceStateSchema,
+}).partial();
+
+const SourceAlgorithmStateSchema = z.object({
+  AlgorithmName: z.string(),
+  ModelDataUrl: z.string(),
+}).partial();
+
+const S3DataSourceStateSchema = z.object({
+  S3DataType: z.string(),
+  S3Uri: z.string(),
+}).partial();
+
+const DataSourceStateSchema = z.object({
+  S3DataSource: S3DataSourceStateSchema,
+}).partial();
+
+const TransformInputStateSchema = z.object({
+  CompressionType: z.string(),
+  ContentType: z.string(),
+  DataSource: DataSourceStateSchema,
+  SplitType: z.string(),
+}).partial();
+
+const TransformOutputStateSchema = z.object({
+  Accept: z.string(),
+  KmsKeyId: z.string(),
+  S3OutputPath: z.string(),
+  AssembleWith: z.string(),
+}).partial();
+
+const TransformResourcesStateSchema = z.object({
+  InstanceCount: z.number(),
+  InstanceType: z.string(),
+  VolumeKmsKeyId: z.string(),
+}).partial();
+
+const TransformJobDefinitionStateSchema = z.object({
+  Environment: z.record(z.string(), z.unknown()),
+  BatchStrategy: z.string(),
+  MaxConcurrentTransforms: z.number(),
+  MaxPayloadInMB: z.number(),
+  TransformInput: TransformInputStateSchema,
+  TransformOutput: TransformOutputStateSchema,
+  TransformResources: TransformResourcesStateSchema,
+}).partial();
+
+const ValidationProfileStateSchema = z.object({
+  TransformJobDefinition: TransformJobDefinitionStateSchema,
+  ProfileName: z.string(),
+}).partial();
+
+const ModelPackageStatusItemStateSchema = z.object({
+  FailureReason: z.string(),
+  Name: z.string(),
+  Status: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -524,53 +677,53 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   AdditionalInferenceSpecifications: z.array(
-    AdditionalInferenceSpecificationDefinitionSchema,
+    AdditionalInferenceSpecificationDefinitionStateSchema,
   ).optional(),
   CertifyForMarketplace: z.boolean().optional(),
   ClientToken: z.string().optional(),
   CustomerMetadataProperties: z.record(z.string(), z.unknown()).optional(),
   Domain: z.string().optional(),
   DriftCheckBaselines: z.object({
-    Bias: DriftCheckBiasSchema,
-    Explainability: DriftCheckExplainabilitySchema,
-    ModelDataQuality: DriftCheckModelDataQualitySchema,
-    ModelQuality: DriftCheckModelQualitySchema,
-  }).optional(),
+    Bias: DriftCheckBiasStateSchema,
+    Explainability: DriftCheckExplainabilityStateSchema,
+    ModelDataQuality: DriftCheckModelDataQualityStateSchema,
+    ModelQuality: DriftCheckModelQualityStateSchema,
+  }).partial().optional(),
   InferenceSpecification: z.object({
-    Containers: z.array(ModelPackageContainerDefinitionSchema),
+    Containers: z.array(ModelPackageContainerDefinitionStateSchema),
     SupportedContentTypes: z.array(z.string()),
     SupportedRealtimeInferenceInstanceTypes: z.array(z.string()),
     SupportedResponseMIMETypes: z.array(z.string()),
     SupportedTransformInstanceTypes: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   MetadataProperties: z.object({
     CommitId: z.string(),
     GeneratedBy: z.string(),
     ProjectId: z.string(),
     Repository: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ModelApprovalStatus: z.string().optional(),
   ModelMetrics: z.object({
-    Bias: BiasSchema,
-    Explainability: ExplainabilitySchema,
-    ModelDataQuality: ModelDataQualitySchema,
-    ModelQuality: ModelQualitySchema,
-  }).optional(),
+    Bias: BiasStateSchema,
+    Explainability: ExplainabilityStateSchema,
+    ModelDataQuality: ModelDataQualityStateSchema,
+    ModelQuality: ModelQualityStateSchema,
+  }).partial().optional(),
   ModelPackageDescription: z.string().optional(),
   ModelPackageGroupName: z.string().optional(),
   ModelPackageName: z.string().optional(),
   SamplePayloadUrl: z.string().optional(),
   SkipModelValidation: z.string().optional(),
   SourceAlgorithmSpecification: z.object({
-    SourceAlgorithms: z.array(SourceAlgorithmSchema),
-  }).optional(),
+    SourceAlgorithms: z.array(SourceAlgorithmStateSchema),
+  }).partial().optional(),
   Task: z.string().optional(),
   ValidationSpecification: z.object({
-    ValidationProfiles: z.array(ValidationProfileSchema),
+    ValidationProfiles: z.array(ValidationProfileStateSchema),
     ValidationRole: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ModelPackageArn: z.string(),
   ApprovalDescription: z.string().optional(),
   CreationTime: z.string().optional(),
@@ -578,22 +731,22 @@ const StateSchema = z.object({
   ModelPackageStatus: z.string().optional(),
   ModelPackageVersion: z.number().optional(),
   AdditionalInferenceSpecificationsToAdd: z.array(
-    AdditionalInferenceSpecificationDefinitionSchema,
+    AdditionalInferenceSpecificationDefinitionStateSchema,
   ).optional(),
   ModelPackageStatusDetails: z.object({
-    ValidationStatuses: z.array(ModelPackageStatusItemSchema),
-  }).optional(),
+    ValidationStatuses: z.array(ModelPackageStatusItemStateSchema),
+  }).partial().optional(),
   SourceUri: z.string().optional(),
   ModelCard: z.object({
     ModelCardContent: z.string(),
     ModelCardStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SecurityConfig: z.object({
     KmsKeyId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -780,7 +933,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ModelPackage. Registered at `@swamp/aws/sagemaker/model-package`. */
 export const model = {
   type: "@swamp/aws/sagemaker/model-package",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -849,6 +1002,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

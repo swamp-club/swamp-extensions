@@ -138,191 +138,209 @@ const StateSchema = z.object({
     labels: z.record(z.string(), z.unknown()),
     name: z.string(),
     namespace: z.string(),
-    ownerReferences: z.array(z.object({
-      apiVersion: z.string(),
-      blockOwnerDeletion: z.boolean(),
-      controller: z.boolean(),
-      kind: z.string(),
-      name: z.string(),
-      uid: z.string(),
-    })),
+    ownerReferences: z.array(
+      z.object({
+        apiVersion: z.string(),
+        blockOwnerDeletion: z.boolean(),
+        controller: z.boolean(),
+        kind: z.string(),
+        name: z.string(),
+        uid: z.string(),
+      }).partial(),
+    ),
     resourceVersion: z.string(),
     selfLink: z.string(),
     uid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spec: z.object({
-    containers: z.array(z.object({
-      args: z.array(z.string()),
-      command: z.array(z.string()),
-      env: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-        valueFrom: z.unknown(),
-      })),
-      envFrom: z.array(z.object({
-        configMapRef: z.unknown(),
-        prefix: z.unknown(),
-        secretRef: z.unknown(),
-      })),
-      image: z.string(),
-      imagePullPolicy: z.string(),
-      livenessProbe: z.object({
-        exec: z.object({
-          command: z.unknown(),
-        }),
-        failureThreshold: z.number(),
-        grpc: z.object({
-          port: z.unknown(),
-          service: z.unknown(),
-        }),
-        httpGet: z.object({
-          host: z.unknown(),
-          httpHeaders: z.unknown(),
-          path: z.unknown(),
-          port: z.unknown(),
-          scheme: z.unknown(),
-        }),
-        initialDelaySeconds: z.number(),
-        periodSeconds: z.number(),
-        successThreshold: z.number(),
-        tcpSocket: z.object({
-          host: z.unknown(),
-          port: z.unknown(),
-        }),
-        timeoutSeconds: z.number(),
-      }),
-      name: z.string(),
-      ports: z.array(z.object({
-        containerPort: z.unknown(),
-        name: z.unknown(),
-        protocol: z.unknown(),
-      })),
-      readinessProbe: z.object({
-        exec: z.object({
-          command: z.unknown(),
-        }),
-        failureThreshold: z.number(),
-        grpc: z.object({
-          port: z.unknown(),
-          service: z.unknown(),
-        }),
-        httpGet: z.object({
-          host: z.unknown(),
-          httpHeaders: z.unknown(),
-          path: z.unknown(),
-          port: z.unknown(),
-          scheme: z.unknown(),
-        }),
-        initialDelaySeconds: z.number(),
-        periodSeconds: z.number(),
-        successThreshold: z.number(),
-        tcpSocket: z.object({
-          host: z.unknown(),
-          port: z.unknown(),
-        }),
-        timeoutSeconds: z.number(),
-      }),
-      resources: z.object({
-        limits: z.record(z.string(), z.unknown()),
-        requests: z.record(z.string(), z.unknown()),
-      }),
-      sandboxLauncher: z.boolean(),
-      securityContext: z.object({
-        runAsUser: z.number(),
-      }),
-      startupProbe: z.object({
-        exec: z.object({
-          command: z.unknown(),
-        }),
-        failureThreshold: z.number(),
-        grpc: z.object({
-          port: z.unknown(),
-          service: z.unknown(),
-        }),
-        httpGet: z.object({
-          host: z.unknown(),
-          httpHeaders: z.unknown(),
-          path: z.unknown(),
-          port: z.unknown(),
-          scheme: z.unknown(),
-        }),
-        initialDelaySeconds: z.number(),
-        periodSeconds: z.number(),
-        successThreshold: z.number(),
-        tcpSocket: z.object({
-          host: z.unknown(),
-          port: z.unknown(),
-        }),
-        timeoutSeconds: z.number(),
-      }),
-      terminationMessagePath: z.string(),
-      terminationMessagePolicy: z.string(),
-      volumeMounts: z.array(z.object({
-        mountPath: z.unknown(),
-        name: z.unknown(),
-        readOnly: z.unknown(),
-        subPath: z.unknown(),
-      })),
-      workingDir: z.string(),
-    })),
+    containers: z.array(
+      z.object({
+        args: z.array(z.string()),
+        command: z.array(z.string()),
+        env: z.array(
+          z.object({
+            name: z.unknown(),
+            value: z.unknown(),
+            valueFrom: z.unknown(),
+          }).partial(),
+        ),
+        envFrom: z.array(
+          z.object({
+            configMapRef: z.unknown(),
+            prefix: z.unknown(),
+            secretRef: z.unknown(),
+          }).partial(),
+        ),
+        image: z.string(),
+        imagePullPolicy: z.string(),
+        livenessProbe: z.object({
+          exec: z.object({
+            command: z.unknown(),
+          }).partial(),
+          failureThreshold: z.number(),
+          grpc: z.object({
+            port: z.unknown(),
+            service: z.unknown(),
+          }).partial(),
+          httpGet: z.object({
+            host: z.unknown(),
+            httpHeaders: z.unknown(),
+            path: z.unknown(),
+            port: z.unknown(),
+            scheme: z.unknown(),
+          }).partial(),
+          initialDelaySeconds: z.number(),
+          periodSeconds: z.number(),
+          successThreshold: z.number(),
+          tcpSocket: z.object({
+            host: z.unknown(),
+            port: z.unknown(),
+          }).partial(),
+          timeoutSeconds: z.number(),
+        }).partial(),
+        name: z.string(),
+        ports: z.array(
+          z.object({
+            containerPort: z.unknown(),
+            name: z.unknown(),
+            protocol: z.unknown(),
+          }).partial(),
+        ),
+        readinessProbe: z.object({
+          exec: z.object({
+            command: z.unknown(),
+          }).partial(),
+          failureThreshold: z.number(),
+          grpc: z.object({
+            port: z.unknown(),
+            service: z.unknown(),
+          }).partial(),
+          httpGet: z.object({
+            host: z.unknown(),
+            httpHeaders: z.unknown(),
+            path: z.unknown(),
+            port: z.unknown(),
+            scheme: z.unknown(),
+          }).partial(),
+          initialDelaySeconds: z.number(),
+          periodSeconds: z.number(),
+          successThreshold: z.number(),
+          tcpSocket: z.object({
+            host: z.unknown(),
+            port: z.unknown(),
+          }).partial(),
+          timeoutSeconds: z.number(),
+        }).partial(),
+        resources: z.object({
+          limits: z.record(z.string(), z.unknown()),
+          requests: z.record(z.string(), z.unknown()),
+        }).partial(),
+        sandboxLauncher: z.boolean(),
+        securityContext: z.object({
+          runAsUser: z.number(),
+        }).partial(),
+        startupProbe: z.object({
+          exec: z.object({
+            command: z.unknown(),
+          }).partial(),
+          failureThreshold: z.number(),
+          grpc: z.object({
+            port: z.unknown(),
+            service: z.unknown(),
+          }).partial(),
+          httpGet: z.object({
+            host: z.unknown(),
+            httpHeaders: z.unknown(),
+            path: z.unknown(),
+            port: z.unknown(),
+            scheme: z.unknown(),
+          }).partial(),
+          initialDelaySeconds: z.number(),
+          periodSeconds: z.number(),
+          successThreshold: z.number(),
+          tcpSocket: z.object({
+            host: z.unknown(),
+            port: z.unknown(),
+          }).partial(),
+          timeoutSeconds: z.number(),
+        }).partial(),
+        terminationMessagePath: z.string(),
+        terminationMessagePolicy: z.string(),
+        volumeMounts: z.array(
+          z.object({
+            mountPath: z.unknown(),
+            name: z.unknown(),
+            readOnly: z.unknown(),
+            subPath: z.unknown(),
+          }).partial(),
+        ),
+        workingDir: z.string(),
+      }).partial(),
+    ),
     maxRetries: z.number(),
     nodeSelector: z.record(z.string(), z.unknown()),
     sandboxes: z.object({
-      templates: z.array(z.object({
-        args: z.array(z.unknown()),
-        command: z.array(z.unknown()),
-        env: z.array(z.unknown()),
-        image: z.string(),
-        name: z.string(),
-        volumeMounts: z.array(z.unknown()),
-        workingDir: z.string(),
-      })),
-    }),
+      templates: z.array(
+        z.object({
+          args: z.array(z.unknown()),
+          command: z.array(z.unknown()),
+          env: z.array(z.unknown()),
+          image: z.string(),
+          name: z.string(),
+          volumeMounts: z.array(z.unknown()),
+          workingDir: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     serviceAccountName: z.string(),
     timeoutSeconds: z.string(),
-    volumes: z.array(z.object({
-      configMap: z.object({
-        defaultMode: z.number(),
-        items: z.array(z.unknown()),
+    volumes: z.array(
+      z.object({
+        configMap: z.object({
+          defaultMode: z.number(),
+          items: z.array(z.unknown()),
+          name: z.string(),
+          optional: z.boolean(),
+        }).partial(),
+        csi: z.object({
+          driver: z.string(),
+          readOnly: z.boolean(),
+          volumeAttributes: z.record(z.string(), z.unknown()),
+        }).partial(),
+        emptyDir: z.object({
+          medium: z.string(),
+          sizeLimit: z.string(),
+        }).partial(),
+        filestore: z.object({
+          volume: z.string(),
+        }).partial(),
         name: z.string(),
-        optional: z.boolean(),
-      }),
-      csi: z.object({
-        driver: z.string(),
-        readOnly: z.boolean(),
-        volumeAttributes: z.record(z.string(), z.unknown()),
-      }),
-      emptyDir: z.object({
-        medium: z.string(),
-        sizeLimit: z.string(),
-      }),
-      filestore: z.object({
-        volume: z.string(),
-      }),
-      name: z.string(),
-      nfs: z.object({
-        path: z.string(),
-        readOnly: z.boolean(),
-        server: z.string(),
-      }),
-      secret: z.object({
-        defaultMode: z.number(),
-        items: z.array(z.unknown()),
-        optional: z.boolean(),
-        secretName: z.string(),
-      }),
-    })),
-  }).optional(),
+        nfs: z.object({
+          path: z.string(),
+          readOnly: z.boolean(),
+          server: z.string(),
+        }).partial(),
+        secret: z.object({
+          defaultMode: z.number(),
+          items: z.array(z.unknown()),
+          optional: z.boolean(),
+          secretName: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   status: z.object({
     completionTime: z.string(),
-    conditions: z.array(z.object({
-      lastTransitionTime: z.string(),
-      message: z.string(),
-      reason: z.string(),
-      severity: z.string(),
-      status: z.string(),
-      type: z.string(),
-    })),
+    conditions: z.array(
+      z.object({
+        lastTransitionTime: z.string(),
+        message: z.string(),
+        reason: z.string(),
+        severity: z.string(),
+        status: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     index: z.number(),
     lastAttemptResult: z.object({
       exitCode: z.number(),
@@ -330,14 +348,14 @@ const StateSchema = z.object({
         code: z.number(),
         details: z.array(z.record(z.string(), z.unknown())),
         message: z.string(),
-      }),
+      }).partial(),
       termSignal: z.number(),
-    }),
+    }).partial(),
     logUri: z.string(),
     observedGeneration: z.number(),
     retried: z.number(),
     startTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -381,7 +399,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Tasks. Registered at `@swamp/gcp/run/namespaces-tasks`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-tasks",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -410,6 +428,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

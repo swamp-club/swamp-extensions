@@ -47,6 +47,11 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -96,7 +101,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   DeletionProtectionEnabled: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   ResourceArn: z.string().optional(),
   Identifier: z.string(),
   CreationTime: z.string().optional(),
@@ -105,20 +110,20 @@ const StateSchema = z.object({
   MultiRegionProperties: z.object({
     WitnessRegion: z.string(),
     Clusters: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   KmsEncryptionKey: z.string().optional(),
   EncryptionDetails: z.object({
     EncryptionStatus: z.string(),
     EncryptionType: z.string(),
     KmsKeyArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Endpoint: z.string().optional(),
   VpcEndpoint: z.string().optional(),
   PolicyVersion: z.string().optional(),
   PolicyDocument: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -176,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DSQL Cluster. Registered at `@swamp/aws/dsql/cluster`. */
 export const model = {
   type: "@swamp/aws/dsql/cluster",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +240,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

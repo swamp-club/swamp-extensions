@@ -202,10 +202,12 @@ const StateSchema = z.object({
   accessType: z.string().optional(),
   appFamily: z.string().optional(),
   apps: z.array(z.string()).optional(),
-  attributes: z.array(z.object({
-    name: z.string(),
-    value: z.string(),
-  })).optional(),
+  attributes: z.array(
+    z.object({
+      name: z.string(),
+      value: z.string(),
+    }).partial(),
+  ).optional(),
   companies: z.array(z.string()).optional(),
   createdAt: z.string().optional(),
   developerId: z.string().optional(),
@@ -286,7 +288,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Developers. Registered at `@swamp/gcp/apigee/developers`. */
 export const model = {
   type: "@swamp/gcp/apigee/developers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -430,6 +432,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

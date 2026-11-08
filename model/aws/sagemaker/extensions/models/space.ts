@@ -240,6 +240,84 @@ const TagSchema = z.object({
   Key: z.string().min(1).max(128),
 });
 
+const ResourceSpecStateSchema = z.object({
+  InstanceType: z.string(),
+  SageMakerImageArn: z.string(),
+  SageMakerImageVersionArn: z.string(),
+  LifecycleConfigArn: z.string(),
+}).partial();
+
+const JupyterServerAppSettingsStateSchema = z.object({
+  DefaultResourceSpec: ResourceSpecStateSchema,
+  LifecycleConfigArns: z.array(z.string()),
+}).partial();
+
+const CustomImageStateSchema = z.object({
+  AppImageConfigName: z.string(),
+  ImageName: z.string(),
+  ImageVersionNumber: z.number(),
+}).partial();
+
+const KernelGatewayAppSettingsStateSchema = z.object({
+  CustomImages: z.array(CustomImageStateSchema),
+  DefaultResourceSpec: ResourceSpecStateSchema,
+  LifecycleConfigArns: z.array(z.string()),
+}).partial();
+
+const SpaceIdleSettingsStateSchema = z.object({
+  IdleTimeoutInMinutes: z.number(),
+}).partial();
+
+const SpaceAppLifecycleManagementStateSchema = z.object({
+  IdleSettings: SpaceIdleSettingsStateSchema,
+}).partial();
+
+const CodeRepositoryStateSchema = z.object({
+  RepositoryUrl: z.string(),
+}).partial();
+
+const SpaceJupyterLabAppSettingsStateSchema = z.object({
+  DefaultResourceSpec: ResourceSpecStateSchema,
+  AppLifecycleManagement: SpaceAppLifecycleManagementStateSchema,
+  CodeRepositories: z.array(CodeRepositoryStateSchema),
+}).partial();
+
+const SpaceCodeEditorAppSettingsStateSchema = z.object({
+  DefaultResourceSpec: ResourceSpecStateSchema,
+  AppLifecycleManagement: SpaceAppLifecycleManagementStateSchema,
+}).partial();
+
+const EbsStorageSettingsStateSchema = z.object({
+  EbsVolumeSizeInGb: z.number(),
+}).partial();
+
+const SpaceStorageSettingsStateSchema = z.object({
+  EbsStorageSettings: EbsStorageSettingsStateSchema,
+}).partial();
+
+const EFSFileSystemStateSchema = z.object({
+  FileSystemId: z.string(),
+}).partial();
+
+const FSxLustreFileSystemStateSchema = z.object({
+  FileSystemId: z.string(),
+}).partial();
+
+const S3FileSystemStateSchema = z.object({
+  S3Uri: z.string(),
+}).partial();
+
+const CustomFileSystemStateSchema = z.object({
+  EFSFileSystem: EFSFileSystemStateSchema,
+  FSxLustreFileSystem: FSxLustreFileSystemStateSchema,
+  S3FileSystem: S3FileSystemStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -313,28 +391,28 @@ const StateSchema = z.object({
   DomainId: z.string(),
   SpaceName: z.string(),
   SpaceSettings: z.object({
-    JupyterServerAppSettings: JupyterServerAppSettingsSchema,
-    KernelGatewayAppSettings: KernelGatewayAppSettingsSchema,
-    JupyterLabAppSettings: SpaceJupyterLabAppSettingsSchema,
-    CodeEditorAppSettings: SpaceCodeEditorAppSettingsSchema,
-    SpaceStorageSettings: SpaceStorageSettingsSchema,
+    JupyterServerAppSettings: JupyterServerAppSettingsStateSchema,
+    KernelGatewayAppSettings: KernelGatewayAppSettingsStateSchema,
+    JupyterLabAppSettings: SpaceJupyterLabAppSettingsStateSchema,
+    CodeEditorAppSettings: SpaceCodeEditorAppSettingsStateSchema,
+    SpaceStorageSettings: SpaceStorageSettingsStateSchema,
     SpaceManagedResources: z.string(),
     RemoteAccess: z.string(),
     AppType: z.string(),
-    CustomFileSystems: z.array(CustomFileSystemSchema),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    CustomFileSystems: z.array(CustomFileSystemStateSchema),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   OwnershipSettings: z.object({
     OwnerUserProfileName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SpaceSharingSettings: z.object({
     SharingType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   SpaceDisplayName: z.string().optional(),
   Url: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -413,7 +491,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Space. Registered at `@swamp/aws/sagemaker/space`. */
 export const model = {
   type: "@swamp/aws/sagemaker/space",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -477,6 +555,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

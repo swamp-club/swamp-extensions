@@ -80,23 +80,27 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   checkTime: z.string().optional(),
-  componentsHealth: z.array(z.object({
-    component: z.string(),
-    componentHealthChecks: z.array(z.object({
-      message: z.string(),
-      metric: z.string(),
-      resource: z.object({
-        instanceProperties: z.unknown(),
-        kind: z.unknown(),
-        name: z.unknown(),
-      }),
-      source: z.string(),
+  componentsHealth: z.array(
+    z.object({
+      component: z.string(),
+      componentHealthChecks: z.array(
+        z.object({
+          message: z.string(),
+          metric: z.string(),
+          resource: z.object({
+            instanceProperties: z.unknown(),
+            kind: z.unknown(),
+            name: z.unknown(),
+          }).partial(),
+          source: z.string(),
+          state: z.string(),
+        }).partial(),
+      ),
+      componentHealthType: z.string(),
       state: z.string(),
-    })),
-    componentHealthType: z.string(),
-    state: z.string(),
-    subComponentsHealth: z.array(z.record(z.string(), z.unknown())),
-  })).optional(),
+      subComponentsHealth: z.array(z.record(z.string(), z.unknown())),
+    }).partial(),
+  ).optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -138,7 +142,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workload Manager Discoveredprofiles.Health. Registered at `@swamp/gcp/workloadmanager/discoveredprofiles-health`. */
 export const model = {
   type: "@swamp/gcp/workloadmanager/discoveredprofiles-health",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -267,6 +271,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

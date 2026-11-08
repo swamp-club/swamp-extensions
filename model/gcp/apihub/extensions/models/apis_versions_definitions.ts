@@ -85,7 +85,7 @@ const StateSchema = z.object({
   schema: z.object({
     displayName: z.string(),
     rawValue: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spec: z.string().optional(),
   type: z.string().optional(),
   updateTime: z.string().optional(),
@@ -129,7 +129,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Apis.Versions.Definitions. Registered at `@swamp/gcp/apihub/apis-versions-definitions`. */
 export const model = {
   type: "@swamp/gcp/apihub/apis-versions-definitions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -248,6 +248,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

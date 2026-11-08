@@ -332,19 +332,19 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   access: z.object({
     read: z.string(),
-  }).optional(),
+  }).partial().optional(),
   asset: z.string().optional(),
   catalogEntry: z.string().optional(),
   compatibility: z.object({
     bigquery: z.object({
       compatible: z.boolean(),
       reason: z.string(),
-    }),
+    }).partial(),
     hiveMetastore: z.object({
       compatible: z.boolean(),
       reason: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   dataPath: z.string().optional(),
   dataPathPattern: z.string().optional(),
@@ -358,33 +358,37 @@ const StateSchema = z.object({
       encoding: z.string(),
       headerRows: z.number(),
       quote: z.string(),
-    }),
+    }).partial(),
     format: z.string(),
     iceberg: z.object({
       metadataLocation: z.string(),
-    }),
+    }).partial(),
     json: z.object({
       encoding: z.string(),
-    }),
+    }).partial(),
     mimeType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   name: z.string(),
   schema: z.object({
-    fields: z.array(z.object({
-      description: z.string(),
-      fields: z.array(z.record(z.string(), z.unknown())),
-      mode: z.string(),
-      name: z.string(),
-      type: z.string(),
-    })),
-    partitionFields: z.array(z.object({
-      name: z.string(),
-      type: z.string(),
-    })),
+    fields: z.array(
+      z.object({
+        description: z.string(),
+        fields: z.array(z.record(z.string(), z.unknown())),
+        mode: z.string(),
+        name: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
+    partitionFields: z.array(
+      z.object({
+        name: z.string(),
+        type: z.string(),
+      }).partial(),
+    ),
     partitionStyle: z.string(),
     userManaged: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   system: z.string().optional(),
   type: z.string().optional(),
   uid: z.string().optional(),
@@ -587,7 +591,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex Lakes.Entities. Registered at `@swamp/gcp/dataplex/lakes-entities`. */
 export const model = {
   type: "@swamp/gcp/dataplex/lakes-entities",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -734,6 +738,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

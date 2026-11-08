@@ -122,131 +122,141 @@ const StateSchema = z.object({
     creator: z.string(),
     updateTime: z.string(),
     updater: z.string(),
-  }).optional(),
+  }).partial().optional(),
   configurations: z.array(z.string()).optional(),
   detail: z.object({
     dataLeak: z.object({
       discoveryDocumentIds: z.array(z.string()),
-      discoveryDocuments: z.array(z.object({
-        communicationContext: z.object({
-          channelDescription: z.unknown(),
-          channelName: z.unknown(),
-          channelPath: z.unknown(),
-          channelUrl: z.unknown(),
-          messageId: z.unknown(),
-          serviceName: z.unknown(),
-          threadId: z.unknown(),
-        }),
-        documentId: z.string(),
-        documentType: z.string(),
-      })),
+      discoveryDocuments: z.array(
+        z.object({
+          communicationContext: z.object({
+            channelDescription: z.unknown(),
+            channelName: z.unknown(),
+            channelPath: z.unknown(),
+            channelUrl: z.unknown(),
+            messageId: z.unknown(),
+            serviceName: z.unknown(),
+            threadId: z.unknown(),
+          }).partial(),
+          documentId: z.string(),
+          documentType: z.string(),
+        }).partial(),
+      ),
       severity: z.string(),
-    }),
+    }).partial(),
     detailType: z.string(),
     domainMonitoring: z.object({
       dnsDetails: z.object({
-        dnsRecords: z.array(z.object({
-          asnHosting: z.unknown(),
-          asnRegionCode: z.unknown(),
-          ipRegionCode: z.unknown(),
-          recordData: z.unknown(),
-          resolvedIp: z.unknown(),
-          ttl: z.unknown(),
-          type: z.unknown(),
-        })),
+        dnsRecords: z.array(
+          z.object({
+            asnHosting: z.unknown(),
+            asnRegionCode: z.unknown(),
+            ipRegionCode: z.unknown(),
+            recordData: z.unknown(),
+            resolvedIp: z.unknown(),
+            ttl: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
         retrievalTime: z.string(),
-      }),
+      }).partial(),
       domainDetails: z.object({
         domain: z.string(),
-      }),
+      }).partial(),
       gtiDetails: z.object({
         avDetections: z.object({
           detectedVendorCount: z.number(),
           totalVendorCount: z.number(),
-        }),
+        }).partial(),
         domainPermutation: z.string(),
         gtiDomainUri: z.string(),
         gtiScore: z.number(),
         threatClassification: z.string(),
         verdict: z.string(),
-      }),
+      }).partial(),
       infrastructure: z.object({
         certificateDetails: z.object({
           issuer: z.string(),
           subjectAlternativeNames: z.array(z.unknown()),
-        }),
+        }).partial(),
         urlResponse: z.string(),
-      }),
+      }).partial(),
       matchedDomain: z.string(),
       protectedBrand: z.string(),
       protectedDomain: z.object({
         domain: z.string(),
-      }),
+      }).partial(),
       registrationDetails: z.object({
         expireTime: z.string(),
         privateRegistration: z.boolean(),
         registrantCountry: z.string(),
         registrar: z.string(),
         registrationTime: z.string(),
-      }),
+      }).partial(),
       relationships: z.object({
         relatedUrls: z.array(z.string()),
         siblingDomains: z.array(z.string()),
         subdomains: z.array(z.string()),
-      }),
+      }).partial(),
       threatAttributionDetails: z.object({
         actors: z.array(z.string()),
         collections: z.array(z.string()),
         malware: z.array(z.string()),
-      }),
+      }).partial(),
       urlDetails: z.object({
         url: z.string(),
-      }),
+      }).partial(),
       whoisDetails: z.object({
         retrievalTime: z.string(),
         whois: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     initialAccessBroker: z.object({
       discoveryDocumentIds: z.array(z.string()),
-      discoveryDocuments: z.array(z.object({
-        communicationContext: z.object({
-          channelDescription: z.unknown(),
-          channelName: z.unknown(),
-          channelPath: z.unknown(),
-          channelUrl: z.unknown(),
-          messageId: z.unknown(),
-          serviceName: z.unknown(),
-          threadId: z.unknown(),
-        }),
-        documentId: z.string(),
-        documentType: z.string(),
-      })),
+      discoveryDocuments: z.array(
+        z.object({
+          communicationContext: z.object({
+            channelDescription: z.unknown(),
+            channelName: z.unknown(),
+            channelPath: z.unknown(),
+            channelUrl: z.unknown(),
+            messageId: z.unknown(),
+            serviceName: z.unknown(),
+            threadId: z.unknown(),
+          }).partial(),
+          documentId: z.string(),
+          documentType: z.string(),
+        }).partial(),
+      ),
       severity: z.string(),
-    }),
+    }).partial(),
     insiderThreat: z.object({
       discoveryDocumentIds: z.array(z.string()),
-      discoveryDocuments: z.array(z.object({
-        communicationContext: z.object({
-          channelDescription: z.unknown(),
-          channelName: z.unknown(),
-          channelPath: z.unknown(),
-          channelUrl: z.unknown(),
-          messageId: z.unknown(),
-          serviceName: z.unknown(),
-          threadId: z.unknown(),
-        }),
-        documentId: z.string(),
-        documentType: z.string(),
-      })),
+      discoveryDocuments: z.array(
+        z.object({
+          communicationContext: z.object({
+            channelDescription: z.unknown(),
+            channelName: z.unknown(),
+            channelPath: z.unknown(),
+            channelUrl: z.unknown(),
+            messageId: z.unknown(),
+            serviceName: z.unknown(),
+            threadId: z.unknown(),
+          }).partial(),
+          documentId: z.string(),
+          documentType: z.string(),
+        }).partial(),
+      ),
       severity: z.string(),
-    }),
+    }).partial(),
     targetTechnology: z.object({
       vulnerabilityMatch: z.object({
-        associations: z.array(z.object({
-          id: z.unknown(),
-          type: z.unknown(),
-        })),
+        associations: z.array(
+          z.object({
+            id: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
         collectionId: z.string(),
         cveId: z.string(),
         cvss3Score: z.number(),
@@ -258,26 +268,30 @@ const StateSchema = z.object({
         exploitationVectors: z.array(z.string()),
         matchedTechnologies: z.array(z.string()),
         priority: z.string(),
-        productFixes: z.array(z.object({
-          displayName: z.unknown(),
-          publishTime: z.unknown(),
-          sourceId: z.unknown(),
-          uri: z.unknown(),
-        })),
-        publicExploits: z.array(z.object({
-          exploitGrade: z.unknown(),
-          exploitName: z.unknown(),
-          exploitReliability: z.unknown(),
-          releaseTime: z.unknown(),
-          sizeBytes: z.unknown(),
-          uri: z.unknown(),
-        })),
+        productFixes: z.array(
+          z.object({
+            displayName: z.unknown(),
+            publishTime: z.unknown(),
+            sourceId: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+        ),
+        publicExploits: z.array(
+          z.object({
+            exploitGrade: z.unknown(),
+            exploitName: z.unknown(),
+            exploitReliability: z.unknown(),
+            releaseTime: z.unknown(),
+            sizeBytes: z.unknown(),
+            uri: z.unknown(),
+          }).partial(),
+        ),
         publiclyAvailableExploit: z.boolean(),
         riskRating: z.string(),
         technologies: z.array(z.string()),
-      }),
-    }),
-  }).optional(),
+      }).partial(),
+    }).partial(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   duplicateOf: z.string().optional(),
   duplicatedBy: z.array(z.string()).optional(),
@@ -290,22 +304,22 @@ const StateSchema = z.object({
     confidence: z.string(),
     priorityLevel: z.string(),
     reasoning: z.string(),
-  }).optional(),
+  }).partial().optional(),
   relevanceAnalysis: z.object({
     confidence: z.string(),
     evidence: z.object({
       commonThemes: z.array(z.string()),
       distinctThemes: z.array(z.string()),
-    }),
+    }).partial(),
     reasoning: z.string(),
     relevanceLevel: z.string(),
     relevant: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   severityAnalysis: z.object({
     confidence: z.string(),
     reasoning: z.string(),
     severityLevel: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   tags: z.array(z.string()).optional(),
 }).passthrough();
@@ -351,7 +365,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Threat Intelligence Alerts. Registered at `@swamp/gcp/threatintelligence/alerts`. */
 export const model = {
   type: "@swamp/gcp/threatintelligence/alerts",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -525,6 +539,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -149,6 +149,79 @@ const FirehoseLogDestinationSchema = z.object({
   ).optional(),
 });
 
+const RecordConverterStateSchema = z.object({
+  ValueConverter: z.string(),
+}).partial();
+
+const RecordSchemaStateSchema = z.object({
+  GsrArn: z.string(),
+}).partial();
+
+const TopicConfigurationStateSchema = z.object({
+  TopicArn: z.string(),
+  RecordConverter: RecordConverterStateSchema,
+  RecordSchema: RecordSchemaStateSchema,
+}).partial();
+
+const CatalogStateSchema = z.object({
+  CatalogArn: z.string(),
+  WarehouseLocation: z.string(),
+}).partial();
+
+const DeadLetterQueueS3StateSchema = z.object({
+  BucketArn: z.string(),
+  ErrorOutputPrefix: z.string(),
+  ExpectedBucketOwner: z.string(),
+}).partial();
+
+const SchemaEvolutionStateSchema = z.object({
+  EnableSchemaEvolution: z.boolean(),
+}).partial();
+
+const TableCreationStateSchema = z.object({
+  EnableTableCreation: z.boolean(),
+}).partial();
+
+const PartitionSourceStateSchema = z.object({
+  SourceName: z.string(),
+}).partial();
+
+const PartitionSpecStateSchema = z.object({
+  PartitionStrategy: z.string(),
+  SourceList: z.array(PartitionSourceStateSchema),
+}).partial();
+
+const DestinationTableStateSchema = z.object({
+  DestinationDatabaseName: z.string(),
+  DestinationTableName: z.string(),
+  PartitionSpec: PartitionSpecStateSchema,
+}).partial();
+
+const S3StorageStateSchema = z.object({
+  BucketArn: z.string(),
+  OutputPrefix: z.string(),
+  OutputKeyTemplate: z.string(),
+  StorageClass: z.string(),
+  CompressionType: z.string(),
+  ExpectedBucketOwner: z.string(),
+}).partial();
+
+const S3LogDestinationStateSchema = z.object({
+  Enabled: z.boolean(),
+  Bucket: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const CloudWatchLogsLogDestinationStateSchema = z.object({
+  Enabled: z.boolean(),
+  LogGroup: z.string(),
+}).partial();
+
+const FirehoseLogDestinationStateSchema = z.object({
+  Enabled: z.boolean(),
+  DeliveryStream: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -244,40 +317,40 @@ const StateSchema = z.object({
   ChannelName: z.string().optional(),
   Status: z.string().optional(),
   ClusterArn: z.string().optional(),
-  TopicConfigurationList: z.array(TopicConfigurationSchema).optional(),
+  TopicConfigurationList: z.array(TopicConfigurationStateSchema).optional(),
   EncryptionConfiguration: z.object({
     KmsKeyArn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   IcebergDestinationConfiguration: z.object({
     ServiceExecutionRoleArn: z.string(),
     DataFreshnessInSeconds: z.number(),
-    Catalog: CatalogSchema,
-    DeadLetterQueueS3: DeadLetterQueueS3Schema,
+    Catalog: CatalogStateSchema,
+    DeadLetterQueueS3: DeadLetterQueueS3StateSchema,
     AppendOnly: z.boolean(),
-    SchemaEvolution: SchemaEvolutionSchema,
-    TableCreation: TableCreationSchema,
-    DestinationTableList: z.array(DestinationTableSchema),
+    SchemaEvolution: SchemaEvolutionStateSchema,
+    TableCreation: TableCreationStateSchema,
+    DestinationTableList: z.array(DestinationTableStateSchema),
     CompressionType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   S3DestinationConfiguration: z.object({
     DataFreshnessInSeconds: z.number(),
-    DeadLetterQueueS3: DeadLetterQueueS3Schema,
+    DeadLetterQueueS3: DeadLetterQueueS3StateSchema,
     ServiceExecutionRoleArn: z.string(),
-    Storage: S3StorageSchema,
-  }).optional(),
+    Storage: S3StorageStateSchema,
+  }).partial().optional(),
   LoggingInfo: z.object({
-    S3: S3LogDestinationSchema,
-    CloudWatchLogs: CloudWatchLogsLogDestinationSchema,
-    Firehose: FirehoseLogDestinationSchema,
-  }).optional(),
+    S3: S3LogDestinationStateSchema,
+    CloudWatchLogs: CloudWatchLogsLogDestinationStateSchema,
+    Firehose: FirehoseLogDestinationStateSchema,
+  }).partial().optional(),
   StateInfo: z.object({
     Code: z.string(),
     Message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -378,7 +451,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Channel. Registered at `@swamp/aws/msk/channel`. */
 export const model = {
   type: "@swamp/aws/msk/channel",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -407,6 +480,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

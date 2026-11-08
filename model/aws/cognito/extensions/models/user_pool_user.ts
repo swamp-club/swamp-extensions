@@ -42,6 +42,11 @@ const AttributeTypeSchema = z.object({
   Name: z.string().optional(),
 });
 
+const AttributeTypeStateSchema = z.object({
+  Value: z.string(),
+  Name: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -69,17 +74,17 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ValidationData: z.array(AttributeTypeSchema).optional(),
+  ValidationData: z.array(AttributeTypeStateSchema).optional(),
   UserPoolId: z.string(),
   Username: z.string(),
   MessageAction: z.string().optional(),
   ClientMetadata: z.record(z.string(), z.unknown()).optional(),
   DesiredDeliveryMediums: z.array(z.string()).optional(),
   ForceAliasCreation: z.boolean().optional(),
-  UserAttributes: z.array(AttributeTypeSchema).optional(),
+  UserAttributes: z.array(AttributeTypeStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -116,7 +121,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito UserPoolUser. Registered at `@swamp/aws/cognito/user-pool-user`. */
 export const model = {
   type: "@swamp/aws/cognito/user-pool-user",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -185,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -235,11 +235,11 @@ const StateSchema = z.object({
   externalIp: z.object({
     enabled: z.boolean(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   internetAccess: z.object({
     enabled: z.boolean(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -333,7 +333,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VMware Engine NetworkPolicies. Registered at `@swamp/gcp/vmwareengine/networkpolicies`. */
 export const model = {
   type: "@swamp/gcp/vmwareengine/networkpolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -487,6 +487,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -197,16 +197,18 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  allowedClients: z.array(z.object({
-    allowDev: z.boolean(),
-    allowSuid: z.boolean(),
-    allowedClientsCidr: z.string(),
-    mountPermissions: z.string(),
-    network: z.string(),
-    nfsPath: z.string(),
-    noRootSquash: z.boolean(),
-    shareIp: z.string(),
-  })).optional(),
+  allowedClients: z.array(
+    z.object({
+      allowDev: z.boolean(),
+      allowSuid: z.boolean(),
+      allowedClientsCidr: z.string(),
+      mountPermissions: z.string(),
+      network: z.string(),
+      nfsPath: z.string(),
+      noRootSquash: z.boolean(),
+      shareIp: z.string(),
+    }).partial(),
+  ).optional(),
   id: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -295,7 +297,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bare Metal Solution NfsShares. Registered at `@swamp/gcp/baremetalsolution/nfsshares`. */
 export const model = {
   type: "@swamp/gcp/baremetalsolution/nfsshares",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -429,6 +431,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

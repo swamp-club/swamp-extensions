@@ -191,11 +191,11 @@ const StateSchema = z.object({
     authentication: z.object({
       credentials: z.string(),
       schemes: z.array(z.string()),
-    }),
+    }).partial(),
     id: z.string(),
     token: z.string(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -265,7 +265,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/discoveryengine/collections-engines-assistants-agents-a2a-v1-tasks-pushnotificationconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -404,6 +404,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

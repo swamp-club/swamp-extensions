@@ -285,35 +285,39 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
-  datasources: z.array(z.object({
-    httpGraphql: z.object({
-      timeout: z.string(),
-      uri: z.string(),
-    }),
-    postgresql: z.object({
-      cloudSql: z.object({
-        edition: z.string(),
-        instance: z.string(),
-      }),
-      database: z.string(),
-      ephemeral: z.boolean(),
-      schema: z.string(),
-      schemaMigration: z.string(),
-      schemaValidation: z.string(),
-      unlinked: z.boolean(),
-    }),
-  })).optional(),
+  datasources: z.array(
+    z.object({
+      httpGraphql: z.object({
+        timeout: z.string(),
+        uri: z.string(),
+      }).partial(),
+      postgresql: z.object({
+        cloudSql: z.object({
+          edition: z.string(),
+          instance: z.string(),
+        }).partial(),
+        database: z.string(),
+        ephemeral: z.boolean(),
+        schema: z.string(),
+        schemaMigration: z.string(),
+        schemaValidation: z.string(),
+        unlinked: z.boolean(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   reconciling: z.boolean().optional(),
   source: z.object({
-    files: z.array(z.object({
-      content: z.string(),
-      path: z.string(),
-    })),
-  }).optional(),
+    files: z.array(
+      z.object({
+        content: z.string(),
+        path: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -445,7 +449,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase SQL Connect Services.Schemas. Registered at `@swamp/gcp/firebasedataconnect/services-schemas`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services-schemas",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -639,6 +643,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

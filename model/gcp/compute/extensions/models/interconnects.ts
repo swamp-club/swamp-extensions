@@ -297,38 +297,46 @@ const StateSchema = z.object({
   adminEnabled: z.boolean().optional(),
   applicationAwareInterconnect: z.object({
     bandwidthPercentagePolicy: z.object({
-      bandwidthPercentages: z.array(z.object({
+      bandwidthPercentages: z.array(
+        z.object({
+          percentage: z.number(),
+          trafficClass: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+    profileDescription: z.string(),
+    shapeAveragePercentages: z.array(
+      z.object({
         percentage: z.number(),
         trafficClass: z.string(),
-      })),
-    }),
-    profileDescription: z.string(),
-    shapeAveragePercentages: z.array(z.object({
-      percentage: z.number(),
-      trafficClass: z.string(),
-    })),
-    strictPriorityPolicy: z.object({}),
-  }).optional(),
+      }).partial(),
+    ),
+    strictPriorityPolicy: z.object({}).partial(),
+  }).partial().optional(),
   availableFeatures: z.array(z.string()).optional(),
-  circuitInfos: z.array(z.object({
-    customerDemarcId: z.string(),
-    googleCircuitId: z.string(),
-    googleDemarcId: z.string(),
-  })).optional(),
+  circuitInfos: z.array(
+    z.object({
+      customerDemarcId: z.string(),
+      googleCircuitId: z.string(),
+      googleDemarcId: z.string(),
+    }).partial(),
+  ).optional(),
   creationTimestamp: z.string().optional(),
   customerName: z.string().optional(),
   description: z.string().optional(),
   effectiveLocation: z.string().optional(),
-  expectedOutages: z.array(z.object({
-    affectedCircuits: z.array(z.string()),
-    description: z.string(),
-    endTime: z.string(),
-    issueType: z.string(),
-    name: z.string(),
-    source: z.string(),
-    startTime: z.string(),
-    state: z.string(),
-  })).optional(),
+  expectedOutages: z.array(
+    z.object({
+      affectedCircuits: z.array(z.string()),
+      description: z.string(),
+      endTime: z.string(),
+      issueType: z.string(),
+      name: z.string(),
+      source: z.string(),
+      startTime: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   googleIpAddress: z.string().optional(),
   googleReferenceId: z.string().optional(),
   id: z.string().optional(),
@@ -342,18 +350,20 @@ const StateSchema = z.object({
   location: z.string().optional(),
   macsec: z.object({
     failOpen: z.boolean(),
-    preSharedKeys: z.array(z.object({
-      name: z.string(),
-      startTime: z.string(),
-    })),
-  }).optional(),
+    preSharedKeys: z.array(
+      z.object({
+        name: z.string(),
+        startTime: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   macsecEnabled: z.boolean().optional(),
   name: z.string(),
   nocContactEmail: z.string().optional(),
   operationalStatus: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   peerIpAddress: z.string().optional(),
   provisionedLinkCount: z.number().optional(),
   remoteLocation: z.string().optional(),
@@ -518,7 +528,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Interconnects. Registered at `@swamp/gcp/compute/interconnects`. */
 export const model = {
   type: "@swamp/gcp/compute/interconnects",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -702,6 +712,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

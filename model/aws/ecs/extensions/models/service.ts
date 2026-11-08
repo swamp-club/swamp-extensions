@@ -460,6 +460,235 @@ const GatewayConnectorSchema = z.object({
   PortName: z.string(),
 });
 
+const PlacementStrategyStateSchema = z.object({
+  Field: z.string(),
+  Type: z.string(),
+}).partial();
+
+const ServiceRegistryStateSchema = z.object({
+  ContainerName: z.string(),
+  Port: z.number(),
+  ContainerPort: z.number(),
+  RegistryArn: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
+const EBSTagSpecificationStateSchema = z.object({
+  PropagateTags: z.string(),
+  ResourceType: z.string(),
+  Tags: z.array(TagStateSchema),
+}).partial();
+
+const ServiceManagedEBSVolumeConfigurationStateSchema = z.object({
+  SnapshotId: z.string(),
+  VolumeType: z.string(),
+  KmsKeyId: z.string(),
+  TagSpecifications: z.array(EBSTagSpecificationStateSchema),
+  FilesystemType: z.string(),
+  Encrypted: z.boolean(),
+  Throughput: z.number(),
+  VolumeInitializationRate: z.number(),
+  Iops: z.number(),
+  SizeInGiB: z.number(),
+  RoleArn: z.string(),
+}).partial();
+
+const ServiceVolumeConfigurationStateSchema = z.object({
+  ManagedEBSVolume: ServiceManagedEBSVolumeConfigurationStateSchema,
+  Name: z.string(),
+}).partial();
+
+const CapacityProviderStrategyItemStateSchema = z.object({
+  CapacityProvider: z.string(),
+  Base: z.number(),
+  Weight: z.number(),
+}).partial();
+
+const AwsVpcConfigurationStateSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+  AssignPublicIp: z.string(),
+}).partial();
+
+const MetricConfigurationStateSchema = z.object({
+  ResolutionSeconds: z.number(),
+  MetricNames: z.array(z.string()),
+}).partial();
+
+const PlacementConstraintStateSchema = z.object({
+  Type: z.string(),
+  Expression: z.string(),
+}).partial();
+
+const AdvancedConfigurationStateSchema = z.object({
+  TestListenerRule: z.string(),
+  AlternateTargetGroupArn: z.string(),
+  ProductionListenerRule: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const LoadBalancerStateSchema = z.object({
+  TargetGroupArn: z.string(),
+  LoadBalancerName: z.string(),
+  ContainerName: z.string(),
+  ContainerPort: z.number(),
+  AdvancedConfiguration: AdvancedConfigurationStateSchema,
+}).partial();
+
+const TimeoutConfigurationStateSchema = z.object({
+  PerRequestTimeoutSeconds: z.number(),
+  IdleTimeoutSeconds: z.number(),
+}).partial();
+
+const ServiceConnectTestTrafficRulesHeaderValueStateSchema = z.object({
+  Exact: z.string(),
+}).partial();
+
+const ServiceConnectTestTrafficRulesHeaderStateSchema = z.object({
+  Value: ServiceConnectTestTrafficRulesHeaderValueStateSchema,
+  Name: z.string(),
+}).partial();
+
+const ServiceConnectTestTrafficRulesStateSchema = z.object({
+  Header: ServiceConnectTestTrafficRulesHeaderStateSchema,
+}).partial();
+
+const ServiceConnectClientAliasStateSchema = z.object({
+  DnsName: z.string(),
+  TestTrafficRules: ServiceConnectTestTrafficRulesStateSchema,
+  Port: z.number(),
+}).partial();
+
+const ServiceConnectTlsCertificateAuthorityStateSchema = z.object({
+  AwsPcaAuthorityArn: z.string(),
+}).partial();
+
+const ServiceConnectTlsConfigurationStateSchema = z.object({
+  IssuerCertificateAuthority: ServiceConnectTlsCertificateAuthorityStateSchema,
+  KmsKey: z.string(),
+  RoleArn: z.string(),
+}).partial();
+
+const ServiceConnectServiceStateSchema = z.object({
+  Timeout: TimeoutConfigurationStateSchema,
+  IngressPortOverride: z.number(),
+  ClientAliases: z.array(ServiceConnectClientAliasStateSchema),
+  Tls: ServiceConnectTlsConfigurationStateSchema,
+  DiscoveryName: z.string(),
+  PortName: z.string(),
+}).partial();
+
+const ServiceConnectContainerConfigurationStateSchema = z.object({
+  LogLevel: z.string(),
+}).partial();
+
+const ServiceConnectAccessLogConfigurationStateSchema = z.object({
+  Format: z.string(),
+  IncludeQueryParameters: z.string(),
+}).partial();
+
+const SecretStateSchema = z.object({
+  ValueFrom: z.string(),
+  Name: z.string(),
+}).partial();
+
+const LogConfigurationStateSchema = z.object({
+  SecretOptions: z.array(SecretStateSchema),
+  Options: z.record(z.string(), z.unknown()),
+  LogDriver: z.string(),
+}).partial();
+
+const VpcLatticeAdvancedConfigurationStateSchema = z.object({
+  TestListenerRule: z.string(),
+  AlternateTargetGroupArn: z.string(),
+  ProductionListenerRule: z.string(),
+}).partial();
+
+const VpcLatticeConfigurationStateSchema = z.object({
+  TargetGroupArn: z.string(),
+  PortName: z.string(),
+  RoleArn: z.string(),
+  AdvancedConfiguration: VpcLatticeAdvancedConfigurationStateSchema,
+}).partial();
+
+const CanaryConfigurationStateSchema = z.object({
+  CanaryPercent: z.number(),
+  CanaryBakeTimeInMinutes: z.number(),
+}).partial();
+
+const HookTimeoutConfigStateSchema = z.object({
+  Action: z.string(),
+  TimeoutInMinutes: z.number(),
+}).partial();
+
+const DeploymentLifecycleHookStateSchema = z.object({
+  TimeoutConfiguration: HookTimeoutConfigStateSchema,
+  LifecycleStages: z.array(z.string()),
+  TargetType: z.string(),
+  HookTargetArn: z.string(),
+  HookDetails: z.union([z.string(), z.record(z.string(), z.unknown())]),
+  RoleArn: z.string(),
+}).partial();
+
+const DeploymentEarlySuccessCriteriaStateSchema = z.object({
+  SourceServiceRevisionCleanup: z.string(),
+  HealthyPercent: z.number(),
+  Enable: z.boolean(),
+}).partial();
+
+const DeploymentAlarmsStateSchema = z.object({
+  AlarmNames: z.array(z.string()),
+  Enable: z.boolean(),
+  Rollback: z.boolean(),
+}).partial();
+
+const ThresholdConfigurationStateSchema = z.object({
+  Type: z.string(),
+  Value: z.number(),
+}).partial();
+
+const DeploymentCircuitBreakerStateSchema = z.object({
+  ThresholdConfiguration: ThresholdConfigurationStateSchema,
+  Enable: z.boolean(),
+  ResetOnHealthyTask: z.boolean(),
+  Rollback: z.boolean(),
+}).partial();
+
+const LinearConfigurationStateSchema = z.object({
+  StepBakeTimeInMinutes: z.number(),
+  StepPercent: z.number(),
+}).partial();
+
+const GatewayConnectorFiltersStateSchema = z.object({
+  AccessTypes: z.array(z.string()),
+}).partial();
+
+const GatewayConnectorHealthCheckMatcherStateSchema = z.object({
+  GrpcCode: z.string(),
+  HttpCode: z.string(),
+}).partial();
+
+const GatewayConnectorHealthCheckStateSchema = z.object({
+  HealthCheckIntervalSeconds: z.number(),
+  Matcher: GatewayConnectorHealthCheckMatcherStateSchema,
+  HealthyThresholdCount: z.number(),
+  HealthCheckPath: z.string(),
+  HealthCheckProtocol: z.string(),
+  HealthCheckPort: z.number(),
+  UnhealthyThresholdCount: z.number(),
+  HealthCheckTimeoutSeconds: z.number(),
+}).partial();
+
+const GatewayConnectorStateSchema = z.object({
+  Filters: GatewayConnectorFiltersStateSchema,
+  HealthCheck: GatewayConnectorHealthCheckStateSchema,
+  PortName: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -631,66 +860,68 @@ const StateSchema = z.object({
   PlatformVersion: z.string().optional(),
   PropagateTags: z.string().optional(),
   ServiceArn: z.string(),
-  PlacementStrategies: z.array(PlacementStrategySchema).optional(),
-  ServiceRegistries: z.array(ServiceRegistrySchema).optional(),
-  VolumeConfigurations: z.array(ServiceVolumeConfigurationSchema).optional(),
-  CapacityProviderStrategy: z.array(CapacityProviderStrategyItemSchema)
+  PlacementStrategies: z.array(PlacementStrategyStateSchema).optional(),
+  ServiceRegistries: z.array(ServiceRegistryStateSchema).optional(),
+  VolumeConfigurations: z.array(ServiceVolumeConfigurationStateSchema)
+    .optional(),
+  CapacityProviderStrategy: z.array(CapacityProviderStrategyItemStateSchema)
     .optional(),
   LaunchType: z.string().optional(),
   Name: z.string().optional(),
   AvailabilityZoneRebalancing: z.string().optional(),
   SchedulingStrategy: z.string().optional(),
   NetworkConfiguration: z.object({
-    AwsvpcConfiguration: AwsVpcConfigurationSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    AwsvpcConfiguration: AwsVpcConfigurationStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Monitoring: z.object({
-    MetricConfigurations: z.array(MetricConfigurationSchema),
-  }).optional(),
+    MetricConfigurations: z.array(MetricConfigurationStateSchema),
+  }).partial().optional(),
   ForceNewDeployment: z.object({
     EnableForceNewDeployment: z.boolean(),
     ForceNewDeploymentNonce: z.string(),
-  }).optional(),
+  }).partial().optional(),
   HealthCheckGracePeriodSeconds: z.number().optional(),
   EnableECSManagedTags: z.boolean().optional(),
   EnableExecuteCommand: z.boolean().optional(),
-  PlacementConstraints: z.array(PlacementConstraintSchema).optional(),
+  PlacementConstraints: z.array(PlacementConstraintStateSchema).optional(),
   Cluster: z.string(),
-  LoadBalancers: z.array(LoadBalancerSchema).optional(),
+  LoadBalancers: z.array(LoadBalancerStateSchema).optional(),
   ServiceConnectConfiguration: z.object({
-    Services: z.array(ServiceConnectServiceSchema),
+    Services: z.array(ServiceConnectServiceStateSchema),
     ContainerConfigurations: z.array(
-      ServiceConnectContainerConfigurationSchema,
+      ServiceConnectContainerConfigurationStateSchema,
     ),
-    AccessLogConfiguration: ServiceConnectAccessLogConfigurationSchema,
+    AccessLogConfiguration: ServiceConnectAccessLogConfigurationStateSchema,
     Enabled: z.boolean(),
-    LogConfiguration: LogConfigurationSchema,
+    LogConfiguration: LogConfigurationStateSchema,
     Namespace: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DesiredCount: z.number().optional(),
-  VpcLatticeConfigurations: z.array(VpcLatticeConfigurationSchema).optional(),
+  VpcLatticeConfigurations: z.array(VpcLatticeConfigurationStateSchema)
+    .optional(),
   DeploymentController: z.object({
     Type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Role: z.string().optional(),
   TaskDefinition: z.string().optional(),
   ServiceName: z.string().optional(),
   DeploymentConfiguration: z.object({
-    CanaryConfiguration: CanaryConfigurationSchema,
+    CanaryConfiguration: CanaryConfigurationStateSchema,
     BakeTimeInMinutes: z.number(),
-    LifecycleHooks: z.array(DeploymentLifecycleHookSchema),
-    EarlySuccessCriteria: DeploymentEarlySuccessCriteriaSchema,
-    Alarms: DeploymentAlarmsSchema,
+    LifecycleHooks: z.array(DeploymentLifecycleHookStateSchema),
+    EarlySuccessCriteria: DeploymentEarlySuccessCriteriaStateSchema,
+    Alarms: DeploymentAlarmsStateSchema,
     Strategy: z.string(),
-    DeploymentCircuitBreaker: DeploymentCircuitBreakerSchema,
+    DeploymentCircuitBreaker: DeploymentCircuitBreakerStateSchema,
     MaximumPercent: z.number(),
     MinimumHealthyPercent: z.number(),
-    LinearConfiguration: LinearConfigurationSchema,
-  }).optional(),
-  GatewayConnectors: z.array(GatewayConnectorSchema).optional(),
+    LinearConfiguration: LinearConfigurationStateSchema,
+  }).partial().optional(),
+  GatewayConnectors: z.array(GatewayConnectorStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -868,7 +1099,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -992,6 +1223,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

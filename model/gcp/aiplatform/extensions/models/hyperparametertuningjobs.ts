@@ -552,13 +552,13 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endTime: z.string().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   maxFailedTrialCount: z.number().optional(),
   maxTrialCount: z.number().optional(),
@@ -577,51 +577,57 @@ const StateSchema = z.object({
       minStepCount: z.string(),
       updateAllStoppedTrials: z.boolean(),
       useElapsedDuration: z.boolean(),
-    }),
+    }).partial(),
     decayCurveStoppingSpec: z.object({
       useElapsedDuration: z.boolean(),
-    }),
+    }).partial(),
     measurementSelectionType: z.string(),
     medianAutomatedStoppingSpec: z.object({
       useElapsedDuration: z.boolean(),
-    }),
-    metrics: z.array(z.object({
-      goal: z.string(),
-      metricId: z.string(),
-      safetyConfig: z.object({
-        desiredMinSafeTrialsFraction: z.number(),
-        safetyThreshold: z.number(),
-      }),
-    })),
+    }).partial(),
+    metrics: z.array(
+      z.object({
+        goal: z.string(),
+        metricId: z.string(),
+        safetyConfig: z.object({
+          desiredMinSafeTrialsFraction: z.number(),
+          safetyThreshold: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
     observationNoise: z.string(),
-    parameters: z.array(z.object({
-      categoricalValueSpec: z.object({
-        defaultValue: z.string(),
-        values: z.array(z.unknown()),
-      }),
-      conditionalParameterSpecs: z.array(z.object({
-        parameterSpec: z.unknown(),
-        parentCategoricalValues: z.unknown(),
-        parentDiscreteValues: z.unknown(),
-        parentIntValues: z.unknown(),
-      })),
-      discreteValueSpec: z.object({
-        defaultValue: z.number(),
-        values: z.array(z.unknown()),
-      }),
-      doubleValueSpec: z.object({
-        defaultValue: z.number(),
-        maxValue: z.number(),
-        minValue: z.number(),
-      }),
-      integerValueSpec: z.object({
-        defaultValue: z.string(),
-        maxValue: z.string(),
-        minValue: z.string(),
-      }),
-      parameterId: z.string(),
-      scaleType: z.string(),
-    })),
+    parameters: z.array(
+      z.object({
+        categoricalValueSpec: z.object({
+          defaultValue: z.string(),
+          values: z.array(z.unknown()),
+        }).partial(),
+        conditionalParameterSpecs: z.array(
+          z.object({
+            parameterSpec: z.unknown(),
+            parentCategoricalValues: z.unknown(),
+            parentDiscreteValues: z.unknown(),
+            parentIntValues: z.unknown(),
+          }).partial(),
+        ),
+        discreteValueSpec: z.object({
+          defaultValue: z.number(),
+          values: z.array(z.unknown()),
+        }).partial(),
+        doubleValueSpec: z.object({
+          defaultValue: z.number(),
+          maxValue: z.number(),
+          minValue: z.number(),
+        }).partial(),
+        integerValueSpec: z.object({
+          defaultValue: z.string(),
+          maxValue: z.string(),
+          minValue: z.string(),
+        }).partial(),
+        parameterId: z.string(),
+        scaleType: z.string(),
+      }).partial(),
+    ),
     studyStoppingConfig: z.object({
       maxDurationNoProgress: z.string(),
       maxNumTrials: z.number(),
@@ -629,19 +635,19 @@ const StateSchema = z.object({
       maximumRuntimeConstraint: z.object({
         endTime: z.string(),
         maxDuration: z.string(),
-      }),
+      }).partial(),
       minNumTrials: z.number(),
       minimumRuntimeConstraint: z.object({
         endTime: z.string(),
         maxDuration: z.string(),
-      }),
+      }).partial(),
       shouldStopAsap: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   trialJobSpec: z.object({
     baseOutputDirectory: z.object({
       outputUriPrefix: z.string(),
-    }),
+    }).partial(),
     enableDashboardAccess: z.boolean(),
     enableWebAccess: z.boolean(),
     experiment: z.string(),
@@ -651,13 +657,15 @@ const StateSchema = z.object({
     persistentResourceId: z.string(),
     protectedArtifactLocationId: z.string(),
     pscInterfaceConfig: z.object({
-      dnsPeeringConfigs: z.array(z.object({
-        domain: z.string(),
-        targetNetwork: z.string(),
-        targetProject: z.string(),
-      })),
+      dnsPeeringConfigs: z.array(
+        z.object({
+          domain: z.string(),
+          targetNetwork: z.string(),
+          targetProject: z.string(),
+        }).partial(),
+      ),
       networkAttachment: z.string(),
-    }),
+    }).partial(),
     reservedIpRanges: z.array(z.string()),
     scheduling: z.object({
       disableRetries: z.boolean(),
@@ -665,81 +673,95 @@ const StateSchema = z.object({
       restartJobOnWorkerRestart: z.boolean(),
       strategy: z.string(),
       timeout: z.string(),
-    }),
+    }).partial(),
     serviceAccount: z.string(),
     tensorboard: z.string(),
-    workerPoolSpecs: z.array(z.object({
-      containerSpec: z.object({
-        args: z.array(z.unknown()),
-        command: z.array(z.unknown()),
-        env: z.array(z.unknown()),
-        imageUri: z.string(),
-      }),
-      diskSpec: z.object({
-        bootDiskSizeGb: z.number(),
-        bootDiskType: z.string(),
-      }),
-      lustreMounts: z.array(z.object({
-        filesystem: z.unknown(),
-        instanceIp: z.unknown(),
-        mountPoint: z.unknown(),
-        volumeHandle: z.unknown(),
-      })),
-      machineSpec: z.object({
-        acceleratorCount: z.number(),
-        acceleratorType: z.string(),
-        gpuPartitionSize: z.string(),
-        machineType: z.string(),
-        reservationAffinity: z.object({
-          key: z.unknown(),
-          reservationAffinityType: z.unknown(),
-          values: z.unknown(),
-        }),
-        tpuTopology: z.string(),
-      }),
-      nfsMounts: z.array(z.object({
-        mountPoint: z.unknown(),
-        path: z.unknown(),
-        server: z.unknown(),
-      })),
-      pythonPackageSpec: z.object({
-        args: z.array(z.unknown()),
-        env: z.array(z.unknown()),
-        executorImageUri: z.string(),
-        packageUris: z.array(z.unknown()),
-        pythonModule: z.string(),
-      }),
-      replicaCount: z.string(),
-    })),
-  }).optional(),
-  trials: z.array(z.object({
-    clientId: z.string(),
-    customJob: z.string(),
-    endTime: z.string(),
-    finalMeasurement: z.object({
-      elapsedDuration: z.string(),
-      metrics: z.array(z.object({
-        metricId: z.unknown(),
-        value: z.unknown(),
-      })),
-      stepCount: z.string(),
-    }),
-    id: z.string(),
-    infeasibleReason: z.string(),
-    measurements: z.array(z.object({
-      elapsedDuration: z.string(),
-      metrics: z.array(z.unknown()),
-      stepCount: z.string(),
-    })),
-    name: z.string(),
-    parameters: z.array(z.object({
-      parameterId: z.string(),
-      value: z.string(),
-    })),
-    startTime: z.string(),
-    state: z.string(),
-    webAccessUris: z.record(z.string(), z.unknown()),
-  })).optional(),
+    workerPoolSpecs: z.array(
+      z.object({
+        containerSpec: z.object({
+          args: z.array(z.unknown()),
+          command: z.array(z.unknown()),
+          env: z.array(z.unknown()),
+          imageUri: z.string(),
+        }).partial(),
+        diskSpec: z.object({
+          bootDiskSizeGb: z.number(),
+          bootDiskType: z.string(),
+        }).partial(),
+        lustreMounts: z.array(
+          z.object({
+            filesystem: z.unknown(),
+            instanceIp: z.unknown(),
+            mountPoint: z.unknown(),
+            volumeHandle: z.unknown(),
+          }).partial(),
+        ),
+        machineSpec: z.object({
+          acceleratorCount: z.number(),
+          acceleratorType: z.string(),
+          gpuPartitionSize: z.string(),
+          machineType: z.string(),
+          reservationAffinity: z.object({
+            key: z.unknown(),
+            reservationAffinityType: z.unknown(),
+            values: z.unknown(),
+          }).partial(),
+          tpuTopology: z.string(),
+        }).partial(),
+        nfsMounts: z.array(
+          z.object({
+            mountPoint: z.unknown(),
+            path: z.unknown(),
+            server: z.unknown(),
+          }).partial(),
+        ),
+        pythonPackageSpec: z.object({
+          args: z.array(z.unknown()),
+          env: z.array(z.unknown()),
+          executorImageUri: z.string(),
+          packageUris: z.array(z.unknown()),
+          pythonModule: z.string(),
+        }).partial(),
+        replicaCount: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
+  trials: z.array(
+    z.object({
+      clientId: z.string(),
+      customJob: z.string(),
+      endTime: z.string(),
+      finalMeasurement: z.object({
+        elapsedDuration: z.string(),
+        metrics: z.array(
+          z.object({
+            metricId: z.unknown(),
+            value: z.unknown(),
+          }).partial(),
+        ),
+        stepCount: z.string(),
+      }).partial(),
+      id: z.string(),
+      infeasibleReason: z.string(),
+      measurements: z.array(
+        z.object({
+          elapsedDuration: z.string(),
+          metrics: z.array(z.unknown()),
+          stepCount: z.string(),
+        }).partial(),
+      ),
+      name: z.string(),
+      parameters: z.array(
+        z.object({
+          parameterId: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+      startTime: z.string(),
+      state: z.string(),
+      webAccessUris: z.record(z.string(), z.unknown()),
+    }).partial(),
+  ).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -1185,7 +1207,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform HyperparameterTuningJobs. Registered at `@swamp/gcp/aiplatform/hyperparametertuningjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/hyperparametertuningjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1367,6 +1389,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

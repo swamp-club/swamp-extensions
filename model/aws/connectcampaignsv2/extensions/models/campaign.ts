@@ -273,6 +273,150 @@ const TagSchema = z.object({
   Value: z.string().describe("The value for the tag."),
 });
 
+const ProgressiveConfigStateSchema = z.object({
+  BandwidthAllocation: z.number(),
+}).partial();
+
+const PredictiveConfigStateSchema = z.object({
+  BandwidthAllocation: z.number(),
+}).partial();
+
+const TimeoutConfigStateSchema = z.object({
+  DurationInSeconds: z.number(),
+}).partial();
+
+const PreviewConfigStateSchema = z.object({
+  BandwidthAllocation: z.number(),
+  TimeoutConfig: TimeoutConfigStateSchema,
+  AgentActions: z.array(z.string()),
+}).partial();
+
+const TelephonyOutboundModeStateSchema = z.object({
+  ProgressiveConfig: ProgressiveConfigStateSchema,
+  PredictiveConfig: PredictiveConfigStateSchema,
+  AgentlessConfig: z.record(z.string(), z.unknown()),
+  PreviewConfig: PreviewConfigStateSchema,
+}).partial();
+
+const AnswerMachineDetectionConfigStateSchema = z.object({
+  EnableAnswerMachineDetection: z.boolean(),
+  AwaitAnswerMachinePrompt: z.boolean(),
+}).partial();
+
+const TelephonyOutboundConfigStateSchema = z.object({
+  ConnectContactFlowId: z.string(),
+  ConnectSourcePhoneNumber: z.string(),
+  AnswerMachineDetectionConfig: AnswerMachineDetectionConfigStateSchema,
+  RingTimeout: z.number(),
+}).partial();
+
+const TelephonyChannelSubtypeConfigStateSchema = z.object({
+  Capacity: z.number(),
+  ConnectQueueId: z.string(),
+  OutboundMode: TelephonyOutboundModeStateSchema,
+  DefaultOutboundConfig: TelephonyOutboundConfigStateSchema,
+}).partial();
+
+const SmsOutboundModeStateSchema = z.object({
+  AgentlessConfig: z.record(z.string(), z.unknown()),
+}).partial();
+
+const SmsOutboundConfigStateSchema = z.object({
+  ConnectSourcePhoneNumberArn: z.string(),
+  WisdomTemplateArn: z.string(),
+}).partial();
+
+const SmsChannelSubtypeConfigStateSchema = z.object({
+  Capacity: z.number(),
+  OutboundMode: SmsOutboundModeStateSchema,
+  DefaultOutboundConfig: SmsOutboundConfigStateSchema,
+}).partial();
+
+const EmailOutboundModeStateSchema = z.object({
+  AgentlessConfig: z.record(z.string(), z.unknown()),
+}).partial();
+
+const EmailOutboundConfigStateSchema = z.object({
+  ConnectSourceEmailAddress: z.string(),
+  SourceEmailAddressDisplayName: z.string(),
+  WisdomTemplateArn: z.string(),
+}).partial();
+
+const EmailChannelSubtypeConfigStateSchema = z.object({
+  Capacity: z.number(),
+  OutboundMode: EmailOutboundModeStateSchema,
+  DefaultOutboundConfig: EmailOutboundConfigStateSchema,
+}).partial();
+
+const WhatsAppOutboundModeStateSchema = z.object({
+  AgentlessConfig: z.record(z.string(), z.unknown()),
+}).partial();
+
+const WhatsAppOutboundConfigStateSchema = z.object({
+  ConnectSourcePhoneNumberArn: z.string(),
+  WisdomTemplateArn: z.string(),
+}).partial();
+
+const WhatsAppChannelSubtypeConfigStateSchema = z.object({
+  Capacity: z.number(),
+  OutboundMode: WhatsAppOutboundModeStateSchema,
+  DefaultOutboundConfig: WhatsAppOutboundConfigStateSchema,
+}).partial();
+
+const EventTriggerStateSchema = z.object({
+  CustomerProfilesDomainArn: z.string(),
+}).partial();
+
+const LocalTimeZoneConfigStateSchema = z.object({
+  DefaultTimeZone: z.string(),
+  LocalTimeZoneDetection: z.array(z.string()),
+  LocalTimeZoneDetectionScope: z.string(),
+}).partial();
+
+const TimeRangeStateSchema = z.object({
+  StartTime: z.string(),
+  EndTime: z.string(),
+}).partial();
+
+const DailyHourStateSchema = z.object({
+  Key: z.string(),
+  Value: z.array(TimeRangeStateSchema),
+}).partial();
+
+const OpenHoursStateSchema = z.object({
+  DailyHours: z.array(DailyHourStateSchema),
+}).partial();
+
+const RestrictedPeriodStateSchema = z.object({
+  Name: z.string(),
+  StartDate: z.string(),
+  EndDate: z.string(),
+}).partial();
+
+const RestrictedPeriodsStateSchema = z.object({
+  RestrictedPeriodList: z.array(RestrictedPeriodStateSchema),
+}).partial();
+
+const TimeWindowStateSchema = z.object({
+  OpenHours: OpenHoursStateSchema,
+  RestrictedPeriods: RestrictedPeriodsStateSchema,
+}).partial();
+
+const CommunicationLimitStateSchema = z.object({
+  MaxCountPerRecipient: z.number(),
+  Frequency: z.number(),
+  Unit: z.string(),
+}).partial();
+
+const CommunicationLimitsStateSchema = z.object({
+  CommunicationLimitList: z.array(CommunicationLimitStateSchema),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -370,40 +514,40 @@ const StateSchema = z.object({
   Type: z.string().optional(),
   ConnectInstanceId: z.string().optional(),
   ChannelSubtypeConfig: z.object({
-    Telephony: TelephonyChannelSubtypeConfigSchema,
-    Sms: SmsChannelSubtypeConfigSchema,
-    Email: EmailChannelSubtypeConfigSchema,
-    WhatsApp: WhatsAppChannelSubtypeConfigSchema,
-  }).optional(),
+    Telephony: TelephonyChannelSubtypeConfigStateSchema,
+    Sms: SmsChannelSubtypeConfigStateSchema,
+    Email: EmailChannelSubtypeConfigStateSchema,
+    WhatsApp: WhatsAppChannelSubtypeConfigStateSchema,
+  }).partial().optional(),
   Source: z.object({
     CustomerProfilesSegmentArn: z.string(),
-    EventTrigger: EventTriggerSchema,
-  }).optional(),
+    EventTrigger: EventTriggerStateSchema,
+  }).partial().optional(),
   ConnectCampaignFlowArn: z.string().optional(),
   Schedule: z.object({
     StartTime: z.string(),
     EndTime: z.string(),
     RefreshFrequency: z.string(),
-  }).optional(),
+  }).partial().optional(),
   CommunicationTimeConfig: z.object({
-    LocalTimeZoneConfig: LocalTimeZoneConfigSchema,
-    Telephony: TimeWindowSchema,
-    Sms: TimeWindowSchema,
-    Email: TimeWindowSchema,
-    WhatsApp: TimeWindowSchema,
-  }).optional(),
+    LocalTimeZoneConfig: LocalTimeZoneConfigStateSchema,
+    Telephony: TimeWindowStateSchema,
+    Sms: TimeWindowStateSchema,
+    Email: TimeWindowStateSchema,
+    WhatsApp: TimeWindowStateSchema,
+  }).partial().optional(),
   CommunicationLimitsOverride: z.object({
-    AllChannelsSubtypes: CommunicationLimitsSchema,
+    AllChannelsSubtypes: CommunicationLimitsStateSchema,
     InstanceLimitsHandling: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EntryLimitsConfig: z.object({
     MaxEntryCount: z.number(),
     MinEntryInterval: z.string(),
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -505,7 +649,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ConnectCampaignsV2 Campaign. Registered at `@swamp/aws/connectcampaignsv2/campaign`. */
 export const model = {
   type: "@swamp/aws/connectcampaignsv2/campaign",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -589,6 +733,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

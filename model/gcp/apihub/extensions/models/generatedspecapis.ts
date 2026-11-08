@@ -123,7 +123,7 @@ const StateSchema = z.object({
     sourceDisplayName: z.string(),
     type: z.string(),
     typeDisplayName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   spec: z.string().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
@@ -171,7 +171,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub GeneratedSpecApis. Registered at `@swamp/gcp/apihub/generatedspecapis`. */
 export const model = {
   type: "@swamp/gcp/apihub/generatedspecapis",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

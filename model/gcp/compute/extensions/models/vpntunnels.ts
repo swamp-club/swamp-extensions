@@ -267,13 +267,13 @@ const StateSchema = z.object({
       encryption: z.array(z.string()),
       integrity: z.array(z.string()),
       prf: z.array(z.string()),
-    }),
+    }).partial(),
     phase2: z.object({
       encryption: z.array(z.string()),
       integrity: z.array(z.string()),
       pfs: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
   detailedStatus: z.string().optional(),
@@ -286,7 +286,7 @@ const StateSchema = z.object({
   name: z.string(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   peerExternalGateway: z.string().optional(),
   peerExternalGatewayInterface: z.number().optional(),
   peerGcpGateway: z.string().optional(),
@@ -426,7 +426,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine VpnTunnels. Registered at `@swamp/gcp/compute/vpntunnels`. */
 export const model = {
   type: "@swamp/gcp/compute/vpntunnels",
-  version: "2026.10.23.3",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -595,6 +595,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

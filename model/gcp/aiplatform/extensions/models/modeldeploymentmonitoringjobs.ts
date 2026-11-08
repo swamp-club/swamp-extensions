@@ -330,24 +330,26 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   analysisInstanceSchemaUri: z.string().optional(),
-  bigqueryTables: z.array(z.object({
-    bigqueryTablePath: z.string(),
-    logSource: z.string(),
-    logType: z.string(),
-    requestResponseLoggingSchemaVersion: z.string(),
-  })).optional(),
+  bigqueryTables: z.array(
+    z.object({
+      bigqueryTablePath: z.string(),
+      logSource: z.string(),
+      logType: z.string(),
+      requestResponseLoggingSchemaVersion: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   enableMonitoringPipelineLogs: z.boolean().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   endpoint: z.string().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   latestMonitoringPipelineMetadata: z.object({
     runTime: z.string(),
@@ -355,66 +357,68 @@ const StateSchema = z.object({
       code: z.number(),
       details: z.array(z.record(z.string(), z.unknown())),
       message: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   logTtl: z.string().optional(),
   loggingSamplingStrategy: z.object({
     randomSampleConfig: z.object({
       sampleRate: z.number(),
-    }),
-  }).optional(),
-  modelDeploymentMonitoringObjectiveConfigs: z.array(z.object({
-    deployedModelId: z.string(),
-    objectiveConfig: z.object({
-      explanationConfig: z.object({
-        enableFeatureAttributes: z.boolean(),
-        explanationBaseline: z.object({
-          bigquery: z.unknown(),
-          gcs: z.unknown(),
-          predictionFormat: z.unknown(),
-        }),
-      }),
-      predictionDriftDetectionConfig: z.object({
-        attributionScoreDriftThresholds: z.record(z.string(), z.unknown()),
-        defaultDriftThreshold: z.object({
-          value: z.unknown(),
-        }),
-        driftThresholds: z.record(z.string(), z.unknown()),
-      }),
-      trainingDataset: z.object({
-        bigquerySource: z.object({
-          inputUri: z.unknown(),
-        }),
-        dataFormat: z.string(),
-        dataset: z.string(),
-        gcsSource: z.object({
-          uris: z.unknown(),
-        }),
-        loggingSamplingStrategy: z.object({
-          randomSampleConfig: z.unknown(),
-        }),
-        targetField: z.string(),
-      }),
-      trainingPredictionSkewDetectionConfig: z.object({
-        attributionScoreSkewThresholds: z.record(z.string(), z.unknown()),
-        defaultSkewThreshold: z.object({
-          value: z.unknown(),
-        }),
-        skewThresholds: z.record(z.string(), z.unknown()),
-      }),
-    }),
-  })).optional(),
+    }).partial(),
+  }).partial().optional(),
+  modelDeploymentMonitoringObjectiveConfigs: z.array(
+    z.object({
+      deployedModelId: z.string(),
+      objectiveConfig: z.object({
+        explanationConfig: z.object({
+          enableFeatureAttributes: z.boolean(),
+          explanationBaseline: z.object({
+            bigquery: z.unknown(),
+            gcs: z.unknown(),
+            predictionFormat: z.unknown(),
+          }).partial(),
+        }).partial(),
+        predictionDriftDetectionConfig: z.object({
+          attributionScoreDriftThresholds: z.record(z.string(), z.unknown()),
+          defaultDriftThreshold: z.object({
+            value: z.unknown(),
+          }).partial(),
+          driftThresholds: z.record(z.string(), z.unknown()),
+        }).partial(),
+        trainingDataset: z.object({
+          bigquerySource: z.object({
+            inputUri: z.unknown(),
+          }).partial(),
+          dataFormat: z.string(),
+          dataset: z.string(),
+          gcsSource: z.object({
+            uris: z.unknown(),
+          }).partial(),
+          loggingSamplingStrategy: z.object({
+            randomSampleConfig: z.unknown(),
+          }).partial(),
+          targetField: z.string(),
+        }).partial(),
+        trainingPredictionSkewDetectionConfig: z.object({
+          attributionScoreSkewThresholds: z.record(z.string(), z.unknown()),
+          defaultSkewThreshold: z.object({
+            value: z.unknown(),
+          }).partial(),
+          skewThresholds: z.record(z.string(), z.unknown()),
+        }).partial(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   modelDeploymentMonitoringScheduleConfig: z.object({
     monitorInterval: z.string(),
     monitorWindow: z.string(),
-  }).optional(),
+  }).partial().optional(),
   modelMonitoringAlertConfig: z.object({
     emailAlertConfig: z.object({
       userEmails: z.array(z.string()),
-    }),
+    }).partial(),
     enableLogging: z.boolean(),
     notificationChannels: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   nextScheduleTime: z.string().optional(),
   predictInstanceSchemaUri: z.string().optional(),
@@ -425,7 +429,7 @@ const StateSchema = z.object({
   state: z.string().optional(),
   statsAnomaliesBaseDirectory: z.object({
     outputUriPrefix: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -633,7 +637,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ModelDeploymentMonitoringJobs. Registered at `@swamp/gcp/aiplatform/modeldeploymentmonitoringjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/modeldeploymentmonitoringjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -814,6 +818,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

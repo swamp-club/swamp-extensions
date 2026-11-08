@@ -282,6 +282,192 @@ const TagSchema = z.object({
   ).describe("Value for the tag"),
 });
 
+const BlueprintItemStateSchema = z.object({
+  BlueprintArn: z.string(),
+  BlueprintVersion: z.string(),
+  BlueprintStage: z.string(),
+}).partial();
+
+const SplitterConfigurationStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const ModalityProcessingConfigurationStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const PIIEntitiesConfigurationStateSchema = z.object({
+  PiiEntityTypes: z.array(z.string()),
+  RedactionMaskMode: z.string(),
+}).partial();
+
+const SensitiveDataConfigurationStateSchema = z.object({
+  DetectionMode: z.string(),
+  DetectionScope: z.array(z.string()),
+  PiiEntitiesConfiguration: PIIEntitiesConfigurationStateSchema,
+}).partial();
+
+const DocumentOverrideConfigurationStateSchema = z.object({
+  Splitter: SplitterConfigurationStateSchema,
+  ModalityProcessing: ModalityProcessingConfigurationStateSchema,
+  SensitiveDataConfiguration: SensitiveDataConfigurationStateSchema,
+}).partial();
+
+const AudioLanguageConfigurationStateSchema = z.object({
+  InputLanguages: z.array(z.string()),
+  GenerativeOutputLanguage: z.string(),
+  IdentifyMultipleLanguages: z.boolean(),
+}).partial();
+
+const AudioOverrideConfigurationStateSchema = z.object({
+  ModalityProcessing: ModalityProcessingConfigurationStateSchema,
+  LanguageConfiguration: AudioLanguageConfigurationStateSchema,
+  SensitiveDataConfiguration: SensitiveDataConfigurationStateSchema,
+}).partial();
+
+const VideoOverrideConfigurationStateSchema = z.object({
+  ModalityProcessing: ModalityProcessingConfigurationStateSchema,
+  SensitiveDataConfiguration: SensitiveDataConfigurationStateSchema,
+}).partial();
+
+const ImageOverrideConfigurationStateSchema = z.object({
+  ModalityProcessing: ModalityProcessingConfigurationStateSchema,
+  SensitiveDataConfiguration: SensitiveDataConfigurationStateSchema,
+}).partial();
+
+const ModalityRoutingConfigurationStateSchema = z.object({
+  jpeg: z.string(),
+  png: z.string(),
+  mp4: z.string(),
+  mov: z.string(),
+}).partial();
+
+const DocumentExtractionGranularityStateSchema = z.object({
+  Types: z.array(z.string()),
+}).partial();
+
+const DocumentBoundingBoxStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const DocumentStandardExtractionStateSchema = z.object({
+  Granularity: DocumentExtractionGranularityStateSchema,
+  BoundingBox: DocumentBoundingBoxStateSchema,
+}).partial();
+
+const DocumentStandardGenerativeFieldStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const DocumentOutputTextFormatStateSchema = z.object({
+  Types: z.array(z.string()),
+}).partial();
+
+const DocumentOutputAdditionalFileFormatStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const DocumentOutputFormatStateSchema = z.object({
+  TextFormat: DocumentOutputTextFormatStateSchema,
+  AdditionalFileFormat: DocumentOutputAdditionalFileFormatStateSchema,
+}).partial();
+
+const DocumentStandardOutputConfigurationStateSchema = z.object({
+  Extraction: DocumentStandardExtractionStateSchema,
+  GenerativeField: DocumentStandardGenerativeFieldStateSchema,
+  OutputFormat: DocumentOutputFormatStateSchema,
+}).partial();
+
+const ImageExtractionCategoryStateSchema = z.object({
+  State: z.string(),
+  Types: z.array(z.string()),
+}).partial();
+
+const ImageBoundingBoxStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const ImageStandardExtractionStateSchema = z.object({
+  Category: ImageExtractionCategoryStateSchema,
+  BoundingBox: ImageBoundingBoxStateSchema,
+}).partial();
+
+const ImageStandardGenerativeFieldStateSchema = z.object({
+  State: z.string(),
+  Types: z.array(z.string()),
+}).partial();
+
+const ImageStandardOutputConfigurationStateSchema = z.object({
+  Extraction: ImageStandardExtractionStateSchema,
+  GenerativeField: ImageStandardGenerativeFieldStateSchema,
+}).partial();
+
+const VideoExtractionCategoryStateSchema = z.object({
+  State: z.string(),
+  Types: z.array(z.string()),
+}).partial();
+
+const VideoBoundingBoxStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const VideoStandardExtractionStateSchema = z.object({
+  Category: VideoExtractionCategoryStateSchema,
+  BoundingBox: VideoBoundingBoxStateSchema,
+}).partial();
+
+const VideoStandardGenerativeFieldStateSchema = z.object({
+  State: z.string(),
+  Types: z.array(z.string()),
+}).partial();
+
+const VideoStandardOutputConfigurationStateSchema = z.object({
+  Extraction: VideoStandardExtractionStateSchema,
+  GenerativeField: VideoStandardGenerativeFieldStateSchema,
+}).partial();
+
+const SpeakerLabelingConfigurationStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const ChannelLabelingConfigurationStateSchema = z.object({
+  State: z.string(),
+}).partial();
+
+const TranscriptConfigurationStateSchema = z.object({
+  SpeakerLabeling: SpeakerLabelingConfigurationStateSchema,
+  ChannelLabeling: ChannelLabelingConfigurationStateSchema,
+}).partial();
+
+const AudioExtractionCategoryTypeConfigurationStateSchema = z.object({
+  Transcript: TranscriptConfigurationStateSchema,
+}).partial();
+
+const AudioExtractionCategoryStateSchema = z.object({
+  State: z.string(),
+  Types: z.array(z.string()),
+  TypeConfiguration: AudioExtractionCategoryTypeConfigurationStateSchema,
+}).partial();
+
+const AudioStandardExtractionStateSchema = z.object({
+  Category: AudioExtractionCategoryStateSchema,
+}).partial();
+
+const AudioStandardGenerativeFieldStateSchema = z.object({
+  State: z.string(),
+  Types: z.array(z.string()),
+}).partial();
+
+const AudioStandardOutputConfigurationStateSchema = z.object({
+  Extraction: AudioStandardExtractionStateSchema,
+  GenerativeField: AudioStandardGenerativeFieldStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -335,34 +521,34 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   CreationTime: z.string().optional(),
   CustomOutputConfiguration: z.object({
-    Blueprints: z.array(BlueprintItemSchema),
-  }).optional(),
+    Blueprints: z.array(BlueprintItemStateSchema),
+  }).partial().optional(),
   LastModifiedTime: z.string().optional(),
   OverrideConfiguration: z.object({
-    Document: DocumentOverrideConfigurationSchema,
-    Audio: AudioOverrideConfigurationSchema,
-    Video: VideoOverrideConfigurationSchema,
-    Image: ImageOverrideConfigurationSchema,
-    ModalityRouting: ModalityRoutingConfigurationSchema,
-  }).optional(),
+    Document: DocumentOverrideConfigurationStateSchema,
+    Audio: AudioOverrideConfigurationStateSchema,
+    Video: VideoOverrideConfigurationStateSchema,
+    Image: ImageOverrideConfigurationStateSchema,
+    ModalityRouting: ModalityRoutingConfigurationStateSchema,
+  }).partial().optional(),
   ProjectArn: z.string(),
   ProjectDescription: z.string().optional(),
   ProjectName: z.string().optional(),
   ProjectType: z.string().optional(),
   ProjectStage: z.string().optional(),
   StandardOutputConfiguration: z.object({
-    Document: DocumentStandardOutputConfigurationSchema,
-    Image: ImageStandardOutputConfigurationSchema,
-    Video: VideoStandardOutputConfigurationSchema,
-    Audio: AudioStandardOutputConfigurationSchema,
-  }).optional(),
+    Document: DocumentStandardOutputConfigurationStateSchema,
+    Image: ImageStandardOutputConfigurationStateSchema,
+    Video: VideoStandardOutputConfigurationStateSchema,
+    Audio: AudioStandardOutputConfigurationStateSchema,
+  }).partial().optional(),
   Status: z.string().optional(),
   KmsKeyId: z.string().optional(),
   KmsEncryptionContext: z.record(z.string(), z.unknown()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -423,7 +609,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock DataAutomationProject. Registered at `@swamp/aws/bedrock/data-automation-project`. */
 export const model = {
   type: "@swamp/aws/bedrock/data-automation-project",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -487,6 +673,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

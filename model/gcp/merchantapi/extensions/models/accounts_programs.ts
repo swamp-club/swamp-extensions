@@ -118,11 +118,13 @@ const StateSchema = z.object({
   documentationUri: z.string().optional(),
   name: z.string(),
   state: z.string().optional(),
-  unmetRequirements: z.array(z.object({
-    affectedRegionCodes: z.array(z.string()),
-    documentationUri: z.string(),
-    title: z.string(),
-  })).optional(),
+  unmetRequirements: z.array(
+    z.object({
+      affectedRegionCodes: z.array(z.string()),
+      documentationUri: z.string(),
+      title: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -166,7 +168,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Programs. Registered at `@swamp/gcp/merchantapi/accounts-programs`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-programs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -190,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

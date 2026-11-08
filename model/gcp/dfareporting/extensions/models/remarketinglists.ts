@@ -274,7 +274,7 @@ const StateSchema = z.object({
     kind: z.string(),
     matchType: z.string(),
     value: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   id: z.string(),
   kind: z.string().optional(),
@@ -282,19 +282,23 @@ const StateSchema = z.object({
   listPopulationRule: z.object({
     floodlightActivityId: z.string(),
     floodlightActivityName: z.string(),
-    listPopulationClauses: z.array(z.object({
-      terms: z.array(z.object({
-        contains: z.unknown(),
-        negation: z.unknown(),
-        operator: z.unknown(),
-        remarketingListId: z.unknown(),
-        type: z.unknown(),
-        value: z.unknown(),
-        variableFriendlyName: z.unknown(),
-        variableName: z.unknown(),
-      })),
-    })),
-  }).optional(),
+    listPopulationClauses: z.array(
+      z.object({
+        terms: z.array(
+          z.object({
+            contains: z.unknown(),
+            negation: z.unknown(),
+            operator: z.unknown(),
+            remarketingListId: z.unknown(),
+            type: z.unknown(),
+            value: z.unknown(),
+            variableFriendlyName: z.unknown(),
+            variableName: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+  }).partial().optional(),
   listSize: z.string().optional(),
   listSource: z.string().optional(),
   name: z.string().optional(),
@@ -441,7 +445,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 RemarketingLists. Registered at `@swamp/gcp/dfareporting/remarketinglists`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/remarketinglists",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -580,6 +584,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

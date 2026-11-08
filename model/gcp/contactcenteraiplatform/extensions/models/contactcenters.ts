@@ -363,57 +363,63 @@ const StateSchema = z.object({
   adminUser: z.object({
     familyName: z.string(),
     givenName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   advancedReportingEnabled: z.boolean().optional(),
   ccaipManagedUsers: z.boolean().optional(),
   createTime: z.string().optional(),
   critical: z.object({
-    peakHours: z.array(z.object({
-      days: z.array(z.string()),
-      duration: z.string(),
-      endTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-      startTime: z.object({
-        hours: z.number(),
-        minutes: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-      }),
-    })),
-  }).optional(),
+    peakHours: z.array(
+      z.object({
+        days: z.array(z.string()),
+        duration: z.string(),
+        endTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+        startTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   customerDomainPrefix: z.string().optional(),
   deleteTime: z.string().optional(),
   displayName: z.string().optional(),
-  early: z.object({}).optional(),
+  early: z.object({}).partial().optional(),
   expireTime: z.string().optional(),
   featureConfig: z.object({
     agentDesktopEnabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   instanceConfig: z.object({
     instanceSize: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kmsKey: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  normal: z.object({}).optional(),
+  normal: z.object({}).partial().optional(),
   privateAccess: z.object({
-    egressSettings: z.array(z.object({
-      name: z.string(),
-      serviceAttachmentNames: z.array(z.string()),
-    })),
-    ingressSettings: z.array(z.object({
-      name: z.string(),
-      serviceAttachmentNames: z.array(z.string()),
-    })),
+    egressSettings: z.array(
+      z.object({
+        name: z.string(),
+        serviceAttachmentNames: z.array(z.string()),
+      }).partial(),
+    ),
+    ingressSettings: z.array(
+      z.object({
+        name: z.string(),
+        serviceAttachmentNames: z.array(z.string()),
+      }).partial(),
+    ),
     pscSetting: z.object({
       allowedConsumerProjectIds: z.array(z.string()),
       producerProjectIds: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   privateComponents: z.array(z.string()).optional(),
   purgeTime: z.string().optional(),
   releaseVersion: z.string().optional(),
@@ -424,7 +430,7 @@ const StateSchema = z.object({
     entityId: z.string(),
     ssoUri: z.string(),
     userEmail: z.string(),
-  }).optional(),
+  }).partial().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
   uris: z.object({
@@ -432,7 +438,7 @@ const StateSchema = z.object({
     mediaUri: z.string(),
     rootUri: z.string(),
     virtualAgentStreamingServiceUri: z.string(),
-  }).optional(),
+  }).partial().optional(),
   userEmail: z.string().optional(),
 }).passthrough();
 
@@ -661,7 +667,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Platform ContactCenters. Registered at `@swamp/gcp/contactcenteraiplatform/contactcenters`. */
 export const model = {
   type: "@swamp/gcp/contactcenteraiplatform/contactcenters",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -803,6 +809,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

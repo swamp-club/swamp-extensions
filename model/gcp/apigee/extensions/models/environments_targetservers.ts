@@ -203,7 +203,7 @@ const StateSchema = z.object({
     commonName: z.object({
       value: z.string(),
       wildcardMatch: z.boolean(),
-    }),
+    }).partial(),
     enabled: z.boolean(),
     enforce: z.boolean(),
     ignoreValidationErrors: z.boolean(),
@@ -211,7 +211,7 @@ const StateSchema = z.object({
     keyStore: z.string(),
     protocols: z.array(z.string()),
     trustStore: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -310,7 +310,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Environments.Targetservers. Registered at `@swamp/gcp/apigee/environments-targetservers`. */
 export const model = {
   type: "@swamp/gcp/apigee/environments-targetservers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -464,6 +464,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

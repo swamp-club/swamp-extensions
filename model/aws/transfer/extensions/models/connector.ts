@@ -65,6 +65,21 @@ const TagSchema = z.object({
   ),
 });
 
+const ConnectorAsyncMdnConfigStateSchema = z.object({
+  Url: z.string(),
+  ServerIds: z.array(z.string()),
+}).partial();
+
+const ConnectorVpcLatticeEgressConfigStateSchema = z.object({
+  ResourceConfigurationArn: z.string(),
+  PortNumber: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -177,31 +192,31 @@ const StateSchema = z.object({
     MdnResponse: z.string(),
     BasicAuthSecretId: z.string(),
     PreserveContentType: z.string(),
-    AsyncMdnConfig: ConnectorAsyncMdnConfigSchema,
-  }).optional(),
+    AsyncMdnConfig: ConnectorAsyncMdnConfigStateSchema,
+  }).partial().optional(),
   EgressType: z.string().optional(),
   EgressConfig: z.object({
-    VpcLattice: ConnectorVpcLatticeEgressConfigSchema,
-  }).optional(),
+    VpcLattice: ConnectorVpcLatticeEgressConfigStateSchema,
+  }).partial().optional(),
   Status: z.string().optional(),
   SftpConfig: z.object({
     UserSecretId: z.string(),
     TrustedHostKeys: z.array(z.string()),
     MaxConcurrentConnections: z.number(),
     OrderedUserSecretVersionStages: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string().optional(),
   ConnectorId: z.string(),
   LoggingRole: z.string().optional(),
   ServiceManagedEgressIpAddresses: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Url: z.string().optional(),
   SecurityPolicyName: z.string().optional(),
   ErrorMessage: z.string().optional(),
   IpAddressType: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -311,7 +326,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer Connector. Registered at `@swamp/aws/transfer/connector`. */
 export const model = {
   type: "@swamp/aws/transfer/connector",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -385,6 +400,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

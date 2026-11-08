@@ -121,12 +121,12 @@ const StateSchema = z.object({
       allConnectionStrings: z.record(z.string(), z.unknown()),
       pdbDefault: z.string(),
       pdbIpDefault: z.string(),
-    }),
+    }).partial(),
     containerDatabaseOcid: z.string(),
     databaseManagementConfig: z.object({
       managementState: z.string(),
       managementType: z.string(),
-    }),
+    }).partial(),
     definedTags: z.record(z.string(), z.unknown()),
     freeformTags: z.record(z.string(), z.unknown()),
     isRestricted: z.boolean(),
@@ -135,12 +135,14 @@ const StateSchema = z.object({
     ocid: z.string(),
     operationsInsightsState: z.string(),
     pdbName: z.string(),
-    pdbNodeLevelDetails: z.array(z.object({
-      nodeName: z.string(),
-      openMode: z.string(),
-      pluggableDatabaseId: z.string(),
-    })),
-  }).optional(),
+    pdbNodeLevelDetails: z.array(
+      z.object({
+        nodeName: z.string(),
+        openMode: z.string(),
+        pluggableDatabaseId: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -184,7 +186,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud PluggableDatabases. Registered at `@swamp/gcp/oracledatabase/pluggabledatabases`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/pluggabledatabases",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -313,6 +315,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

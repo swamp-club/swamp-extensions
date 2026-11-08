@@ -133,14 +133,14 @@ const StateSchema = z.object({
   entryId: z.string().optional(),
   exception: z.object({
     payload: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   navigationInfo: z.object({
     children: z.array(z.string()),
     next: z.string(),
     parent: z.string(),
     previous: z.string(),
-  }).optional(),
+  }).partial().optional(),
   routine: z.string().optional(),
   state: z.string().optional(),
   step: z.string().optional(),
@@ -149,12 +149,12 @@ const StateSchema = z.object({
     progressNumber: z.string(),
     progressType: z.string(),
     threadId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   stepType: z.string().optional(),
   updateTime: z.string().optional(),
   variableData: z.object({
     variables: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -201,7 +201,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workflow Executions Workflows.Executions.StepEntries. Registered at `@swamp/gcp/workflowexecutions/workflows-executions-stepentries`. */
 export const model = {
   type: "@swamp/gcp/workflowexecutions/workflows-executions-stepentries",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -330,6 +330,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

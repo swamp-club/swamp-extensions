@@ -86,47 +86,59 @@ const StateSchema = z.object({
   apiProxy: z.string().optional(),
   deployStartTime: z.string().optional(),
   environment: z.string().optional(),
-  errors: z.array(z.object({
-    code: z.number(),
-    details: z.array(z.record(z.string(), z.unknown())),
-    message: z.string(),
-  })).optional(),
-  instances: z.array(z.object({
-    deployedRevisions: z.array(z.object({
-      percentage: z.number(),
-      revision: z.string(),
-    })),
-    deployedRoutes: z.array(z.object({
-      basepath: z.string(),
-      envgroup: z.string(),
-      environment: z.string(),
-      percentage: z.number(),
-    })),
-    instance: z.string(),
-  })).optional(),
-  pods: z.array(z.object({
-    appVersion: z.string(),
-    deploymentStatus: z.string(),
-    deploymentStatusTime: z.string(),
-    deploymentTime: z.string(),
-    podName: z.string(),
-    podStatus: z.string(),
-    podStatusTime: z.string(),
-    statusCode: z.string(),
-    statusCodeDetails: z.string(),
-  })).optional(),
+  errors: z.array(
+    z.object({
+      code: z.number(),
+      details: z.array(z.record(z.string(), z.unknown())),
+      message: z.string(),
+    }).partial(),
+  ).optional(),
+  instances: z.array(
+    z.object({
+      deployedRevisions: z.array(
+        z.object({
+          percentage: z.number(),
+          revision: z.string(),
+        }).partial(),
+      ),
+      deployedRoutes: z.array(
+        z.object({
+          basepath: z.string(),
+          envgroup: z.string(),
+          environment: z.string(),
+          percentage: z.number(),
+        }).partial(),
+      ),
+      instance: z.string(),
+    }).partial(),
+  ).optional(),
+  pods: z.array(
+    z.object({
+      appVersion: z.string(),
+      deploymentStatus: z.string(),
+      deploymentStatusTime: z.string(),
+      deploymentTime: z.string(),
+      podName: z.string(),
+      podStatus: z.string(),
+      podStatusTime: z.string(),
+      statusCode: z.string(),
+      statusCodeDetails: z.string(),
+    }).partial(),
+  ).optional(),
   proxyDeploymentType: z.string().optional(),
   revision: z.string().optional(),
-  routeConflicts: z.array(z.object({
-    conflictingDeployment: z.object({
-      apiProxy: z.string(),
-      basepath: z.string(),
-      environment: z.string(),
-      revision: z.string(),
-    }),
-    description: z.string(),
-    environmentGroup: z.string(),
-  })).optional(),
+  routeConflicts: z.array(
+    z.object({
+      conflictingDeployment: z.object({
+        apiProxy: z.string(),
+        basepath: z.string(),
+        environment: z.string(),
+        revision: z.string(),
+      }).partial(),
+      description: z.string(),
+      environmentGroup: z.string(),
+    }).partial(),
+  ).optional(),
   serviceAccount: z.string().optional(),
   state: z.string().optional(),
 }).passthrough();
@@ -172,7 +184,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Sharedflows.Deployments. Registered at `@swamp/gcp/apigee/sharedflows-deployments`. */
 export const model = {
   type: "@swamp/gcp/apigee/sharedflows-deployments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -296,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

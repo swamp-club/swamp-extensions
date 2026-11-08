@@ -336,6 +336,141 @@ const TagSchema = z.object({
   ),
 });
 
+const ScaleInPolicyStateSchema = z.object({
+  Strategy: z.string(),
+  CooldownInMinutes: z.number(),
+  MaximumStepSize: z.number(),
+}).partial();
+
+const ManagedInstanceScalingStateSchema = z.object({
+  Status: z.string(),
+  MaxInstanceCount: z.number(),
+  ScaleInPolicy: ScaleInPolicyStateSchema,
+  MinInstanceCount: z.number(),
+}).partial();
+
+const InstancePoolStateSchema = z.object({
+  ModelNameOverride: z.string(),
+  Priority: z.number(),
+  InstanceType: z.string(),
+}).partial();
+
+const PrefixAwareRoutingConfigStateSchema = z.object({
+  ConcurrencyThreshold: z.number(),
+  PrefixLength: z.number(),
+}).partial();
+
+const RoutingConfigStateSchema = z.object({
+  RoutingStrategy: z.string(),
+  PrefixAwareRoutingConfig: PrefixAwareRoutingConfigStateSchema,
+}).partial();
+
+const CoreDumpConfigStateSchema = z.object({
+  KmsKeyId: z.string(),
+  DestinationS3Uri: z.string(),
+}).partial();
+
+const CapacityReservationConfigStateSchema = z.object({
+  MlReservationArn: z.string(),
+  CapacityReservationPreference: z.string(),
+}).partial();
+
+const ServerlessConfigStateSchema = z.object({
+  MaxConcurrency: z.number(),
+  MemorySizeInMB: z.number(),
+  ProvisionedConcurrency: z.number(),
+}).partial();
+
+const ProductionVariantStateSchema = z.object({
+  ManagedInstanceScaling: ManagedInstanceScalingStateSchema,
+  InstancePools: z.array(InstancePoolStateSchema),
+  ModelName: z.string(),
+  VolumeSizeInGB: z.number(),
+  EnableSSMAccess: z.boolean(),
+  VariantName: z.string(),
+  InitialInstanceCount: z.number(),
+  VariantInstanceProvisionTimeoutInSeconds: z.number(),
+  RoutingConfig: RoutingConfigStateSchema,
+  CoreDumpConfig: CoreDumpConfigStateSchema,
+  InitialVariantWeight: z.number(),
+  ModelDataDownloadTimeoutInSeconds: z.number(),
+  CapacityReservationConfig: CapacityReservationConfigStateSchema,
+  InferenceAmiVersion: z.string(),
+  ContainerStartupHealthCheckTimeoutInSeconds: z.number(),
+  ServerlessConfig: ServerlessConfigStateSchema,
+  InstanceType: z.string(),
+}).partial();
+
+const ClarifyInferenceConfigStateSchema = z.object({
+  ContentTemplate: z.string(),
+  LabelHeaders: z.array(z.string()),
+  MaxPayloadInMB: z.number(),
+  ProbabilityIndex: z.number(),
+  LabelAttribute: z.string(),
+  FeatureTypes: z.array(z.string()),
+  FeatureHeaders: z.array(z.string()),
+  LabelIndex: z.number(),
+  ProbabilityAttribute: z.string(),
+  FeaturesAttribute: z.string(),
+  MaxRecordCount: z.number(),
+}).partial();
+
+const ClarifyTextConfigStateSchema = z.object({
+  Language: z.string(),
+  Granularity: z.string(),
+}).partial();
+
+const ClarifyShapBaselineConfigStateSchema = z.object({
+  ShapBaseline: z.string(),
+  ShapBaselineUri: z.string(),
+  MimeType: z.string(),
+}).partial();
+
+const ClarifyShapConfigStateSchema = z.object({
+  TextConfig: ClarifyTextConfigStateSchema,
+  UseLogit: z.boolean(),
+  Seed: z.number(),
+  ShapBaselineConfig: ClarifyShapBaselineConfigStateSchema,
+  NumberOfSamples: z.number(),
+}).partial();
+
+const ClarifyExplainerConfigStateSchema = z.object({
+  InferenceConfig: ClarifyInferenceConfigStateSchema,
+  EnableExplanations: z.string(),
+  ShapConfig: ClarifyShapConfigStateSchema,
+}).partial();
+
+const CaptureOptionStateSchema = z.object({
+  CaptureMode: z.string(),
+}).partial();
+
+const CaptureContentTypeHeaderStateSchema = z.object({
+  JsonContentTypes: z.array(z.string()),
+  CsvContentTypes: z.array(z.string()),
+}).partial();
+
+const AsyncInferenceNotificationConfigStateSchema = z.object({
+  IncludeInferenceResponseIn: z.array(z.string()),
+  SuccessTopic: z.string(),
+  ErrorTopic: z.string(),
+}).partial();
+
+const AsyncInferenceOutputConfigStateSchema = z.object({
+  KmsKeyId: z.string(),
+  NotificationConfig: AsyncInferenceNotificationConfigStateSchema,
+  S3OutputPath: z.string(),
+  S3FailurePath: z.string(),
+}).partial();
+
+const AsyncInferenceClientConfigStateSchema = z.object({
+  MaxConcurrentInvocationsPerInstance: z.number(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -443,41 +578,41 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ProductionVariants: z.array(ProductionVariantSchema).optional(),
+  ProductionVariants: z.array(ProductionVariantStateSchema).optional(),
   KmsKeyId: z.string().optional(),
   VpcConfig: z.object({
     Subnets: z.array(z.string()),
     SecurityGroupIds: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   EndpointConfigName: z.string().optional(),
   ExplainerConfig: z.object({
-    ClarifyExplainerConfig: ClarifyExplainerConfigSchema,
-  }).optional(),
+    ClarifyExplainerConfig: ClarifyExplainerConfigStateSchema,
+  }).partial().optional(),
   EndpointConfigArn: z.string(),
   MetricsConfig: z.object({
     EnableEnhancedMetrics: z.boolean(),
     EnableDetailedObservability: z.boolean(),
     MetricPublishFrequencyInSeconds: z.number(),
-  }).optional(),
-  ShadowProductionVariants: z.array(ProductionVariantSchema).optional(),
+  }).partial().optional(),
+  ShadowProductionVariants: z.array(ProductionVariantStateSchema).optional(),
   DataCaptureConfig: z.object({
-    CaptureOptions: z.array(CaptureOptionSchema),
+    CaptureOptions: z.array(CaptureOptionStateSchema),
     KmsKeyId: z.string(),
     DestinationS3Uri: z.string(),
     InitialSamplingPercentage: z.number(),
-    CaptureContentTypeHeader: CaptureContentTypeHeaderSchema,
+    CaptureContentTypeHeader: CaptureContentTypeHeaderStateSchema,
     EnableCapture: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   ExecutionRoleArn: z.string().optional(),
   EnableNetworkIsolation: z.boolean().optional(),
   AsyncInferenceConfig: z.object({
-    OutputConfig: AsyncInferenceOutputConfigSchema,
-    ClientConfig: AsyncInferenceClientConfigSchema,
-  }).optional(),
-  Tags: z.array(TagSchema).optional(),
+    OutputConfig: AsyncInferenceOutputConfigStateSchema,
+    ClientConfig: AsyncInferenceClientConfigStateSchema,
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -594,7 +729,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker EndpointConfig. Registered at `@swamp/aws/sagemaker/endpoint-config`. */
 export const model = {
   type: "@swamp/aws/sagemaker/endpoint-config",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -608,6 +743,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

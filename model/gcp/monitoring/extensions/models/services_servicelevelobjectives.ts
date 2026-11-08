@@ -346,70 +346,70 @@ const StateSchema = z.object({
   rollingPeriod: z.string().optional(),
   serviceLevelIndicator: z.object({
     basicSli: z.object({
-      availability: z.object({}),
+      availability: z.object({}).partial(),
       latency: z.object({
         threshold: z.string(),
-      }),
+      }).partial(),
       location: z.array(z.string()),
       method: z.array(z.string()),
       version: z.array(z.string()),
-    }),
+    }).partial(),
     requestBased: z.object({
       distributionCut: z.object({
         distributionFilter: z.string(),
         range: z.object({
           max: z.number(),
           min: z.number(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       goodTotalRatio: z.object({
         badServiceFilter: z.string(),
         goodServiceFilter: z.string(),
         totalServiceFilter: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     windowsBased: z.object({
       goodBadMetricFilter: z.string(),
       goodTotalRatioThreshold: z.object({
         basicSliPerformance: z.object({
-          availability: z.object({}),
+          availability: z.object({}).partial(),
           latency: z.object({
             threshold: z.unknown(),
-          }),
+          }).partial(),
           location: z.array(z.unknown()),
           method: z.array(z.unknown()),
           version: z.array(z.unknown()),
-        }),
+        }).partial(),
         performance: z.object({
           distributionCut: z.object({
             distributionFilter: z.unknown(),
             range: z.unknown(),
-          }),
+          }).partial(),
           goodTotalRatio: z.object({
             badServiceFilter: z.unknown(),
             goodServiceFilter: z.unknown(),
             totalServiceFilter: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         threshold: z.number(),
-      }),
+      }).partial(),
       metricMeanInRange: z.object({
         range: z.object({
           max: z.number(),
           min: z.number(),
-        }),
+        }).partial(),
         timeSeries: z.string(),
-      }),
+      }).partial(),
       metricSumInRange: z.object({
         range: z.object({
           max: z.number(),
           min: z.number(),
-        }),
+        }).partial(),
         timeSeries: z.string(),
-      }),
+      }).partial(),
       windowPeriod: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   userLabels: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
@@ -623,7 +623,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring Services.ServiceLevelObjectives. Registered at `@swamp/gcp/monitoring/services-servicelevelobjectives`. */
 export const model = {
   type: "@swamp/gcp/monitoring/services-servicelevelobjectives",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -762,6 +762,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

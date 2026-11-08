@@ -151,6 +151,61 @@ const HoursOfOperationsIdentifierSchema = z.object({
   Id: z.string().describe("The identifier for the hours of operation."),
 });
 
+const HoursOfOperationTimeSliceStateSchema = z.object({
+  Hours: z.number(),
+  Minutes: z.number(),
+}).partial();
+
+const HoursOfOperationConfigStateSchema = z.object({
+  Day: z.string(),
+  StartTime: HoursOfOperationTimeSliceStateSchema,
+  EndTime: HoursOfOperationTimeSliceStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const OverrideTimeSliceStateSchema = z.object({
+  Hours: z.number(),
+  Minutes: z.number(),
+}).partial();
+
+const HoursOfOperationOverrideConfigStateSchema = z.object({
+  Day: z.string(),
+  StartTime: OverrideTimeSliceStateSchema,
+  EndTime: OverrideTimeSliceStateSchema,
+}).partial();
+
+const RecurrencePatternStateSchema = z.object({
+  Frequency: z.string(),
+  Interval: z.number(),
+  ByMonth: z.array(z.number()),
+  ByMonthDay: z.array(z.number()),
+  ByWeekdayOccurrence: z.array(z.number()),
+}).partial();
+
+const RecurrenceConfigStateSchema = z.object({
+  RecurrencePattern: RecurrencePatternStateSchema,
+}).partial();
+
+const HoursOfOperationOverrideStateSchema = z.object({
+  OverrideName: z.string(),
+  OverrideDescription: z.string(),
+  EffectiveFrom: z.string(),
+  EffectiveTill: z.string(),
+  OverrideConfig: z.array(HoursOfOperationOverrideConfigStateSchema),
+  HoursOfOperationOverrideId: z.string(),
+  RecurrenceConfig: RecurrenceConfigStateSchema,
+  OverrideType: z.string(),
+}).partial();
+
+const HoursOfOperationsIdentifierStateSchema = z.object({
+  Name: z.string(),
+  Id: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -200,16 +255,18 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   TimeZone: z.string().optional(),
-  Config: z.array(HoursOfOperationConfigSchema).optional(),
+  Config: z.array(HoursOfOperationConfigStateSchema).optional(),
   HoursOfOperationArn: z.string(),
-  Tags: z.array(TagSchema).optional(),
-  HoursOfOperationOverrides: z.array(HoursOfOperationOverrideSchema).optional(),
-  ChildHoursOfOperations: z.array(HoursOfOperationsIdentifierSchema).optional(),
-  ParentHoursOfOperations: z.array(HoursOfOperationsIdentifierSchema)
+  Tags: z.array(TagStateSchema).optional(),
+  HoursOfOperationOverrides: z.array(HoursOfOperationOverrideStateSchema)
+    .optional(),
+  ChildHoursOfOperations: z.array(HoursOfOperationsIdentifierStateSchema)
+    .optional(),
+  ParentHoursOfOperations: z.array(HoursOfOperationsIdentifierStateSchema)
     .optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -264,7 +321,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect HoursOfOperation. Registered at `@swamp/aws/connect/hours-of-operation`. */
 export const model = {
   type: "@swamp/aws/connect/hours-of-operation",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -328,6 +385,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

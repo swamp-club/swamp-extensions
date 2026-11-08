@@ -47,6 +47,15 @@ const ContinuousIntegrationScanConfigurationSchema = z.object({
   supportedEvents: z.array(z.enum(["PULL_REQUEST", "PUSH"])),
 });
 
+const PeriodicScanConfigurationStateSchema = z.object({
+  frequency: z.string(),
+  frequencyExpression: z.string(),
+}).partial();
+
+const ContinuousIntegrationScanConfigurationStateSchema = z.object({
+  supportedEvents: z.array(z.string()),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -84,19 +93,19 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Level: z.string().optional(),
   Configuration: z.object({
-    periodicScanConfiguration: PeriodicScanConfigurationSchema,
+    periodicScanConfiguration: PeriodicScanConfigurationStateSchema,
     continuousIntegrationScanConfiguration:
-      ContinuousIntegrationScanConfigurationSchema,
+      ContinuousIntegrationScanConfigurationStateSchema,
     ruleSetCategories: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   ScopeSettings: z.object({
     projectSelectionScope: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -140,7 +149,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for InspectorV2 CodeSecurityScanConfiguration. Registered at `@swamp/aws/inspectorv2/code-security-scan-configuration`. */
 export const model = {
   type: "@swamp/aws/inspectorv2/code-security-scan-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +213,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

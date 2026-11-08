@@ -247,7 +247,7 @@ const StateSchema = z.object({
   errorBudget: z.object({
     allowedCount: z.number(),
     allowedPercentage: z.number(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -259,8 +259,8 @@ const StateSchema = z.object({
     maxConcurrentOperationsCount: z.number(),
     maxConcurrentOperationsPercent: z.object({
       value: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   updateUnitKindStrategy: z.string().optional(),
 }).passthrough();
@@ -360,7 +360,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager RolloutKinds. Registered at `@swamp/gcp/saasservicemgmt/rolloutkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/rolloutkinds",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -534,6 +534,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

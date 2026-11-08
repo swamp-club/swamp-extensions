@@ -214,7 +214,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -224,8 +224,8 @@ const StateSchema = z.object({
       cpuUtilizationTarget: z.number(),
       maxNodeCount: z.number(),
       minNodeCount: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   onlineStorageTtlDays: z.number().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -310,7 +310,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Featurestores. Registered at `@swamp/gcp/aiplatform/featurestores`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/featurestores",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -501,6 +501,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

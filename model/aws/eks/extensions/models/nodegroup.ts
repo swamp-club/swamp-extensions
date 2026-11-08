@@ -59,6 +59,19 @@ const NodeRepairConfigOverridesSchema = z.object({
   ).optional(),
 });
 
+const TaintStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+  Effect: z.string(),
+}).partial();
+
+const NodeRepairConfigOverridesStateSchema = z.object({
+  NodeMonitoringCondition: z.string(),
+  NodeUnhealthyReason: z.string(),
+  MinRepairWaitTimeMins: z.number(),
+  RepairAction: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -201,48 +214,48 @@ const StateSchema = z.object({
     Id: z.string(),
     Version: z.string(),
     Name: z.string(),
-  }).optional(),
+  }).partial().optional(),
   NodegroupName: z.string().optional(),
   NodeRole: z.string().optional(),
   ReleaseVersion: z.string().optional(),
   RemoteAccess: z.object({
     SourceSecurityGroups: z.array(z.string()),
     Ec2SshKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ScalingConfig: z.object({
     MinSize: z.number(),
     DesiredSize: z.number(),
     MaxSize: z.number(),
-  }).optional(),
+  }).partial().optional(),
   Subnets: z.array(z.string()).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
-  Taints: z.array(TaintSchema).optional(),
+  Taints: z.array(TaintStateSchema).optional(),
   UpdateConfig: z.object({
     UpdateStrategy: z.string(),
     MaxUnavailable: z.number(),
     MaxUnavailablePercentage: z.number(),
-  }).optional(),
+  }).partial().optional(),
   NodeRepairConfig: z.object({
     Enabled: z.boolean(),
     MaxUnhealthyNodeThresholdCount: z.number(),
     MaxUnhealthyNodeThresholdPercentage: z.number(),
     MaxParallelNodesRepairedCount: z.number(),
     MaxParallelNodesRepairedPercentage: z.number(),
-    NodeRepairConfigOverrides: z.array(NodeRepairConfigOverridesSchema),
-  }).optional(),
+    NodeRepairConfigOverrides: z.array(NodeRepairConfigOverridesStateSchema),
+  }).partial().optional(),
   WarmPoolConfig: z.object({
     Enabled: z.boolean(),
     MaxGroupPreparedCapacity: z.number(),
     MinSize: z.number(),
     PoolState: z.string(),
     ReuseOnScaleIn: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   Version: z.string().optional(),
   Id: z.string(),
   Arn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -383,7 +396,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Nodegroup. Registered at `@swamp/aws/eks/nodegroup`. */
 export const model = {
   type: "@swamp/aws/eks/nodegroup",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -462,6 +475,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

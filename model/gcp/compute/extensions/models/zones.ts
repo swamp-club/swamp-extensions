@@ -123,47 +123,49 @@ const StateSchema = z.object({
     obsolete: z.string(),
     replacement: z.string(),
     state: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
   region: z.string().optional(),
   resourceStatus: z.object({
-    upcomingMaintenances: z.array(z.object({
-      subType: z.string(),
-      targetResource: z.string(),
-      type: z.string(),
-      windowEndTime: z.object({
-        day: z.number(),
-        hours: z.number(),
-        minutes: z.number(),
-        month: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-        timeZone: z.object({
-          id: z.unknown(),
-          version: z.unknown(),
-        }),
-        utcOffset: z.string(),
-        year: z.number(),
-      }),
-      windowStartTime: z.object({
-        day: z.number(),
-        hours: z.number(),
-        minutes: z.number(),
-        month: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-        timeZone: z.object({
-          id: z.unknown(),
-          version: z.unknown(),
-        }),
-        utcOffset: z.string(),
-        year: z.number(),
-      }),
-    })),
-  }).optional(),
+    upcomingMaintenances: z.array(
+      z.object({
+        subType: z.string(),
+        targetResource: z.string(),
+        type: z.string(),
+        windowEndTime: z.object({
+          day: z.number(),
+          hours: z.number(),
+          minutes: z.number(),
+          month: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+          timeZone: z.object({
+            id: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+          utcOffset: z.string(),
+          year: z.number(),
+        }).partial(),
+        windowStartTime: z.object({
+          day: z.number(),
+          hours: z.number(),
+          minutes: z.number(),
+          month: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+          timeZone: z.object({
+            id: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+          utcOffset: z.string(),
+          year: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   selfLink: z.string().optional(),
   status: z.string().optional(),
   supportsPzs: z.boolean().optional(),
@@ -207,7 +209,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Zones. Registered at `@swamp/gcp/compute/zones`. */
 export const model = {
   type: "@swamp/gcp/compute/zones",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -356,6 +358,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

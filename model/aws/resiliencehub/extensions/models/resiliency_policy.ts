@@ -43,6 +43,11 @@ const FailurePolicySchema = z.object({
   RpoInSecs: z.number().int().describe("RPO in seconds."),
 });
 
+const FailurePolicyStateSchema = z.object({
+  RtoInSecs: z.number(),
+  RpoInSecs: z.number(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -91,16 +96,16 @@ const StateSchema = z.object({
   DataLocationConstraint: z.string().optional(),
   Tier: z.string().optional(),
   Policy: z.object({
-    AZ: FailurePolicySchema,
-    Hardware: FailurePolicySchema,
-    Software: FailurePolicySchema,
-    Region: FailurePolicySchema,
-  }).optional(),
+    AZ: FailurePolicyStateSchema,
+    Hardware: FailurePolicyStateSchema,
+    Software: FailurePolicyStateSchema,
+    Region: FailurePolicyStateSchema,
+  }).partial().optional(),
   PolicyArn: z.string(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -153,7 +158,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ResilienceHub ResiliencyPolicy. Registered at `@swamp/aws/resiliencehub/resiliency-policy`. */
 export const model = {
   type: "@swamp/aws/resiliencehub/resiliency-policy",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -217,6 +222,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

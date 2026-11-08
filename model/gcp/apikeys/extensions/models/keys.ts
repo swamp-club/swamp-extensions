@@ -240,25 +240,29 @@ const StateSchema = z.object({
   name: z.string(),
   restrictions: z.object({
     androidKeyRestrictions: z.object({
-      allowedApplications: z.array(z.object({
-        packageName: z.string(),
-        sha1Fingerprint: z.string(),
-      })),
-    }),
-    apiTargets: z.array(z.object({
-      methods: z.array(z.string()),
-      service: z.string(),
-    })),
+      allowedApplications: z.array(
+        z.object({
+          packageName: z.string(),
+          sha1Fingerprint: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+    apiTargets: z.array(
+      z.object({
+        methods: z.array(z.string()),
+        service: z.string(),
+      }).partial(),
+    ),
     browserKeyRestrictions: z.object({
       allowedReferrers: z.array(z.string()),
-    }),
+    }).partial(),
     iosKeyRestrictions: z.object({
       allowedBundleIds: z.array(z.string()),
-    }),
+    }).partial(),
     serverKeyRestrictions: z.object({
       allowedIps: z.array(z.string()),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   serviceAccountEmail: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -363,7 +367,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API Keys Keys. Registered at `@swamp/gcp/apikeys/keys`. */
 export const model = {
   type: "@swamp/gcp/apikeys/keys",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -517,6 +521,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

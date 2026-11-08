@@ -217,7 +217,7 @@ const StateSchema = z.object({
     me: z.boolean(),
     permissionId: z.string(),
     photoLink: z.string(),
-  }).optional(),
+  }).partial().optional(),
   content: z.string().optional(),
   createdTime: z.string().optional(),
   deleted: z.boolean().optional(),
@@ -229,27 +229,29 @@ const StateSchema = z.object({
   quotedFileContent: z.object({
     mimeType: z.string(),
     value: z.string(),
-  }).optional(),
-  replies: z.array(z.object({
-    action: z.string(),
-    assigneeEmailAddress: z.string(),
-    author: z.object({
-      displayName: z.string(),
-      emailAddress: z.string(),
+  }).partial().optional(),
+  replies: z.array(
+    z.object({
+      action: z.string(),
+      assigneeEmailAddress: z.string(),
+      author: z.object({
+        displayName: z.string(),
+        emailAddress: z.string(),
+        kind: z.string(),
+        me: z.boolean(),
+        permissionId: z.string(),
+        photoLink: z.string(),
+      }).partial(),
+      content: z.string(),
+      createdTime: z.string(),
+      deleted: z.boolean(),
+      htmlContent: z.string(),
+      id: z.string(),
       kind: z.string(),
-      me: z.boolean(),
-      permissionId: z.string(),
-      photoLink: z.string(),
-    }),
-    content: z.string(),
-    createdTime: z.string(),
-    deleted: z.boolean(),
-    htmlContent: z.string(),
-    id: z.string(),
-    kind: z.string(),
-    mentionedEmailAddresses: z.array(z.string()),
-    modifiedTime: z.string(),
-  })).optional(),
+      mentionedEmailAddresses: z.array(z.string()),
+      modifiedTime: z.string(),
+    }).partial(),
+  ).optional(),
   resolved: z.boolean().optional(),
 }).passthrough();
 
@@ -313,7 +315,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Comments. Registered at `@swamp/gcp/drive/comments`. */
 export const model = {
   type: "@swamp/gcp/drive/comments",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -460,6 +462,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

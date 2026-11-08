@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Network Security SecurityProfileGroups.
  *
- * SecurityProfileGroup is a resource that defines the behavior for various ProfileTypes.
+ * A resource that defines the behavior for various `ProfileType` values.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -158,31 +158,31 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   customInterceptProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the CustomIntercept configuration.",
+    "Optional. Reference to a `SecurityProfile` with the custom intercept configuration.",
   ).optional(),
   customMirroringProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the CustomMirroring configuration.",
+    "Optional. Reference to a `SecurityProfile` with the custom mirroring configuration.",
   ).optional(),
   description: z.string().describe(
-    "Optional. An optional description of the profile group. Max length 2048 characters.",
+    "Optional. An optional description of the profile group. The maximum length is 2048 characters.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs.",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
   name: z.string().describe(
-    "Immutable. Identifier. Name of the SecurityProfileGroup resource. It matches pattern `projects|organizations/*/locations/{location}/securityProfileGroups/{security_profile_group}`.",
+    "Immutable. Identifier. Name of the `SecurityProfileGroup` resource. Format: `organizations/{organization}/locations/{location}/securityProfileGroups/{security_profile_group}` or `projects/{project}/locations/{location}/securityProfileGroups/{security_profile_group}`.",
   ).optional(),
   threatPreventionProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the ThreatPrevention configuration.",
+    "Optional. Reference to a `SecurityProfile` with the threat prevention configuration.",
   ).optional(),
   urlFilteringProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the UrlFiltering configuration.",
+    "Optional. Reference to a `SecurityProfile` with the URL filtering configuration.",
   ).optional(),
   wildfireAnalysisProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the WildFire configuration.",
+    "Optional. Reference to a `SecurityProfile` with the Advanced malware sandbox (WildFire) configuration.",
   ).optional(),
   securityProfileGroupId: z.string().describe(
-    'Required. Short name of the SecurityProfileGroup resource to be created. This value should be 1-63 characters long, containing only letters, numbers, hyphens, and underscores, and should not start with a number. E.g. "security_profile_group1".',
+    "Required. Short name of the `SecurityProfileGroup` resource to be created. This value must be 1 to 63 characters long, contain only lowercase letters, numbers, and hyphens, and must not start with a number. For example, `security-profile-group1`.",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -214,31 +214,31 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   customInterceptProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the CustomIntercept configuration.",
+    "Optional. Reference to a `SecurityProfile` with the custom intercept configuration.",
   ).optional(),
   customMirroringProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the CustomMirroring configuration.",
+    "Optional. Reference to a `SecurityProfile` with the custom mirroring configuration.",
   ).optional(),
   description: z.string().describe(
-    "Optional. An optional description of the profile group. Max length 2048 characters.",
+    "Optional. An optional description of the profile group. The maximum length is 2048 characters.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs.",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
   name: z.string().describe(
-    "Immutable. Identifier. Name of the SecurityProfileGroup resource. It matches pattern `projects|organizations/*/locations/{location}/securityProfileGroups/{security_profile_group}`.",
+    "Immutable. Identifier. Name of the `SecurityProfileGroup` resource. Format: `organizations/{organization}/locations/{location}/securityProfileGroups/{security_profile_group}` or `projects/{project}/locations/{location}/securityProfileGroups/{security_profile_group}`.",
   ).optional(),
   threatPreventionProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the ThreatPrevention configuration.",
+    "Optional. Reference to a `SecurityProfile` with the threat prevention configuration.",
   ).optional(),
   urlFilteringProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the UrlFiltering configuration.",
+    "Optional. Reference to a `SecurityProfile` with the URL filtering configuration.",
   ).optional(),
   wildfireAnalysisProfile: z.string().describe(
-    "Optional. Reference to a SecurityProfile with the WildFire configuration.",
+    "Optional. Reference to a `SecurityProfile` with the Advanced malware sandbox (WildFire) configuration.",
   ).optional(),
   securityProfileGroupId: z.string().describe(
-    'Required. Short name of the SecurityProfileGroup resource to be created. This value should be 1-63 characters long, containing only letters, numbers, hyphens, and underscores, and should not start with a number. E.g. "security_profile_group1".',
+    "Required. Short name of the `SecurityProfileGroup` resource to be created. This value must be 1 to 63 characters long, contain only lowercase letters, numbers, and hyphens, and must not start with a number. For example, `security-profile-group1`.",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -271,7 +271,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security SecurityProfileGroups. Registered at `@swamp/gcp/networksecurity/securityprofilegroups`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/securityprofilegroups",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -413,13 +413,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "SecurityProfileGroup is a resource that defines the behavior for various Prof...",
+        "A resource that defines the behavior for various `ProfileType` values.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -728,7 +733,7 @@ export const model = {
       description: "List securityProfileGroups resources",
       arguments: z.object({
         pageSize: z.number().describe(
-          "Optional. Maximum number of SecurityProfileGroups to return per call.",
+          "Optional. Maximum number of `SecurityProfileGroup` resources to return per call. The maximum value is 1000; values above 1000 are coerced to 1000. If unspecified, the server picks an appropriate default.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

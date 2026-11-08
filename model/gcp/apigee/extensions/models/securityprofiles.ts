@@ -208,32 +208,38 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   description: z.string().optional(),
   displayName: z.string().optional(),
-  environments: z.array(z.object({
-    attachTime: z.string(),
-    environment: z.string(),
-  })).optional(),
+  environments: z.array(
+    z.object({
+      attachTime: z.string(),
+      environment: z.string(),
+    }).partial(),
+  ).optional(),
   maxScore: z.number().optional(),
   minScore: z.number().optional(),
   name: z.string(),
   profileConfig: z.object({
-    categories: z.array(z.object({
-      abuse: z.object({}),
-      authorization: z.object({}),
-      cors: z.object({}),
-      mediation: z.object({}),
-      mtls: z.object({}),
-      threat: z.object({}),
-    })),
-  }).optional(),
+    categories: z.array(
+      z.object({
+        abuse: z.object({}).partial(),
+        authorization: z.object({}).partial(),
+        cors: z.object({}).partial(),
+        mediation: z.object({}).partial(),
+        mtls: z.object({}).partial(),
+        threat: z.object({}).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   revisionCreateTime: z.string().optional(),
   revisionId: z.string().optional(),
   revisionPublishTime: z.string().optional(),
   revisionUpdateTime: z.string().optional(),
-  scoringConfigs: z.array(z.object({
-    description: z.string(),
-    scorePath: z.string(),
-    title: z.string(),
-  })).optional(),
+  scoringConfigs: z.array(
+    z.object({
+      description: z.string(),
+      scorePath: z.string(),
+      title: z.string(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -322,7 +328,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee SecurityProfiles. Registered at `@swamp/gcp/apigee/securityprofiles`. */
 export const model = {
   type: "@swamp/gcp/apigee/securityprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -461,6 +467,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

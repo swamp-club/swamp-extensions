@@ -119,11 +119,13 @@ const StateSchema = z.object({
   context: z.string().optional(),
   createTime: z.string().optional(),
   expireTime: z.string().optional(),
-  extractedMemories: z.array(z.object({
-    context: z.string(),
-    fact: z.string(),
-    structuredData: z.record(z.string(), z.unknown()),
-  })).optional(),
+  extractedMemories: z.array(
+    z.object({
+      context: z.string(),
+      fact: z.string(),
+      structuredData: z.record(z.string(), z.unknown()),
+    }).partial(),
+  ).optional(),
   fact: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -174,7 +176,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Memories.Revisions. Registered at `@swamp/gcp/aiplatform/reasoningengines-memories-revisions`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-memories-revisions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -343,6 +345,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

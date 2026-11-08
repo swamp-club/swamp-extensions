@@ -193,28 +193,36 @@ const StateSchema = z.object({
   endTime: z.string().optional(),
   finalMeasurement: z.object({
     elapsedTime: z.string(),
-    metrics: z.array(z.object({
-      metric: z.string(),
-      value: z.number(),
-    })),
+    metrics: z.array(
+      z.object({
+        metric: z.string(),
+        value: z.number(),
+      }).partial(),
+    ),
     stepCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   infeasibleReason: z.string().optional(),
-  measurements: z.array(z.object({
-    elapsedTime: z.string(),
-    metrics: z.array(z.object({
-      metric: z.string(),
-      value: z.number(),
-    })),
-    stepCount: z.string(),
-  })).optional(),
+  measurements: z.array(
+    z.object({
+      elapsedTime: z.string(),
+      metrics: z.array(
+        z.object({
+          metric: z.string(),
+          value: z.number(),
+        }).partial(),
+      ),
+      stepCount: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
-  parameters: z.array(z.object({
-    floatValue: z.number(),
-    intValue: z.string(),
-    parameter: z.string(),
-    stringValue: z.string(),
-  })).optional(),
+  parameters: z.array(
+    z.object({
+      floatValue: z.number(),
+      intValue: z.string(),
+      parameter: z.string(),
+      stringValue: z.string(),
+    }).partial(),
+  ).optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
   trialInfeasible: z.boolean().optional(),
@@ -315,7 +323,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AI Platform Training & Prediction Studies.Trials. Registered at `@swamp/gcp/ml/studies-trials`. */
 export const model = {
   type: "@swamp/gcp/ml/studies-trials",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -454,6 +462,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

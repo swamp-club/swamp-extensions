@@ -379,12 +379,12 @@ const StateSchema = z.object({
     port: z.number(),
     portName: z.string(),
     portSpecification: z.string(),
-  }).optional(),
+  }).partial().optional(),
   grpcTlsHealthCheck: z.object({
     grpcServiceName: z.string(),
     port: z.number(),
     portSpecification: z.string(),
-  }).optional(),
+  }).partial().optional(),
   healthyThreshold: z.number().optional(),
   http2HealthCheck: z.object({
     host: z.string(),
@@ -394,7 +394,7 @@ const StateSchema = z.object({
     proxyHeader: z.string(),
     requestPath: z.string(),
     response: z.string(),
-  }).optional(),
+  }).partial().optional(),
   httpHealthCheck: z.object({
     host: z.string(),
     port: z.number(),
@@ -403,7 +403,7 @@ const StateSchema = z.object({
     proxyHeader: z.string(),
     requestPath: z.string(),
     response: z.string(),
-  }).optional(),
+  }).partial().optional(),
   httpsHealthCheck: z.object({
     host: z.string(),
     port: z.number(),
@@ -412,12 +412,12 @@ const StateSchema = z.object({
     proxyHeader: z.string(),
     requestPath: z.string(),
     response: z.string(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   logConfig: z.object({
     enable: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
@@ -429,7 +429,7 @@ const StateSchema = z.object({
     proxyHeader: z.string(),
     request: z.string(),
     response: z.string(),
-  }).optional(),
+  }).partial().optional(),
   tcpHealthCheck: z.object({
     port: z.number(),
     portName: z.string(),
@@ -437,7 +437,7 @@ const StateSchema = z.object({
     proxyHeader: z.string(),
     request: z.string(),
     response: z.string(),
-  }).optional(),
+  }).partial().optional(),
   timeoutSec: z.number().optional(),
   type: z.string().optional(),
   unhealthyThreshold: z.number().optional(),
@@ -672,7 +672,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine HealthChecks. Registered at `@swamp/gcp/compute/healthchecks`. */
 export const model = {
   type: "@swamp/gcp/compute/healthchecks",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -846,6 +846,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

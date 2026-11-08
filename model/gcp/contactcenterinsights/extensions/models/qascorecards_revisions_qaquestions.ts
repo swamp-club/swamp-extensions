@@ -260,29 +260,31 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   abbreviation: z.string().optional(),
-  answerChoices: z.array(z.object({
-    boolValue: z.boolean(),
-    key: z.string(),
-    naValue: z.boolean(),
-    numValue: z.number(),
-    score: z.number(),
-    strValue: z.string(),
-  })).optional(),
+  answerChoices: z.array(
+    z.object({
+      boolValue: z.boolean(),
+      key: z.string(),
+      naValue: z.boolean(),
+      numValue: z.number(),
+      score: z.number(),
+      strValue: z.string(),
+    }).partial(),
+  ).optional(),
   answerInstructions: z.string().optional(),
   createTime: z.string().optional(),
   metrics: z.object({
     accuracy: z.number(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   order: z.number().optional(),
   predefinedQuestionConfig: z.object({
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   qaQuestionDataOptions: z.object({
     conversationDataOptions: z.object({
       includeDialogflowInteractionData: z.boolean(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   questionBody: z.string().optional(),
   questionType: z.string().optional(),
   satisfiesPzi: z.boolean().optional(),
@@ -292,7 +294,7 @@ const StateSchema = z.object({
     datasetValidationWarnings: z.array(z.string()),
     totalValidLabelCount: z.string(),
     tuningError: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -430,7 +432,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights QaScorecards.Revisions.QaQuestions. Registered at `@swamp/gcp/contactcenterinsights/qascorecards-revisions-qaquestions`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/qascorecards-revisions-qaquestions",
-  version: "2026.11.01.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -604,6 +606,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

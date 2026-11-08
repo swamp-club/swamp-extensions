@@ -52,6 +52,20 @@ const TagSchema = z.object({
   Key: z.string(),
 });
 
+const S3ReportExportConfigStateSchema = z.object({
+  Path: z.string(),
+  Bucket: z.string(),
+  Packaging: z.string(),
+  EncryptionKey: z.string(),
+  BucketOwner: z.string(),
+  EncryptionDisabled: z.boolean(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -81,16 +95,16 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Type: z.string().optional(),
   ExportConfig: z.object({
-    S3Destination: S3ReportExportConfigSchema,
+    S3Destination: S3ReportExportConfigStateSchema,
     ExportConfigType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   Arn: z.string(),
   DeleteReports: z.boolean().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   Name: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -127,7 +141,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeBuild ReportGroup. Registered at `@swamp/aws/codebuild/report-group`. */
 export const model = {
   type: "@swamp/aws/codebuild/report-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -141,6 +155,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -468,30 +468,36 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  additionalDimensions: z.array(z.object({
-    heightPixels: z.number(),
-    widthPixels: z.number(),
-  })).optional(),
+  additionalDimensions: z.array(
+    z.object({
+      heightPixels: z.number(),
+      widthPixels: z.number(),
+    }).partial(),
+  ).optional(),
   advertiserId: z.string().optional(),
   appendedTag: z.string().optional(),
-  assets: z.array(z.object({
-    asset: z.object({
-      content: z.string(),
-      mediaId: z.string(),
-    }),
-    role: z.string(),
-  })).optional(),
+  assets: z.array(
+    z.object({
+      asset: z.object({
+        content: z.string(),
+        mediaId: z.string(),
+      }).partial(),
+      role: z.string(),
+    }).partial(),
+  ).optional(),
   cmPlacementId: z.string().optional(),
   cmTrackingAd: z.object({
     cmAdId: z.string(),
     cmCreativeId: z.string(),
     cmPlacementId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   companionCreativeIds: z.array(z.string()).optional(),
-  counterEvents: z.array(z.object({
-    name: z.string(),
-    reportingName: z.string(),
-  })).optional(),
+  counterEvents: z.array(
+    z.object({
+      name: z.string(),
+      reportingName: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   creativeAttributes: z.array(z.string()).optional(),
   creativeId: z.string().optional(),
@@ -499,16 +505,18 @@ const StateSchema = z.object({
   dimensions: z.object({
     heightPixels: z.number(),
     widthPixels: z.number(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   dynamic: z.boolean().optional(),
   entityStatus: z.string().optional(),
-  exitEvents: z.array(z.object({
-    name: z.string(),
-    reportingName: z.string(),
-    type: z.string(),
-    url: z.string(),
-  })).optional(),
+  exitEvents: z.array(
+    z.object({
+      name: z.string(),
+      reportingName: z.string(),
+      type: z.string(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
   expandOnHover: z.boolean().optional(),
   expandingDirection: z.string().optional(),
   hostingSource: z.string().optional(),
@@ -526,19 +534,19 @@ const StateSchema = z.object({
     dimensions: z.object({
       heightPixels: z.number(),
       widthPixels: z.number(),
-    }),
+    }).partial(),
     landingPageUrl: z.string(),
     position: z.string(),
     program: z.string(),
     resourceMimeType: z.string(),
     resourceUrl: z.string(),
     viewTrackingUrl: z.string(),
-  }).optional(),
+  }).partial().optional(),
   oggAudio: z.boolean().optional(),
   progressOffset: z.object({
     percentage: z.string(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   requireHtml5: z.boolean().optional(),
   requireMraid: z.boolean().optional(),
   requirePingForAttribution: z.boolean().optional(),
@@ -546,45 +554,53 @@ const StateSchema = z.object({
     approvalStatus: z.string(),
     contentAndPolicyReviewStatus: z.string(),
     creativeAndLandingPageReviewStatus: z.string(),
-    exchangeReviewStatuses: z.array(z.object({
-      exchange: z.string(),
-      status: z.string(),
-    })),
-  }).optional(),
+    exchangeReviewStatuses: z.array(
+      z.object({
+        exchange: z.string(),
+        status: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   skipOffset: z.object({
     percentage: z.string(),
     seconds: z.string(),
-  }).optional(),
+  }).partial().optional(),
   skippable: z.boolean().optional(),
   syntheticContentAttestationStatus: z.string().optional(),
   thirdPartyTag: z.string().optional(),
-  thirdPartyUrls: z.array(z.object({
-    type: z.string(),
-    url: z.string(),
-  })).optional(),
-  timerEvents: z.array(z.object({
-    name: z.string(),
-    reportingName: z.string(),
-  })).optional(),
+  thirdPartyUrls: z.array(
+    z.object({
+      type: z.string(),
+      url: z.string(),
+    }).partial(),
+  ).optional(),
+  timerEvents: z.array(
+    z.object({
+      name: z.string(),
+      reportingName: z.string(),
+    }).partial(),
+  ).optional(),
   trackerUrls: z.array(z.string()).optional(),
-  transcodes: z.array(z.object({
-    audioBitRateKbps: z.string(),
-    audioSampleRateHz: z.string(),
-    bitRateKbps: z.string(),
-    dimensions: z.object({
-      heightPixels: z.number(),
-      widthPixels: z.number(),
-    }),
-    fileSizeBytes: z.string(),
-    frameRate: z.number(),
-    mimeType: z.string(),
-    name: z.string(),
-    transcoded: z.boolean(),
-  })).optional(),
+  transcodes: z.array(
+    z.object({
+      audioBitRateKbps: z.string(),
+      audioSampleRateHz: z.string(),
+      bitRateKbps: z.string(),
+      dimensions: z.object({
+        heightPixels: z.number(),
+        widthPixels: z.number(),
+      }).partial(),
+      fileSizeBytes: z.string(),
+      frameRate: z.number(),
+      mimeType: z.string(),
+      name: z.string(),
+      transcoded: z.boolean(),
+    }).partial(),
+  ).optional(),
   universalAdId: z.object({
     id: z.string(),
     registry: z.string(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
   vastTagUrl: z.string().optional(),
   vpaid: z.boolean().optional(),
@@ -915,7 +931,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.Creatives. Registered at `@swamp/gcp/displayvideo/advertisers-creatives`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-creatives",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1081,6 +1097,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

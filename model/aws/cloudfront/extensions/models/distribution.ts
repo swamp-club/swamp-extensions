@@ -512,6 +512,240 @@ const TagSchema = z.object({
   ),
 });
 
+const CookiesStateSchema = z.object({
+  Forward: z.string(),
+  WhitelistedNames: z.array(z.string()),
+}).partial();
+
+const ForwardedValuesStateSchema = z.object({
+  Cookies: CookiesStateSchema,
+  Headers: z.array(z.string()),
+  QueryString: z.boolean(),
+  QueryStringCacheKeys: z.array(z.string()),
+}).partial();
+
+const FunctionAssociationStateSchema = z.object({
+  EventType: z.string(),
+  FunctionARN: z.string(),
+}).partial();
+
+const GrpcConfigStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const LambdaFunctionAssociationStateSchema = z.object({
+  EventType: z.string(),
+  IncludeBody: z.boolean(),
+  LambdaFunctionARN: z.string(),
+}).partial();
+
+const CacheBehaviorStateSchema = z.object({
+  AllowedMethods: z.array(z.string()),
+  CachePolicyId: z.string(),
+  CachedMethods: z.array(z.string()),
+  Compress: z.boolean(),
+  DefaultTTL: z.number(),
+  FieldLevelEncryptionId: z.string(),
+  ForwardedValues: ForwardedValuesStateSchema,
+  FunctionAssociations: z.array(FunctionAssociationStateSchema),
+  GrpcConfig: GrpcConfigStateSchema,
+  LambdaFunctionAssociations: z.array(LambdaFunctionAssociationStateSchema),
+  MaxTTL: z.number(),
+  MinTTL: z.number(),
+  OriginRequestPolicyId: z.string(),
+  PathPattern: z.string(),
+  RealtimeLogConfigArn: z.string(),
+  ResponseHeadersPolicyId: z.string(),
+  SmoothStreaming: z.boolean(),
+  TargetOriginId: z.string(),
+  TrustedKeyGroups: z.array(z.string()),
+  TrustedSigners: z.array(z.string()),
+  ViewerProtocolPolicy: z.string(),
+}).partial();
+
+const ConnectionFunctionAssociationStateSchema = z.object({
+  Id: z.string(),
+}).partial();
+
+const CustomErrorResponseStateSchema = z.object({
+  ErrorCachingMinTTL: z.number(),
+  ErrorCode: z.number(),
+  ResponseCode: z.number(),
+  ResponsePagePath: z.string(),
+}).partial();
+
+const LegacyCustomOriginStateSchema = z.object({
+  DNSName: z.string(),
+  HTTPPort: z.number(),
+  HTTPSPort: z.number(),
+  OriginProtocolPolicy: z.string(),
+  OriginSSLProtocols: z.array(z.string()),
+}).partial();
+
+const DefaultCacheBehaviorStateSchema = z.object({
+  AllowedMethods: z.array(z.string()),
+  CachePolicyId: z.string(),
+  CachedMethods: z.array(z.string()),
+  Compress: z.boolean(),
+  DefaultTTL: z.number(),
+  FieldLevelEncryptionId: z.string(),
+  ForwardedValues: ForwardedValuesStateSchema,
+  FunctionAssociations: z.array(FunctionAssociationStateSchema),
+  GrpcConfig: GrpcConfigStateSchema,
+  LambdaFunctionAssociations: z.array(LambdaFunctionAssociationStateSchema),
+  MaxTTL: z.number(),
+  MinTTL: z.number(),
+  OriginRequestPolicyId: z.string(),
+  RealtimeLogConfigArn: z.string(),
+  ResponseHeadersPolicyId: z.string(),
+  SmoothStreaming: z.boolean(),
+  TargetOriginId: z.string(),
+  TrustedKeyGroups: z.array(z.string()),
+  TrustedSigners: z.array(z.string()),
+  ViewerProtocolPolicy: z.string(),
+}).partial();
+
+const LoggingStateSchema = z.object({
+  Bucket: z.string(),
+  IncludeCookies: z.boolean(),
+  Prefix: z.string(),
+}).partial();
+
+const StatusCodesStateSchema = z.object({
+  Items: z.array(z.number()),
+  Quantity: z.number(),
+}).partial();
+
+const OriginGroupFailoverCriteriaStateSchema = z.object({
+  StatusCodes: StatusCodesStateSchema,
+}).partial();
+
+const OriginGroupMemberStateSchema = z.object({
+  OriginId: z.string(),
+}).partial();
+
+const OriginGroupMembersStateSchema = z.object({
+  Items: z.array(OriginGroupMemberStateSchema),
+  Quantity: z.number(),
+}).partial();
+
+const OriginGroupStateSchema = z.object({
+  FailoverCriteria: OriginGroupFailoverCriteriaStateSchema,
+  Id: z.string(),
+  Members: OriginGroupMembersStateSchema,
+  SelectionCriteria: z.string(),
+}).partial();
+
+const OriginGroupsStateSchema = z.object({
+  Items: z.array(OriginGroupStateSchema),
+  Quantity: z.number(),
+}).partial();
+
+const OriginMtlsConfigStateSchema = z.object({
+  ClientCertificateArn: z.string(),
+}).partial();
+
+const CustomOriginConfigStateSchema = z.object({
+  HTTPPort: z.number(),
+  HTTPSPort: z.number(),
+  OriginKeepaliveTimeout: z.number(),
+  OriginProtocolPolicy: z.string(),
+  OriginReadTimeout: z.number(),
+  OriginSSLProtocols: z.array(z.string()),
+  IpAddressType: z.string(),
+  OriginMtlsConfig: OriginMtlsConfigStateSchema,
+}).partial();
+
+const OriginCustomHeaderStateSchema = z.object({
+  HeaderName: z.string(),
+  HeaderValue: z.string(),
+}).partial();
+
+const OriginShieldStateSchema = z.object({
+  Enabled: z.boolean(),
+  OriginShieldRegion: z.string(),
+}).partial();
+
+const S3OriginConfigStateSchema = z.object({
+  OriginAccessIdentity: z.string(),
+  OriginReadTimeout: z.number(),
+}).partial();
+
+const VpcOriginConfigStateSchema = z.object({
+  OriginKeepaliveTimeout: z.number(),
+  OriginReadTimeout: z.number(),
+  OwnerAccountId: z.string(),
+  VpcOriginId: z.string(),
+}).partial();
+
+const OriginStateSchema = z.object({
+  ConnectionAttempts: z.number(),
+  ConnectionTimeout: z.number(),
+  ResponseCompletionTimeout: z.number(),
+  CustomOriginConfig: CustomOriginConfigStateSchema,
+  DomainName: z.string(),
+  Id: z.string(),
+  OriginAccessControlId: z.string(),
+  OriginCustomHeaders: z.array(OriginCustomHeaderStateSchema),
+  OriginPath: z.string(),
+  OriginShield: OriginShieldStateSchema,
+  S3OriginConfig: S3OriginConfigStateSchema,
+  VpcOriginConfig: VpcOriginConfigStateSchema,
+}).partial();
+
+const GeoRestrictionStateSchema = z.object({
+  Locations: z.array(z.string()),
+  RestrictionType: z.string(),
+}).partial();
+
+const RestrictionsStateSchema = z.object({
+  GeoRestriction: GeoRestrictionStateSchema,
+}).partial();
+
+const LegacyS3OriginStateSchema = z.object({
+  DNSName: z.string(),
+  OriginAccessIdentity: z.string(),
+}).partial();
+
+const ParameterDefinitionStateSchema = z.object({
+  Name: z.string(),
+  Definition: z.object({
+    StringSchema: z.object({
+      Comment: z.string(),
+      DefaultValue: z.string(),
+      Required: z.boolean(),
+    }).partial(),
+  }).partial(),
+}).partial();
+
+const CacheTagConfigStateSchema = z.object({
+  HeaderName: z.string(),
+}).partial();
+
+const TrustStoreConfigStateSchema = z.object({
+  TrustStoreId: z.string(),
+  AdvertiseTrustStoreCaNames: z.boolean(),
+  IgnoreCertificateExpiry: z.boolean(),
+}).partial();
+
+const ViewerMtlsConfigStateSchema = z.object({
+  Mode: z.string(),
+  TrustStoreConfig: TrustStoreConfigStateSchema,
+}).partial();
+
+const ViewerCertificateStateSchema = z.object({
+  AcmCertificateArn: z.string(),
+  CloudFrontDefaultCertificate: z.boolean(),
+  IamCertificateId: z.string(),
+  MinimumProtocolVersion: z.string(),
+  SslSupportMethod: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -623,39 +857,39 @@ const StateSchema = z.object({
     Aliases: z.array(z.string()),
     AnycastIpListId: z.string(),
     CNAMEs: z.array(z.string()),
-    CacheBehaviors: z.array(CacheBehaviorSchema),
+    CacheBehaviors: z.array(CacheBehaviorStateSchema),
     Comment: z.string(),
     ConnectionMode: z.string(),
-    ConnectionFunctionAssociation: ConnectionFunctionAssociationSchema,
+    ConnectionFunctionAssociation: ConnectionFunctionAssociationStateSchema,
     ContinuousDeploymentPolicyId: z.string(),
-    CustomErrorResponses: z.array(CustomErrorResponseSchema),
-    CustomOrigin: LegacyCustomOriginSchema,
-    DefaultCacheBehavior: DefaultCacheBehaviorSchema,
+    CustomErrorResponses: z.array(CustomErrorResponseStateSchema),
+    CustomOrigin: LegacyCustomOriginStateSchema,
+    DefaultCacheBehavior: DefaultCacheBehaviorStateSchema,
     DefaultRootObject: z.string(),
     Enabled: z.boolean(),
     HttpVersion: z.string(),
     IPV6Enabled: z.boolean(),
-    Logging: LoggingSchema,
-    OriginGroups: OriginGroupsSchema,
-    Origins: z.array(OriginSchema),
+    Logging: LoggingStateSchema,
+    OriginGroups: OriginGroupsStateSchema,
+    Origins: z.array(OriginStateSchema),
     PriceClass: z.string(),
-    Restrictions: RestrictionsSchema,
-    S3Origin: LegacyS3OriginSchema,
+    Restrictions: RestrictionsStateSchema,
+    S3Origin: LegacyS3OriginStateSchema,
     Staging: z.boolean(),
     TenantConfig: z.object({
-      ParameterDefinitions: z.array(ParameterDefinitionSchema),
-    }),
-    CacheTagConfig: CacheTagConfigSchema,
-    ViewerMtlsConfig: ViewerMtlsConfigSchema,
-    ViewerCertificate: ViewerCertificateSchema,
+      ParameterDefinitions: z.array(ParameterDefinitionStateSchema),
+    }).partial(),
+    CacheTagConfig: CacheTagConfigStateSchema,
+    ViewerMtlsConfig: ViewerMtlsConfigStateSchema,
+    ViewerCertificate: ViewerCertificateStateSchema,
     WebACLId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   DomainName: z.string().optional(),
   Id: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -772,7 +1006,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront Distribution. Registered at `@swamp/aws/cloudfront/distribution`. */
 export const model = {
   type: "@swamp/aws/cloudfront/distribution",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -866,6 +1100,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

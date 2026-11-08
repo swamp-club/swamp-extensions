@@ -269,56 +269,62 @@ const StateSchema = z.object({
   bootstrapAddress: z.string().optional(),
   brokerCapacityConfig: z.object({
     diskSizeGib: z.string(),
-  }).optional(),
-  brokerDetails: z.array(z.object({
-    brokerIndex: z.string(),
-    nodeId: z.string(),
-    rack: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  brokerDetails: z.array(
+    z.object({
+      brokerIndex: z.string(),
+      nodeId: z.string(),
+      rack: z.string(),
+    }).partial(),
+  ).optional(),
   capacityConfig: z.object({
     memoryBytes: z.string(),
     vcpuCount: z.string(),
-  }).optional(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   effectiveCapacityConfig: z.object({
     brokerCount: z.string(),
     brokerDiskSizeGib: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcpConfig: z.object({
     accessConfig: z.object({
-      networkConfigs: z.array(z.object({
-        subnet: z.string(),
-      })),
+      networkConfigs: z.array(
+        z.object({
+          subnet: z.string(),
+        }).partial(),
+      ),
       publicClusterConfig: z.object({
         allowedSourceIpRanges: z.array(z.string()),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     kmsKey: z.string(),
-  }).optional(),
+  }).partial().optional(),
   kafkaVersion: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   publicClusterDetails: z.object({
     discoveryDnsRecords: z.array(z.string()),
     externalIpAddresses: z.array(z.string()),
-  }).optional(),
+  }).partial().optional(),
   rebalanceConfig: z.object({
     mode: z.string(),
-  }).optional(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   state: z.string().optional(),
   tlsConfig: z.object({
     sslPrincipalMappingRules: z.string(),
     trustConfig: z.object({
-      casConfigs: z.array(z.object({
-        caPool: z.string(),
-      })),
-    }),
-  }).optional(),
+      casConfigs: z.array(
+        z.object({
+          caPool: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   updateOptions: z.object({
     allowBrokerDownscaleOnClusterUpscale: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -450,7 +456,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka Clusters. Registered at `@swamp/gcp/managedkafka/clusters`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/clusters",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -609,6 +615,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

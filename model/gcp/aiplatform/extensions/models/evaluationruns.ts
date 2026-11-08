@@ -1319,20 +1319,20 @@ const StateSchema = z.object({
         samplingCount: z.number(),
         samplingDuration: z.string(),
         samplingMethod: z.string(),
-      }),
+      }).partial(),
       uri: z.string(),
-    }),
+    }).partial(),
     evaluationSet: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   encryptionSpec: z.object({
     kmsKeyName: z.string(),
-  }).optional(),
+  }).partial().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   evaluationConfig: z.object({
     allowCrossRegionModel: z.boolean(),
     autoraterConfig: z.object({
@@ -1343,15 +1343,15 @@ const StateSchema = z.object({
           adaptationPhrases: z.array(z.unknown()),
           customVocabulary: z.array(z.unknown()),
           diarization: z.boolean(),
-          languageAuto: z.object({}),
+          languageAuto: z.object({}).partial(),
           languageCodes: z.array(z.unknown()),
           languageHints: z.object({
             languageCodes: z.unknown(),
-          }),
+          }).partial(),
           mode: z.string(),
           sourceText: z.string(),
           wordTimestamp: z.boolean(),
-        }),
+        }).partial(),
         candidateCount: z.number(),
         enableAffectiveDialog: z.boolean(),
         frequencyPenalty: z.number(),
@@ -1360,21 +1360,23 @@ const StateSchema = z.object({
           imageOutputOptions: z.object({
             compressionQuality: z.unknown(),
             mimeType: z.unknown(),
-          }),
+          }).partial(),
           imageSize: z.string(),
           personGeneration: z.string(),
           prominentPeople: z.string(),
-        }),
+        }).partial(),
         logprobs: z.number(),
         maxOutputTokens: z.number(),
         mediaResolution: z.string(),
         presencePenalty: z.number(),
-        responseFormat: z.array(z.object({
-          audio: z.unknown(),
-          image: z.unknown(),
-          text: z.unknown(),
-          video: z.unknown(),
-        })),
+        responseFormat: z.array(
+          z.object({
+            audio: z.unknown(),
+            image: z.unknown(),
+            text: z.unknown(),
+            video: z.unknown(),
+          }).partial(),
+        ),
         responseJsonSchema: z.string(),
         responseLogprobs: z.boolean(),
         responseMimeType: z.string(),
@@ -1405,43 +1407,43 @@ const StateSchema = z.object({
           required: z.array(z.unknown()),
           title: z.string(),
           type: z.string(),
-        }),
+        }).partial(),
         routingConfig: z.object({
           autoMode: z.object({
             modelRoutingPreference: z.unknown(),
-          }),
+          }).partial(),
           manualMode: z.object({
             modelName: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         seed: z.number(),
         speechConfig: z.object({
           languageCode: z.string(),
           multiSpeakerVoiceConfig: z.object({
             speakerVoiceConfigs: z.unknown(),
-          }),
+          }).partial(),
           voiceConfig: z.object({
             prebuiltVoiceConfig: z.unknown(),
             replicatedVoiceConfig: z.unknown(),
             voice: z.unknown(),
-          }),
-        }),
+          }).partial(),
+        }).partial(),
         stopSequences: z.array(z.string()),
         temperature: z.number(),
         thinkingConfig: z.object({
           includeThoughts: z.boolean(),
           thinkingBudget: z.number(),
           thinkingLevel: z.string(),
-        }),
+        }).partial(),
         topK: z.number(),
         topP: z.number(),
         translationConfig: z.object({
           echoTargetLanguage: z.boolean(),
           targetLanguageCode: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       sampleCount: z.number(),
-    }),
+    }).partial(),
     cloudLoggingConfig: z.object({
       project: z.string(),
       resourceLabels: z.record(z.string(), z.unknown()),
@@ -1450,158 +1452,166 @@ const StateSchema = z.object({
         conversationId: z.string(),
         spanId: z.string(),
         traceId: z.string(),
-      }),
-    }),
-    datasetCustomMetrics: z.array(z.object({
-      aggregationFunction: z.string(),
-      displayName: z.string(),
-    })),
-    lossAnalysisConfig: z.array(z.object({
-      candidate: z.string(),
-      metric: z.string(),
-    })),
-    metrics: z.array(z.object({
-      computationBasedMetricSpec: z.object({
-        parameters: z.record(z.string(), z.unknown()),
-        type: z.string(),
-      }),
-      llmBasedMetricSpec: z.object({
-        additionalConfig: z.record(z.string(), z.unknown()),
-        judgeAutoraterConfig: z.object({
-          autoraterModel: z.unknown(),
-          generationConfig: z.unknown(),
-          sampleCount: z.unknown(),
-        }),
-        metricPromptTemplate: z.string(),
-        predefinedRubricGenerationSpec: z.object({
-          metricSpecName: z.unknown(),
-          parameters: z.unknown(),
-        }),
-        rubricGenerationSpec: z.object({
-          metricResourceName: z.unknown(),
-          modelConfig: z.unknown(),
-          promptTemplate: z.unknown(),
-          rubricContentType: z.unknown(),
-          rubricTypeOntology: z.unknown(),
-        }),
-        rubricGroupKey: z.string(),
-        systemInstruction: z.string(),
-      }),
-      metric: z.string(),
-      metricConfig: z.object({
-        aggregationMetrics: z.array(z.unknown()),
-        bleuSpec: z.object({
-          useEffectiveOrder: z.unknown(),
-        }),
+      }).partial(),
+    }).partial(),
+    datasetCustomMetrics: z.array(
+      z.object({
+        aggregationFunction: z.string(),
+        displayName: z.string(),
+      }).partial(),
+    ),
+    lossAnalysisConfig: z.array(
+      z.object({
+        candidate: z.string(),
+        metric: z.string(),
+      }).partial(),
+    ),
+    metrics: z.array(
+      z.object({
         computationBasedMetricSpec: z.object({
-          parameters: z.unknown(),
-          type: z.unknown(),
-        }),
-        customCodeExecutionSpec: z.object({
-          evaluationFunction: z.unknown(),
-        }),
-        exactMatchSpec: z.object({}),
+          parameters: z.record(z.string(), z.unknown()),
+          type: z.string(),
+        }).partial(),
         llmBasedMetricSpec: z.object({
-          additionalConfig: z.unknown(),
-          judgeAutoraterConfig: z.unknown(),
-          metricPromptTemplate: z.unknown(),
-          predefinedRubricGenerationSpec: z.unknown(),
-          resultParserConfig: z.unknown(),
-          rubricGenerationSpec: z.unknown(),
-          rubricGroupKey: z.unknown(),
-          systemInstruction: z.unknown(),
-        }),
-        metadata: z.object({
-          otherMetadata: z.unknown(),
-          scoreRange: z.unknown(),
-          title: z.unknown(),
-        }),
-        pairwiseMetricSpec: z.object({
-          baselineResponseFieldName: z.unknown(),
-          candidateResponseFieldName: z.unknown(),
-          customOutputFormatConfig: z.unknown(),
-          metricPromptTemplate: z.unknown(),
-          systemInstruction: z.unknown(),
-        }),
-        pointwiseMetricSpec: z.object({
-          customOutputFormatConfig: z.unknown(),
-          metricPromptTemplate: z.unknown(),
-          systemInstruction: z.unknown(),
-        }),
+          additionalConfig: z.record(z.string(), z.unknown()),
+          judgeAutoraterConfig: z.object({
+            autoraterModel: z.unknown(),
+            generationConfig: z.unknown(),
+            sampleCount: z.unknown(),
+          }).partial(),
+          metricPromptTemplate: z.string(),
+          predefinedRubricGenerationSpec: z.object({
+            metricSpecName: z.unknown(),
+            parameters: z.unknown(),
+          }).partial(),
+          rubricGenerationSpec: z.object({
+            metricResourceName: z.unknown(),
+            modelConfig: z.unknown(),
+            promptTemplate: z.unknown(),
+            rubricContentType: z.unknown(),
+            rubricTypeOntology: z.unknown(),
+          }).partial(),
+          rubricGroupKey: z.string(),
+          systemInstruction: z.string(),
+        }).partial(),
+        metric: z.string(),
+        metricConfig: z.object({
+          aggregationMetrics: z.array(z.unknown()),
+          bleuSpec: z.object({
+            useEffectiveOrder: z.unknown(),
+          }).partial(),
+          computationBasedMetricSpec: z.object({
+            parameters: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+          customCodeExecutionSpec: z.object({
+            evaluationFunction: z.unknown(),
+          }).partial(),
+          exactMatchSpec: z.object({}).partial(),
+          llmBasedMetricSpec: z.object({
+            additionalConfig: z.unknown(),
+            judgeAutoraterConfig: z.unknown(),
+            metricPromptTemplate: z.unknown(),
+            predefinedRubricGenerationSpec: z.unknown(),
+            resultParserConfig: z.unknown(),
+            rubricGenerationSpec: z.unknown(),
+            rubricGroupKey: z.unknown(),
+            systemInstruction: z.unknown(),
+          }).partial(),
+          metadata: z.object({
+            otherMetadata: z.unknown(),
+            scoreRange: z.unknown(),
+            title: z.unknown(),
+          }).partial(),
+          pairwiseMetricSpec: z.object({
+            baselineResponseFieldName: z.unknown(),
+            candidateResponseFieldName: z.unknown(),
+            customOutputFormatConfig: z.unknown(),
+            metricPromptTemplate: z.unknown(),
+            systemInstruction: z.unknown(),
+          }).partial(),
+          pointwiseMetricSpec: z.object({
+            customOutputFormatConfig: z.unknown(),
+            metricPromptTemplate: z.unknown(),
+            systemInstruction: z.unknown(),
+          }).partial(),
+          predefinedMetricSpec: z.object({
+            metricSpecName: z.unknown(),
+            metricSpecParameters: z.unknown(),
+          }).partial(),
+          rougeSpec: z.object({
+            rougeType: z.unknown(),
+            splitSummaries: z.unknown(),
+            useStemmer: z.unknown(),
+          }).partial(),
+        }).partial(),
+        metricResourceName: z.string(),
         predefinedMetricSpec: z.object({
-          metricSpecName: z.unknown(),
-          metricSpecParameters: z.unknown(),
-        }),
-        rougeSpec: z.object({
-          rougeType: z.unknown(),
-          splitSummaries: z.unknown(),
-          useStemmer: z.unknown(),
-        }),
-      }),
-      metricResourceName: z.string(),
-      predefinedMetricSpec: z.object({
-        metricSpecName: z.string(),
-        parameters: z.record(z.string(), z.unknown()),
-      }),
-      rubricBasedMetricSpec: z.object({
-        inlineRubrics: z.object({
-          rubrics: z.unknown(),
-        }),
-        judgeAutoraterConfig: z.object({
-          autoraterModel: z.unknown(),
-          generationConfig: z.unknown(),
-          sampleCount: z.unknown(),
-        }),
-        metricPromptTemplate: z.string(),
-        rubricGenerationSpec: z.object({
-          metricResourceName: z.unknown(),
-          modelConfig: z.unknown(),
-          promptTemplate: z.unknown(),
-          rubricContentType: z.unknown(),
-          rubricTypeOntology: z.unknown(),
-        }),
-        rubricGroupKey: z.string(),
-      }),
-    })),
+          metricSpecName: z.string(),
+          parameters: z.record(z.string(), z.unknown()),
+        }).partial(),
+        rubricBasedMetricSpec: z.object({
+          inlineRubrics: z.object({
+            rubrics: z.unknown(),
+          }).partial(),
+          judgeAutoraterConfig: z.object({
+            autoraterModel: z.unknown(),
+            generationConfig: z.unknown(),
+            sampleCount: z.unknown(),
+          }).partial(),
+          metricPromptTemplate: z.string(),
+          rubricGenerationSpec: z.object({
+            metricResourceName: z.unknown(),
+            modelConfig: z.unknown(),
+            promptTemplate: z.unknown(),
+            rubricContentType: z.unknown(),
+            rubricTypeOntology: z.unknown(),
+          }).partial(),
+          rubricGroupKey: z.string(),
+        }).partial(),
+      }).partial(),
+    ),
     outputConfig: z.object({
       bigqueryDestination: z.object({
         outputUri: z.string(),
-      }),
+      }).partial(),
       gcsDestination: z.object({
         outputUriPrefix: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     promptTemplate: z.object({
       gcsUri: z.string(),
       promptTemplate: z.string(),
-    }),
-    rubricConfigs: z.array(z.object({
-      predefinedRubricGenerationSpec: z.object({
-        metricSpecName: z.string(),
-        parameters: z.record(z.string(), z.unknown()),
-      }),
-      rubricGenerationSpec: z.object({
-        metricResourceName: z.string(),
-        modelConfig: z.object({
-          autoraterModel: z.unknown(),
-          generationConfig: z.unknown(),
-          sampleCount: z.unknown(),
-        }),
-        promptTemplate: z.string(),
-        rubricContentType: z.string(),
-        rubricTypeOntology: z.array(z.unknown()),
-      }),
-      rubricGroupKey: z.string(),
-    })),
-  }).optional(),
+    }).partial(),
+    rubricConfigs: z.array(
+      z.object({
+        predefinedRubricGenerationSpec: z.object({
+          metricSpecName: z.string(),
+          parameters: z.record(z.string(), z.unknown()),
+        }).partial(),
+        rubricGenerationSpec: z.object({
+          metricResourceName: z.string(),
+          modelConfig: z.object({
+            autoraterModel: z.unknown(),
+            generationConfig: z.unknown(),
+            sampleCount: z.unknown(),
+          }).partial(),
+          promptTemplate: z.string(),
+          rubricContentType: z.string(),
+          rubricTypeOntology: z.array(z.unknown()),
+        }).partial(),
+        rubricGroupKey: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   evaluationResults: z.object({
     evaluationSet: z.string(),
     summaryMetrics: z.object({
       failedItems: z.number(),
       metrics: z.record(z.string(), z.unknown()),
       totalItems: z.number(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   evaluationSetSnapshot: z.string().optional(),
   inferenceConfigs: z.record(z.string(), z.unknown()).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -2815,7 +2825,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationRuns. Registered at `@swamp/gcp/aiplatform/evaluationruns`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationruns",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3072,6 +3082,11 @@ export const model = {
     {
       toVersion: "2026.11.07.1",
       description: "Added: serviceAccount",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

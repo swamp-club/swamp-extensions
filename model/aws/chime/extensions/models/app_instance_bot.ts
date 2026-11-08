@@ -73,6 +73,24 @@ const TagSchema = z.object({
   Value: z.string().min(1).max(256).describe("The value in a tag."),
 });
 
+const InvokedByStateSchema = z.object({
+  StandardMessages: z.string(),
+  TargetedMessages: z.string(),
+}).partial();
+
+const LexConfigurationStateSchema = z.object({
+  RespondsTo: z.string(),
+  InvokedBy: InvokedByStateSchema,
+  LexBotAliasArn: z.string(),
+  LocaleId: z.string(),
+  WelcomeIntent: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -117,14 +135,14 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Metadata: z.string().optional(),
   Configuration: z.object({
-    Lex: LexConfigurationSchema,
-  }).optional(),
+    Lex: LexConfigurationStateSchema,
+  }).partial().optional(),
   CreatedTimestamp: z.string().optional(),
   LastUpdatedTimestamp: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -173,7 +191,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime AppInstanceBot. Registered at `@swamp/aws/chime/app-instance-bot`. */
 export const model = {
   type: "@swamp/aws/chime/app-instance-bot",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -217,6 +235,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

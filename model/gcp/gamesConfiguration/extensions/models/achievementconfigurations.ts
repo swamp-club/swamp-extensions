@@ -248,50 +248,58 @@ const StateSchema = z.object({
   draft: z.object({
     description: z.object({
       kind: z.string(),
-      translations: z.array(z.object({
-        kind: z.string(),
-        locale: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translations: z.array(
+        z.object({
+          kind: z.string(),
+          locale: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     iconUrl: z.string(),
     kind: z.string(),
     name: z.object({
       kind: z.string(),
-      translations: z.array(z.object({
-        kind: z.string(),
-        locale: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translations: z.array(
+        z.object({
+          kind: z.string(),
+          locale: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     pointValue: z.number(),
     sortRank: z.number(),
-  }).optional(),
+  }).partial().optional(),
   id: z.string().optional(),
   initialState: z.string().optional(),
   kind: z.string().optional(),
   published: z.object({
     description: z.object({
       kind: z.string(),
-      translations: z.array(z.object({
-        kind: z.string(),
-        locale: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translations: z.array(
+        z.object({
+          kind: z.string(),
+          locale: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     iconUrl: z.string(),
     kind: z.string(),
     name: z.object({
       kind: z.string(),
-      translations: z.array(z.object({
-        kind: z.string(),
-        locale: z.string(),
-        value: z.string(),
-      })),
-    }),
+      translations: z.array(
+        z.object({
+          kind: z.string(),
+          locale: z.string(),
+          value: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     pointValue: z.number(),
     sortRank: z.number(),
-  }).optional(),
+  }).partial().optional(),
   stepsToUnlock: z.number().optional(),
   token: z.string().optional(),
 }).passthrough();
@@ -425,7 +433,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Games Services Publishing AchievementConfigurations. Registered at `@swamp/gcp/gamesconfiguration/achievementconfigurations`. */
 export const model = {
   type: "@swamp/gcp/gamesconfiguration/achievementconfigurations",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -559,6 +567,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

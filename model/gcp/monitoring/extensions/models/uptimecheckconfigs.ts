@@ -355,25 +355,29 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   checkerType: z.string().optional(),
-  contentMatchers: z.array(z.object({
-    content: z.string(),
-    jsonPathMatcher: z.object({
-      jsonMatcher: z.string(),
-      jsonPath: z.string(),
-    }),
-    matcher: z.string(),
-  })).optional(),
+  contentMatchers: z.array(
+    z.object({
+      content: z.string(),
+      jsonPathMatcher: z.object({
+        jsonMatcher: z.string(),
+        jsonPath: z.string(),
+      }).partial(),
+      matcher: z.string(),
+    }).partial(),
+  ).optional(),
   disabled: z.boolean().optional(),
   displayName: z.string().optional(),
   httpCheck: z.object({
-    acceptedResponseStatusCodes: z.array(z.object({
-      statusClass: z.string(),
-      statusValue: z.number(),
-    })),
+    acceptedResponseStatusCodes: z.array(
+      z.object({
+        statusClass: z.string(),
+        statusValue: z.number(),
+      }).partial(),
+    ),
     authInfo: z.object({
       password: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     body: z.string(),
     contentType: z.string(),
     customContentType: z.string(),
@@ -382,51 +386,53 @@ const StateSchema = z.object({
     path: z.string(),
     pingConfig: z.object({
       pingsCount: z.number(),
-    }),
+    }).partial(),
     port: z.number(),
     requestMethod: z.string(),
     serviceAgentAuthentication: z.object({
       type: z.string(),
-    }),
+    }).partial(),
     useSsl: z.boolean(),
     validateSsl: z.boolean(),
-  }).optional(),
-  internalCheckers: z.array(z.object({
-    displayName: z.string(),
-    gcpZone: z.string(),
-    name: z.string(),
-    network: z.string(),
-    peerProjectId: z.string(),
-    state: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  internalCheckers: z.array(
+    z.object({
+      displayName: z.string(),
+      gcpZone: z.string(),
+      name: z.string(),
+      network: z.string(),
+      peerProjectId: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   isInternal: z.boolean().optional(),
   logCheckFailures: z.boolean().optional(),
   monitoredResource: z.object({
     labels: z.record(z.string(), z.unknown()),
     type: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   period: z.string().optional(),
   resourceGroup: z.object({
     groupId: z.string(),
     resourceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   selectedRegions: z.array(z.string()).optional(),
   syntheticMonitor: z.object({
     cloudFunctionV2: z.object({
       cloudRunRevision: z.object({
         labels: z.record(z.string(), z.unknown()),
         type: z.string(),
-      }),
+      }).partial(),
       name: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   tcpCheck: z.object({
     pingConfig: z.object({
       pingsCount: z.number(),
-    }),
+    }).partial(),
     port: z.number(),
-  }).optional(),
+  }).partial().optional(),
   timeout: z.string().optional(),
   userLabels: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
@@ -665,7 +671,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring UptimeCheckConfigs. Registered at `@swamp/gcp/monitoring/uptimecheckconfigs`. */
 export const model = {
   type: "@swamp/gcp/monitoring/uptimecheckconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -804,6 +810,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

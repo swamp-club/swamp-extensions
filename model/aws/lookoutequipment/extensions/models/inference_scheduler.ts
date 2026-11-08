@@ -73,6 +73,26 @@ const TagSchema = z.object({
     .describe("The value for the specified tag."),
 });
 
+const InputNameConfigurationStateSchema = z.object({
+  ComponentTimestampDelimiter: z.string(),
+  TimestampFormat: z.string(),
+}).partial();
+
+const S3InputConfigurationStateSchema = z.object({
+  Bucket: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const S3OutputConfigurationStateSchema = z.object({
+  Bucket: z.string(),
+  Prefix: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -147,23 +167,23 @@ const StateSchema = z.object({
   DataDelayOffsetInMinutes: z.number().optional(),
   DataInputConfiguration: z.object({
     InputTimeZoneOffset: z.string(),
-    InferenceInputNameConfiguration: InputNameConfigurationSchema,
-    S3InputConfiguration: S3InputConfigurationSchema,
-  }).optional(),
+    InferenceInputNameConfiguration: InputNameConfigurationStateSchema,
+    S3InputConfiguration: S3InputConfigurationStateSchema,
+  }).partial().optional(),
   DataOutputConfiguration: z.object({
     KmsKeyId: z.string(),
-    S3OutputConfiguration: S3OutputConfigurationSchema,
-  }).optional(),
+    S3OutputConfiguration: S3OutputConfigurationStateSchema,
+  }).partial().optional(),
   DataUploadFrequency: z.string().optional(),
   InferenceSchedulerName: z.string(),
   ModelName: z.string().optional(),
   RoleArn: z.string().optional(),
   ServerSideKmsKeyId: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
   InferenceSchedulerArn: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -246,7 +266,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LookoutEquipment InferenceScheduler. Registered at `@swamp/aws/lookoutequipment/inference-scheduler`. */
 export const model = {
   type: "@swamp/aws/lookoutequipment/inference-scheduler",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -310,6 +330,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

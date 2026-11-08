@@ -188,6 +188,134 @@ const TagSchema = z.object({
   ),
 });
 
+const FleetAmountCapabilityStateSchema = z.object({
+  Name: z.string(),
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const FleetAttributeCapabilityStateSchema = z.object({
+  Name: z.string(),
+  Values: z.array(z.string()),
+}).partial();
+
+const CustomerManagedAutoScalingConfigurationStateSchema = z.object({
+  StandbyWorkerCount: z.number(),
+  WorkerIdleDurationSeconds: z.number(),
+  ScaleOutWorkersPerMinute: z.number(),
+}).partial();
+
+const VCpuCountRangeStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const MemoryMiBRangeStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorCountRangeStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const AcceleratorTotalMemoryMiBRangeStateSchema = z.object({
+  Min: z.number(),
+  Max: z.number(),
+}).partial();
+
+const CustomerManagedWorkerCapabilitiesStateSchema = z.object({
+  VCpuCount: VCpuCountRangeStateSchema,
+  MemoryMiB: MemoryMiBRangeStateSchema,
+  AcceleratorTypes: z.array(z.string()),
+  AcceleratorCount: AcceleratorCountRangeStateSchema,
+  AcceleratorTotalMemoryMiB: AcceleratorTotalMemoryMiBRangeStateSchema,
+  OsFamily: z.string(),
+  CpuArchitectureType: z.string(),
+  CustomAmounts: z.array(FleetAmountCapabilityStateSchema),
+  CustomAttributes: z.array(FleetAttributeCapabilityStateSchema),
+}).partial();
+
+const CustomerManagedFleetConfigurationStateSchema = z.object({
+  Mode: z.string(),
+  AutoScalingConfiguration: CustomerManagedAutoScalingConfigurationStateSchema,
+  WorkerCapabilities: CustomerManagedWorkerCapabilitiesStateSchema,
+  StorageProfileId: z.string(),
+  TagPropagationMode: z.string(),
+}).partial();
+
+const Ec2EbsVolumeStateSchema = z.object({
+  SizeGiB: z.number(),
+  Iops: z.number(),
+  ThroughputMiB: z.number(),
+}).partial();
+
+const AcceleratorSelectionStateSchema = z.object({
+  Name: z.string(),
+  Runtime: z.string(),
+}).partial();
+
+const AcceleratorCapabilitiesStateSchema = z.object({
+  Selections: z.array(AcceleratorSelectionStateSchema),
+  Count: AcceleratorCountRangeStateSchema,
+}).partial();
+
+const FleetSoftwareAddOnStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const ServiceManagedEc2InstanceCapabilitiesStateSchema = z.object({
+  VCpuCount: VCpuCountRangeStateSchema,
+  MemoryMiB: MemoryMiBRangeStateSchema,
+  OsFamily: z.string(),
+  CpuArchitectureType: z.string(),
+  RootEbsVolume: Ec2EbsVolumeStateSchema,
+  AcceleratorCapabilities: AcceleratorCapabilitiesStateSchema,
+  AllowedInstanceTypes: z.array(z.string()),
+  ExcludedInstanceTypes: z.array(z.string()),
+  CustomAmounts: z.array(FleetAmountCapabilityStateSchema),
+  CustomAttributes: z.array(FleetAttributeCapabilityStateSchema),
+  SoftwareAddOns: z.array(FleetSoftwareAddOnStateSchema),
+}).partial();
+
+const ServiceManagedEc2InstanceMarketOptionsStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const VpcConfigurationStateSchema = z.object({
+  ResourceConfigurationArns: z.array(z.string()),
+}).partial();
+
+const PersistentVolumeConfigurationStateSchema = z.object({
+  SizeGiB: z.number(),
+  Iops: z.number(),
+  ThroughputMiB: z.number(),
+  MountPath: z.string(),
+  LastUsedTtlHours: z.number(),
+}).partial();
+
+const ServiceManagedEc2AutoScalingConfigurationStateSchema = z.object({
+  StandbyWorkerCount: z.number(),
+  WorkerIdleDurationSeconds: z.number(),
+  ScaleOutWorkersPerMinute: z.number(),
+}).partial();
+
+const ServiceManagedEc2FleetConfigurationStateSchema = z.object({
+  InstanceCapabilities: ServiceManagedEc2InstanceCapabilitiesStateSchema,
+  InstanceMarketOptions: ServiceManagedEc2InstanceMarketOptionsStateSchema,
+  VpcConfiguration: VpcConfigurationStateSchema,
+  StorageProfileId: z.string(),
+  PersistentVolumeConfiguration: PersistentVolumeConfigurationStateSchema,
+  AutoScalingConfiguration:
+    ServiceManagedEc2AutoScalingConfigurationStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -233,13 +361,13 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Capabilities: z.object({
-    Amounts: z.array(FleetAmountCapabilitySchema),
-    Attributes: z.array(FleetAttributeCapabilitySchema),
-  }).optional(),
+    Amounts: z.array(FleetAmountCapabilityStateSchema),
+    Attributes: z.array(FleetAttributeCapabilityStateSchema),
+  }).partial().optional(),
   Configuration: z.object({
-    CustomerManaged: CustomerManagedFleetConfigurationSchema,
-    ServiceManagedEc2: ServiceManagedEc2FleetConfigurationSchema,
-  }).optional(),
+    CustomerManaged: CustomerManagedFleetConfigurationStateSchema,
+    ServiceManagedEc2: ServiceManagedEc2FleetConfigurationStateSchema,
+  }).partial().optional(),
   Description: z.string().optional(),
   DisplayName: z.string().optional(),
   FarmId: z.string().optional(),
@@ -247,7 +375,7 @@ const StateSchema = z.object({
   HostConfiguration: z.object({
     ScriptBody: z.string(),
     ScriptTimeoutSeconds: z.number(),
-  }).optional(),
+  }).partial().optional(),
   MaxWorkerCount: z.number().optional(),
   MinWorkerCount: z.number().optional(),
   RoleArn: z.string().optional(),
@@ -255,10 +383,10 @@ const StateSchema = z.object({
   StatusMessage: z.string().optional(),
   WorkerCount: z.number().optional(),
   Arn: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -312,7 +440,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Deadline Fleet. Registered at `@swamp/aws/deadline/fleet`. */
 export const model = {
   type: "@swamp/aws/deadline/fleet",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -396,6 +524,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

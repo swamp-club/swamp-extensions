@@ -51,6 +51,11 @@ const TagSchema = z.object({
   ),
 });
 
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -103,17 +108,17 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   StorageConfiguration: z.object({
     RetentionPeriodInDays: z.number(),
-  }).optional(),
+  }).partial().optional(),
   EncryptionConfiguration: z.object({
     KmsKeyIdentifier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   State: z.string().optional(),
   CreationTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -170,7 +175,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EventsV2 EventBus. Registered at `@swamp/aws/eventsv2/event-bus`. */
 export const model = {
   type: "@swamp/aws/eventsv2/event-bus",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -184,6 +189,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

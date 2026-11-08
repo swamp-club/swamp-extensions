@@ -159,128 +159,146 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   acl: z.object({
     aclInheritanceType: z.string(),
-    deniedReaders: z.array(z.object({
-      groupResourceName: z.string(),
-      gsuitePrincipal: z.object({
-        gsuiteDomain: z.boolean(),
-        gsuiteGroupEmail: z.string(),
-        gsuiteUserEmail: z.string(),
-      }),
-      userResourceName: z.string(),
-    })),
+    deniedReaders: z.array(
+      z.object({
+        groupResourceName: z.string(),
+        gsuitePrincipal: z.object({
+          gsuiteDomain: z.boolean(),
+          gsuiteGroupEmail: z.string(),
+          gsuiteUserEmail: z.string(),
+        }).partial(),
+        userResourceName: z.string(),
+      }).partial(),
+    ),
     inheritAclFrom: z.string(),
-    owners: z.array(z.object({
-      groupResourceName: z.string(),
-      gsuitePrincipal: z.object({
-        gsuiteDomain: z.boolean(),
-        gsuiteGroupEmail: z.string(),
-        gsuiteUserEmail: z.string(),
-      }),
-      userResourceName: z.string(),
-    })),
-    readers: z.array(z.object({
-      groupResourceName: z.string(),
-      gsuitePrincipal: z.object({
-        gsuiteDomain: z.boolean(),
-        gsuiteGroupEmail: z.string(),
-        gsuiteUserEmail: z.string(),
-      }),
-      userResourceName: z.string(),
-    })),
-  }).optional(),
+    owners: z.array(
+      z.object({
+        groupResourceName: z.string(),
+        gsuitePrincipal: z.object({
+          gsuiteDomain: z.boolean(),
+          gsuiteGroupEmail: z.string(),
+          gsuiteUserEmail: z.string(),
+        }).partial(),
+        userResourceName: z.string(),
+      }).partial(),
+    ),
+    readers: z.array(
+      z.object({
+        groupResourceName: z.string(),
+        gsuitePrincipal: z.object({
+          gsuiteDomain: z.boolean(),
+          gsuiteGroupEmail: z.string(),
+          gsuiteUserEmail: z.string(),
+        }).partial(),
+        userResourceName: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   content: z.object({
     contentDataRef: z.object({
       name: z.string(),
-    }),
+    }).partial(),
     contentFormat: z.string(),
     hash: z.string(),
     inlineContent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   itemType: z.string().optional(),
   metadata: z.object({
     containerName: z.string(),
     contentLanguage: z.string(),
-    contextAttributes: z.array(z.object({
-      name: z.string(),
-      values: z.array(z.string()),
-    })),
+    contextAttributes: z.array(
+      z.object({
+        name: z.string(),
+        values: z.array(z.string()),
+      }).partial(),
+    ),
     createTime: z.string(),
     hash: z.string(),
-    interactions: z.array(z.object({
-      interactionTime: z.string(),
-      principal: z.object({
-        groupResourceName: z.string(),
-        gsuitePrincipal: z.object({
-          gsuiteDomain: z.unknown(),
-          gsuiteGroupEmail: z.unknown(),
-          gsuiteUserEmail: z.unknown(),
-        }),
-        userResourceName: z.string(),
-      }),
-      type: z.string(),
-    })),
+    interactions: z.array(
+      z.object({
+        interactionTime: z.string(),
+        principal: z.object({
+          groupResourceName: z.string(),
+          gsuitePrincipal: z.object({
+            gsuiteDomain: z.unknown(),
+            gsuiteGroupEmail: z.unknown(),
+            gsuiteUserEmail: z.unknown(),
+          }).partial(),
+          userResourceName: z.string(),
+        }).partial(),
+        type: z.string(),
+      }).partial(),
+    ),
     keywords: z.array(z.string()),
     mimeType: z.string(),
     objectType: z.string(),
     searchQualityMetadata: z.object({
       quality: z.number(),
-    }),
+    }).partial(),
     sourceRepositoryUrl: z.string(),
     title: z.string(),
     updateTime: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   payload: z.string().optional(),
   queue: z.string().optional(),
   status: z.object({
     code: z.string(),
-    processingErrors: z.array(z.object({
-      code: z.string(),
-      errorMessage: z.string(),
-      fieldViolations: z.array(z.object({
-        description: z.unknown(),
-        field: z.unknown(),
-      })),
-    })),
-    repositoryErrors: z.array(z.object({
-      errorMessage: z.string(),
-      httpStatusCode: z.number(),
-      type: z.string(),
-    })),
-  }).optional(),
+    processingErrors: z.array(
+      z.object({
+        code: z.string(),
+        errorMessage: z.string(),
+        fieldViolations: z.array(
+          z.object({
+            description: z.unknown(),
+            field: z.unknown(),
+          }).partial(),
+        ),
+      }).partial(),
+    ),
+    repositoryErrors: z.array(
+      z.object({
+        errorMessage: z.string(),
+        httpStatusCode: z.number(),
+        type: z.string(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   structuredData: z.object({
     hash: z.string(),
     object: z.object({
-      properties: z.array(z.object({
-        booleanValue: z.boolean(),
-        dateValues: z.object({
-          values: z.unknown(),
-        }),
-        doubleValues: z.object({
-          values: z.unknown(),
-        }),
-        enumValues: z.object({
-          values: z.unknown(),
-        }),
-        htmlValues: z.object({
-          values: z.unknown(),
-        }),
-        integerValues: z.object({
-          values: z.unknown(),
-        }),
-        name: z.string(),
-        objectValues: z.object({
-          values: z.unknown(),
-        }),
-        textValues: z.object({
-          values: z.unknown(),
-        }),
-        timestampValues: z.object({
-          values: z.unknown(),
-        }),
-      })),
-    }),
-  }).optional(),
+      properties: z.array(
+        z.object({
+          booleanValue: z.boolean(),
+          dateValues: z.object({
+            values: z.unknown(),
+          }).partial(),
+          doubleValues: z.object({
+            values: z.unknown(),
+          }).partial(),
+          enumValues: z.object({
+            values: z.unknown(),
+          }).partial(),
+          htmlValues: z.object({
+            values: z.unknown(),
+          }).partial(),
+          integerValues: z.object({
+            values: z.unknown(),
+          }).partial(),
+          name: z.string(),
+          objectValues: z.object({
+            values: z.unknown(),
+          }).partial(),
+          textValues: z.object({
+            values: z.unknown(),
+          }).partial(),
+          timestampValues: z.object({
+            values: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   version: z.string().optional(),
 }).passthrough();
 
@@ -324,7 +342,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Indexing.Datasources.Items. Registered at `@swamp/gcp/cloudsearch/indexing-datasources-items`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/indexing-datasources-items",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -448,6 +466,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

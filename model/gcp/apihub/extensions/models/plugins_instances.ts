@@ -404,59 +404,61 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  actions: z.array(z.object({
-    actionId: z.string(),
-    curationConfig: z.object({
-      curationType: z.string(),
-      customCuration: z.object({
-        curation: z.string(),
-      }),
-    }),
-    hubInstanceAction: z.object({
-      currentExecutionState: z.string(),
-      lastExecution: z.object({
-        endTime: z.string(),
-        errorMessage: z.string(),
-        result: z.string(),
-        resultMetadata: z.string(),
-        startTime: z.string(),
-      }),
-    }),
-    resourceConfig: z.object({
-      actionType: z.string(),
-      pubsubTopic: z.string(),
-    }),
-    scheduleCronExpression: z.string(),
-    scheduleTimeZone: z.string(),
-    serviceAccount: z.string(),
-    state: z.string(),
-  })).optional(),
+  actions: z.array(
+    z.object({
+      actionId: z.string(),
+      curationConfig: z.object({
+        curationType: z.string(),
+        customCuration: z.object({
+          curation: z.string(),
+        }).partial(),
+      }).partial(),
+      hubInstanceAction: z.object({
+        currentExecutionState: z.string(),
+        lastExecution: z.object({
+          endTime: z.string(),
+          errorMessage: z.string(),
+          result: z.string(),
+          resultMetadata: z.string(),
+          startTime: z.string(),
+        }).partial(),
+      }).partial(),
+      resourceConfig: z.object({
+        actionType: z.string(),
+        pubsubTopic: z.string(),
+      }).partial(),
+      scheduleCronExpression: z.string(),
+      scheduleTimeZone: z.string(),
+      serviceAccount: z.string(),
+      state: z.string(),
+    }).partial(),
+  ).optional(),
   additionalConfig: z.record(z.string(), z.unknown()).optional(),
   authConfig: z.object({
     apiKeyConfig: z.object({
       apiKey: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       httpElementLocation: z.string(),
       name: z.string(),
-    }),
+    }).partial(),
     authType: z.string(),
     googleServiceAccountConfig: z.object({
       serviceAccount: z.string(),
-    }),
+    }).partial(),
     oauth2ClientCredentialsConfig: z.object({
       clientId: z.string(),
       clientSecret: z.object({
         secretVersion: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     userPasswordConfig: z.object({
       password: z.object({
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   errorMessage: z.string().optional(),
@@ -748,7 +750,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Plugins.Instances. Registered at `@swamp/gcp/apihub/plugins-instances`. */
 export const model = {
   type: "@swamp/gcp/apihub/plugins-instances",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -897,6 +899,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

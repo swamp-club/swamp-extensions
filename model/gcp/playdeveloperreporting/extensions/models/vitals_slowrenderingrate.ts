@@ -85,24 +85,26 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   freshnessInfo: z.object({
-    freshnesses: z.array(z.object({
-      aggregationPeriod: z.string(),
-      latestEndTime: z.object({
-        day: z.number(),
-        hours: z.number(),
-        minutes: z.number(),
-        month: z.number(),
-        nanos: z.number(),
-        seconds: z.number(),
-        timeZone: z.object({
-          id: z.unknown(),
-          version: z.unknown(),
-        }),
-        utcOffset: z.string(),
-        year: z.number(),
-      }),
-    })),
-  }).optional(),
+    freshnesses: z.array(
+      z.object({
+        aggregationPeriod: z.string(),
+        latestEndTime: z.object({
+          day: z.number(),
+          hours: z.number(),
+          minutes: z.number(),
+          month: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+          timeZone: z.object({
+            id: z.unknown(),
+            version: z.unknown(),
+          }).partial(),
+          utcOffset: z.string(),
+          year: z.number(),
+        }).partial(),
+      }).partial(),
+    ),
+  }).partial().optional(),
   name: z.string(),
 }).passthrough();
 
@@ -144,7 +146,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Developer Reporting Vitals.Slowrenderingrate. Registered at `@swamp/gcp/playdeveloperreporting/vitals-slowrenderingrate`. */
 export const model = {
   type: "@swamp/gcp/playdeveloperreporting/vitals-slowrenderingrate",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -263,6 +265,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

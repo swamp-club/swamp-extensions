@@ -154,171 +154,179 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ageRangeDetails: z.object({
     ageRange: z.string(),
-  }).optional(),
+  }).partial().optional(),
   appCategoryDetails: z.object({
     displayName: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   appDetails: z.object({
     appId: z.string(),
     appPlatform: z.string(),
     displayName: z.string(),
     negative: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   assignedTargetingOptionId: z.string().optional(),
   assignedTargetingOptionIdAlias: z.string().optional(),
   audienceGroupDetails: z.object({
     excludedGoogleAudienceGroup: z.object({
-      settings: z.array(z.object({
-        googleAudienceId: z.string(),
-      })),
-    }),
+      settings: z.array(
+        z.object({
+          googleAudienceId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     includedCombinedAudienceGroup: z.object({
-      settings: z.array(z.object({
-        combinedAudienceId: z.string(),
-      })),
-    }),
+      settings: z.array(
+        z.object({
+          combinedAudienceId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     includedCustomListGroup: z.object({
-      settings: z.array(z.object({
-        customListId: z.string(),
-      })),
-    }),
+      settings: z.array(
+        z.object({
+          customListId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
     includedGoogleAudienceGroup: z.object({
-      settings: z.array(z.object({
-        googleAudienceId: z.string(),
-      })),
-    }),
-  }).optional(),
+      settings: z.array(
+        z.object({
+          googleAudienceId: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  }).partial().optional(),
   audioContentTypeDetails: z.object({
     audioContentType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   authorizedSellerStatusDetails: z.object({
     authorizedSellerStatus: z.string(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   browserDetails: z.object({
     displayName: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   businessChainDetails: z.object({
     displayName: z.string(),
     proximityRadiusAmount: z.number(),
     proximityRadiusUnit: z.string(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   carrierAndIspDetails: z.object({
     displayName: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   categoryDetails: z.object({
     displayName: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   channelDetails: z.object({
     channelId: z.string(),
     negative: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   contentDurationDetails: z.object({
     contentDuration: z.string(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentGenreDetails: z.object({
     displayName: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentInstreamPositionDetails: z.object({
     adType: z.string(),
     contentInstreamPosition: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentOutstreamPositionDetails: z.object({
     adType: z.string(),
     contentOutstreamPosition: z.string(),
-  }).optional(),
+  }).partial().optional(),
   contentStreamTypeDetails: z.object({
     contentStreamType: z.string(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   dayAndTimeDetails: z.object({
     dayOfWeek: z.string(),
     endHour: z.number(),
     startHour: z.number(),
     timeZoneResolution: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deviceMakeModelDetails: z.object({
     displayName: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   deviceTypeDetails: z.object({
     deviceType: z.string(),
     youtubeAndPartnersBidMultiplier: z.number(),
-  }).optional(),
+  }).partial().optional(),
   digitalContentLabelExclusionDetails: z.object({
     excludedContentRatingTier: z.string(),
-  }).optional(),
+  }).partial().optional(),
   environmentDetails: z.object({
     environment: z.string(),
-  }).optional(),
+  }).partial().optional(),
   exchangeDetails: z.object({
     exchange: z.string(),
-  }).optional(),
+  }).partial().optional(),
   genderDetails: z.object({
     gender: z.string(),
-  }).optional(),
+  }).partial().optional(),
   geoRegionDetails: z.object({
     displayName: z.string(),
     geoRegionType: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   householdIncomeDetails: z.object({
     householdIncome: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inheritance: z.string().optional(),
   inventorySourceDetails: z.object({
     inventorySourceId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   inventorySourceGroupDetails: z.object({
     inventorySourceGroupId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   keywordDetails: z.object({
     exemptedPolicyNames: z.array(z.string()),
     keyword: z.string(),
     negative: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   languageDetails: z.object({
     displayName: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   nativeContentPositionDetails: z.object({
     contentPosition: z.string(),
-  }).optional(),
+  }).partial().optional(),
   negativeKeywordListDetails: z.object({
     negativeKeywordListId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   omidDetails: z.object({
     omid: z.string(),
-  }).optional(),
+  }).partial().optional(),
   onScreenPositionDetails: z.object({
     adType: z.string(),
     onScreenPosition: z.string(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   operatingSystemDetails: z.object({
     displayName: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   parentalStatusDetails: z.object({
     parentalStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
   poiDetails: z.object({
     displayName: z.string(),
     latitude: z.number(),
@@ -326,56 +334,56 @@ const StateSchema = z.object({
     proximityRadiusAmount: z.number(),
     proximityRadiusUnit: z.string(),
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   proximityLocationListDetails: z.object({
     proximityLocationListId: z.string(),
     proximityRadius: z.number(),
     proximityRadiusUnit: z.string(),
-  }).optional(),
+  }).partial().optional(),
   regionalLocationListDetails: z.object({
     negative: z.boolean(),
     regionalLocationListId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sensitiveCategoryExclusionDetails: z.object({
     excludedSensitiveCategory: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sessionPositionDetails: z.object({
     sessionPosition: z.string(),
-  }).optional(),
+  }).partial().optional(),
   subExchangeDetails: z.object({
     targetingOptionId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   targetingType: z.string().optional(),
   thirdPartyVerifierDetails: z.object({
     adloox: z.object({
       excludedAdlooxCategories: z.array(z.string()),
-    }),
+    }).partial(),
     doubleVerify: z.object({
       appStarRating: z.object({
         avoidInsufficientStarRating: z.boolean(),
         avoidedStarRating: z.string(),
-      }),
+      }).partial(),
       avoidedAgeRatings: z.array(z.string()),
       brandSafetyCategories: z.object({
         avoidUnknownBrandSafetyCategory: z.boolean(),
         avoidedHighSeverityCategories: z.array(z.string()),
         avoidedMediumSeverityCategories: z.array(z.string()),
-      }),
+      }).partial(),
       customSegmentId: z.string(),
       displayViewability: z.object({
         iab: z.string(),
         viewableDuring: z.string(),
-      }),
+      }).partial(),
       fraudInvalidTraffic: z.object({
         avoidInsufficientOption: z.boolean(),
         avoidedFraudOption: z.string(),
-      }),
+      }).partial(),
       videoViewability: z.object({
         playerImpressionRate: z.string(),
         videoIab: z.string(),
         videoViewableRate: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     integralAdScience: z.object({
       customSegmentId: z.array(z.string()),
       displayViewability: z.string(),
@@ -391,34 +399,34 @@ const StateSchema = z.object({
       excludedViolenceRisk: z.string(),
       traqScoreOption: z.string(),
       videoViewability: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   urlDetails: z.object({
     negative: z.boolean(),
     url: z.string(),
-  }).optional(),
+  }).partial().optional(),
   userRewardedContentDetails: z.object({
     targetingOptionId: z.string(),
     userRewardedContent: z.string(),
-  }).optional(),
+  }).partial().optional(),
   videoPlayerSizeDetails: z.object({
     videoPlayerSize: z.string(),
-  }).optional(),
+  }).partial().optional(),
   viewabilityDetails: z.object({
     viewability: z.string(),
-  }).optional(),
+  }).partial().optional(),
   youtubeChannelDetails: z.object({
     channelId: z.string(),
     negative: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   youtubeChannelPackDetails: z.object({
     channelPackId: z.string(),
     negative: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
   youtubeVideoDetails: z.object({
     negative: z.boolean(),
     videoId: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -469,7 +477,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-youtubeadgroups-targetingtypes-assignedtargetingoptions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -493,6 +501,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -230,28 +230,36 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   gatewayServiceAccount: z.string().optional(),
-  grpcServices: z.array(z.object({
-    fileDescriptorSet: z.object({
-      contents: z.string(),
-      path: z.string(),
-    }),
-    source: z.array(z.object({
-      contents: z.string(),
-      path: z.string(),
-    })),
-  })).optional(),
+  grpcServices: z.array(
+    z.object({
+      fileDescriptorSet: z.object({
+        contents: z.string(),
+        path: z.string(),
+      }).partial(),
+      source: z.array(
+        z.object({
+          contents: z.string(),
+          path: z.string(),
+        }).partial(),
+      ),
+    }).partial(),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
-  managedServiceConfigs: z.array(z.object({
-    contents: z.string(),
-    path: z.string(),
-  })).optional(),
-  name: z.string(),
-  openapiDocuments: z.array(z.object({
-    document: z.object({
+  managedServiceConfigs: z.array(
+    z.object({
       contents: z.string(),
       path: z.string(),
-    }),
-  })).optional(),
+    }).partial(),
+  ).optional(),
+  name: z.string(),
+  openapiDocuments: z.array(
+    z.object({
+      document: z.object({
+        contents: z.string(),
+        path: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
   serviceConfigId: z.string().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
@@ -355,7 +363,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API Gateway Apis.Configs. Registered at `@swamp/gcp/apigateway/apis-configs`. */
 export const model = {
   type: "@swamp/gcp/apigateway/apis-configs",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -520,6 +528,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

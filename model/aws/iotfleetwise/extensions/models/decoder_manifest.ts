@@ -95,6 +95,61 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const CanInterfaceStateSchema = z.object({
+  Name: z.string(),
+  ProtocolName: z.string(),
+  ProtocolVersion: z.string(),
+}).partial();
+
+const ObdInterfaceStateSchema = z.object({
+  Name: z.string(),
+  RequestMessageId: z.number(),
+  ObdStandard: z.string(),
+  PidRequestIntervalSeconds: z.number(),
+  DtcRequestIntervalSeconds: z.number(),
+  UseExtendedIds: z.boolean(),
+  HasTransmissionEcu: z.boolean(),
+}).partial();
+
+const CustomDecodingInterfaceStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const CanSignalStateSchema = z.object({
+  MessageId: z.number(),
+  IsBigEndian: z.boolean(),
+  IsSigned: z.boolean(),
+  StartBit: z.number(),
+  Offset: z.number(),
+  Factor: z.number(),
+  Length: z.number(),
+  Name: z.string(),
+  SignalValueType: z.string(),
+}).partial();
+
+const ObdSignalStateSchema = z.object({
+  PidResponseLength: z.number(),
+  ServiceMode: z.number(),
+  Pid: z.number(),
+  Scaling: z.number(),
+  Offset: z.number(),
+  StartByte: z.number(),
+  ByteLength: z.number(),
+  BitRightShift: z.number(),
+  BitMaskLength: z.number(),
+  IsSigned: z.boolean(),
+  SignalValueType: z.string(),
+}).partial();
+
+const CustomDecodingSignalStateSchema = z.object({
+  Id: z.string(),
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -140,27 +195,31 @@ const StateSchema = z.object({
   LastModificationTime: z.string().optional(),
   ModelManifestArn: z.string().optional(),
   Name: z.string(),
-  NetworkInterfaces: z.array(z.object({
-    InterfaceId: z.string(),
-    Type: z.string(),
-    CanInterface: CanInterfaceSchema,
-    ObdInterface: ObdInterfaceSchema,
-    CustomDecodingInterface: CustomDecodingInterfaceSchema,
-  })).optional(),
-  SignalDecoders: z.array(z.object({
-    FullyQualifiedName: z.string(),
-    Type: z.string(),
-    InterfaceId: z.string(),
-    CanSignal: CanSignalSchema,
-    ObdSignal: ObdSignalSchema,
-    CustomDecodingSignal: CustomDecodingSignalSchema,
-  })).optional(),
+  NetworkInterfaces: z.array(
+    z.object({
+      InterfaceId: z.string(),
+      Type: z.string(),
+      CanInterface: CanInterfaceStateSchema,
+      ObdInterface: ObdInterfaceStateSchema,
+      CustomDecodingInterface: CustomDecodingInterfaceStateSchema,
+    }).partial(),
+  ).optional(),
+  SignalDecoders: z.array(
+    z.object({
+      FullyQualifiedName: z.string(),
+      Type: z.string(),
+      InterfaceId: z.string(),
+      CanSignal: CanSignalStateSchema,
+      ObdSignal: ObdSignalStateSchema,
+      CustomDecodingSignal: CustomDecodingSignalStateSchema,
+    }).partial(),
+  ).optional(),
   Status: z.string().optional(),
   DefaultForUnmappedSignals: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
@@ -212,7 +271,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTFleetWise DecoderManifest. Registered at `@swamp/aws/iotfleetwise/decoder-manifest`. */
 export const model = {
   type: "@swamp/aws/iotfleetwise/decoder-manifest",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -276,6 +335,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

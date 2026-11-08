@@ -641,7 +641,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  bigqueryProfile: z.object({}).optional(),
+  bigqueryProfile: z.object({}).partial().optional(),
   createTime: z.string().optional(),
   dataverseProfile: z.object({
     environmentUrl: z.string(),
@@ -650,10 +650,10 @@ const StateSchema = z.object({
       clientSecret: z.object({
         rawValue: z.string(),
         secretVersion: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     tenantId: z.string(),
-  }).optional(),
+  }).partial().optional(),
   displayName: z.string().optional(),
   forwardSshConnectivity: z.object({
     hostname: z.string(),
@@ -661,22 +661,24 @@ const StateSchema = z.object({
     port: z.number(),
     privateKey: z.string(),
     username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   gcsProfile: z.object({
     bucket: z.string(),
     rootPath: z.string(),
-  }).optional(),
+  }).partial().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   mongodbProfile: z.object({
     additionalOptions: z.record(z.string(), z.unknown()),
-    hostAddresses: z.array(z.object({
-      hostname: z.string(),
-      port: z.number(),
-    })),
+    hostAddresses: z.array(
+      z.object({
+        hostname: z.string(),
+        port: z.number(),
+      }).partial(),
+    ),
     password: z.string(),
     replicaSet: z.string(),
     secretManagerStoredPassword: z.string(),
-    srvConnectionFormat: z.object({}),
+    srvConnectionFormat: z.object({}).partial(),
     sslConfig: z.object({
       caCertificate: z.string(),
       caCertificateSet: z.boolean(),
@@ -685,12 +687,12 @@ const StateSchema = z.object({
       clientKey: z.string(),
       clientKeySet: z.boolean(),
       secretManagerStoredClientKey: z.string(),
-    }),
+    }).partial(),
     standardConnectionFormat: z.object({
       directConnection: z.boolean(),
-    }),
+    }).partial(),
     username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   mysqlProfile: z.object({
     hostname: z.string(),
     password: z.string(),
@@ -703,9 +705,9 @@ const StateSchema = z.object({
       clientCertificateSet: z.boolean(),
       clientKey: z.string(),
       clientKeySet: z.boolean(),
-    }),
+    }).partial(),
     username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   name: z.string(),
   oracleProfile: z.object({
     connectionAttributes: z.record(z.string(), z.unknown()),
@@ -719,22 +721,22 @@ const StateSchema = z.object({
         caCertificate: z.string(),
         caCertificateSet: z.boolean(),
         serverCertificateDistinguishedName: z.string(),
-      }),
+      }).partial(),
       password: z.string(),
       port: z.number(),
       secretManagerStoredPassword: z.string(),
       username: z.string(),
-    }),
+    }).partial(),
     oracleSslConfig: z.object({
       caCertificate: z.string(),
       caCertificateSet: z.boolean(),
       serverCertificateDistinguishedName: z.string(),
-    }),
+    }).partial(),
     password: z.string(),
     port: z.number(),
     secretManagerStoredPassword: z.string(),
     username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   postgresqlProfile: z.object({
     database: z.string(),
     hostname: z.string(),
@@ -747,42 +749,42 @@ const StateSchema = z.object({
         clientCertificate: z.string(),
         clientKey: z.string(),
         serverCertificateHostname: z.string(),
-      }),
+      }).partial(),
       serverVerification: z.object({
         caCertificate: z.string(),
         serverCertificateHostname: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     username: z.string(),
-  }).optional(),
+  }).partial().optional(),
   privateConnectivity: z.object({
     privateConnection: z.string(),
-  }).optional(),
+  }).partial().optional(),
   salesforceMarketingCloudProfile: z.object({
     oauthClientCredentials: z.object({
       clientId: z.string(),
       clientSecret: z.object({
         rawValue: z.string(),
         secretVersion: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     subdomain: z.string(),
-  }).optional(),
+  }).partial().optional(),
   salesforceProfile: z.object({
     domain: z.string(),
     oauth2ClientCredentials: z.object({
       clientId: z.string(),
       clientSecret: z.string(),
       secretManagerStoredClientSecret: z.string(),
-    }),
+    }).partial(),
     userCredentials: z.object({
       password: z.string(),
       secretManagerStoredPassword: z.string(),
       secretManagerStoredSecurityToken: z.string(),
       securityToken: z.string(),
       username: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   serviceNowProfile: z.object({
@@ -792,20 +794,20 @@ const StateSchema = z.object({
       clientSecret: z.object({
         rawValue: z.string(),
         secretVersion: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     userPasswordCredentials: z.object({
       password: z.object({
         rawValue: z.string(),
         secretVersion: z.string(),
-      }),
+      }).partial(),
       username: z.string(),
-    }),
-  }).optional(),
+    }).partial(),
+  }).partial().optional(),
   spannerProfile: z.object({
     database: z.string(),
     host: z.string(),
-  }).optional(),
+  }).partial().optional(),
   sqlServerProfile: z.object({
     database: z.string(),
     hostname: z.string(),
@@ -813,16 +815,16 @@ const StateSchema = z.object({
     port: z.number(),
     secretManagerStoredPassword: z.string(),
     sslConfig: z.object({
-      basicEncryption: z.object({}),
+      basicEncryption: z.object({}).partial(),
       encryptionAndServerValidation: z.object({
         caCertificate: z.string(),
         serverCertificateHostname: z.string(),
-      }),
-      encryptionNotEnforced: z.object({}),
-    }),
+      }).partial(),
+      encryptionNotEnforced: z.object({}).partial(),
+    }).partial(),
     username: z.string(),
-  }).optional(),
-  staticServiceIpConnectivity: z.object({}).optional(),
+  }).partial().optional(),
+  staticServiceIpConnectivity: z.object({}).partial().optional(),
   updateTime: z.string().optional(),
   workdayProfile: z.object({
     host: z.string(),
@@ -832,15 +834,15 @@ const StateSchema = z.object({
         clientSecret: z.object({
           rawValue: z.string(),
           secretVersion: z.string(),
-        }),
-      }),
+        }).partial(),
+      }).partial(),
       refreshToken: z.object({
         rawValue: z.string(),
         secretVersion: z.string(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     tenant: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1335,7 +1337,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Datastream ConnectionProfiles. Registered at `@swamp/gcp/datastream/connectionprofiles`. */
 export const model = {
   type: "@swamp/gcp/datastream/connectionprofiles",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1492,6 +1494,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

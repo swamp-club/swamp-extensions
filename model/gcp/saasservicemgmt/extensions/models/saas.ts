@@ -224,26 +224,30 @@ const StateSchema = z.object({
     applicationTemplate: z.string(),
     revision: z.string(),
     syncOperation: z.string(),
-  }).optional(),
+  }).partial().optional(),
   blueprintRepo: z.string().optional(),
-  conditions: z.array(z.object({
-    lastTransitionTime: z.string(),
-    message: z.string(),
-    reason: z.string(),
-    status: z.string(),
-    type: z.string(),
-  })).optional(),
+  conditions: z.array(
+    z.object({
+      lastTransitionTime: z.string(),
+      message: z.string(),
+      reason: z.string(),
+      status: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   createTime: z.string().optional(),
   error: z.object({
     code: z.number(),
     details: z.array(z.record(z.string(), z.unknown())),
     message: z.string(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
-  locations: z.array(z.object({
-    name: z.string(),
-  })).optional(),
+  locations: z.array(
+    z.object({
+      name: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   state: z.string().optional(),
   uid: z.string().optional(),
@@ -322,7 +326,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager Saas. Registered at `@swamp/gcp/saasservicemgmt/saas`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/saas",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -511,6 +515,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

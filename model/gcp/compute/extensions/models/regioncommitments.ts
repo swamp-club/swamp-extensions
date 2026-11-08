@@ -600,119 +600,127 @@ const StateSchema = z.object({
     amount: z.string(),
     coresPerLicense: z.string(),
     license: z.string(),
-  }).optional(),
+  }).partial().optional(),
   mergeSourceCommitments: z.array(z.string()).optional(),
   name: z.string(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
-  }).optional(),
+  }).partial().optional(),
   plan: z.string().optional(),
   region: z.string().optional(),
-  reservations: z.array(z.object({
-    advancedDeploymentControl: z.object({
-      reservationOperationalMode: z.string(),
-    }),
-    aggregateReservation: z.object({
-      inUseResources: z.array(z.object({
-        accelerator: z.unknown(),
-      })),
-      reservedResources: z.array(z.object({
-        accelerator: z.unknown(),
-      })),
-      vmFamily: z.string(),
-      workloadType: z.string(),
-    }),
-    commitment: z.string(),
-    confidentialComputeType: z.string(),
-    creationTimestamp: z.string(),
-    deleteAfterDuration: z.object({
-      nanos: z.number(),
-      seconds: z.string(),
-    }),
-    deleteAtTime: z.string(),
-    deploymentType: z.string(),
-    description: z.string(),
-    earlyAccessMaintenance: z.string(),
-    enableEmergentMaintenance: z.boolean(),
-    id: z.string(),
-    kind: z.string(),
-    linkedCommitments: z.array(z.string()),
-    name: z.string(),
-    params: z.object({
-      resourceManagerTags: z.record(z.string(), z.unknown()),
-    }),
-    protectionTier: z.string(),
-    reservationSharingPolicy: z.object({
-      serviceShareType: z.string(),
-    }),
-    resourceMetadata: z.object({
-      apiVersion: z.string(),
-      resourceType: z.string(),
-    }),
-    resourcePolicies: z.record(z.string(), z.unknown()),
-    resourceStatus: z.object({
-      healthInfo: z.object({
-        degradedBlockCount: z.number(),
-        healthStatus: z.string(),
-        healthyBlockCount: z.number(),
-      }),
-      reservationBlockCount: z.number(),
-      reservationMaintenance: z.object({
-        instanceMaintenanceOngoingCount: z.number(),
-        instanceMaintenancePendingCount: z.number(),
-        maintenanceOngoingCount: z.number(),
-        maintenancePendingCount: z.number(),
-        schedulingType: z.string(),
-        subblockInfraMaintenanceOngoingCount: z.number(),
-        subblockInfraMaintenancePendingCount: z.number(),
-        upcomingGroupMaintenance: z.object({
-          canReschedule: z.unknown(),
-          latestWindowStartTime: z.unknown(),
-          maintenanceOnShutdown: z.unknown(),
-          maintenanceReasons: z.unknown(),
-          maintenanceStatus: z.unknown(),
-          type: z.unknown(),
-          windowEndTime: z.unknown(),
-          windowStartTime: z.unknown(),
-        }),
-      }),
-      specificSkuAllocation: z.object({
-        sourceInstanceTemplateId: z.string(),
-        utilizations: z.record(z.string(), z.unknown()),
-      }),
-    }),
-    satisfiesPzs: z.boolean(),
-    schedulingType: z.string(),
-    selfLink: z.string(),
-    shareSettings: z.object({
-      projectMap: z.record(z.string(), z.unknown()),
-      shareType: z.string(),
-    }),
-    specificReservation: z.object({
-      assuredCount: z.string(),
-      count: z.string(),
-      inUseCount: z.string(),
-      instanceProperties: z.object({
-        guestAccelerators: z.array(z.unknown()),
-        localSsds: z.array(z.unknown()),
-        locationHint: z.string(),
-        machineType: z.string(),
-        minCpuPlatform: z.string(),
-      }),
-      sourceInstanceTemplate: z.string(),
-    }),
-    specificReservationRequired: z.boolean(),
-    status: z.string(),
-    zone: z.string(),
-  })).optional(),
+  reservations: z.array(
+    z.object({
+      advancedDeploymentControl: z.object({
+        reservationOperationalMode: z.string(),
+      }).partial(),
+      aggregateReservation: z.object({
+        inUseResources: z.array(
+          z.object({
+            accelerator: z.unknown(),
+          }).partial(),
+        ),
+        reservedResources: z.array(
+          z.object({
+            accelerator: z.unknown(),
+          }).partial(),
+        ),
+        vmFamily: z.string(),
+        workloadType: z.string(),
+      }).partial(),
+      commitment: z.string(),
+      confidentialComputeType: z.string(),
+      creationTimestamp: z.string(),
+      deleteAfterDuration: z.object({
+        nanos: z.number(),
+        seconds: z.string(),
+      }).partial(),
+      deleteAtTime: z.string(),
+      deploymentType: z.string(),
+      description: z.string(),
+      earlyAccessMaintenance: z.string(),
+      enableEmergentMaintenance: z.boolean(),
+      id: z.string(),
+      kind: z.string(),
+      linkedCommitments: z.array(z.string()),
+      name: z.string(),
+      params: z.object({
+        resourceManagerTags: z.record(z.string(), z.unknown()),
+      }).partial(),
+      protectionTier: z.string(),
+      reservationSharingPolicy: z.object({
+        serviceShareType: z.string(),
+      }).partial(),
+      resourceMetadata: z.object({
+        apiVersion: z.string(),
+        resourceType: z.string(),
+      }).partial(),
+      resourcePolicies: z.record(z.string(), z.unknown()),
+      resourceStatus: z.object({
+        healthInfo: z.object({
+          degradedBlockCount: z.number(),
+          healthStatus: z.string(),
+          healthyBlockCount: z.number(),
+        }).partial(),
+        reservationBlockCount: z.number(),
+        reservationMaintenance: z.object({
+          instanceMaintenanceOngoingCount: z.number(),
+          instanceMaintenancePendingCount: z.number(),
+          maintenanceOngoingCount: z.number(),
+          maintenancePendingCount: z.number(),
+          schedulingType: z.string(),
+          subblockInfraMaintenanceOngoingCount: z.number(),
+          subblockInfraMaintenancePendingCount: z.number(),
+          upcomingGroupMaintenance: z.object({
+            canReschedule: z.unknown(),
+            latestWindowStartTime: z.unknown(),
+            maintenanceOnShutdown: z.unknown(),
+            maintenanceReasons: z.unknown(),
+            maintenanceStatus: z.unknown(),
+            type: z.unknown(),
+            windowEndTime: z.unknown(),
+            windowStartTime: z.unknown(),
+          }).partial(),
+        }).partial(),
+        specificSkuAllocation: z.object({
+          sourceInstanceTemplateId: z.string(),
+          utilizations: z.record(z.string(), z.unknown()),
+        }).partial(),
+      }).partial(),
+      satisfiesPzs: z.boolean(),
+      schedulingType: z.string(),
+      selfLink: z.string(),
+      shareSettings: z.object({
+        projectMap: z.record(z.string(), z.unknown()),
+        shareType: z.string(),
+      }).partial(),
+      specificReservation: z.object({
+        assuredCount: z.string(),
+        count: z.string(),
+        inUseCount: z.string(),
+        instanceProperties: z.object({
+          guestAccelerators: z.array(z.unknown()),
+          localSsds: z.array(z.unknown()),
+          locationHint: z.string(),
+          machineType: z.string(),
+          minCpuPlatform: z.string(),
+        }).partial(),
+        sourceInstanceTemplate: z.string(),
+      }).partial(),
+      specificReservationRequired: z.boolean(),
+      status: z.string(),
+      zone: z.string(),
+    }).partial(),
+  ).optional(),
   resourceStatus: z.object({
     customTermEligibilityEndTimestamp: z.string(),
-  }).optional(),
-  resources: z.array(z.object({
-    acceleratorType: z.string(),
-    amount: z.string(),
-    type: z.string(),
-  })).optional(),
+  }).partial().optional(),
+  resources: z.array(
+    z.object({
+      acceleratorType: z.string(),
+      amount: z.string(),
+      type: z.string(),
+    }).partial(),
+  ).optional(),
   selfLink: z.string().optional(),
   splitSourceCommitment: z.string().optional(),
   startTimestamp: z.string().optional(),
@@ -1164,7 +1172,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionCommitments. Registered at `@swamp/gcp/compute/regioncommitments`. */
 export const model = {
   type: "@swamp/gcp/compute/regioncommitments",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1403,6 +1411,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

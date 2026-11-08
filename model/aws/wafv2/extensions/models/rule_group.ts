@@ -621,6 +621,362 @@ const CryptoConfigSchema = z.object({
   ),
 });
 
+const BodyStateSchema = z.object({
+  OversizeHandling: z.string(),
+}).partial();
+
+const JsonMatchPatternStateSchema = z.object({
+  All: z.record(z.string(), z.unknown()),
+  IncludedPaths: z.array(z.string()),
+}).partial();
+
+const JsonBodyStateSchema = z.object({
+  MatchPattern: JsonMatchPatternStateSchema,
+  MatchScope: z.string(),
+  InvalidFallbackBehavior: z.string(),
+  OversizeHandling: z.string(),
+}).partial();
+
+const HeaderMatchPatternStateSchema = z.object({
+  All: z.record(z.string(), z.unknown()),
+  IncludedHeaders: z.array(z.string()),
+  ExcludedHeaders: z.array(z.string()),
+}).partial();
+
+const HeadersStateSchema = z.object({
+  MatchPattern: HeaderMatchPatternStateSchema,
+  MatchScope: z.string(),
+  OversizeHandling: z.string(),
+}).partial();
+
+const CookieMatchPatternStateSchema = z.object({
+  All: z.record(z.string(), z.unknown()),
+  IncludedCookies: z.array(z.string()),
+  ExcludedCookies: z.array(z.string()),
+}).partial();
+
+const CookiesStateSchema = z.object({
+  MatchPattern: CookieMatchPatternStateSchema,
+  MatchScope: z.string(),
+  OversizeHandling: z.string(),
+}).partial();
+
+const JA3FingerprintStateSchema = z.object({
+  FallbackBehavior: z.string(),
+}).partial();
+
+const JA4FingerprintStateSchema = z.object({
+  FallbackBehavior: z.string(),
+}).partial();
+
+const UriFragmentStateSchema = z.object({
+  FallbackBehavior: z.string(),
+}).partial();
+
+const HeaderOrderStateSchema = z.object({
+  OversizeHandling: z.string(),
+}).partial();
+
+const FieldToMatchStateSchema = z.object({
+  SingleHeader: z.object({
+    Name: z.string(),
+  }).partial(),
+  SingleQueryArgument: z.object({
+    Name: z.string(),
+  }).partial(),
+  AllQueryArguments: z.record(z.string(), z.unknown()),
+  UriPath: z.record(z.string(), z.unknown()),
+  QueryString: z.record(z.string(), z.unknown()),
+  Body: BodyStateSchema,
+  Method: z.record(z.string(), z.unknown()),
+  JsonBody: JsonBodyStateSchema,
+  Headers: HeadersStateSchema,
+  Cookies: CookiesStateSchema,
+  JA3Fingerprint: JA3FingerprintStateSchema,
+  JA4Fingerprint: JA4FingerprintStateSchema,
+  UriFragment: UriFragmentStateSchema,
+  HeaderOrder: HeaderOrderStateSchema,
+}).partial();
+
+const TextTransformationStateSchema = z.object({
+  Priority: z.number(),
+  Type: z.string(),
+}).partial();
+
+const PreParseTextTransformationStateSchema = z.object({
+  Priority: z.number(),
+  Type: z.string(),
+}).partial();
+
+const ByteMatchStatementStateSchema = z.object({
+  SearchString: z.string(),
+  SearchStringBase64: z.string(),
+  FieldToMatch: FieldToMatchStateSchema,
+  TextTransformations: z.array(TextTransformationStateSchema),
+  PreParseTextTransformations: z.array(PreParseTextTransformationStateSchema),
+  PositionalConstraint: z.string(),
+}).partial();
+
+const SqliMatchStatementStateSchema = z.object({
+  FieldToMatch: FieldToMatchStateSchema,
+  TextTransformations: z.array(TextTransformationStateSchema),
+  PreParseTextTransformations: z.array(PreParseTextTransformationStateSchema),
+  SensitivityLevel: z.string(),
+}).partial();
+
+const XssMatchStatementStateSchema = z.object({
+  FieldToMatch: FieldToMatchStateSchema,
+  TextTransformations: z.array(TextTransformationStateSchema),
+  PreParseTextTransformations: z.array(PreParseTextTransformationStateSchema),
+}).partial();
+
+const SizeConstraintStatementStateSchema = z.object({
+  FieldToMatch: FieldToMatchStateSchema,
+  ComparisonOperator: z.string(),
+  Size: z.number(),
+  TextTransformations: z.array(TextTransformationStateSchema),
+  PreParseTextTransformations: z.array(PreParseTextTransformationStateSchema),
+}).partial();
+
+const ForwardedIPConfigurationStateSchema = z.object({
+  HeaderName: z.string(),
+  FallbackBehavior: z.string(),
+}).partial();
+
+const GeoMatchStatementStateSchema = z.object({
+  CountryCodes: z.array(z.string()),
+  ForwardedIPConfig: ForwardedIPConfigurationStateSchema,
+}).partial();
+
+const IPSetForwardedIPConfigurationStateSchema = z.object({
+  HeaderName: z.string(),
+  FallbackBehavior: z.string(),
+  Position: z.string(),
+}).partial();
+
+const IPSetReferenceStatementStateSchema = z.object({
+  Arn: z.string(),
+  IPSetForwardedIPConfig: IPSetForwardedIPConfigurationStateSchema,
+}).partial();
+
+const RegexPatternSetReferenceStatementStateSchema = z.object({
+  Arn: z.string(),
+  FieldToMatch: FieldToMatchStateSchema,
+  TextTransformations: z.array(TextTransformationStateSchema),
+  PreParseTextTransformations: z.array(PreParseTextTransformationStateSchema),
+}).partial();
+
+const RateLimitCookieStateSchema = z.object({
+  Name: z.string(),
+  TextTransformations: z.array(TextTransformationStateSchema),
+}).partial();
+
+const RateLimitHeaderStateSchema = z.object({
+  Name: z.string(),
+  TextTransformations: z.array(TextTransformationStateSchema),
+}).partial();
+
+const RateLimitLabelNamespaceStateSchema = z.object({
+  Namespace: z.string(),
+}).partial();
+
+const RateLimitQueryArgumentStateSchema = z.object({
+  Name: z.string(),
+  TextTransformations: z.array(TextTransformationStateSchema),
+}).partial();
+
+const RateLimitQueryStringStateSchema = z.object({
+  TextTransformations: z.array(TextTransformationStateSchema),
+}).partial();
+
+const RateLimitUriPathStateSchema = z.object({
+  TextTransformations: z.array(TextTransformationStateSchema),
+}).partial();
+
+const RateLimitJA3FingerprintStateSchema = z.object({
+  FallbackBehavior: z.string(),
+}).partial();
+
+const RateLimitJA4FingerprintStateSchema = z.object({
+  FallbackBehavior: z.string(),
+}).partial();
+
+const RateBasedStatementCustomKeyStateSchema = z.object({
+  Cookie: RateLimitCookieStateSchema,
+  ForwardedIP: z.record(z.string(), z.unknown()),
+  Header: RateLimitHeaderStateSchema,
+  HTTPMethod: z.record(z.string(), z.unknown()),
+  IP: z.record(z.string(), z.unknown()),
+  LabelNamespace: RateLimitLabelNamespaceStateSchema,
+  QueryArgument: RateLimitQueryArgumentStateSchema,
+  QueryString: RateLimitQueryStringStateSchema,
+  UriPath: RateLimitUriPathStateSchema,
+  JA3Fingerprint: RateLimitJA3FingerprintStateSchema,
+  JA4Fingerprint: RateLimitJA4FingerprintStateSchema,
+  ASN: z.record(z.string(), z.unknown()),
+}).partial();
+
+const RateBasedStatementStateSchema = z.object({
+  Limit: z.number(),
+  EvaluationWindowSec: z.number(),
+  AggregateKeyType: z.string(),
+  CustomKeys: z.array(RateBasedStatementCustomKeyStateSchema),
+  ScopeDownStatement: z.record(z.string(), z.unknown()),
+  ForwardedIPConfig: ForwardedIPConfigurationStateSchema,
+}).partial();
+
+const AndStatementStateSchema = z.object({
+  Statements: z.array(z.record(z.string(), z.unknown())),
+}).partial();
+
+const OrStatementStateSchema = z.object({
+  Statements: z.array(z.record(z.string(), z.unknown())),
+}).partial();
+
+const NotStatementStateSchema = z.object({
+  Statement: z.record(z.string(), z.unknown()),
+}).partial();
+
+const LabelMatchStatementStateSchema = z.object({
+  Scope: z.string(),
+  Key: z.string(),
+}).partial();
+
+const RegexMatchStatementStateSchema = z.object({
+  RegexString: z.string(),
+  FieldToMatch: FieldToMatchStateSchema,
+  TextTransformations: z.array(TextTransformationStateSchema),
+  PreParseTextTransformations: z.array(PreParseTextTransformationStateSchema),
+}).partial();
+
+const AsnMatchStatementStateSchema = z.object({
+  AsnList: z.array(z.number()),
+  ForwardedIPConfig: ForwardedIPConfigurationStateSchema,
+}).partial();
+
+const StatementStateSchema = z.object({
+  ByteMatchStatement: ByteMatchStatementStateSchema,
+  SqliMatchStatement: SqliMatchStatementStateSchema,
+  XssMatchStatement: XssMatchStatementStateSchema,
+  SizeConstraintStatement: SizeConstraintStatementStateSchema,
+  GeoMatchStatement: GeoMatchStatementStateSchema,
+  IPSetReferenceStatement: IPSetReferenceStatementStateSchema,
+  RegexPatternSetReferenceStatement:
+    RegexPatternSetReferenceStatementStateSchema,
+  RateBasedStatement: RateBasedStatementStateSchema,
+  AndStatement: AndStatementStateSchema,
+  OrStatement: OrStatementStateSchema,
+  NotStatement: NotStatementStateSchema,
+  LabelMatchStatement: LabelMatchStatementStateSchema,
+  RegexMatchStatement: RegexMatchStatementStateSchema,
+  AsnMatchStatement: AsnMatchStatementStateSchema,
+}).partial();
+
+const CustomHTTPHeaderStateSchema = z.object({
+  Name: z.string(),
+  Value: z.string(),
+}).partial();
+
+const CustomRequestHandlingStateSchema = z.object({
+  InsertHeaders: z.array(CustomHTTPHeaderStateSchema),
+}).partial();
+
+const AllowActionStateSchema = z.object({
+  CustomRequestHandling: CustomRequestHandlingStateSchema,
+}).partial();
+
+const CustomResponseStateSchema = z.object({
+  ResponseCode: z.number(),
+  CustomResponseBodyKey: z.string(),
+  ResponseHeaders: z.array(CustomHTTPHeaderStateSchema),
+}).partial();
+
+const BlockActionStateSchema = z.object({
+  CustomResponse: CustomResponseStateSchema,
+}).partial();
+
+const CountActionStateSchema = z.object({
+  CustomRequestHandling: CustomRequestHandlingStateSchema,
+}).partial();
+
+const CaptchaActionStateSchema = z.object({
+  CustomRequestHandling: CustomRequestHandlingStateSchema,
+}).partial();
+
+const ChallengeActionStateSchema = z.object({
+  CustomRequestHandling: CustomRequestHandlingStateSchema,
+}).partial();
+
+const MonetizeActionStateSchema = z.object({
+  PriceMultiplier: z.string(),
+}).partial();
+
+const RuleActionStateSchema = z.object({
+  Allow: AllowActionStateSchema,
+  Block: BlockActionStateSchema,
+  Count: CountActionStateSchema,
+  Captcha: CaptchaActionStateSchema,
+  Challenge: ChallengeActionStateSchema,
+  Monetize: MonetizeActionStateSchema,
+}).partial();
+
+const LabelStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const VisibilityConfigStateSchema = z.object({
+  SampledRequestsEnabled: z.boolean(),
+  CloudWatchMetricsEnabled: z.boolean(),
+  MetricName: z.string(),
+}).partial();
+
+const ImmunityTimePropertyStateSchema = z.object({
+  ImmunityTime: z.number(),
+}).partial();
+
+const CaptchaConfigStateSchema = z.object({
+  ImmunityTimeProperty: ImmunityTimePropertyStateSchema,
+}).partial();
+
+const ChallengeConfigStateSchema = z.object({
+  ImmunityTimeProperty: ImmunityTimePropertyStateSchema,
+}).partial();
+
+const RuleStateSchema = z.object({
+  Name: z.string(),
+  Priority: z.number(),
+  Statement: StatementStateSchema,
+  Action: RuleActionStateSchema,
+  RuleLabels: z.array(LabelStateSchema),
+  VisibilityConfig: VisibilityConfigStateSchema,
+  CaptchaConfig: CaptchaConfigStateSchema,
+  ChallengeConfig: ChallengeConfigStateSchema,
+}).partial();
+
+const TagStateSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+}).partial();
+
+const LabelSummaryStateSchema = z.object({
+  Name: z.string(),
+}).partial();
+
+const PriceStateSchema = z.object({
+  Amount: z.string(),
+  Currency: z.string(),
+}).partial();
+
+const PaymentNetworkStateSchema = z.object({
+  Chain: z.string(),
+  WalletAddress: z.string(),
+  Prices: z.array(PriceStateSchema),
+}).partial();
+
+const CryptoConfigStateSchema = z.object({
+  PaymentNetworks: z.array(PaymentNetworkStateSchema),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -683,20 +1039,24 @@ const StateSchema = z.object({
   Name: z.string(),
   Id: z.string(),
   Scope: z.string(),
-  Rules: z.array(RuleSchema).optional(),
-  VisibilityConfig: VisibilityConfigSchema.optional(),
-  Tags: z.array(TagSchema).optional(),
+  Rules: z.array(RuleStateSchema).optional(),
+  VisibilityConfig: z.object({
+    SampledRequestsEnabled: z.boolean(),
+    CloudWatchMetricsEnabled: z.boolean(),
+    MetricName: z.string(),
+  }).partial().optional(),
+  Tags: z.array(TagStateSchema).optional(),
   LabelNamespace: z.string().optional(),
   CustomResponseBodies: z.record(z.string(), z.unknown()).optional(),
-  AvailableLabels: z.array(LabelSummarySchema).optional(),
-  ConsumedLabels: z.array(LabelSummarySchema).optional(),
+  AvailableLabels: z.array(LabelSummaryStateSchema).optional(),
+  ConsumedLabels: z.array(LabelSummaryStateSchema).optional(),
   MonetizationConfig: z.object({
-    CryptoConfig: CryptoConfigSchema,
+    CryptoConfig: CryptoConfigStateSchema,
     CurrencyMode: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -762,7 +1122,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WAFv2 RuleGroup. Registered at `@swamp/aws/wafv2/rule-group`. */
 export const model = {
   type: "@swamp/aws/wafv2/rule-group",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -841,6 +1201,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

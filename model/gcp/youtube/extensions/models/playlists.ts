@@ -345,14 +345,14 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   contentDetails: z.object({
     itemCount: z.number(),
-  }).optional(),
+  }).partial().optional(),
   etag: z.string().optional(),
   id: z.string().optional(),
   kind: z.string().optional(),
   localizations: z.record(z.string(), z.unknown()).optional(),
   player: z.object({
     embedHtml: z.string(),
-  }).optional(),
+  }).partial().optional(),
   snippet: z.object({
     channelId: z.string(),
     channelTitle: z.string(),
@@ -361,7 +361,7 @@ const StateSchema = z.object({
     localized: z.object({
       description: z.string(),
       title: z.string(),
-    }),
+    }).partial(),
     publishedAt: z.string(),
     tags: z.array(z.string()),
     thumbnailVideoId: z.string(),
@@ -370,54 +370,54 @@ const StateSchema = z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       fhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       high: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       maxres: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       medium: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       qhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       shortsAspectRatio: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       standard: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
+      }).partial(),
       uhd: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
-      }),
-    }),
+      }).partial(),
+    }).partial(),
     title: z.string(),
-  }).optional(),
+  }).partial().optional(),
   status: z.object({
     podcastStatus: z.string(),
     privacyStatus: z.string(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -627,7 +627,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Playlists. Registered at `@swamp/gcp/youtube/playlists`. */
 export const model = {
   type: "@swamp/gcp/youtube/playlists",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -776,6 +776,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

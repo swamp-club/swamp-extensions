@@ -201,15 +201,17 @@ const StateSchema = z.object({
   creationRecord: z.object({
     mutateTime: z.string(),
     mutatedBy: z.string(),
-  }).optional(),
+  }).partial().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
   enabled: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
-  mutationRecords: z.array(z.object({
-    mutateTime: z.string(),
-    mutatedBy: z.string(),
-  })).optional(),
+  mutationRecords: z.array(
+    z.object({
+      mutateTime: z.string(),
+      mutatedBy: z.string(),
+    }).partial(),
+  ).optional(),
   name: z.string(),
   type: z.string().optional(),
   userLabels: z.record(z.string(), z.unknown()).optional(),
@@ -293,7 +295,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring NotificationChannels. Registered at `@swamp/gcp/monitoring/notificationchannels`. */
 export const model = {
   type: "@swamp/gcp/monitoring/notificationchannels",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -427,6 +429,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

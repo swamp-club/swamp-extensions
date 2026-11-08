@@ -100,7 +100,7 @@ const StateSchema = z.object({
     day: z.number(),
     month: z.number(),
     year: z.number(),
-  }).optional(),
+  }).partial().optional(),
   supportedPythonVersions: z.array(z.string()).optional(),
   upgradeDisabled: z.boolean().optional(),
 }).passthrough();
@@ -146,7 +146,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Composer ImageVersions. Registered at `@swamp/gcp/composer/imageversions`. */
 export const model = {
   type: "@swamp/gcp/composer/imageversions",
-  version: "2026.10.24.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -280,6 +280,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

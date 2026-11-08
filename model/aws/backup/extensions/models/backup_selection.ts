@@ -48,6 +48,17 @@ const ConditionParameterSchema = z.object({
   ConditionValue: z.string().optional(),
 });
 
+const ConditionResourceTypeStateSchema = z.object({
+  ConditionKey: z.string(),
+  ConditionValue: z.string(),
+  ConditionType: z.string(),
+}).partial();
+
+const ConditionParameterStateSchema = z.object({
+  ConditionKey: z.string(),
+  ConditionValue: z.string(),
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -85,21 +96,21 @@ const StateSchema = z.object({
   BackupPlanId: z.string().optional(),
   BackupSelection: z.object({
     IamRoleArn: z.string(),
-    ListOfTags: z.array(ConditionResourceTypeSchema),
+    ListOfTags: z.array(ConditionResourceTypeStateSchema),
     Resources: z.array(z.string()),
     SelectionName: z.string(),
     NotResources: z.array(z.string()),
     Conditions: z.object({
-      StringEquals: z.array(ConditionParameterSchema),
-      StringNotEquals: z.array(ConditionParameterSchema),
-      StringLike: z.array(ConditionParameterSchema),
-      StringNotLike: z.array(ConditionParameterSchema),
-    }),
-  }).optional(),
+      StringEquals: z.array(ConditionParameterStateSchema),
+      StringNotEquals: z.array(ConditionParameterStateSchema),
+      StringLike: z.array(ConditionParameterStateSchema),
+      StringNotLike: z.array(ConditionParameterStateSchema),
+    }).partial(),
+  }).partial().optional(),
   SelectionId: z.string().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -142,7 +153,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup BackupSelection. Registered at `@swamp/aws/backup/backup-selection`. */
 export const model = {
   type: "@swamp/aws/backup/backup-selection",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -206,6 +217,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

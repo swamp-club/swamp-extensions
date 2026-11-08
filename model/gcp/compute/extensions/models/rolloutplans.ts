@@ -240,35 +240,41 @@ const StateSchema = z.object({
   name: z.string(),
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
-  waves: z.array(z.object({
-    displayName: z.string(),
-    number: z.string(),
-    orchestrationOptions: z.object({
-      delays: z.array(z.object({
-        delimiter: z.unknown(),
-        duration: z.unknown(),
-        type: z.unknown(),
-      })),
-      maxConcurrentLocations: z.string(),
-      maxConcurrentResourcesPerLocation: z.string(),
-    }),
-    selectors: z.array(z.object({
-      locationSelector: z.object({
-        includedLocations: z.unknown(),
-      }),
-      resourceHierarchySelector: z.object({
-        includedFolders: z.unknown(),
-        includedOrganizations: z.unknown(),
-        includedProjects: z.unknown(),
-      }),
-    })),
-    validation: z.object({
-      timeBasedValidationMetadata: z.object({
-        waitDuration: z.string(),
-      }),
-      type: z.string(),
-    }),
-  })).optional(),
+  waves: z.array(
+    z.object({
+      displayName: z.string(),
+      number: z.string(),
+      orchestrationOptions: z.object({
+        delays: z.array(
+          z.object({
+            delimiter: z.unknown(),
+            duration: z.unknown(),
+            type: z.unknown(),
+          }).partial(),
+        ),
+        maxConcurrentLocations: z.string(),
+        maxConcurrentResourcesPerLocation: z.string(),
+      }).partial(),
+      selectors: z.array(
+        z.object({
+          locationSelector: z.object({
+            includedLocations: z.unknown(),
+          }).partial(),
+          resourceHierarchySelector: z.object({
+            includedFolders: z.unknown(),
+            includedOrganizations: z.unknown(),
+            includedProjects: z.unknown(),
+          }).partial(),
+        }).partial(),
+      ),
+      validation: z.object({
+        timeBasedValidationMetadata: z.object({
+          waitDuration: z.string(),
+        }).partial(),
+        type: z.string(),
+      }).partial(),
+    }).partial(),
+  ).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -385,7 +391,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RolloutPlans. Registered at `@swamp/gcp/compute/rolloutplans`. */
 export const model = {
   type: "@swamp/gcp/compute/rolloutplans",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -419,6 +425,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

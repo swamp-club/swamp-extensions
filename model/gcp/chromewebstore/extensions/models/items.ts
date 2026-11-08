@@ -140,10 +140,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   crxVersion: z.string().optional(),
   id: z.string().optional(),
-  itemError: z.array(z.object({
-    error_code: z.string(),
-    error_detail: z.string(),
-  })).optional(),
+  itemError: z.array(
+    z.object({
+      error_code: z.string(),
+      error_detail: z.string(),
+    }).partial(),
+  ).optional(),
   kind: z.string().optional(),
   publicKey: z.string().optional(),
   uploadState: z.string().optional(),
@@ -209,7 +211,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Web Store Items. Registered at `@swamp/gcp/chromewebstore/items`. */
 export const model = {
   type: "@swamp/gcp/chromewebstore/items",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -278,6 +280,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -160,6 +160,128 @@ const AuthorizerLogsSchema = z.object({
   Firehose: FirehoseSchema.optional(),
 });
 
+const ProvisionedThroughputStateSchema = z.object({
+  Enabled: z.boolean(),
+  VolumeThroughput: z.number(),
+}).partial();
+
+const EBSStorageInfoStateSchema = z.object({
+  VolumeSize: z.number(),
+  ProvisionedThroughput: ProvisionedThroughputStateSchema,
+}).partial();
+
+const StorageInfoStateSchema = z.object({
+  EBSStorageInfo: EBSStorageInfoStateSchema,
+}).partial();
+
+const PublicAccessStateSchema = z.object({
+  Type: z.string(),
+}).partial();
+
+const VpcConnectivityTlsStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const VpcConnectivityScramStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const VpcConnectivityIamStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const VpcConnectivitySaslStateSchema = z.object({
+  Scram: VpcConnectivityScramStateSchema,
+  Iam: VpcConnectivityIamStateSchema,
+}).partial();
+
+const VpcConnectivityClientAuthenticationStateSchema = z.object({
+  Tls: VpcConnectivityTlsStateSchema,
+  Sasl: VpcConnectivitySaslStateSchema,
+}).partial();
+
+const VpcConnectivityStateSchema = z.object({
+  ClientAuthentication: VpcConnectivityClientAuthenticationStateSchema,
+}).partial();
+
+const ConnectivityInfoStateSchema = z.object({
+  PublicAccess: PublicAccessStateSchema,
+  VpcConnectivity: VpcConnectivityStateSchema,
+  NetworkType: z.string(),
+}).partial();
+
+const EncryptionAtRestStateSchema = z.object({
+  DataVolumeKMSKeyId: z.string(),
+}).partial();
+
+const EncryptionInTransitStateSchema = z.object({
+  InCluster: z.boolean(),
+  ClientBroker: z.string(),
+}).partial();
+
+const JmxExporterStateSchema = z.object({
+  EnabledInBroker: z.boolean(),
+}).partial();
+
+const NodeExporterStateSchema = z.object({
+  EnabledInBroker: z.boolean(),
+}).partial();
+
+const PrometheusStateSchema = z.object({
+  JmxExporter: JmxExporterStateSchema,
+  NodeExporter: NodeExporterStateSchema,
+}).partial();
+
+const TlsStateSchema = z.object({
+  CertificateAuthorityArnList: z.array(z.string()),
+  Enabled: z.boolean(),
+}).partial();
+
+const ScramStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const IamStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const SaslStateSchema = z.object({
+  Scram: ScramStateSchema,
+  Iam: IamStateSchema,
+}).partial();
+
+const UnauthenticatedStateSchema = z.object({
+  Enabled: z.boolean(),
+}).partial();
+
+const S3StateSchema = z.object({
+  Enabled: z.boolean(),
+  Prefix: z.string(),
+  Bucket: z.string(),
+}).partial();
+
+const CloudWatchLogsStateSchema = z.object({
+  LogGroup: z.string(),
+  Enabled: z.boolean(),
+}).partial();
+
+const FirehoseStateSchema = z.object({
+  Enabled: z.boolean(),
+  DeliveryStream: z.string(),
+}).partial();
+
+const BrokerLogsStateSchema = z.object({
+  S3: S3StateSchema,
+  CloudWatchLogs: CloudWatchLogsStateSchema,
+  Firehose: FirehoseStateSchema,
+}).partial();
+
+const AuthorizerLogsStateSchema = z.object({
+  S3: S3StateSchema,
+  CloudWatchLogs: CloudWatchLogsStateSchema,
+  Firehose: FirehoseStateSchema,
+}).partial();
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -227,50 +349,50 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   BrokerNodeGroupInfo: z.object({
-    StorageInfo: StorageInfoSchema,
-    ConnectivityInfo: ConnectivityInfoSchema,
+    StorageInfo: StorageInfoStateSchema,
+    ConnectivityInfo: ConnectivityInfoStateSchema,
     SecurityGroups: z.array(z.string()),
     BrokerAZDistribution: z.string(),
     ClientSubnets: z.array(z.string()),
     InstanceType: z.string(),
-  }).optional(),
+  }).partial().optional(),
   EnhancedMonitoring: z.string().optional(),
   KafkaVersion: z.string().optional(),
   NumberOfBrokerNodes: z.number().optional(),
   EncryptionInfo: z.object({
-    EncryptionAtRest: EncryptionAtRestSchema,
-    EncryptionInTransit: EncryptionInTransitSchema,
-  }).optional(),
+    EncryptionAtRest: EncryptionAtRestStateSchema,
+    EncryptionInTransit: EncryptionInTransitStateSchema,
+  }).partial().optional(),
   OpenMonitoring: z.object({
-    Prometheus: PrometheusSchema,
-  }).optional(),
+    Prometheus: PrometheusStateSchema,
+  }).partial().optional(),
   ClusterName: z.string().optional(),
   Arn: z.string(),
   CurrentVersion: z.string().optional(),
   ClientAuthentication: z.object({
-    Tls: TlsSchema,
-    Sasl: SaslSchema,
-    Unauthenticated: UnauthenticatedSchema,
-  }).optional(),
+    Tls: TlsStateSchema,
+    Sasl: SaslStateSchema,
+    Unauthenticated: UnauthenticatedStateSchema,
+  }).partial().optional(),
   LoggingInfo: z.object({
-    BrokerLogs: BrokerLogsSchema,
-    AuthorizerLogs: AuthorizerLogsSchema,
-  }).optional(),
+    BrokerLogs: BrokerLogsStateSchema,
+    AuthorizerLogs: AuthorizerLogsStateSchema,
+  }).partial().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   ConfigurationInfo: z.object({
     Revision: z.number(),
     Arn: z.string(),
-  }).optional(),
+  }).partial().optional(),
   StorageMode: z.string().optional(),
   Rebalancing: z.object({
     Status: z.string(),
-  }).optional(),
+  }).partial().optional(),
   ZookeeperAccess: z.object({
     Enabled: z.boolean(),
-  }).optional(),
+  }).partial().optional(),
 }).passthrough();
 
-type StateData = z.infer<typeof StateSchema>;
+type StateData = Record<string, unknown>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
@@ -346,7 +468,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Cluster. Registered at `@swamp/aws/msk/cluster`. */
 export const model = {
   type: "@swamp/aws/msk/cluster",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -425,6 +547,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
