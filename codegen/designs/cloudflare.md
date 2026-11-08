@@ -479,10 +479,12 @@ methods"). The synthetic `name` stays required.
   not demand it (swamp-club#4436). An update body that declares no `required` at
   all says nothing about what it needs, so it keeps the create-required guard,
   and so does one whose lists flattening cannot keep in full (properties beside
-  a `oneOf` of `required` lists, or a distribution that fell back to the plain
-  merge). A create-required value can still be shaped differently from the
-  request body; set the field explicitly if Cloudflare rejects it. Which fields
-  are copied is decided at generation time by `liveFillFields` in
+  a `oneOf` of `required` lists at any depth — the root, a disjunction branch,
+  an `allOf` member — a disjunction nested in a distributed branch, or a
+  distribution that fell back to the plain merge; swamp-club#4517). A
+  create-required value can still be shaped differently from the request body;
+  set the field explicitly if Cloudflare rejects it. Which fields are copied is
+  decided at generation time by `liveFillFields` in
   `codegen/shared/liveFill.ts`: a field is filled only when the `GET` response
   describes it with the same shape as the request body (same type, with integer
   and number treated alike, recursively for array items and shared object

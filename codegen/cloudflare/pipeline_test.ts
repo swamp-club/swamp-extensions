@@ -1328,6 +1328,86 @@ Deno.test("parseResources records the update body's own required fields", () => 
     }).updateRequiredProperties,
     undefined,
   );
+
+  // Properties beside a oneOf inside a disjunction branch: the branch's
+  // lists are lost one level down, so the intersection is not declared
+  // either, though every inner branch requires name (swamp-club#4517).
+  assertEquals(
+    withPut({
+      oneOf: [
+        {
+          type: "object",
+          properties: { name: { type: "string" }, x: { type: "string" } },
+          required: [],
+          oneOf: [{ required: ["name"] }, { required: ["name", "x"] }],
+        },
+        {
+          type: "object",
+          properties: { name: { type: "string" } },
+          required: ["name"],
+        },
+      ],
+    }).updateRequiredProperties,
+    undefined,
+  );
+
+  // An allOf member with properties beside a oneOf is merged, not
+  // distributed, and the merge drops the oneOf's lists.
+  assertEquals(
+    withPut({
+      allOf: [
+        {
+          type: "object",
+          properties: { name: { type: "string" }, x: { type: "string" } },
+          oneOf: [{ required: ["name"] }, { required: ["name", "x"] }],
+        },
+        {
+          type: "object",
+          properties: { y: { type: "string" } },
+          required: ["y"],
+        },
+      ],
+    }).updateRequiredProperties,
+    undefined,
+  );
+
+  // A disjunction nested in a distributed branch is merged as one member,
+  // and the merge drops its lists too.
+  assertEquals(
+    withPut({
+      allOf: [
+        {
+          oneOf: [
+            {
+              oneOf: [
+                {
+                  type: "object",
+                  properties: { name: { type: "string" } },
+                  required: ["name"],
+                },
+                {
+                  type: "object",
+                  properties: { x: { type: "string" } },
+                  required: ["name", "x"],
+                },
+              ],
+            },
+            {
+              type: "object",
+              properties: { name: { type: "string" } },
+              required: ["name"],
+            },
+          ],
+        },
+        {
+          type: "object",
+          properties: { y: { type: "string" } },
+          required: ["y"],
+        },
+      ],
+    }).updateRequiredProperties,
+    undefined,
+  );
 });
 
 Deno.test("parseResources does not require a field only some distributed branches require", () => {

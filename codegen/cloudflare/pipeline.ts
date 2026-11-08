@@ -1411,9 +1411,13 @@ function flattenDisjunction(
 ): OApiSchema {
   const allProps: Record<string, OApiSchema> = {};
   const requiredSets: Set<string>[] = [];
+  // Read from the flattened branch: flattenSchema marks the copy it returns
+  // (properties beside a oneOf), not the branch itself.
+  let incomplete = false;
 
   for (const branch of branches) {
     const flattened = flattenSchema(branch, spec);
+    if (flattened["x-swamp-required-incomplete"]) incomplete = true;
     if (flattened.properties) {
       for (const [key, val] of Object.entries(flattened.properties)) {
         const existing = allProps[key];
@@ -1460,9 +1464,6 @@ function flattenDisjunction(
 
   if (Object.keys(allProps).length === 0) return {};
 
-  const incomplete = branches.some((b) =>
-    resolveSchema(b, spec)["x-swamp-required-incomplete"]
-  );
   return {
     properties: allProps,
     ...(required ? { required } : {}),
@@ -2016,7 +2017,12 @@ function mergeAllOf(allOf: OApiSchema[], spec: OApiSpec): OApiSchema {
     }
     if (resolved.type) merged.type = resolved.type;
     if (resolved.description) merged.description = resolved.description;
-    if (resolved["x-swamp-required-incomplete"]) {
+    // The merge keeps none of a disjunction member's branches (beside
+    // properties, or nested in a distributed branch), so none of their lists.
+    if (
+      resolved["x-swamp-required-incomplete"] || resolved.oneOf ||
+      resolved.anyOf
+    ) {
       merged["x-swamp-required-incomplete"] = true;
     }
   }
