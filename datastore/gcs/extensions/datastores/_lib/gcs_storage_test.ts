@@ -36,6 +36,7 @@ import { GcsClient } from "./gcs_client.ts";
 import {
   type GcsEmulatorState,
   startStallingRelay,
+  startThrottlingRelay,
   withGcsEmulator,
   within,
 } from "./gcs_emulator_test_util.ts";
@@ -460,6 +461,72 @@ Deno.test({
         counts(state).copy < 100,
         `${counts(state).copy} rewrites after the failure`,
       );
+    });
+  },
+});
+
+/** A full-size chunk whose bytes differ along its length. */
+function patternedChunk(): Uint8Array {
+  const bytes = new Uint8Array(MAX_CHUNK_BYTES);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 31 + 7) & 0xff;
+  return bytes;
+}
+
+// Over a link of 8 MiB/s a 16 MiB chunk takes about 2 s: twice the 1 s flat
+// timeout set here, and far inside the scaled 1 s + 64 s (swamp-club#4557).
+const SLOW_LINK_BYTES_PER_SEC = 8 * 1024 * 1024;
+const FLAT_TIMEOUT_MS = 1000;
+
+Deno.test({
+  name: "put: a 16 MiB chunk over a link slower than the flat timeout lands " +
+    "in one attempt",
+  sanitizeResources: false,
+  fn: async () => {
+    await withGcsEmulator({}, async (_gcs, state, endpoint) => {
+      const relay = startThrottlingRelay(endpoint, SLOW_LINK_BYTES_PER_SEC);
+      try {
+        const storage = new GcsChunkStorage(
+          new GcsClient({
+            bucket: "test-bucket",
+            apiEndpoint: relay.endpoint,
+            defaultRequestTimeoutMs: FLAT_TIMEOUT_MS,
+          }),
+        );
+        const sha256 = hashIn("cd", 1);
+        const bytes = patternedChunk();
+        await storage.put(NS, sha256, bytes, never());
+        assertEquals(state.objects.get(chunkKey(sha256))?.body, bytes);
+        assertEquals(counts(state).upload, 1);
+      } finally {
+        await relay.close();
+      }
+    });
+  },
+});
+
+Deno.test({
+  name: "putObject: without timeoutScalesWithBody the same upload keeps the " +
+    "flat timeout",
+  sanitizeResources: false,
+  fn: async () => {
+    await withGcsEmulator({}, async (_gcs, _state, endpoint) => {
+      const relay = startThrottlingRelay(endpoint, SLOW_LINK_BYTES_PER_SEC);
+      try {
+        const gcs = new GcsClient({
+          bucket: "test-bucket",
+          apiEndpoint: relay.endpoint,
+          defaultRequestTimeoutMs: FLAT_TIMEOUT_MS,
+        });
+        const err = await assertRejects(() =>
+          gcs.putObject(chunkKey(hashIn("cd", 2)), patternedChunk(), never())
+        );
+        assertStringIncludes(
+          (err as Error).message,
+          `timed out after ${FLAT_TIMEOUT_MS}ms`,
+        );
+      } finally {
+        await relay.close();
+      }
     });
   },
 });

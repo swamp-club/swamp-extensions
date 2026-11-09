@@ -38,7 +38,9 @@ import {
   isPreconditionFailure,
   NotFoundError,
   PreconditionFailedError,
+  scaledTimeoutMs,
   tokenRefreshError,
+  UPLOAD_FLOOR_BYTES_PER_SEC,
 } from "./gcs_client.ts";
 
 /**
@@ -300,6 +302,46 @@ Deno.test({
       assertEquals(err.name, "TimeoutError");
       assertEquals(err.httpStatusCode, null);
       assertStringIncludes(err.message, "timed out after 100ms");
+    } finally {
+      await shutdown();
+    }
+  },
+});
+
+// --- size-scaled upload deadline (swamp-club#4557) --------------------
+
+Deno.test("scaledTimeoutMs: the flat timeout plus the body at 256 KiB/s", () => {
+  assertEquals(UPLOAD_FLOOR_BYTES_PER_SEC, 256 * 1024);
+  assertEquals(scaledTimeoutMs(30_000, 0), 30_000);
+  assertEquals(scaledTimeoutMs(30_000, 16 * 1024 * 1024), 94_000);
+  // Partial milliseconds round up.
+  assertEquals(scaledTimeoutMs(100, 1), 101);
+});
+
+Deno.test({
+  name: "GcsClient: a body-scaled putObject times out at the scaled deadline " +
+    "and says so",
+  sanitizeResources: false,
+  fn: async () => {
+    const { url, shutdown } = startServer(() => {
+      return new Promise<Response>(() => {});
+    });
+    try {
+      const client = new GcsClient({
+        bucket: "b",
+        apiEndpoint: url,
+        defaultRequestTimeoutMs: 100,
+      });
+      // 64 KiB at 256 KiB/s adds 250 ms.
+      const err = await assertRejects(
+        () =>
+          client.putObject("x", new Uint8Array(64 * 1024), undefined, {
+            timeoutScalesWithBody: true,
+          }),
+        GcsOperationError,
+      );
+      assertEquals(err.name, "TimeoutError");
+      assertStringIncludes(err.message, "timed out after 350ms");
     } finally {
       await shutdown();
     }

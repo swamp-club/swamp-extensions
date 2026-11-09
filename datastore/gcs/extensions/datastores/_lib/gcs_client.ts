@@ -39,13 +39,38 @@ export interface GcsClientConfig {
   /**
    * Per-request timeout in milliseconds. Defaults to 30s. Every fetch
    * call is guarded by `AbortSignal.timeout(defaultRequestTimeoutMs)`,
-   * composed with any caller-supplied signal. Prevents individual
-   * operations from hanging indefinitely on network stalls.
+   * composed with any caller-supplied signal; a `putObject` with
+   * `timeoutScalesWithBody` adds its body's size on top (see
+   * {@link scaledTimeoutMs}). Prevents individual operations from hanging
+   * indefinitely on network stalls.
    */
   defaultRequestTimeoutMs?: number;
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * The slowest link a size-scaled upload is given time for: swamp's own floor
+ * for serve requests. A 16 MiB chunk gets 64 s on top of the flat timeout.
+ */
+export const UPLOAD_FLOOR_BYTES_PER_SEC = 256 * 1024;
+
+/**
+ * A deadline for sending `bytes`: the flat request timeout plus the time the
+ * body takes at {@link UPLOAD_FLOOR_BYTES_PER_SEC}.
+ */
+export function scaledTimeoutMs(baseMs: number, bytes: number): number {
+  return baseMs + Math.ceil(bytes * 1000 / UPLOAD_FLOOR_BYTES_PER_SEC);
+}
+
+/** Options for {@link GcsClient.putObject}. */
+export interface PutObjectOptions {
+  /**
+   * Add the body's size at {@link UPLOAD_FLOOR_BYTES_PER_SEC} to the request
+   * timeout, so a large body on a slow link can finish. Off by default.
+   */
+  timeoutScalesWithBody?: boolean;
+}
 
 /**
  * Per-call timeout for individual token-exchange fetch calls (service
@@ -927,6 +952,7 @@ export class GcsClient {
     init: RequestInit,
     userSignal: AbortSignal | undefined,
     key?: string,
+    timeoutMs: number = this.defaultRequestTimeoutMs,
   ): Promise<Response> {
     return await getTracer().startActiveSpan(`GCS ${op}`, async (span) => {
       span.setAttributes({
@@ -939,7 +965,7 @@ export class GcsClient {
         span.setAttribute(Attr.GCP_GCS_KEY, key);
       }
       try {
-        const signal = composeSignal(userSignal, this.defaultRequestTimeoutMs);
+        const signal = composeSignal(userSignal, timeoutMs);
         let response: Response;
         try {
           response = await fetch(url, { ...init, signal });
@@ -949,7 +975,7 @@ export class GcsClient {
           const message = isErr ? err.message : String(err);
           if (name === "TimeoutError") {
             throw new GcsOperationError(
-              `GCS ${op} timed out after ${this.defaultRequestTimeoutMs}ms`,
+              `GCS ${op} timed out after ${timeoutMs}ms`,
               {
                 name: "TimeoutError",
                 httpStatusCode: null,
@@ -1092,11 +1118,15 @@ export class GcsClient {
     await resp.text();
   }
 
-  /** Uploads an object to GCS. Returns the generation number. */
+  /**
+   * Uploads an object to GCS. Returns the generation number. The request
+   * gets the flat timeout unless `options.timeoutScalesWithBody` is set.
+   */
   async putObject(
     key: string,
     body: Uint8Array,
     signal?: AbortSignal,
+    options?: PutObjectOptions,
   ): Promise<GcsWriteResult> {
     const objectName = this.fullKey(key);
     const url = this.uploadUrl(
@@ -1113,6 +1143,9 @@ export class GcsClient {
       { method: "POST", headers: hdrs, body: body as BodyInit },
       signal,
       key,
+      options?.timeoutScalesWithBody
+        ? scaledTimeoutMs(this.defaultRequestTimeoutMs, body.byteLength)
+        : this.defaultRequestTimeoutMs,
     );
     const meta = await resp.json();
     return { generation: meta.generation };

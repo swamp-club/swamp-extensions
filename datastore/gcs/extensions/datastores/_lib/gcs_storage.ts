@@ -21,7 +21,12 @@
  * - A put is one simple (`uploadType=media`) upload, never a resumable one:
  *   chunks are at most {@link MAX_CHUNK_BYTES}. GCS commits a simple upload
  *   whole or not at all, so a reader never sees a partial chunk, and an
- *   aborted put leaves no object and no resumable session behind.
+ *   aborted put leaves no object and no resumable session behind. Each
+ *   attempt's deadline is the configured request timeout plus the chunk at
+ *   256 KiB/s (`UPLOAD_FLOOR_BYTES_PER_SEC`), so a slow link can still carry a
+ *   16 MiB chunk (swamp-club#4557).
+ * - A put uploads the caller's buffer as is, without a copy: the caller must
+ *   not change it until the put settles.
  * - `has` is tuned for price; see {@link LIST_THRESHOLD}.
  * - `touch` rewrites each chunk onto itself (GcsClient.touchObject): one
  *   request per chunk and no re-upload. No batch form is cheaper.
@@ -212,10 +217,13 @@ export class GcsChunkStorage implements DatastoreStorage {
     signal.throwIfAborted();
     assertNamespace(namespace);
     assertSha256(sha256);
-    // The upload must not see a caller's later change to the buffer.
-    const body = bytes.slice();
+    // No copy of the body: the caller holds the buffer still until the put
+    // settles, and a copy would double the memory held during uploads.
     await retryWithBackoff(
-      () => this.gcs.putObject(chunkKey(namespace, sha256), body, signal),
+      () =>
+        this.gcs.putObject(chunkKey(namespace, sha256), bytes, signal, {
+          timeoutScalesWithBody: true,
+        }),
       { signal },
     );
   }

@@ -41,6 +41,13 @@ variable if your workload needs longer deadlines:
 export SWAMP_GCS_REQUEST_TIMEOUT_MS=120000
 ```
 
+Chunk uploads (`storage/1`, up to 16 MiB each) get more time than other
+requests: their deadline is `requestTimeoutMs` plus the chunk's size at
+256 KiB/s, so a 16 MiB chunk gets the timeout plus 64 s. A slow link to the
+bucket can then still store a full chunk without raising the timeout for every
+request. The 1000-600000 ms range applies to the configured value; the size
+allowance is added on top.
+
 Errors from GCS now carry structured detail:
 
 - `GcsOperationError` exposes `httpStatusCode`, `code` (the

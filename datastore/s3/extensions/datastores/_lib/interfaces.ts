@@ -202,7 +202,11 @@ export interface DatastoreStorage {
     hashes: readonly string[],
     signal: AbortSignal,
   ): Promise<Set<string>>;
-  /** Stores `bytes` under `sha256`, replacing any chunk already there. */
+  /**
+   * Stores `bytes` under `sha256`, replacing any chunk already there. The
+   * implementation may read `bytes` until the returned promise settles, so
+   * the caller must not change the buffer before then.
+   */
   put(
     namespace: string,
     sha256: string,

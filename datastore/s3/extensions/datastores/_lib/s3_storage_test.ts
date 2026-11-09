@@ -36,6 +36,7 @@ import { S3Client } from "./s3_client.ts";
 import {
   type S3EmulatorState,
   startStallingRelay,
+  startThrottlingRelay,
   within,
   withS3Emulator,
 } from "./s3_emulator_test_util.ts";
@@ -468,6 +469,72 @@ Deno.test({
       state.requests.length = 0;
       assertEquals(await storage.touch(ns, [sha256], never()), new Set());
       assertEquals(counts(state).copy, 1);
+    });
+  },
+});
+
+/** A full-size chunk whose bytes differ along its length. */
+function patternedChunk(): Uint8Array {
+  const bytes = new Uint8Array(MAX_CHUNK_BYTES);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 31 + 7) & 0xff;
+  return bytes;
+}
+
+// Over a link of 8 MiB/s a 16 MiB chunk takes about 2 s: twice the 1 s flat
+// timeout set here, and far inside the scaled 1 s + 64 s (swamp-club#4557).
+const SLOW_LINK_BYTES_PER_SEC = 8 * 1024 * 1024;
+const FLAT_TIMEOUT_MS = 1000;
+
+function slowLinkClient(endpoint: string): S3Client {
+  return new S3Client({
+    bucket: "test-bucket",
+    region: "us-east-1",
+    endpoint,
+    forcePathStyle: true,
+    defaultRequestTimeoutMs: FLAT_TIMEOUT_MS,
+  });
+}
+
+Deno.test({
+  name: "put: a 16 MiB chunk over a link slower than the flat timeout lands " +
+    "in one attempt",
+  sanitizeResources: false,
+  fn: async () => {
+    await withS3Emulator({}, async (_s3, state, endpoint) => {
+      const relay = startThrottlingRelay(endpoint, SLOW_LINK_BYTES_PER_SEC);
+      try {
+        const storage = new S3ChunkStorage(slowLinkClient(relay.endpoint));
+        const sha256 = hashIn("cd", 1);
+        const bytes = patternedChunk();
+        await storage.put(NS, sha256, bytes, never());
+        assertEquals(state.objects.get(chunkKey(sha256))?.body, bytes);
+        assertEquals(counts(state).upload, 1);
+      } finally {
+        await relay.close();
+      }
+    });
+  },
+});
+
+Deno.test({
+  name: "putObject: without timeoutScalesWithBody the same upload keeps the " +
+    "flat timeout",
+  sanitizeResources: false,
+  fn: async () => {
+    await withS3Emulator({}, async (_s3, _state, endpoint) => {
+      const relay = startThrottlingRelay(endpoint, SLOW_LINK_BYTES_PER_SEC);
+      try {
+        const s3 = slowLinkClient(relay.endpoint);
+        const err = await assertRejects(() =>
+          s3.putObject(chunkKey(hashIn("cd", 2)), patternedChunk(), never())
+        );
+        assertStringIncludes(
+          (err as Error).message,
+          `timed out after ${FLAT_TIMEOUT_MS}ms`,
+        );
+      } finally {
+        await relay.close();
+      }
     });
   },
 });

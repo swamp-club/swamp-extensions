@@ -30,7 +30,9 @@ import {
   S3Client,
   s3NotFoundKind,
   S3OperationError,
+  scaledTimeoutMs,
   unquoteETag,
+  UPLOAD_FLOOR_BYTES_PER_SEC,
 } from "./s3_client.ts";
 import {
   type S3EmulatorState,
@@ -413,6 +415,42 @@ Deno.test({
         assert(
           err.message.includes("timed out after 100ms"),
           `expected timeout context in message, got: ${err.message}`,
+        );
+      },
+      { defaultRequestTimeoutMs: 100 },
+    ),
+});
+
+Deno.test("scaledTimeoutMs: the flat timeout plus the body at 256 KiB/s", () => {
+  assertEquals(UPLOAD_FLOOR_BYTES_PER_SEC, 256 * 1024);
+  assertEquals(scaledTimeoutMs(30_000, 0), 30_000);
+  assertEquals(scaledTimeoutMs(30_000, 16 * 1024 * 1024), 94_000);
+  // Partial milliseconds round up.
+  assertEquals(scaledTimeoutMs(100, 1), 101);
+});
+
+Deno.test({
+  sanitizeResources: false,
+  name: "a body-scaled putObject times out at the scaled deadline and says so",
+  fn: () =>
+    withMockServer(
+      // Delay past the scaled deadline, then reply (see the flat test above).
+      () =>
+        new Promise<Response>((resolve) => {
+          setTimeout(() => resolve(new Response(null, { status: 200 })), 1_000);
+        }),
+      async (client) => {
+        // 64 KiB at 256 KiB/s adds 250 ms.
+        const err = await assertRejects(() =>
+          client.putObject("k", new Uint8Array(64 * 1024), undefined, {
+            timeoutScalesWithBody: true,
+          })
+        );
+        assertInstanceOf(err, S3OperationError);
+        assertEquals(err.name, "TimeoutError");
+        assert(
+          err.message.includes("timed out after 350ms"),
+          `expected the scaled deadline in message, got: ${err.message}`,
         );
       },
       { defaultRequestTimeoutMs: 100 },

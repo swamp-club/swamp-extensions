@@ -53,14 +53,39 @@ export interface S3ClientConfig {
   forcePathStyle?: boolean;
   /**
    * Per-request timeout in milliseconds. Defaults to 30s. Every SDK call
-   * is guarded by `AbortSignal.timeout(defaultRequestTimeoutMs)`, composed
-   * with any caller-supplied signal. Prevents individual operations from
-   * hanging indefinitely on network stalls.
+   * is guarded by the request handler's `requestTimeout`, a wall-clock limit
+   * on the whole request; a `putObject` with `timeoutScalesWithBody` adds its
+   * body's size on top (see {@link scaledTimeoutMs}). The caller's signal
+   * still aborts any call. Prevents individual operations from hanging
+   * indefinitely on network stalls.
    */
   defaultRequestTimeoutMs?: number;
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * The slowest link a size-scaled upload is given time for: swamp's own floor
+ * for serve requests. A 16 MiB chunk gets 64 s on top of the flat timeout.
+ */
+export const UPLOAD_FLOOR_BYTES_PER_SEC = 256 * 1024;
+
+/**
+ * A deadline for sending `bytes`: the flat request timeout plus the time the
+ * body takes at {@link UPLOAD_FLOOR_BYTES_PER_SEC}.
+ */
+export function scaledTimeoutMs(baseMs: number, bytes: number): number {
+  return baseMs + Math.ceil(bytes * 1000 / UPLOAD_FLOOR_BYTES_PER_SEC);
+}
+
+/** Options for {@link S3Client.putObject}. */
+export interface PutObjectOptions {
+  /**
+   * Add the body's size at {@link UPLOAD_FLOOR_BYTES_PER_SEC} to the request
+   * timeout, so a large body on a slow link can finish. Off by default.
+   */
+  timeoutScalesWithBody?: boolean;
+}
 
 export interface S3ListEntry {
   key: string;
@@ -420,6 +445,7 @@ export class S3Client {
     op: string,
     cmd: PutObjectCommand,
     signal?: AbortSignal,
+    requestTimeoutMs?: number,
   ): Promise<PutObjectCommandOutput>;
   private run(
     op: string,
@@ -447,6 +473,7 @@ export class S3Client {
       | DeleteObjectCommand
       | ListObjectsV2Command,
     signal?: AbortSignal,
+    requestTimeoutMs: number = this.defaultRequestTimeoutMs,
   ): Promise<
     | HeadBucketCommandOutput
     | HeadObjectCommandOutput
@@ -472,7 +499,14 @@ export class S3Client {
         span.setAttribute(Attr.AWS_S3_KEY, logicalKey);
       }
 
-      const opts = signal ? { abortSignal: signal } : undefined;
+      // A per-call requestTimeout replaces the handler's flat one for this
+      // request only (smithy HttpHandlerOptions).
+      const opts = {
+        ...(signal ? { abortSignal: signal } : {}),
+        ...(requestTimeoutMs !== this.defaultRequestTimeoutMs
+          ? { requestTimeout: requestTimeoutMs }
+          : {}),
+      };
       try {
         let result:
           | HeadBucketCommandOutput
@@ -520,14 +554,19 @@ export class S3Client {
           span.recordException(err);
           span.setAttribute(Attr.ERROR_TYPE, err.name);
         }
-        throw this.wrapError(op, err, inputKey);
+        throw this.wrapError(op, err, inputKey, requestTimeoutMs);
       } finally {
         span.end();
       }
     });
   }
 
-  private wrapError(op: string, err: unknown, key?: string): Error {
+  private wrapError(
+    op: string,
+    err: unknown,
+    key?: string,
+    timeoutMs: number = this.defaultRequestTimeoutMs,
+  ): Error {
     if (!(err instanceof Error)) return new Error(String(err));
     const e = err as Error & {
       $metadata?: { httpStatusCode?: number; requestId?: string };
@@ -557,7 +596,7 @@ export class S3Client {
     // `AbortSignal.timeout()` triggers a DOMException with name
     // "TimeoutError"; an external AbortSignal triggers "AbortError".
     if (e.name === "TimeoutError") {
-      parts.push(`timed out after ${this.defaultRequestTimeoutMs}ms`);
+      parts.push(`timed out after ${timeoutMs}ms`);
     } else if (e.name === "AbortError") {
       parts.push("aborted");
     }
@@ -633,12 +672,15 @@ export class S3Client {
   /**
    * Uploads an object to S3. Returns the resulting object's `ETag` when the
    * service surfaces one so callers can fingerprint the write without an
-   * extra HEAD roundtrip — used by the sync-state sidecar fast path.
+   * extra HEAD roundtrip — used by the sync-state sidecar fast path. The
+   * request gets the flat timeout unless `options.timeoutScalesWithBody` is
+   * set.
    */
   async putObject(
     key: string,
     body: Uint8Array,
     signal?: AbortSignal,
+    options?: PutObjectOptions,
   ): Promise<{ etag?: string }> {
     const response = await this.run(
       "putObject",
@@ -648,6 +690,9 @@ export class S3Client {
         Body: body,
       }),
       signal,
+      options?.timeoutScalesWithBody
+        ? scaledTimeoutMs(this.defaultRequestTimeoutMs, body.byteLength)
+        : this.defaultRequestTimeoutMs,
     );
     return { etag: response.ETag };
   }

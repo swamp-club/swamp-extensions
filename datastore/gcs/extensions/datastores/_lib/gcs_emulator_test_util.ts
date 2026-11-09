@@ -482,6 +482,105 @@ export function startStallingRelay(
   };
 }
 
+/** A TCP relay in front of an emulator; see `startThrottlingRelay`. */
+export interface ThrottlingRelay {
+  /** Base URL to send requests through the relay. */
+  endpoint: string;
+  /** Closes every socket and waits for the relay to wind down. */
+  close(): Promise<void>;
+}
+
+/**
+ * Starts a TCP relay to `target` that forwards what a client sends at no
+ * more than `bytesPerSec`, and passes every response byte back at full speed:
+ * a slow upload link. The client's writes back up behind the relay, so an
+ * upload of N bytes takes about N / `bytesPerSec` seconds end to end.
+ */
+export function startThrottlingRelay(
+  target: string,
+  bytesPerSec: number,
+): ThrottlingRelay {
+  const { hostname, port } = new URL(target);
+  const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+  const open = new Set<Deno.Conn>();
+  const relays: Promise<void>[] = [];
+  const shut = (conn: Deno.Conn) => {
+    if (!open.delete(conn)) return;
+    try {
+      conn.close();
+    } catch {
+      // Already closed by the peer.
+    }
+  };
+  const writeAll = async (conn: Deno.Conn, bytes: Uint8Array) => {
+    for (let at = 0; at < bytes.length;) {
+      at += await conn.write(bytes.subarray(at));
+    }
+  };
+
+  const relay = async (client: Deno.Conn) => {
+    let upstream: Deno.Conn;
+    try {
+      upstream = await Deno.connect({ hostname, port: Number(port) });
+    } catch {
+      shut(client);
+      return;
+    }
+    open.add(upstream);
+    const forward = async () => {
+      // Small reads keep the pace even: after each read the relay waits
+      // until those bytes are due at `bytesPerSec`. The schedule restarts
+      // after an idle spell, so a kept-alive connection earns no burst.
+      const buf = new Uint8Array(16 * 1024);
+      let due = performance.now();
+      try {
+        for (let n; (n = await client.read(buf)) !== null;) {
+          await writeAll(upstream, buf.subarray(0, n));
+          due = Math.max(due, performance.now()) + n * 1000 / bytesPerSec;
+          const wait = due - performance.now();
+          if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+        }
+      } catch {
+        // The client reset the connection.
+      }
+      shut(upstream);
+    };
+    const back = async () => {
+      const buf = new Uint8Array(64 * 1024);
+      try {
+        for (let n; (n = await upstream.read(buf)) !== null;) {
+          await writeAll(client, buf.subarray(0, n));
+        }
+      } catch {
+        // Either side went away.
+      }
+      shut(client);
+    };
+    await Promise.all([forward(), back()]);
+  };
+
+  const accepting = (async () => {
+    try {
+      for await (const client of listener) {
+        open.add(client);
+        relays.push(relay(client));
+      }
+    } catch {
+      // The listener was closed.
+    }
+  })();
+
+  return {
+    endpoint: `http://127.0.0.1:${(listener.addr as Deno.NetAddr).port}`,
+    close: async () => {
+      listener.close();
+      for (const conn of [...open]) shut(conn);
+      await accepting;
+      await Promise.all(relays);
+    },
+  };
+}
+
 /**
  * Settles as `promise` does, or rejects with `message` after `ms`, so a test
  * waiting on an emulator event fails instead of hanging.
