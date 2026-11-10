@@ -1,5 +1,5 @@
 import { z } from "npm:zod@4.6.7";
-import type { CoreV1Event } from "npm:@kubernetes/client-node@1.4.0";
+import type { CoreV1Event } from "npm:@kubernetes/client-node@2.0.1";
 import {
   buildClient,
   type DataHandle,
@@ -108,7 +108,7 @@ async function writeEvents(
 /** Kubernetes Event model. */
 export const model = {
   type: "@swamp/kubernetes/event",
-  version: "2026.08.01.1",
+  version: "2026.11.10.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -145,6 +145,13 @@ export const model = {
       toVersion: "2026.08.01.1",
       description: "Bump @kubernetes/client-node from 1.0.0 to 1.4.0 and " +
         "add statefulset model type. No schema or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Bump @kubernetes/client-node from 1.4.0 to 2.0.1. A " +
+        "kubeconfig tls-server-name may now be an IP address. No schema " +
+        "or resource change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

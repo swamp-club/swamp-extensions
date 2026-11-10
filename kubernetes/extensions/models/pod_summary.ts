@@ -78,7 +78,7 @@ interface PodData {
 /** Kubernetes Pod summary aggregation model. */
 export const model = {
   type: "@swamp/kubernetes/pod-summary",
-  version: "2026.08.01.1",
+  version: "2026.11.10.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -115,6 +115,14 @@ export const model = {
       toVersion: "2026.08.01.1",
       description: "Bump @kubernetes/client-node from 1.0.0 to 1.4.0 and " +
         "add statefulset model type. No schema or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Bump @kubernetes/client-node from 1.4.0 to 2.0.1. A " +
+        "kubeconfig tls-server-name may now be an IP address. " +
+        "summarize saves its summary as data named summary, since " +
+        "swamp reserves latest. No schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -236,9 +244,11 @@ export const model = {
           collectedAt: new Date().toISOString(),
         };
 
+        // "latest" is reserved by swamp for the newest version of any data,
+        // so the summary has a name of its own.
         const handle = await context.writeResource(
           "summary",
-          "latest",
+          "summary",
           summary,
         );
         return { dataHandles: [handle] };

@@ -37,6 +37,8 @@ export interface FakeApiServer {
   put(plural: string, obj: Record<string, unknown>): StoredObject;
   /** Simulate a concurrent writer bumping resourceVersion after each GET. */
   bumpAfterRead: boolean;
+  /** Like bumpAfterRead, for only the next N reads; counts down to 0. */
+  bumpNextReads: number;
   /** `group/version` pairs that answer 404, as if the CRD did not serve them. */
   unserved: Set<string>;
   /** HTTP methods that answer 403, as if RBAC denied the verb. */
@@ -296,6 +298,7 @@ export async function startFakeApiServer(): Promise<FakeApiServer> {
     requests,
     objects,
     bumpAfterRead: false,
+    bumpNextReads: 0,
     unserved: new Set(),
     forbidden: new Set(),
     forbiddenPaths: new Set(),
@@ -331,7 +334,12 @@ export async function startFakeApiServer(): Promise<FakeApiServer> {
 
     if (req.method === "GET") {
       const snapshot = structuredClone(existing);
-      if (fake.bumpAfterRead) store(key, existing);
+      if (fake.bumpAfterRead) {
+        store(key, existing);
+      } else if (fake.bumpNextReads > 0) {
+        fake.bumpNextReads--;
+        store(key, existing);
+      }
       return Response.json(snapshot);
     }
 

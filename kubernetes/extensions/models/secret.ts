@@ -1,5 +1,5 @@
 import { z } from "npm:zod@4.6.7";
-import type { V1Secret } from "npm:@kubernetes/client-node@1.4.0";
+import type { V1Secret } from "npm:@kubernetes/client-node@2.0.1";
 import {
   buildClient,
   type DataHandle,
@@ -8,6 +8,7 @@ import {
   type K8sContext,
   K8sGlobalArgsSchema,
   normalizeMeta,
+  retryOnConflict,
   sanitizeInstanceName,
   toBase64,
 } from "./_lib/helpers.ts";
@@ -119,7 +120,7 @@ function sameRecord(a: Record<string, string>, b: Record<string, string>) {
 /** Kubernetes Secret model. */
 export const model = {
   type: "@swamp/kubernetes/secret",
-  version: "2026.10.20.1",
+  version: "2026.11.10.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -163,6 +164,14 @@ export const model = {
       description: "Add ensure (idempotent create-or-update) and getMeta " +
         "(metadata-only read) methods. secretMeta gains optional " +
         "resourceVersion and action fields.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Bump @kubernetes/client-node from 1.4.0 to 2.0.1. A " +
+        "kubeconfig tls-server-name may now be an IP address. " +
+        "Read-modify-replace methods retry on 409 Conflict. No schema " +
+        "change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -291,69 +300,71 @@ export const model = {
         const ns = args.namespace ?? context.globalArgs.namespace;
         const desiredData = encodeSecretData(args.data);
 
-        let current: V1Secret | undefined;
-        try {
-          current = await coreApi.readNamespacedSecret({
-            name: args.secretName,
-            namespace: ns,
-          });
-        } catch (err: unknown) {
-          if (!isNotFound(err)) throw err;
-        }
-
-        let result: V1Secret;
-        let action: "created" | "updated" | "unchanged";
-        if (!current) {
-          result = await coreApi.createNamespacedSecret({
-            namespace: ns,
-            body: {
-              metadata: {
-                name: args.secretName,
-                namespace: ns,
-                ...(args.labels && { labels: args.labels }),
-              },
-              type: args.type ?? "Opaque",
-              data: desiredData,
-            },
-          });
-          action = "created";
-        } else {
-          const currentType = current.type || "Opaque";
-          if (args.type !== undefined && currentType !== args.type) {
-            throw new Error(
-              `Secret ${ns}/${args.secretName} has type "${currentType}" ` +
-                `but "${args.type}" was requested; a Secret's type is ` +
-                `immutable, so delete and recreate it to change the type`,
-            );
-          }
-
-          // Compare in base64 form: decoding is lossy for binary values.
-          const currentData = current.data || {};
-          const nextData = args.prune
-            ? desiredData
-            : { ...currentData, ...desiredData };
-          const currentLabels = current.metadata?.labels || {};
-          const nextLabels = { ...currentLabels, ...args.labels };
-
-          if (
-            sameRecord(currentData, nextData) &&
-            sameRecord(currentLabels, nextLabels)
-          ) {
-            result = current;
-            action = "unchanged";
-          } else {
-            // The read object keeps metadata.resourceVersion, so a
-            // concurrent writer makes this replace fail with a 409.
-            current.data = nextData;
-            current.metadata = { ...current.metadata, labels: nextLabels };
-            result = await coreApi.replaceNamespacedSecret({
+        // A create that loses a race answers 409 AlreadyExists, and a
+        // replace after a concurrent write answers 409 Conflict; both retry.
+        const { result, action } = await retryOnConflict(async () => {
+          let current: V1Secret | undefined;
+          try {
+            current = await coreApi.readNamespacedSecret({
               name: args.secretName,
               namespace: ns,
-              body: current,
             });
-            action = "updated";
+          } catch (err: unknown) {
+            if (!isNotFound(err)) throw err;
           }
-        }
+
+          if (!current) {
+            const created = await coreApi.createNamespacedSecret({
+              namespace: ns,
+              body: {
+                metadata: {
+                  name: args.secretName,
+                  namespace: ns,
+                  ...(args.labels && { labels: args.labels }),
+                },
+                type: args.type ?? "Opaque",
+                data: desiredData,
+              },
+            });
+            return { result: created, action: "created" as const };
+          } else {
+            const currentType = current.type || "Opaque";
+            if (args.type !== undefined && currentType !== args.type) {
+              throw new Error(
+                `Secret ${ns}/${args.secretName} has type "${currentType}" ` +
+                  `but "${args.type}" was requested; a Secret's type is ` +
+                  `immutable, so delete and recreate it to change the type`,
+              );
+            }
+
+            // Compare in base64 form: decoding is lossy for binary values.
+            const currentData = current.data || {};
+            const nextData = args.prune
+              ? desiredData
+              : { ...currentData, ...desiredData };
+            const currentLabels = current.metadata?.labels || {};
+            const nextLabels = { ...currentLabels, ...args.labels };
+
+            if (
+              sameRecord(currentData, nextData) &&
+              sameRecord(currentLabels, nextLabels)
+            ) {
+              return { result: current, action: "unchanged" as const };
+            } else {
+              // The read object keeps metadata.resourceVersion, so a
+              // concurrent writer makes this replace fail with a 409, and
+              // retryOnConflict reads the secret again and recomputes.
+              current.data = nextData;
+              current.metadata = { ...current.metadata, labels: nextLabels };
+              const replaced = await coreApi.replaceNamespacedSecret({
+                name: args.secretName,
+                namespace: ns,
+                body: current,
+              });
+              return { result: replaced, action: "updated" as const };
+            }
+          }
+        });
 
         context.logger.info("Ensured secret {name} in {ns}: {action}", {
           name: args.secretName,
@@ -435,22 +446,24 @@ export const model = {
         const { coreApi } = buildClient(context.globalArgs);
         const ns = args.namespace ?? context.globalArgs.namespace;
 
-        const current = await coreApi.readNamespacedSecret({
-          name: args.secretName,
-          namespace: ns,
-        });
+        const replaced = await retryOnConflict(async () => {
+          const current = await coreApi.readNamespacedSecret({
+            name: args.secretName,
+            namespace: ns,
+          });
 
-        // Merge new base64-encoded values
-        const existingData = current.data || {};
-        for (const [key, value] of Object.entries(args.data)) {
-          existingData[key] = toBase64(value);
-        }
-        current.data = existingData;
+          // Merge new base64-encoded values
+          const existingData = current.data || {};
+          for (const [key, value] of Object.entries(args.data)) {
+            existingData[key] = toBase64(value);
+          }
+          current.data = existingData;
 
-        const replaced = await coreApi.replaceNamespacedSecret({
-          name: args.secretName,
-          namespace: ns,
-          body: current,
+          return await coreApi.replaceNamespacedSecret({
+            name: args.secretName,
+            namespace: ns,
+            body: current,
+          });
         });
         const meta = normalizeMeta(replaced);
         const decoded = decodeSecretData(replaced);

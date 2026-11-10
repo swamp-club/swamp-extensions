@@ -1,5 +1,5 @@
 import { z } from "npm:zod@4.6.7";
-import type { V1Pod } from "npm:@kubernetes/client-node@1.4.0";
+import type { V1Pod } from "npm:@kubernetes/client-node@2.0.1";
 import {
   buildClient,
   callForObject,
@@ -153,7 +153,7 @@ function normalizePod(raw: V1Pod) {
 /** Kubernetes Pod model. */
 export const model = {
   type: "@swamp/kubernetes/pod",
-  version: "2026.11.07.1",
+  version: "2026.11.10.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -196,6 +196,14 @@ export const model = {
       toVersion: "2026.11.07.1",
       description: "Add patch (merge, strategic merge or JSON patch). " +
         "No change to global arguments or existing resources.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Bump @kubernetes/client-node from 1.4.0 to 2.0.1. A " +
+        "kubeconfig tls-server-name may now be an IP address. " +
+        "getLogs names its file <namespace>_<pod>[_<container>] so it no " +
+        "longer collides with the pod saved by get. No schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -442,7 +450,14 @@ export const model = {
         const logText = typeof resp === "string" ? resp : String(resp);
         const writer = context.createFileWriter(
           "logs",
-          `${args.podName}${args.container ? `-${args.container}` : ""}`,
+          // get and list store the pod itself under its bare name, so the logs
+          // need a name of their own; "_" cannot occur in a namespace, pod or
+          // container name. Same scheme as deployment getLogs.
+          sanitizeInstanceName(
+            `${ns}_${args.podName}${
+              args.container ? `_${args.container}` : ""
+            }`,
+          ),
         );
         const handle = await writer.writeText(logText);
 

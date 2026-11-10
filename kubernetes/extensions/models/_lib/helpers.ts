@@ -1,6 +1,9 @@
 import { z } from "npm:zod@4.6.7";
-import * as k8s from "npm:@kubernetes/client-node@1.4.0";
+import * as k8s from "npm:@kubernetes/client-node@2.0.1";
 import process from "node:process";
+import type { AgentOptions } from "node:https";
+import { isIP } from "node:net";
+import { checkServerIdentity, type PeerCertificate } from "node:tls";
 
 // Suppress MaxListeners warning — @kubernetes/client-node registers multiple
 // listeners per API client, which is expected across 17 model types.
@@ -78,9 +81,109 @@ const TLS_ERROR_PATTERNS = [
   "ERR_TLS_CERT_ALTNAME_INVALID",
 ];
 
+// client-node 2.x sends requests with undici fetch, which reports every
+// network failure as TypeError "fetch failed" and puts the real error (TLS,
+// connection refused, DNS) in cause. The chain is short; the bound only
+// guards against a pathological or cyclic cause.
+const MAX_CAUSE_DEPTH = 5;
+const FETCH_FAILED = "fetch failed";
+
+function causeChain(err: unknown): unknown[] {
+  const chain: unknown[] = [];
+  let current: unknown = err;
+  while (
+    current !== undefined && current !== null &&
+    chain.length < MAX_CAUSE_DEPTH && !chain.includes(current)
+  ) {
+    chain.push(current);
+    current = current instanceof Error ? current.cause : undefined;
+  }
+  return chain;
+}
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** Every distinct message in the cause chain, outermost first. */
+function describeError(err: unknown): string {
+  const messages: string[] = [];
+  for (const e of causeChain(err)) {
+    const msg = messageOf(e);
+    if (msg && !messages.includes(msg)) messages.push(msg);
+  }
+  return messages.join(": ");
+}
+
 function isTlsError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return TLS_ERROR_PATTERNS.some((p) => msg.includes(p));
+  return causeChain(err).some((e) => {
+    const msg = messageOf(e);
+    const code = e instanceof Error ? (e as { code?: unknown }).code : "";
+    return TLS_ERROR_PATTERNS.some((p) => msg.includes(p) || code === p);
+  });
+}
+
+/** A bare "fetch failed" whose cause says what actually went wrong. */
+function isOpaqueFetchError(err: unknown): boolean {
+  return err instanceof Error && err.message === FETCH_FAILED &&
+    err.cause !== undefined;
+}
+
+/**
+ * A KubeConfig that accepts an IP address as the cluster's tls-server-name,
+ * as kubectl does. client-node passes tls-server-name to TLS as servername,
+ * which Node refuses for an IP because SNI carries host names only. For an IP
+ * this drops servername and checks the server certificate against that IP's
+ * SAN instead. A DNS name is passed through unchanged. Without servername, TLS
+ * falls back to the server URL's host for SNI: none when it is an IP (the
+ * tunnel case), the host name when it is one. client-node's SOCKS connector
+ * passes that host as servername itself; for an IP Node ignores it with a
+ * warning. Either way the certificate is checked against the configured IP.
+ *
+ * In client-node 2.x every typed API client and the Metrics client build their
+ * connection through createDispatcherOptions, so this one override covers
+ * every model. client-node's WebSocket path (exec, attach, port-forward) sets
+ * servername elsewhere and is not covered; no model uses it — pod exec shells
+ * out to kubectl.
+ */
+class IpServerNameKubeConfig extends k8s.KubeConfig {
+  override createDispatcherOptions(
+    cluster: k8s.Cluster | null,
+    agentOptions: AgentOptions,
+  ): ReturnType<k8s.KubeConfig["createDispatcherOptions"]> {
+    const serverName = agentOptions.servername;
+    if (typeof serverName !== "string" || isIP(serverName) === 0) {
+      return super.createDispatcherOptions(cluster, agentOptions);
+    }
+    const { servername: _ip, ...withoutServerName } = agentOptions;
+    const options = super.createDispatcherOptions(cluster, withoutServerName);
+    const verifyIp = (_host: string, cert: PeerCertificate) =>
+      checkServerIdentity(serverName, cert);
+    switch (options.type) {
+      case "agent":
+        options.connect = { ...options.connect, checkServerIdentity: verifyIp };
+        return options;
+      case "none":
+        // servername was the only TLS option (a publicly trusted cert, no
+        // client cert), so client-node would fall back to the default
+        // dispatcher and check the cert against the server's host instead.
+        // Build the agent it would have built, with its keep-alive settings.
+        return {
+          type: "agent",
+          connect: {
+            checkServerIdentity: verifyIp,
+            keepAlive: true,
+            keepAliveInitialDelay: 30000,
+          },
+        };
+      default:
+        options.requestTls = {
+          ...options.requestTls,
+          checkServerIdentity: verifyIp,
+        };
+        return options;
+    }
+  }
 }
 
 function wrapApiClient<T extends object>(
@@ -98,7 +201,7 @@ function wrapApiClient<T extends object>(
         if (result instanceof Promise) {
           return result.catch((err: unknown) => {
             if (isTlsError(err)) {
-              const orig = err instanceof Error ? err.message : String(err);
+              const orig = describeError(err);
               throw new Error(
                 `TLS verification failed for cluster "${clusterInfo.context}" ` +
                   `(${clusterInfo.server}): ${orig}. ` +
@@ -107,6 +210,9 @@ function wrapApiClient<T extends object>(
                   `kubectl cluster-info --context "${clusterInfo.context}"`,
                 { cause: err },
               );
+            }
+            if (isOpaqueFetchError(err)) {
+              throw new Error(describeError(err), { cause: err });
             }
             throw err;
           });
@@ -120,7 +226,7 @@ function wrapApiClient<T extends object>(
 }
 
 export function buildClient(globalArgs: K8sGlobalArgs) {
-  const kc = new k8s.KubeConfig();
+  const kc = new IpServerNameKubeConfig();
 
   if (globalArgs.kubeconfig) {
     kc.loadFromFile(globalArgs.kubeconfig);
@@ -352,6 +458,33 @@ export function apiErrorCode(err: unknown): number | undefined {
   if (typeof err !== "object" || err === null) return undefined;
   const code = (err as { code?: unknown }).code;
   return typeof code === "number" ? code : undefined;
+}
+
+/** Attempts retryOnConflict makes before it lets a 409 through. */
+export const CONFLICT_ATTEMPTS = 5;
+
+/**
+ * Run a read-modify-replace again when the replace answers 409 Conflict.
+ *
+ * A replace sends the resourceVersion it read, so the API server refuses it
+ * when anyone wrote the object in between: a controller updating a
+ * Deployment's or StatefulSet's status, the kubelet updating its Node. attempt
+ * must do the read as well as the replace, so each retry applies the change
+ * to the object as it now is. Any other error, and a 409 on the last attempt,
+ * is thrown as it came.
+ */
+export async function retryOnConflict<T>(
+  attempt: () => Promise<T>,
+  attempts = CONFLICT_ATTEMPTS,
+): Promise<T> {
+  for (let i = 1;; i++) {
+    try {
+      return await attempt();
+    } catch (err: unknown) {
+      if (apiErrorCode(err) !== 409 || i >= attempts) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 50 * i));
+    }
+  }
 }
 
 /**

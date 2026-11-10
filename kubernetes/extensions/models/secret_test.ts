@@ -1,7 +1,11 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 import { createModelTestContext } from "@systeminit/swamp-testing";
 import { model } from "./secret.ts";
-import { type K8sContext, toBase64 } from "./_lib/helpers.ts";
+import {
+  CONFLICT_ATTEMPTS,
+  type K8sContext,
+  toBase64,
+} from "./_lib/helpers.ts";
 import {
   type FakeApiServer,
   startFakeApiServer,
@@ -247,7 +251,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "ensure surfaces a 409 when a concurrent writer changed the secret",
+  name: "ensure surfaces a 409 when a concurrent writer keeps changing it",
   ...opts,
   fn: () =>
     withFake(async (fake) => {
@@ -266,7 +270,37 @@ Deno.test({
         )
       );
       assertEquals((err as { code?: number }).code, 409);
+      assertEquals(puts(fake).length, CONFLICT_ATTEMPTS);
       assertEquals(getWrittenResources().length, 0);
+    }),
+});
+
+Deno.test({
+  name: "ensure re-reads and merges again after a concurrent write",
+  ...opts,
+  fn: () =>
+    withFake(async (fake) => {
+      seedSecret(fake, { password: toBase64("old"), user: toBase64("app") });
+      fake.bumpNextReads = 1;
+      const { context, getWrittenResources } = makeContext(fake, "ensure");
+      await model.methods.ensure.execute(
+        {
+          secretName: "app",
+          data: { password: "new" },
+          type: "Opaque",
+          prune: false,
+        },
+        context,
+      );
+      // The first replace is refused; the second, from a fresh read, lands.
+      assertEquals(puts(fake).length, 2);
+      const stored = fake.objects.get("secrets/default/app")!;
+      assertEquals(stored.data, {
+        password: toBase64("new"),
+        user: toBase64("app"),
+      });
+      const [meta] = getWrittenResources();
+      assertEquals((meta.data as { action: string }).action, "updated");
     }),
 });
 

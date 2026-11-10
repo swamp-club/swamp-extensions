@@ -1,10 +1,11 @@
 import { z } from "npm:zod@4.6.7";
-import type { V1Node, V1Pod } from "npm:@kubernetes/client-node@1.4.0";
+import type { V1Node, V1Pod } from "npm:@kubernetes/client-node@2.0.1";
 import {
   buildClient,
   type DataHandle,
   type K8sGlobalArgs,
   normalizeMeta,
+  retryOnConflict,
   sanitizeInstanceName,
 } from "./_lib/helpers.ts";
 
@@ -226,7 +227,7 @@ function normalizePodForNode(raw: V1Pod) {
 /** Kubernetes Node model. */
 export const model = {
   type: "@swamp/kubernetes/node",
-  version: "2026.09.03.1",
+  version: "2026.11.10.1",
   globalArguments: NodeGlobalArgsSchema,
   upgrades: [
     {
@@ -269,6 +270,14 @@ export const model = {
       toVersion: "2026.09.03.1",
       description: "Node list now syncs: upserts live nodes and prunes " +
         "records for departed ones. No schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Bump @kubernetes/client-node from 1.4.0 to 2.0.1. A " +
+        "kubeconfig tls-server-name may now be an IP address. " +
+        "Read-modify-replace methods retry on 409 Conflict. No schema " +
+        "change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -430,12 +439,14 @@ export const model = {
       ): Promise<{ dataHandles: DataHandle[] }> => {
         const { coreApi } = buildClient(toK8sGlobalArgs(context.globalArgs));
 
-        const current = await coreApi.readNode({ name: args.nodeName });
-        current.spec!.unschedulable = true;
+        const replaced = await retryOnConflict(async () => {
+          const current = await coreApi.readNode({ name: args.nodeName });
+          current.spec!.unschedulable = true;
 
-        const replaced = await coreApi.replaceNode({
-          name: args.nodeName,
-          body: current,
+          return await coreApi.replaceNode({
+            name: args.nodeName,
+            body: current,
+          });
         });
         const normalized = normalizeNode(replaced);
 
@@ -459,12 +470,14 @@ export const model = {
       ): Promise<{ dataHandles: DataHandle[] }> => {
         const { coreApi } = buildClient(toK8sGlobalArgs(context.globalArgs));
 
-        const current = await coreApi.readNode({ name: args.nodeName });
-        current.spec!.unschedulable = false;
+        const replaced = await retryOnConflict(async () => {
+          const current = await coreApi.readNode({ name: args.nodeName });
+          current.spec!.unschedulable = false;
 
-        const replaced = await coreApi.replaceNode({
-          name: args.nodeName,
-          body: current,
+          return await coreApi.replaceNode({
+            name: args.nodeName,
+            body: current,
+          });
         });
         const normalized = normalizeNode(replaced);
 
@@ -488,24 +501,26 @@ export const model = {
       ): Promise<{ dataHandles: DataHandle[] }> => {
         const { coreApi } = buildClient(toK8sGlobalArgs(context.globalArgs));
 
-        const current = await coreApi.readNode({ name: args.nodeName });
-        if (!current.spec!.taints) {
-          current.spec!.taints = [];
-        }
+        const replaced = await retryOnConflict(async () => {
+          const current = await coreApi.readNode({ name: args.nodeName });
+          if (!current.spec!.taints) {
+            current.spec!.taints = [];
+          }
 
-        // Remove existing taint with the same key if any
-        current.spec!.taints = current.spec!.taints.filter((t) =>
-          t.key !== args.key
-        );
-        current.spec!.taints.push({
-          key: args.key,
-          value: args.value,
-          effect: args.effect,
-        });
+          // Remove existing taint with the same key if any
+          current.spec!.taints = current.spec!.taints.filter((t) =>
+            t.key !== args.key
+          );
+          current.spec!.taints.push({
+            key: args.key,
+            value: args.value,
+            effect: args.effect,
+          });
 
-        const replaced = await coreApi.replaceNode({
-          name: args.nodeName,
-          body: current,
+          return await coreApi.replaceNode({
+            name: args.nodeName,
+            body: current,
+          });
         });
         const normalized = normalizeNode(replaced);
 
@@ -537,16 +552,18 @@ export const model = {
       ): Promise<{ dataHandles: DataHandle[] }> => {
         const { coreApi } = buildClient(toK8sGlobalArgs(context.globalArgs));
 
-        const current = await coreApi.readNode({ name: args.nodeName });
-        if (current.spec!.taints) {
-          current.spec!.taints = current.spec!.taints.filter((t) =>
-            t.key !== args.key
-          );
-        }
+        const replaced = await retryOnConflict(async () => {
+          const current = await coreApi.readNode({ name: args.nodeName });
+          if (current.spec!.taints) {
+            current.spec!.taints = current.spec!.taints.filter((t) =>
+              t.key !== args.key
+            );
+          }
 
-        const replaced = await coreApi.replaceNode({
-          name: args.nodeName,
-          body: current,
+          return await coreApi.replaceNode({
+            name: args.nodeName,
+            body: current,
+          });
         });
         const normalized = normalizeNode(replaced);
 

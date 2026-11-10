@@ -6,7 +6,7 @@ import type {
   V1Role,
   V1RoleBinding,
   V1ServiceAccount,
-} from "npm:@kubernetes/client-node@1.4.0";
+} from "npm:@kubernetes/client-node@2.0.1";
 import {
   apiErrorCode,
   apiErrorMessage,
@@ -345,7 +345,7 @@ async function writeServiceAccount(
 /** Kubernetes RBAC model. */
 export const model = {
   type: "@swamp/kubernetes/rbac",
-  version: "2026.11.07.1",
+  version: "2026.11.10.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -391,6 +391,13 @@ export const model = {
         "checkServiceAccountAccess (SubjectAccessReview), and " +
         "create/update/patch/deleteServiceAccount. No change to global " +
         "arguments or existing resources.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Bump @kubernetes/client-node from 1.4.0 to 2.0.1. A " +
+        "kubeconfig tls-server-name may now be an IP address. No schema " +
+        "or resource change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -1,5 +1,5 @@
 import { z } from "npm:zod@4.6.7";
-import type { V1Endpoints, V1Service } from "npm:@kubernetes/client-node@1.4.0";
+import type { V1Endpoints, V1Service } from "npm:@kubernetes/client-node@2.0.1";
 import {
   buildClient,
   callForObject,
@@ -11,6 +11,7 @@ import {
   PatchFields,
   patchOptions,
   refinePatchArgs,
+  retryOnConflict,
 } from "./_lib/helpers.ts";
 
 // --- Schemas ---
@@ -204,7 +205,7 @@ function mapPortToK8s(p: PortInputType) {
 /** Kubernetes Service model. */
 export const model = {
   type: "@swamp/kubernetes/service",
-  version: "2026.11.07.1",
+  version: "2026.11.10.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -247,6 +248,14 @@ export const model = {
       toVersion: "2026.11.07.1",
       description: "Add patch (merge, strategic merge or JSON patch). " +
         "No change to global arguments or existing resources.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Bump @kubernetes/client-node from 1.4.0 to 2.0.1. A " +
+        "kubeconfig tls-server-name may now be an IP address. " +
+        "Read-modify-replace methods retry on 409 Conflict. No schema " +
+        "change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -427,22 +436,24 @@ export const model = {
         const { coreApi } = buildClient(context.globalArgs);
         const ns = args.namespace ?? context.globalArgs.namespace;
 
-        const current = await coreApi.readNamespacedService({
-          name: args.serviceName,
-          namespace: ns,
-        });
+        const replaced = await retryOnConflict(async () => {
+          const current = await coreApi.readNamespacedService({
+            name: args.serviceName,
+            namespace: ns,
+          });
 
-        if (args.selector) {
-          current.spec!.selector = args.selector;
-        }
-        if (args.ports) {
-          current.spec!.ports = args.ports.map(mapPortToK8s);
-        }
+          if (args.selector) {
+            current.spec!.selector = args.selector;
+          }
+          if (args.ports) {
+            current.spec!.ports = args.ports.map(mapPortToK8s);
+          }
 
-        const replaced = await coreApi.replaceNamespacedService({
-          name: args.serviceName,
-          namespace: ns,
-          body: current,
+          return await coreApi.replaceNamespacedService({
+            name: args.serviceName,
+            namespace: ns,
+            body: current,
+          });
         });
         const normalized = normalizeService(replaced);
 

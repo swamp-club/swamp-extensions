@@ -3,7 +3,7 @@ import type {
   V1LimitRange,
   V1Namespace,
   V1ResourceQuota,
-} from "npm:@kubernetes/client-node@1.4.0";
+} from "npm:@kubernetes/client-node@2.0.1";
 import {
   buildClient,
   callForObject,
@@ -15,6 +15,7 @@ import {
   PatchFields,
   patchOptions,
   refinePatchArgs,
+  retryOnConflict,
 } from "./_lib/helpers.ts";
 
 // --- Global Args (cluster-scoped, no namespace field) ---
@@ -272,7 +273,7 @@ function normalizeLimitRange(raw: V1LimitRange) {
 /** Kubernetes Namespace model. */
 export const model = {
   type: "@swamp/kubernetes/namespace",
-  version: "2026.11.07.1",
+  version: "2026.11.10.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -322,6 +323,14 @@ export const model = {
       toVersion: "2026.11.07.1",
       description: "Add patch (merge, strategic merge or JSON patch). " +
         "No change to global arguments or existing resources.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Bump @kubernetes/client-node from 1.4.0 to 2.0.1. A " +
+        "kubeconfig tls-server-name may now be an IP address. " +
+        "Read-modify-replace methods retry on 409 Conflict. No schema " +
+        "change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -480,25 +489,27 @@ export const model = {
         const { coreApi } = buildClient(toK8sGlobalArgs(context.globalArgs));
 
         // Read current state, merge in changes, replace
-        const current = await coreApi.readNamespace({
-          name: args.namespaceName,
-        });
-        const meta = current.metadata || {};
+        const replaced = await retryOnConflict(async () => {
+          const current = await coreApi.readNamespace({
+            name: args.namespaceName,
+          });
+          const meta = current.metadata || {};
 
-        if (args.labels) {
-          meta.labels = { ...(meta.labels || {}), ...args.labels };
-        }
-        if (args.annotations) {
-          meta.annotations = {
-            ...(meta.annotations || {}),
-            ...args.annotations,
-          };
-        }
-        current.metadata = meta;
+          if (args.labels) {
+            meta.labels = { ...(meta.labels || {}), ...args.labels };
+          }
+          if (args.annotations) {
+            meta.annotations = {
+              ...(meta.annotations || {}),
+              ...args.annotations,
+            };
+          }
+          current.metadata = meta;
 
-        const replaced = await coreApi.replaceNamespace({
-          name: args.namespaceName,
-          body: current,
+          return await coreApi.replaceNamespace({
+            name: args.namespaceName,
+            body: current,
+          });
         });
         const normalized = normalizeNamespace(replaced);
 

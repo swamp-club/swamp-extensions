@@ -1,5 +1,5 @@
 import { z } from "npm:zod@4.6.7";
-import type { V1CronJob, V1Job } from "npm:@kubernetes/client-node@1.4.0";
+import type { V1CronJob, V1Job } from "npm:@kubernetes/client-node@2.0.1";
 import {
   buildClient,
   callForObject,
@@ -180,7 +180,7 @@ function normalizeCronJob(raw: V1CronJob) {
 /** Kubernetes Job and CronJob model. */
 export const model = {
   type: "@swamp/kubernetes/job",
-  version: "2026.11.07.1",
+  version: "2026.11.10.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -224,6 +224,13 @@ export const model = {
       description:
         "Add patchJob and patchCronJob (merge, strategic merge or JSON patch). " +
         "No change to global arguments or existing resources.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Bump @kubernetes/client-node from 1.4.0 to 2.0.1. A " +
+        "kubeconfig tls-server-name may now be an IP address. No schema " +
+        "or resource change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

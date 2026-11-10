@@ -97,6 +97,36 @@ Deno.test({
     }),
 });
 
+Deno.test({
+  name: "scale reads again and retries when a controller wrote in between",
+  ...opts,
+  fn: () =>
+    withFake(async (fake) => {
+      seedDeployment(fake, { labels: { app: "web" } });
+      // The first two reads go stale before the replace, as when the
+      // deployment controller updates status right after a change.
+      fake.bumpNextReads = 2;
+      const { context, getWrittenResources } = makeContext(fake);
+      await model.methods.scale.execute(
+        { deploymentName: "web", replicas: 5 },
+        context,
+      );
+
+      const path = "/apis/apps/v1/namespaces/default/deployments/web";
+      assertEquals(fake.requests.map((r) => [r.method, r.path]), [
+        ["GET", path],
+        ["PUT", path],
+        ["GET", path],
+        ["PUT", path],
+        ["GET", path],
+        ["PUT", path],
+      ]);
+      const stored = fake.objects.get("deployments/default/web")!;
+      assertEquals((stored.spec as { replicas: number }).replicas, 5);
+      assertEquals(getWrittenResources().length, 1);
+    }),
+});
+
 // --- getLogs ---
 
 /**
