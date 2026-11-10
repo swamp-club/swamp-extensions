@@ -4,7 +4,8 @@
     "lint": "deno lint extensions/models/",
     "fmt": "deno fmt extensions/models/",
     "fmt:check": "deno fmt --check extensions/models/",
-    "test": "deno test --allow-read --allow-write --allow-env --allow-run --allow-sys extensions/models/"
+    "test": "deno test --allow-read --allow-write --allow-env --allow-run --allow-sys extensions/models/",
+    "swampify-schema": "deno run --allow-write=extensions/models/_lib/contract/swampify-candidate-set.schema.json,extensions/models/_lib/contract/swampify-candidate-set-summary.schema.json,extensions/models/_lib/contract/swampify-comparison.schema.json,extensions/models/_lib/contract/swampify-comparison-summary.schema.json extensions/models/_lib/contract/generate_swampify_schema.ts && deno fmt extensions/models/_lib/contract/swampify-candidate-set.schema.json extensions/models/_lib/contract/swampify-candidate-set-summary.schema.json extensions/models/_lib/contract/swampify-comparison.schema.json extensions/models/_lib/contract/swampify-comparison-summary.schema.json"
   },
   "lint": {
     "rules": {

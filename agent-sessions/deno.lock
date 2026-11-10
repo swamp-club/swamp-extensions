@@ -5,6 +5,7 @@
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "jsr:@std/path@1.1.4": "1.1.4",
     "jsr:@std/yaml@1.0.10": "1.0.10",
+    "npm:fast-check@3.23.2": "3.23.2",
     "npm:zod@4.6.7": "4.6.7"
   },
   "jsr": {
@@ -28,6 +29,15 @@
     }
   },
   "npm": {
+    "fast-check@3.23.2": {
+      "integrity": "sha512-h5+1OzzfCC3Ef7VbtKdcv7zsstUQwUDlYpUTvjeUsJAssPgLn7QzbboPtL5ro04Mq0rPOsMzl7q5hIbRs2wD1A==",
+      "dependencies": [
+        "pure-rand"
+      ]
+    },
+    "pure-rand@6.1.0": {
+      "integrity": "sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA=="
+    },
     "zod@4.6.7": {
       "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="
     }
