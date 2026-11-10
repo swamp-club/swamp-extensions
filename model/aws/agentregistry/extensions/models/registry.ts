@@ -75,9 +75,11 @@ const CustomClaimValidationTypeSchema = z.object({
 
 const CustomJWTAuthorizerConfigurationSchema = z.object({
   DiscoveryUrl: z.string().min(1).max(2048).regex(
-    new RegExp("^.+/\\.well-known/openid-configuration$"),
+    new RegExp(
+      "^[^\\s?#]+/\\.well-known/(openid-configuration|oauth-authorization-server)(/[^\\s?#]+)?$",
+    ),
   ).describe(
-    "The OpenID Connect discovery URL used to retrieve the identity provider's metadata and signing keys.",
+    "The OpenID Connect discovery or OAuth 2.0 authorization server metadata URL used to retrieve the identity provider's metadata and signing keys. The URL contains /.well-known/openid-configuration or /.well-known/oauth-authorization-server, respectively.",
   ),
   AllowedAudience: z.array(z.string().min(1).max(255)).describe(
     "The audience values accepted during JWT validation.",
@@ -324,7 +326,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry Registry. Registered at `@swamp/aws/agentregistry/registry`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.10.03.1",
@@ -349,6 +351,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

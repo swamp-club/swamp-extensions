@@ -62,6 +62,39 @@ const TemplateSourceTemplateSchema = z.object({
   Arn: z.string().describe("The Amazon Resource Name (ARN) of the resource."),
 });
 
+const VisualHighlightOperationSchema = z.object({
+  Trigger: z.enum(["DATA_POINT_CLICK", "DATA_POINT_HOVER", "NONE"]),
+});
+
+const VisualCustomActionDefaultsSchema = z.object({
+  HighlightOperation: VisualHighlightOperationSchema.optional(),
+});
+
+const VisualMessageConfigurationSchema = z.object({
+  TitleVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  Description: z.string().min(0).max(120).regex(
+    new RegExp("^[^*;=`{}~\\x00-\\x08\\x0E-\\x1F\\x7F]*$"),
+  ).optional(),
+  LinkUrl: z.string().min(0).max(120).regex(
+    new RegExp(
+      "^(?:(?:[hH][tT][tT][pP][sS]?://|[mM][aA][iI][lL][tT][oO]:)\\S*<<\\$.+?>>\\S*|[hH][tT][tT][pP][sS]?://[a-zA-Z\\d.-]+\\.[a-zA-Z]{2,63}(?::\\d+)?(?:[/?#][^\\s]*)?|[mM][aA][iI][lL][tT][oO]:[^\\s@]+@[a-zA-Z\\d.-]+\\.[a-zA-Z]{2,63})$(?![\\s\\S])",
+    ),
+  ).optional(),
+  LinkVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  Enabled: z.boolean().optional(),
+  Title: z.string().min(0).max(120).regex(
+    new RegExp("^[^*;=`{}~\\x00-\\x08\\x0E-\\x1F\\x7F]*$"),
+  ).optional(),
+  DescriptionVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  LinkText: z.string().min(0).max(120).regex(
+    new RegExp("^[^*;=`{}~\\x00-\\x08\\x0E-\\x1F\\x7F]*$"),
+  ).optional(),
+});
+
+const VisualMessagesSchema = z.object({
+  NoDataMessage: VisualMessageConfigurationSchema.optional(),
+});
+
 const AssetOptionsSchema = z.object({
   Timezone: z.string().optional(),
   WeekStart: z.enum([
@@ -73,6 +106,8 @@ const AssetOptionsSchema = z.object({
     "FRIDAY",
     "SATURDAY",
   ]).optional(),
+  CustomActionDefaults: VisualCustomActionDefaultsSchema.optional(),
+  VisualMessages: VisualMessagesSchema.optional(),
 });
 
 const ColumnIdentifierSchema = z.object({
@@ -3978,6 +4013,7 @@ const SheetDefinitionSchema = z.object({
   TextBoxes: z.array(SheetTextBoxSchema).optional(),
   Layouts: z.array(LayoutSchema).optional(),
   FilterControls: z.array(FilterControlSchema).optional(),
+  CustomActionDefaults: VisualCustomActionDefaultsSchema.optional(),
   Visuals: z.array(VisualSchema).optional(),
 });
 
@@ -4146,9 +4182,34 @@ const TemplateSourceTemplateStateSchema = z.object({
   Arn: z.string(),
 }).partial();
 
+const VisualHighlightOperationStateSchema = z.object({
+  Trigger: z.string(),
+}).partial();
+
+const VisualCustomActionDefaultsStateSchema = z.object({
+  HighlightOperation: VisualHighlightOperationStateSchema,
+}).partial();
+
+const VisualMessageConfigurationStateSchema = z.object({
+  TitleVisibility: z.string(),
+  Description: z.string(),
+  LinkUrl: z.string(),
+  LinkVisibility: z.string(),
+  Enabled: z.boolean(),
+  Title: z.string(),
+  DescriptionVisibility: z.string(),
+  LinkText: z.string(),
+}).partial();
+
+const VisualMessagesStateSchema = z.object({
+  NoDataMessage: VisualMessageConfigurationStateSchema,
+}).partial();
+
 const AssetOptionsStateSchema = z.object({
   Timezone: z.string(),
   WeekStart: z.string(),
+  CustomActionDefaults: VisualCustomActionDefaultsStateSchema,
+  VisualMessages: VisualMessagesStateSchema,
 }).partial();
 
 const ColumnIdentifierStateSchema = z.object({
@@ -7629,6 +7690,7 @@ const SheetDefinitionStateSchema = z.object({
   TextBoxes: z.array(SheetTextBoxStateSchema),
   Layouts: z.array(LayoutStateSchema),
   FilterControls: z.array(FilterControlStateSchema),
+  CustomActionDefaults: VisualCustomActionDefaultsStateSchema,
   Visuals: z.array(VisualStateSchema),
 }).partial();
 
@@ -7982,7 +8044,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Template. Registered at `@swamp/aws/quicksight/template`. */
 export const model = {
   type: "@swamp/aws/quicksight/template",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -8071,6 +8133,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

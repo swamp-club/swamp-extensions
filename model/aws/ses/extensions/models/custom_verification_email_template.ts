@@ -80,7 +80,7 @@ const GlobalArgsSchema = z.object({
     "The URL that the recipient of the verification email is sent to if his or her address is not successfully verified.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
-    "The tags (keys and values) associated with the tenant.",
+    "The tags (keys and values) associated with the custom verification email template.",
   ).optional(),
 });
 
@@ -120,7 +120,7 @@ const InputsSchema = z.object({
     "The URL that the recipient of the verification email is sent to if his or her address is not successfully verified.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
-    "The tags (keys and values) associated with the tenant.",
+    "The tags (keys and values) associated with the custom verification email template.",
   ).optional(),
 });
 
@@ -143,7 +143,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES CustomVerificationEmailTemplate. Registered at `@swamp/aws/ses/custom-verification-email-template`. */
 export const model = {
   type: "@swamp/aws/ses/custom-verification-email-template",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -212,6 +212,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

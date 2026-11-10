@@ -215,12 +215,35 @@ const ToolConfigurationSchema = z.object({
   UserInteractionConfiguration: UserInteractionConfigurationSchema.optional(),
 });
 
+const MultiAgentInstructionSchema = z.object({
+  Instruction: z.string().optional(),
+  Examples: z.array(z.string()).optional(),
+});
+
+const DelegateAgentConfigurationSchema = z.object({
+  AgentTarget: z.object({
+    AIAgentId: z.string().min(1).optional(),
+    ApplicationId: z.string().min(1).optional(),
+  }),
+  Instruction: MultiAgentInstructionSchema.optional(),
+});
+
+const HandoffAgentConfigurationSchema = z.object({
+  AgentTarget: z.object({
+    AIAgentId: z.string().min(1).optional(),
+    ApplicationId: z.string().min(1).optional(),
+  }),
+  Instruction: MultiAgentInstructionSchema.optional(),
+  AudioStreamingEnabled: z.boolean().optional(),
+  ImmediateHandoff: z.boolean().optional(),
+});
+
 const OrchestrationAIAgentConfigurationSchema = z.object({
   OrchestrationAIPromptId: z.string().regex(
     new RegExp(
       "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}(:[A-Z0-9_$]+){0,1}$",
     ),
-  ),
+  ).optional(),
   OrchestrationAIGuardrailId: z.string().regex(
     new RegExp(
       "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}(:[A-Z0-9_$]+){0,1}$",
@@ -233,6 +256,12 @@ const OrchestrationAIAgentConfigurationSchema = z.object({
   ).optional(),
   Locale: z.string().min(1).optional(),
   ToolConfigurations: z.array(ToolConfigurationSchema).optional(),
+  MultiAgentConfigurations: z.array(z.object({
+    DelegateAgentConfiguration: DelegateAgentConfigurationSchema.optional(),
+    HandoffAgentConfiguration: HandoffAgentConfigurationSchema.optional(),
+  })).optional(),
+  InputSchemas: z.array(z.record(z.string(), z.unknown())).optional(),
+  OutputSchemas: z.array(z.record(z.string(), z.unknown())).optional(),
 });
 
 const NoteTakingAIAgentConfigurationSchema = z.object({
@@ -380,12 +409,43 @@ const ToolConfigurationStateSchema = z.object({
   UserInteractionConfiguration: UserInteractionConfigurationStateSchema,
 }).partial();
 
+const MultiAgentInstructionStateSchema = z.object({
+  Instruction: z.string(),
+  Examples: z.array(z.string()),
+}).partial();
+
+const DelegateAgentConfigurationStateSchema = z.object({
+  AgentTarget: z.object({
+    AIAgentId: z.string(),
+    ApplicationId: z.string(),
+  }).partial(),
+  Instruction: MultiAgentInstructionStateSchema,
+}).partial();
+
+const HandoffAgentConfigurationStateSchema = z.object({
+  AgentTarget: z.object({
+    AIAgentId: z.string(),
+    ApplicationId: z.string(),
+  }).partial(),
+  Instruction: MultiAgentInstructionStateSchema,
+  AudioStreamingEnabled: z.boolean(),
+  ImmediateHandoff: z.boolean(),
+}).partial();
+
 const OrchestrationAIAgentConfigurationStateSchema = z.object({
   OrchestrationAIPromptId: z.string(),
   OrchestrationAIGuardrailId: z.string(),
   ConnectInstanceArn: z.string(),
   Locale: z.string(),
   ToolConfigurations: z.array(ToolConfigurationStateSchema),
+  MultiAgentConfigurations: z.array(
+    z.object({
+      DelegateAgentConfiguration: DelegateAgentConfigurationStateSchema,
+      HandoffAgentConfiguration: HandoffAgentConfigurationStateSchema,
+    }).partial(),
+  ),
+  InputSchemas: z.array(z.record(z.string(), z.unknown())),
+  OutputSchemas: z.array(z.record(z.string(), z.unknown())),
 }).partial();
 
 const NoteTakingAIAgentConfigurationStateSchema = z.object({
@@ -561,7 +621,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom AIAgent. Registered at `@swamp/aws/wisdom/aiagent`. */
 export const model = {
   type: "@swamp/aws/wisdom/aiagent",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -635,6 +695,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

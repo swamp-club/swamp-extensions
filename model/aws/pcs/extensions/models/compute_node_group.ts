@@ -142,6 +142,9 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  SshKeyName: z.string().describe(
+    "The name of the EC2 key pair configured directly on the compute node group. The key pair must exist in the caller's account and Region and overrides the key pair from the custom launch template. When not provided and a custom launch template is present, AWS PCS uses the key pair from the launch template.",
+  ).optional(),
   ClusterId: z.string().describe(
     "The ID of the cluster of the compute node group.",
   ).optional(),
@@ -167,6 +170,12 @@ const GlobalArgsSchema = z.object({
       "Additional Slurm-specific configuration that directly maps to Slurm settings.",
     ).optional(),
   }).describe("Additional options related to the Slurm scheduler.").optional(),
+  LaunchTemplateMode: z.enum(["CUSTOM", "MANAGED"]).describe(
+    "How AWS PCS gets the launch template for the compute node group. CUSTOM uses CustomLaunchTemplate. MANAGED has AWS PCS generate and manage the launch template from the instance settings; omit CustomLaunchTemplate. Defaults to CUSTOM on create.",
+  ).optional(),
+  SecurityGroupIds: z.array(z.string()).describe(
+    "The IDs of the EC2 security groups configured directly on the compute node group. These replace the security groups from the custom launch template. A request cannot specify this property with a launch template that defines NetworkInterfaces. When not provided and a custom launch template is present, AWS PCS uses the security groups from the launch template.",
+  ).optional(),
   SubnetIds: z.array(z.string()).describe(
     "The list of subnet IDs where instances are provisioned by the compute node group. The subnets must be in the same VPC as the cluster.",
   ).optional(),
@@ -229,6 +238,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  SshKeyName: z.string().optional(),
   Status: z.string().optional(),
   ClusterId: z.string().optional(),
   ErrorInfo: z.array(ErrorInfoStateSchema).optional(),
@@ -240,6 +250,8 @@ const StateSchema = z.object({
     ScaleDownIdleTimeInSeconds: z.number(),
     SlurmCustomSettings: z.array(SlurmCustomSettingStateSchema),
   }).partial().optional(),
+  LaunchTemplateMode: z.string().optional(),
+  SecurityGroupIds: z.array(z.string()).optional(),
   SubnetIds: z.array(z.string()).optional(),
   Name: z.string().optional(),
   NodeLifecycleActions: z.object({
@@ -271,6 +283,9 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  SshKeyName: z.string().describe(
+    "The name of the EC2 key pair configured directly on the compute node group. The key pair must exist in the caller's account and Region and overrides the key pair from the custom launch template. When not provided and a custom launch template is present, AWS PCS uses the key pair from the launch template.",
+  ).optional(),
   ClusterId: z.string().describe(
     "The ID of the cluster of the compute node group.",
   ).optional(),
@@ -296,6 +311,12 @@ const InputsSchema = z.object({
       "Additional Slurm-specific configuration that directly maps to Slurm settings.",
     ).optional(),
   }).describe("Additional options related to the Slurm scheduler.").optional(),
+  LaunchTemplateMode: z.enum(["CUSTOM", "MANAGED"]).describe(
+    "How AWS PCS gets the launch template for the compute node group. CUSTOM uses CustomLaunchTemplate. MANAGED has AWS PCS generate and manage the launch template from the instance settings; omit CustomLaunchTemplate. Defaults to CUSTOM on create.",
+  ).optional(),
+  SecurityGroupIds: z.array(z.string()).describe(
+    "The IDs of the EC2 security groups configured directly on the compute node group. These replace the security groups from the custom launch template. A request cannot specify this property with a launch template that defines NetworkInterfaces. When not provided and a custom launch template is present, AWS PCS uses the security groups from the launch template.",
+  ).optional(),
   SubnetIds: z.array(z.string()).describe(
     "The list of subnet IDs where instances are provisioned by the compute node group. The subnets must be in the same VPC as the cluster.",
   ).optional(),
@@ -376,7 +397,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS ComputeNodeGroup. Registered at `@swamp/aws/pcs/compute-node-group`. */
 export const model = {
   type: "@swamp/aws/pcs/compute-node-group",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -481,6 +502,11 @@ export const model = {
     {
       toVersion: "2026.11.08.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Added: SshKeyName, LaunchTemplateMode, SecurityGroupIds",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

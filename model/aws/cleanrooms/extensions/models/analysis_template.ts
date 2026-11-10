@@ -218,7 +218,7 @@ const GlobalArgsSchema = z.object({
   SourceMetadata: z.object({
     Artifacts: AnalysisTemplateArtifactMetadataSchema.optional(),
   }).optional(),
-  Format: z.enum(["SQL", "PYSPARK_1_0"]).optional(),
+  Format: z.enum(["SQL", "PYSPARK_1_0", "PYSPARK_2_0"]).optional(),
   ErrorMessageConfiguration: z.object({
     Type: z.enum(["DETAILED"]),
   }).optional(),
@@ -296,7 +296,7 @@ const InputsSchema = z.object({
   SourceMetadata: z.object({
     Artifacts: AnalysisTemplateArtifactMetadataSchema.optional(),
   }).optional(),
-  Format: z.enum(["SQL", "PYSPARK_1_0"]).optional(),
+  Format: z.enum(["SQL", "PYSPARK_1_0", "PYSPARK_2_0"]).optional(),
   ErrorMessageConfiguration: z.object({
     Type: z.enum(["DETAILED"]).optional(),
   }).optional(),
@@ -324,7 +324,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms AnalysisTemplate. Registered at `@swamp/aws/cleanrooms/analysis-template`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/analysis-template",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -393,6 +393,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -198,7 +198,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppConfig ConfigurationProfile. Registered at `@swamp/aws/appconfig/configuration-profile`. */
 export const model = {
   type: "@swamp/aws/appconfig/configuration-profile",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -267,6 +267,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -391,7 +396,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["LocationUri", "Type", "ApplicationId"],
+          ["LocationUri", "ApplicationId"],
           credentials,
         );
         const handle = await context.writeResource(

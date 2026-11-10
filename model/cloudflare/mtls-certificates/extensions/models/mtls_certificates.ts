@@ -35,8 +35,9 @@ const GlobalArgsSchema = z.object({
   ca: z.boolean().describe(
     "Indicates whether the certificate is a CA or leaf certificate.",
   ).optional(),
-  certificates: z.string().describe("The uploaded root CA certificate.")
-    .optional(),
+  certificates: z.string().describe(
+    "The uploaded root CA certificate. Responses return the certificates as Cloudflare stores them, re-encoded as PEM, not byte for byte as uploaded. Each certificate block ends with a newline, base64 lines are wrapped at 64 characters, text between blocks is dropped, and a chain may be reordered. Compare certificates by their decoded content rather than as strings.",
+  ).optional(),
   name: z.string().describe(
     "Optional unique name for the certificate. Only used for human readability.",
   ).optional(),
@@ -83,7 +84,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Mtls Certificates. Registered at `@swamp/cloudflare/mtls-certificates/mtls-certificates`. */
 export const model = {
   type: "@swamp/cloudflare/mtls-certificates/mtls-certificates",
-  version: "2026.10.23.1",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -122,6 +123,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -77,6 +77,9 @@ const GlobalArgsSchema = z.object({
   enable_device_credential_authentication: z.boolean().describe(
     "Determines whether the WARP client can silently reauthenticate the user with device credentials (Microsoft Entra) instead of prompting for browser-based reauthentication.",
   ).optional(),
+  enable_netbt: z.boolean().describe(
+    "Determines whether NetBIOS over TCP/IP (NetBT) is enabled on the WARP tunnel interface. (Windows only). NetBT is disabled by default for security reasons.",
+  ).optional(),
   enabled: z.boolean().describe(
     "Whether the policy will be applied to matching devices.",
   ).optional(),
@@ -179,6 +182,7 @@ const ResourceSchema = z.object({
     suffix: z.string().optional(),
   })).optional(),
   enable_device_credential_authentication: z.boolean().optional(),
+  enable_netbt: z.boolean().optional(),
   enabled: z.boolean().optional(),
   exclude: z.array(z.object({
     address: z.string().optional(),
@@ -254,6 +258,7 @@ const InputsSchema = z.object({
     suffix: z.string(),
   })).optional(),
   enable_device_credential_authentication: z.boolean().optional(),
+  enable_netbt: z.boolean().optional(),
   enabled: z.boolean().optional(),
   exclude: z.array(z.object({
     address: z.string().optional(),
@@ -302,7 +307,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.11.05.1",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -394,6 +399,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.10.1",
+      description: "Added: enable_netbt",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -455,6 +465,7 @@ export const model = {
           body.enable_device_credential_authentication =
             g.enable_device_credential_authentication;
         }
+        if (g.enable_netbt !== undefined) body.enable_netbt = g.enable_netbt;
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.exclude !== undefined) body.exclude = g.exclude;
         if (g.exclude_office_ips !== undefined) {
@@ -579,6 +590,9 @@ export const model = {
             "enable_device_credential_authentication",
             String(g.enable_device_credential_authentication),
           ]);
+        }
+        if (g.enable_netbt !== undefined) {
+          filters.push(["enable_netbt", String(g.enable_netbt)]);
         }
         if (g.enabled !== undefined) {
           filters.push(["enabled", String(g.enabled)]);
@@ -776,6 +790,7 @@ export const model = {
           body.enable_device_credential_authentication =
             g.enable_device_credential_authentication;
         }
+        if (g.enable_netbt !== undefined) body.enable_netbt = g.enable_netbt;
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.exclude !== undefined) body.exclude = g.exclude;
         if (g.exclude_office_ips !== undefined) {

@@ -125,13 +125,25 @@ const _defaultOAuthScopes: string[] = [
   "https://www.googleapis.com/auth/gmail.addons.current.message.metadata",
   "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
   "https://www.googleapis.com/auth/gmail.compose",
+  "https://www.googleapis.com/auth/gmail.drafts",
+  "https://www.googleapis.com/auth/gmail.drafts.create",
+  "https://www.googleapis.com/auth/gmail.drafts.readonly",
   "https://www.googleapis.com/auth/gmail.insert",
   "https://www.googleapis.com/auth/gmail.labels",
+  "https://www.googleapis.com/auth/gmail.labels.create",
+  "https://www.googleapis.com/auth/gmail.labels.readonly",
+  "https://www.googleapis.com/auth/gmail.messages",
+  "https://www.googleapis.com/auth/gmail.messages.delete",
+  "https://www.googleapis.com/auth/gmail.messages.modify",
+  "https://www.googleapis.com/auth/gmail.messages.readonly",
   "https://www.googleapis.com/auth/gmail.metadata",
   "https://www.googleapis.com/auth/gmail.modify",
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/gmail.send.self",
   "https://www.googleapis.com/auth/gmail.settings.basic",
+  "https://www.googleapis.com/auth/gmail.settings.filters",
+  "https://www.googleapis.com/auth/gmail.settings.filters.readonly",
   "https://www.googleapis.com/auth/gmail.settings.sharing",
 ];
 
@@ -244,7 +256,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Threads. Registered at `@swamp/gcp/gmail/users-threads`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-threads",
-  version: "2026.11.08.1",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -378,6 +390,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

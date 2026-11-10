@@ -13,8 +13,8 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/assuredworkloads/dbfindingsummaries`
-to see the full list of configurable properties and available methods for this
+Use `swamp model type describe @swamp/gcp/assuredworkloads/workloads_updates` to
+see the full list of configurable properties and available methods for this
 model.
 
 ## Authentication
@@ -66,17 +66,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new dbfindingsummaries model
-swamp model create @swamp/gcp/assuredworkloads/dbfindingsummaries my-dbfindingsummaries
+# Create a new workloads_updates model
+swamp model create @swamp/gcp/assuredworkloads/workloads_updates my-workloads_updates
 
 # Edit the model to configure its properties
-swamp model edit my-dbfindingsummaries
+swamp model edit my-workloads_updates
 
 # Create the resource in GCP
-swamp model method run my-dbfindingsummaries create
+swamp model method run my-workloads_updates create
 
 # Sync current state from GCP
-swamp model method run my-dbfindingsummaries sync
+swamp model method run my-workloads_updates sync
 ```
 
 ## License

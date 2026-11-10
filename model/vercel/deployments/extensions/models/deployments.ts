@@ -605,6 +605,7 @@ const ResourceSchema = z.object({
           }).optional(),
           root: z.string().optional(),
           terminationGracePeriodSeconds: z.number().optional(),
+          buildTarget: z.string().optional(),
           name: z.string().optional(),
         }).optional(),
         debug: z.boolean().optional(),
@@ -838,7 +839,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.10.28.1",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -957,6 +958,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

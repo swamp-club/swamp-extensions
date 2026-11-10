@@ -325,8 +325,14 @@ const GlobalArgsSchema = z.object({
     'Optional. Defaults to "SQL" if remote_function_options field is absent, not set otherwise.',
   ).optional(),
   pythonOptions: z.object({
+    buildConnection: z.string().describe(
+      'Optional. Fully qualified name of the connection whose service account will be used to authenticate to private package repositories during build-time. Format: "projects/{project_id}/locations/{location_id}/connections/{connection_id}"',
+    ).optional(),
     entryPoint: z.string().describe(
       "Required. The name of the function defined in Python code as the entry point when the Python UDF is invoked.",
+    ).optional(),
+    extraPackageRepositories: z.array(z.string()).describe(
+      "Optional. The list of additional package repositories to search when resolving Python packages. These repositories are searched in addition to the default public PyPI. Only repositories hosted in Artifact Registry (.pkg.dev) are supported. Only pre-compiled Wheel (.whl) packages are supported from these repositories. E.g. ['https://my-region-python.pkg.dev/my-project/my-repo/simple']",
     ).optional(),
     packages: z.array(z.string()).describe(
       'Optional. A list of Python package names along with versions to be installed. Example: ["pandas>=2.1", "google-cloud-translate==3.11"]. For more information, see [Use third-party packages](https://cloud.google.com/bigquery/docs/user-defined-functions-python#third-party-packages).',
@@ -561,7 +567,9 @@ const StateSchema = z.object({
   language: z.string().optional(),
   lastModifiedTime: z.string().optional(),
   pythonOptions: z.object({
+    buildConnection: z.string(),
     entryPoint: z.string(),
+    extraPackageRepositories: z.array(z.string()),
     packages: z.array(z.string()),
   }).partial().optional(),
   remoteFunctionOptions: z.object({
@@ -760,8 +768,14 @@ const InputsSchema = z.object({
     'Optional. Defaults to "SQL" if remote_function_options field is absent, not set otherwise.',
   ).optional(),
   pythonOptions: z.object({
+    buildConnection: z.string().describe(
+      'Optional. Fully qualified name of the connection whose service account will be used to authenticate to private package repositories during build-time. Format: "projects/{project_id}/locations/{location_id}/connections/{connection_id}"',
+    ).optional(),
     entryPoint: z.string().describe(
       "Required. The name of the function defined in Python code as the entry point when the Python UDF is invoked.",
+    ).optional(),
+    extraPackageRepositories: z.array(z.string()).describe(
+      "Optional. The list of additional package repositories to search when resolving Python packages. These repositories are searched in addition to the default public PyPI. Only repositories hosted in Artifact Registry (.pkg.dev) are supported. Only pre-compiled Wheel (.whl) packages are supported from these repositories. E.g. ['https://my-region-python.pkg.dev/my-project/my-repo/simple']",
     ).optional(),
     packages: z.array(z.string()).describe(
       'Optional. A list of Python package names along with versions to be installed. Example: ["pandas>=2.1", "google-cloud-translate==3.11"]. For more information, see [Use third-party packages](https://cloud.google.com/bigquery/docs/user-defined-functions-python#third-party-packages).',
@@ -962,7 +976,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Routines. Registered at `@swamp/gcp/bigquery/routines`. */
 export const model = {
   type: "@swamp/gcp/bigquery/routines",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1184,6 +1198,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

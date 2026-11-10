@@ -165,6 +165,9 @@ const GlobalArgsSchema = z.object({
       identity: z.string().describe(
         "A unique Google-owned and Google-generated identity for the Connection. This identity will be used to access the user's AWS IAM Role.",
       ).optional(),
+      serviceAccountId: z.string().describe(
+        "Output only. The email address of the Google-owned service account that represents the connection's identity. Grant IAM roles to this service account, for example, to let the connection resolve the Service Directory service in `AwsProperties.service_directory_service`.",
+      ).optional(),
     }).describe(
       "Authentication using Google owned service account to assume into customer's AWS IAM Role.",
     ).optional(),
@@ -174,6 +177,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe(
       "Optional. Configuration options for cross-cloud caching of data and metadata files.",
+    ).optional(),
+    serviceDirectoryService: z.string().describe(
+      "Optional. The Service Directory resource name for routing traffic to AWS over a private network connection through Cross-Cloud Interconnect, in the format `projects/{project_id}/locations/{location}/namespaces/{namespace_id}/services/{service_id}`. If both this field and `s3_service_directory_service` are set, this field takes precedence.",
     ).optional(),
   }).describe("Amazon Web Services (AWS) properties.").optional(),
   azure: z.object({
@@ -204,6 +210,12 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     redirectUri: z.string().describe(
       "The URL user will be redirected to after granting consent during connection setup.",
+    ).optional(),
+    serviceAccountId: z.string().describe(
+      "Output only. The email address of the Google-owned service account that represents the connection's identity. Grant IAM roles to this service account, for example, to let the connection resolve the Service Directory service in `AzureProperties.service_directory_service`.",
+    ).optional(),
+    serviceDirectoryService: z.string().describe(
+      "Optional. The service directory resource name for routing traffic over a private network connection through Cross-Cloud Interconnect, in the format `projects/{project_id}/locations/{location}/namespaces/{namespace_id}/services/{service_id}`.",
     ).optional(),
   }).describe("Azure properties.").optional(),
   cloudResource: z.object({
@@ -411,10 +423,12 @@ const StateSchema = z.object({
     accessRole: z.object({
       iamRoleId: z.string(),
       identity: z.string(),
+      serviceAccountId: z.string(),
     }).partial(),
     crossCloudCacheOptions: z.object({
       enabled: z.boolean(),
     }).partial(),
+    serviceDirectoryService: z.string(),
   }).partial().optional(),
   azure: z.object({
     application: z.string(),
@@ -427,6 +441,8 @@ const StateSchema = z.object({
     identity: z.string(),
     objectId: z.string(),
     redirectUri: z.string(),
+    serviceAccountId: z.string(),
+    serviceDirectoryService: z.string(),
   }).partial().optional(),
   cloudResource: z.object({
     serviceAccountId: z.string(),
@@ -527,6 +543,9 @@ const InputsSchema = z.object({
       identity: z.string().describe(
         "A unique Google-owned and Google-generated identity for the Connection. This identity will be used to access the user's AWS IAM Role.",
       ).optional(),
+      serviceAccountId: z.string().describe(
+        "Output only. The email address of the Google-owned service account that represents the connection's identity. Grant IAM roles to this service account, for example, to let the connection resolve the Service Directory service in `AwsProperties.service_directory_service`.",
+      ).optional(),
     }).describe(
       "Authentication using Google owned service account to assume into customer's AWS IAM Role.",
     ).optional(),
@@ -536,6 +555,9 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe(
       "Optional. Configuration options for cross-cloud caching of data and metadata files.",
+    ).optional(),
+    serviceDirectoryService: z.string().describe(
+      "Optional. The Service Directory resource name for routing traffic to AWS over a private network connection through Cross-Cloud Interconnect, in the format `projects/{project_id}/locations/{location}/namespaces/{namespace_id}/services/{service_id}`. If both this field and `s3_service_directory_service` are set, this field takes precedence.",
     ).optional(),
   }).describe("Amazon Web Services (AWS) properties.").optional(),
   azure: z.object({
@@ -566,6 +588,12 @@ const InputsSchema = z.object({
     ).optional(),
     redirectUri: z.string().describe(
       "The URL user will be redirected to after granting consent during connection setup.",
+    ).optional(),
+    serviceAccountId: z.string().describe(
+      "Output only. The email address of the Google-owned service account that represents the connection's identity. Grant IAM roles to this service account, for example, to let the connection resolve the Service Directory service in `AzureProperties.service_directory_service`.",
+    ).optional(),
+    serviceDirectoryService: z.string().describe(
+      "Optional. The service directory resource name for routing traffic over a private network connection through Cross-Cloud Interconnect, in the format `projects/{project_id}/locations/{location}/namespaces/{namespace_id}/services/{service_id}`.",
     ).optional(),
   }).describe("Azure properties.").optional(),
   cloudResource: z.object({
@@ -794,7 +822,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Connection Connections. Registered at `@swamp/gcp/bigqueryconnection/connections`. */
 export const model = {
   type: "@swamp/gcp/bigqueryconnection/connections",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -983,6 +1011,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

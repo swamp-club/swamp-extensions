@@ -55,6 +55,7 @@ const MembershipProtectedQueryOutputConfigurationSchema = z.object({
 });
 
 const ProtectedJobS3OutputConfigurationInputSchema = z.object({
+  ResultFormat: z.enum(["CSV", "PARQUET"]).optional(),
   Bucket: z.string().min(3).max(63),
   KeyPrefix: z.string().optional(),
 });
@@ -107,6 +108,7 @@ const MembershipProtectedQueryOutputConfigurationStateSchema = z.object({
 }).partial();
 
 const ProtectedJobS3OutputConfigurationInputStateSchema = z.object({
+  ResultFormat: z.string(),
   Bucket: z.string(),
   KeyPrefix: z.string(),
 }).partial();
@@ -260,7 +262,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms Membership. Registered at `@swamp/aws/cleanrooms/membership`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/membership",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -329,6 +331,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

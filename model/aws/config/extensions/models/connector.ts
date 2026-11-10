@@ -48,11 +48,11 @@ const AzureConnectorConfigurationSchema = z.object({
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:.",
-  ),
   Value: z.string().min(0).max(256).describe(
     "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:.",
+  ),
+  Key: z.string().min(1).max(128).describe(
+    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:.",
   ),
 });
 
@@ -62,8 +62,8 @@ const AzureConnectorConfigurationStateSchema = z.object({
 }).partial();
 
 const TagStateSchema = z.object({
-  Key: z.string(),
   Value: z.string(),
+  Key: z.string(),
 }).partial();
 
 const GlobalArgsSchema = z.object({
@@ -93,13 +93,13 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Arn: z.string(),
-  Name: z.string().optional(),
+  CreatedTime: z.string().optional(),
   ConnectorConfiguration: z.object({
     Azure: AzureConnectorConfigurationStateSchema,
   }).partial().optional(),
-  CreatedTime: z.string().optional(),
+  Arn: z.string(),
   Tags: z.array(TagStateSchema).optional(),
+  Name: z.string().optional(),
 }).passthrough();
 
 type StateData = Record<string, unknown>;
@@ -139,7 +139,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Config Connector. Registered at `@swamp/aws/config/connector`. */
 export const model = {
   type: "@swamp/aws/config/connector",
-  version: "2026.11.08.2",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -168,6 +168,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

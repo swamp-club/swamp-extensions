@@ -61,6 +61,9 @@ const LIST_CONFIG = {
     "requestOptions.languageCode": {
       "location": "query",
     },
+    "requestOptions.queryLanguageCode": {
+      "location": "query",
+    },
     "requestOptions.searchApplicationId": {
       "location": "query",
     },
@@ -169,7 +172,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Search Query.Sources. Registered at `@swamp/gcp/cloudsearch/query-sources`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/query-sources",
-  version: "2026.11.08.1",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -336,6 +339,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -459,6 +467,9 @@ export const model = {
         requestOptions_languageCode: z.string().describe(
           'The BCP-47 language code, such as "en-US" or "sr-Latn". For more information, see http://www.unicode.org/reports/tr35/#Unicode_locale_identifier. For translations. Set this field using the language set in browser or for the page. In the event that the user\'s language preference is known, set this field to the known user language. When specified, the documents in search results are biased towards the specified language. The Suggest API uses this field as a hint to make better third-party autocomplete predictions.',
         ).optional(),
+        requestOptions_queryLanguageCode: z.string().describe(
+          "Optional. The BCP-47 language code representing the language of the query.",
+        ).optional(),
         requestOptions_searchApplicationId: z.string().describe(
           "The ID generated when you create a search application using the [admin console](https://support.google.com/a/answer/9043922).",
         ).optional(),
@@ -494,6 +505,11 @@ export const model = {
         if (args["requestOptions_languageCode"] !== undefined) {
           params["requestOptions.languageCode"] = String(
             args["requestOptions_languageCode"],
+          );
+        }
+        if (args["requestOptions_queryLanguageCode"] !== undefined) {
+          params["requestOptions.queryLanguageCode"] = String(
+            args["requestOptions_queryLanguageCode"],
           );
         }
         if (args["requestOptions_searchApplicationId"] !== undefined) {

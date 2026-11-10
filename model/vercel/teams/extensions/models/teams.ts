@@ -342,7 +342,6 @@ const ResourceSchema = z.object({
     retentionOptOutAt: z.number().optional(),
   }).nullable().optional(),
   description: z.string().nullable().optional(),
-  disableHardAutoBlocks: z.number().nullable().optional(),
   disableRepositoryDispatchEvents: z.boolean().nullable().optional(),
   disjunctiveProductionSecretPolicy: z.string().nullable().optional(),
   dpAccessRequestsMode: z.string().nullable().optional(),
@@ -643,7 +642,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.11.06.1",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -782,6 +781,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -964,12 +968,6 @@ export const model = {
           filters.push([
             "defaultContinuousUsageKind",
             String(g.defaultContinuousUsageKind),
-          ]);
-        }
-        if (g.disableHardAutoBlocks !== undefined) {
-          filters.push([
-            "disableHardAutoBlocks",
-            String(g.disableHardAutoBlocks),
           ]);
         }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);

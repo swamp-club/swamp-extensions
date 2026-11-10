@@ -39,17 +39,17 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
-  ),
   Value: z.string().min(1).max(256).describe(
     "The value for the tag. You can specify a value that is 1 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ),
+  Key: z.string().min(1).max(128).describe(
+    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
   ),
 });
 
 const TagStateSchema = z.object({
-  Key: z.string(),
   Value: z.string(),
+  Key: z.string(),
 }).partial();
 
 const GlobalArgsSchema = z.object({
@@ -68,59 +68,59 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  DeletionProtectionEnabled: z.boolean().describe(
-    "Whether deletion protection is enabled in this cluster.",
-  ).optional(),
-  Tags: z.array(TagSchema).optional(),
-  MultiRegionProperties: z.object({
-    WitnessRegion: z.string().describe(
-      "The witness region in a multi-region cluster.",
-    ).optional(),
-    Clusters: z.array(z.string()).optional(),
-  }).describe("The Multi-region properties associated to this cluster.")
-    .optional(),
-  KmsEncryptionKey: z.string().describe(
-    "The KMS key that encrypts data on the cluster.",
-  ).optional(),
   EncryptionDetails: z.object({
-    EncryptionStatus: z.string().describe(
-      "The status of encryption for the cluster.",
-    ).optional(),
     EncryptionType: z.string().describe(
       "The type of encryption that protects data in the cluster.",
+    ).optional(),
+    EncryptionStatus: z.string().describe(
+      "The status of encryption for the cluster.",
     ).optional(),
     KmsKeyArn: z.string().describe(
       "The Amazon Resource Name (ARN) of the KMS key that encrypts data in the cluster.",
     ).optional(),
   }).describe("The encryption configuration details for the cluster.")
     .optional(),
+  KmsEncryptionKey: z.string().describe(
+    "The KMS key that encrypts data on the cluster.",
+  ).optional(),
+  MultiRegionProperties: z.object({
+    Clusters: z.array(z.string()).optional(),
+    WitnessRegion: z.string().describe(
+      "The witness region in a multi-region cluster.",
+    ).optional(),
+  }).describe("The Multi-region properties associated to this cluster.")
+    .optional(),
   PolicyDocument: z.string().describe(
     "The IAM policy applied to the cluster resource.",
   ).optional(),
+  DeletionProtectionEnabled: z.boolean().describe(
+    "Whether deletion protection is enabled in this cluster.",
+  ).optional(),
+  Tags: z.array(TagSchema).optional(),
 });
 
 const StateSchema = z.object({
-  DeletionProtectionEnabled: z.boolean().optional(),
-  Tags: z.array(TagStateSchema).optional(),
-  ResourceArn: z.string().optional(),
-  Identifier: z.string(),
-  CreationTime: z.string().optional(),
   Status: z.string().optional(),
-  VpcEndpointServiceName: z.string().optional(),
-  MultiRegionProperties: z.object({
-    WitnessRegion: z.string(),
-    Clusters: z.array(z.string()),
-  }).partial().optional(),
-  KmsEncryptionKey: z.string().optional(),
+  PolicyVersion: z.string().optional(),
   EncryptionDetails: z.object({
-    EncryptionStatus: z.string(),
     EncryptionType: z.string(),
+    EncryptionStatus: z.string(),
     KmsKeyArn: z.string(),
   }).partial().optional(),
-  Endpoint: z.string().optional(),
+  KmsEncryptionKey: z.string().optional(),
+  MultiRegionProperties: z.object({
+    Clusters: z.array(z.string()),
+    WitnessRegion: z.string(),
+  }).partial().optional(),
+  ResourceArn: z.string().optional(),
+  Identifier: z.string(),
+  VpcEndpointServiceName: z.string().optional(),
   VpcEndpoint: z.string().optional(),
-  PolicyVersion: z.string().optional(),
+  Endpoint: z.string().optional(),
+  CreationTime: z.string().optional(),
   PolicyDocument: z.string().optional(),
+  DeletionProtectionEnabled: z.boolean().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
 type StateData = Record<string, unknown>;
@@ -131,35 +131,35 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  DeletionProtectionEnabled: z.boolean().describe(
-    "Whether deletion protection is enabled in this cluster.",
-  ).optional(),
-  Tags: z.array(TagSchema).optional(),
-  MultiRegionProperties: z.object({
-    WitnessRegion: z.string().describe(
-      "The witness region in a multi-region cluster.",
-    ).optional(),
-    Clusters: z.array(z.string()).optional(),
-  }).describe("The Multi-region properties associated to this cluster.")
-    .optional(),
-  KmsEncryptionKey: z.string().describe(
-    "The KMS key that encrypts data on the cluster.",
-  ).optional(),
   EncryptionDetails: z.object({
-    EncryptionStatus: z.string().describe(
-      "The status of encryption for the cluster.",
-    ).optional(),
     EncryptionType: z.string().describe(
       "The type of encryption that protects data in the cluster.",
+    ).optional(),
+    EncryptionStatus: z.string().describe(
+      "The status of encryption for the cluster.",
     ).optional(),
     KmsKeyArn: z.string().describe(
       "The Amazon Resource Name (ARN) of the KMS key that encrypts data in the cluster.",
     ).optional(),
   }).describe("The encryption configuration details for the cluster.")
     .optional(),
+  KmsEncryptionKey: z.string().describe(
+    "The KMS key that encrypts data on the cluster.",
+  ).optional(),
+  MultiRegionProperties: z.object({
+    Clusters: z.array(z.string()).optional(),
+    WitnessRegion: z.string().describe(
+      "The witness region in a multi-region cluster.",
+    ).optional(),
+  }).describe("The Multi-region properties associated to this cluster.")
+    .optional(),
   PolicyDocument: z.string().describe(
     "The IAM policy applied to the cluster resource.",
   ).optional(),
+  DeletionProtectionEnabled: z.boolean().describe(
+    "Whether deletion protection is enabled in this cluster.",
+  ).optional(),
+  Tags: z.array(TagSchema).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -181,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DSQL Cluster. Registered at `@swamp/aws/dsql/cluster`. */
 export const model = {
   type: "@swamp/aws/dsql/cluster",
-  version: "2026.11.08.1",
+  version: "2026.11.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -245,6 +245,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
