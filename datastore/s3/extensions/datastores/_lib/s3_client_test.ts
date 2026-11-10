@@ -1456,3 +1456,90 @@ Deno.test("s3NotFoundKind: only NoSuchKey is a missing key; NoSuchBucket and 403
   assertEquals(s3NotFoundKind(op("InternalError", 500)), undefined);
   assertEquals(s3NotFoundKind("not an error"), undefined);
 });
+
+// swamp-club#4583: S3 answers DeleteObject with 204 whether or not the key
+// exists, but versitygw's posix backend 404s one of two concurrent deletes of
+// a key. A NoSuchKey answer is a done delete; anything that cannot tell a
+// missing key from a missing bucket, or that is not a 404, still fails.
+function xmlErrorBody4583(code: string): string {
+  return `<?xml version="1.0"?><Error><Code>${code}</Code><Message>${code}</Message></Error>`;
+}
+
+Deno.test({
+  // The SDK's NodeHttpHandler keeps an HTTP agent pool alive across requests.
+  sanitizeResources: false,
+  name: "swamp-club#4583: deleteObject resolves on a 404 NoSuchKey",
+  fn: () =>
+    withMockServer(
+      (req) =>
+        req.method === "DELETE"
+          ? new Response(xmlErrorBody4583("NoSuchKey"), {
+            status: 404,
+            headers: { "content-type": "application/xml" },
+          })
+          : new Response(null, { status: 500 }),
+      async (client) => {
+        await client.deleteObject("data/gone");
+      },
+    ),
+});
+
+Deno.test({
+  // The SDK's NodeHttpHandler keeps an HTTP agent pool alive across requests.
+  sanitizeResources: false,
+  name:
+    "swamp-club#4583: deleteObject still rejects NoSuchBucket, a 404 without an XML body, and 403",
+  fn: async () => {
+    const answers: Array<[string, () => Response]> = [
+      [
+        "NoSuchBucket",
+        () =>
+          new Response(xmlErrorBody4583("NoSuchBucket"), {
+            status: 404,
+            headers: { "content-type": "application/xml" },
+          }),
+      ],
+      ["empty 404", () => new Response(null, { status: 404 })],
+      [
+        "text/plain 404",
+        () =>
+          new Response("not found", {
+            status: 404,
+            headers: { "content-type": "text/plain" },
+          }),
+      ],
+      [
+        "html 404",
+        () =>
+          new Response("<html><body>404</body></html>", {
+            status: 404,
+            headers: { "content-type": "text/html" },
+          }),
+      ],
+      [
+        "AccessDenied",
+        () =>
+          new Response(xmlErrorBody4583("AccessDenied"), {
+            status: 403,
+            headers: { "content-type": "application/xml" },
+          }),
+      ],
+    ];
+    for (const [label, answer] of answers) {
+      await withMockServer(
+        (req) =>
+          req.method === "DELETE" ? answer() : new Response(null, {
+            status: 500,
+          }),
+        async (client) => {
+          await assertRejects(
+            () => client.deleteObject("data/k"),
+            Error,
+            undefined,
+            `${label} must reject`,
+          );
+        },
+      );
+    }
+  },
+});

@@ -303,8 +303,10 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   rather than re-uploaded.
 - **Per-path dirty tracking** — `markDirty(options)` accepts a `relPath`
   argument and tracks per-path dirty sets (capped at 200 paths). When pushing,
-  only dirty directories/files are walked instead of the entire cache. Overflows
-  (> 200 paths) or path-escape trigger a full walk fallback. Such a push
+  only dirty directories/files are walked instead of the entire cache. Marks may
+  overlap (a data name, its version directory and `latest`); each key is still
+  uploaded or deleted once. Overflows (> 200 paths) or path-escape trigger a
+  full walk fallback. Such a push
   assembles only the partition shards that can hold files under a dirty path (a
   data name's `latest` sits in the type shard and its version files in the model
   shard), so it merges its delta into the on-disk `.datastore-index.json` rather

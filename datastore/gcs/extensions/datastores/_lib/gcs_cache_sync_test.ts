@@ -15599,3 +15599,131 @@ Deno.test("swamp-club#4411: a model-lock pull that falls back to the whole index
     assertEquals(await Deno.readTextFile(join(a, RUN_4411)), NEW);
   });
 });
+
+// -- swamp-club#4583: overlapping dirty marks list each key once -------------
+//
+// Core marks a data-name directory together with paths under it (a version
+// directory, `latest`) in the same command. A scoped push used to walk each
+// mark on its own and list every key under both, so each file went up twice
+// and each removed key was deleted twice in one concurrent batch. No
+// conformance helper covers which keys a push walk sends, so these assert on
+// the mock's requests directly.
+
+const NAME_4583 = "data/@scratch/dropper/id/main";
+const KEYS_4583 = [
+  `${NAME_4583}/13/raw`,
+  `${NAME_4583}/13/metadata.yaml`,
+  `${NAME_4583}/latest`,
+];
+
+async function seedName4583(cachePath: string): Promise<void> {
+  await seedFile(cachePath, KEYS_4583[0], "raw\n");
+  await seedFile(cachePath, KEYS_4583[1], "meta\n");
+  await seedFile(cachePath, KEYS_4583[2], "13\n");
+}
+
+/** Marks the data name, its version directory and `latest`, as core does. */
+async function markOverlapping4583(
+  service: GcsCacheSyncService,
+): Promise<void> {
+  await service.markDirty({ relPath: NAME_4583 });
+  await service.markDirty({ relPath: `${NAME_4583}/13` });
+  await service.markDirty({ relPath: `${NAME_4583}/latest` });
+}
+
+function counts4583(keys: string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const key of keys) {
+    if (key.startsWith("data/")) out[key] = (out[key] ?? 0) + 1;
+  }
+  return out;
+}
+
+const ONCE_4583 = Object.fromEntries(KEYS_4583.map((k) => [k, 1]));
+
+for (const mode of ["pushChanged", "preparePush"] as const) {
+  Deno.test(`swamp-club#4583: ${mode} uploads each file under overlapping marks once`, async () => {
+    const cachePath = await Deno.makeTempDir({ prefix: "gcssync-4583-up-" });
+    try {
+      const mock = createMockGcsClient();
+      const service = new GcsCacheSyncService(mock, cachePath);
+      await seedName4583(cachePath);
+      await markOverlapping4583(service);
+      if (mode === "pushChanged") {
+        await service.pushChanged();
+      } else {
+        await service.commitPush(await service.preparePush());
+      }
+      assertEquals(counts4583(mock.puts.map((p) => p.key)), ONCE_4583);
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  });
+
+  Deno.test(`swamp-club#4583: ${mode} deletes each removed key under overlapping marks once`, async () => {
+    const cachePath = await Deno.makeTempDir({ prefix: "gcssync-4583-del-" });
+    try {
+      const mock = createMockGcsClient();
+      const service = new GcsCacheSyncService(mock, cachePath);
+      await seedName4583(cachePath);
+      await service.markDirty({ relPath: NAME_4583 });
+      await service.pushChanged();
+
+      await Deno.remove(join(cachePath, NAME_4583), { recursive: true });
+      await markOverlapping4583(service);
+      mock.deletes.length = 0;
+      if (mode === "pushChanged") {
+        await service.pushChanged();
+      } else {
+        await service.commitPush(await service.preparePush());
+      }
+      assertEquals(counts4583(mock.deletes), ONCE_4583);
+      for (const key of KEYS_4583) {
+        assertEquals(mock.storage.has(key), false, `${key} must be gone`);
+        assertEquals(
+          key in (privateState(service).index?.entries ?? {}),
+          false,
+          `${key} must leave the index`,
+        );
+      }
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  });
+}
+
+Deno.test("swamp-club#4583: a file checked under one mark is neither re-sent nor deleted by an overlapping directory mark", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-4583-keep-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await seedName4583(cachePath);
+    await service.markDirty({ relPath: NAME_4583 });
+    await service.pushChanged();
+
+    // The version directory goes; `latest` is rewritten. `latest` is marked
+    // first, so the directory mark walks a file already checked under it.
+    await Deno.remove(join(cachePath, NAME_4583, "13"), { recursive: true });
+    await seedFile(cachePath, KEYS_4583[2], "14\n");
+    await service.markDirty({ relPath: KEYS_4583[2] });
+    await service.markDirty({ relPath: NAME_4583 });
+    await service.markDirty({ relPath: `${NAME_4583}/13` });
+    mock.puts.length = 0;
+    mock.deletes.length = 0;
+    await service.pushChanged();
+
+    assertEquals(counts4583(mock.puts.map((p) => p.key)), {
+      [KEYS_4583[2]]: 1,
+    });
+    assertEquals(counts4583(mock.deletes), {
+      [KEYS_4583[0]]: 1,
+      [KEYS_4583[1]]: 1,
+    });
+    assertEquals(
+      new TextDecoder().decode(mock.storage.get(KEYS_4583[2])),
+      "14\n",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

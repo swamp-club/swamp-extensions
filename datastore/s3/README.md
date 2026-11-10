@@ -149,6 +149,8 @@ allowance is added on top.
 - **Per-path dirty tracking**: `markDirty({ relPath })` records which
   directories changed. `pushChanged` walks only those directories instead of the
   entire cache. A 200-path cap falls back to a full walk for bulk operations.
+  Marks may overlap (a data name, its version directory and `latest`); each key
+  is still uploaded or deleted once.
 - **SHA-256 content hashing**: File content is hashed on push and stored in the
   index. A same-size file skips the hash only when this copy's own mtime record
   (`.datastore-local-mtimes.json`, local-only and never synced) shows it
@@ -539,7 +541,11 @@ the next `pushChanged` detects the absence and issues an S3 `DeleteObject` for
 the corresponding remote key and removes it from the index. If per-path dirty
 tracking overflows (>200 paths), the bulk walk compares the full index against
 local files and deletes remote-only entries. Deletions are suppressed when lazy
-hydration is active to avoid removing un-hydrated content.
+hydration is active to avoid removing un-hydrated content. A `DeleteObject`
+answered `404 NoSuchKey` counts as deleted, since the object is gone; S3 answers
+204 either way, but some S3-compatible stores (versitygw's posix backend under
+concurrent deletes) answer 404. A 404 without that error code, `NoSuchBucket`,
+and every other failure still fail the push.
 
 A per-path push assembles only the partition shards that can hold files under a
 dirty path (a data name's `latest` sits in the type shard and its version files

@@ -794,16 +794,28 @@ export class S3Client {
     };
   }
 
-  /** Deletes an object from S3. */
+  /**
+   * Deletes an object from S3. A delete answered `NoSuchKey` counts as done:
+   * the object is gone, and S3 itself answers 204 whether or not the key
+   * existed. Some stores 404 instead, versitygw's posix backend for one of
+   * two concurrent deletes of a key (swamp-club#4583). An ambiguous 404 (no
+   * XML body, so a missing bucket or a proxy cannot be ruled out),
+   * `NoSuchBucket` and every other failure still reject.
+   */
   async deleteObject(key: string, signal?: AbortSignal): Promise<void> {
-    await this.run(
-      "deleteObject",
-      new DeleteObjectCommand({
-        Bucket: this.bucket,
-        Key: this.fullKey(key),
-      }),
-      signal,
-    );
+    try {
+      await this.run(
+        "deleteObject",
+        new DeleteObjectCommand({
+          Bucket: this.bucket,
+          Key: this.fullKey(key),
+        }),
+        signal,
+      );
+    } catch (error) {
+      if (s3NotFoundKind(error) === "key") return;
+      throw error;
+    }
   }
 
   /**

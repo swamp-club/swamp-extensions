@@ -5706,6 +5706,13 @@ export class S3CacheSyncService implements DatastoreSyncService {
    * delete and never a failure (swamp-club #3860, swamp-club #2421). A
    * whole-cache walk that throws after the cache root was found aborts the
    * push: what it did not visit would otherwise read as deleted.
+   *
+   * Dirty marks overlap: core marks a data name with its version directory
+   * and `latest` in one command. Each key is listed once however many marks
+   * cover it, so nothing is uploaded twice and no key gets two concurrent
+   * deletes (swamp-club#4583). A file keeps the mark it was first found
+   * under; every mark that covers it contains it, so whichever one stays
+   * unhandled still finds it on the next push.
    */
   private async collectPushWork(
     snap: DirtySnapshot,
@@ -5730,6 +5737,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
     };
 
     if (useScopedWalk) {
+      // Files whose verdict an earlier mark already took, and keys already
+      // queued for delete (swamp-club#4583).
+      const checked = new Set<string>();
+      const queuedDeletes = new Set<string>();
+      const queueDelete = (rel: string) => {
+        if (queuedDeletes.has(rel)) return;
+        queuedDeletes.add(rel);
+        toDelete.push(rel);
+      };
       for (const dirtyPath of snap.paths.keys()) {
         const absPath = join(this.cachePath, dirtyPath);
         const bareDirtyPath = nsPrefix && dirtyPath.startsWith(nsPrefix)
@@ -5758,7 +5774,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               if (isInternalCacheFile(rel)) continue;
               if (isStrayNamespacePath(rel, this.namespace)) continue;
               if (rel === bareDirtyPath || rel.startsWith(prefix)) {
-                toDelete.push(rel);
+                queueDelete(rel);
               }
             }
           }
@@ -5774,6 +5790,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           ) {
             continue;
           }
+          if (checked.has(bareDirtyPath)) continue;
           let verdict: "push" | "skip" | "vanished";
           try {
             verdict = await this.fileNeedsPush(absPath, bareDirtyPath);
@@ -5782,6 +5799,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             snap.unhandled.add(dirtyPath);
             continue;
           }
+          checked.add(bareDirtyPath);
           if (verdict === "vanished") {
             snap.unhandled.add(dirtyPath);
           } else if (verdict === "push") {
@@ -5809,7 +5827,11 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // Listed even when it vanishes below: a file seen in the walk
               // is never a delete in the same push.
               localFilesInDir.add(bareRel);
+              // Only after the add above: a file checked under another mark
+              // is still present for this mark's deletes below.
+              if (checked.has(bareRel)) continue;
               const verdict = await this.fileNeedsPush(entry.path, bareRel);
+              checked.add(bareRel);
               if (verdict === "vanished") {
                 snap.unhandled.add(dirtyPath);
               } else if (verdict === "push") {
@@ -5840,7 +5862,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               if (isInternalCacheFile(rel)) continue;
               if (isStrayNamespacePath(rel, this.namespace)) continue;
               if (rel.startsWith(prefix) && !localFilesInDir.has(rel)) {
-                toDelete.push(rel);
+                queueDelete(rel);
               }
             }
           }
