@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant TermsOfService.
  *
- * The `TermsOfService` message represents a specific version of the terms of service that merchants must accept to access certain features or services. For more information, see [Terms of Service](https://support.google.com/merchants/answer/160173). This message is important for the onboarding process, ensuring that merchants agree to the necessary legal agreements for using the service. Merchants can retrieve the latest terms of service for a given `kind` and `region` through `RetrieveLatestTermsOfService`, and accept them as required through `AcceptTermsOfService`.
+ * The `TermsOfService` message represents a specific version of the terms of service that merchants must accept to access certain features or services. For more information, see [Terms of Service](https://support.google.com/merchants/answer/160173). This message is important for the onboarding process, ensuring that merchants agree to the necessary legal agreements for using the service. Merchants can retrieve the latest terms of service for a given `kind` and `region` through `RetrieveLatestTermsOfService`, and accept them as required through `AcceptTermsOfService`. For step-by-step instructions, see [Manage Terms of Service](https://developers.google.com/merchant/api/guides/accounts/manage-tos-agreements).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -129,7 +129,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant TermsOfService. Registered at `@swamp/gcp/merchantapi/termsofservice`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/termsofservice",
-  version: "2026.10.23.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -153,6 +153,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

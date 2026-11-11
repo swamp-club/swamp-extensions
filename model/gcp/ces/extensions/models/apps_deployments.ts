@@ -287,10 +287,11 @@ const GlobalArgsSchema = z.object({
           "Optional. Id of the traffic allocation. Free format string, up to 128 characters.",
         ).optional(),
         trafficPercentage: z.number().int().describe(
-          "Optional. Traffic percentage of the traffic allocation. Must be between 0 and 100.",
+          "Optional. Traffic percentage of the traffic allocation, relative to the remaining non-study traffic. Must be between `0` and `100`.",
         ).optional(),
-      })).describe("Optional. Traffic allocations for the version release.")
-        .optional(),
+      })).describe(
+        "Optional. Traffic allocations for the version release. When non-empty, the `traffic_percentage` values across all allocations must sum to `100`, representing the split of remaining non-study traffic.",
+      ).optional(),
     }).describe("Optional. Version release for the experiment.").optional(),
   }).describe("Optional. Experiment configuration for the deployment.")
     .optional(),
@@ -577,10 +578,11 @@ const InputsSchema = z.object({
           "Optional. Id of the traffic allocation. Free format string, up to 128 characters.",
         ).optional(),
         trafficPercentage: z.number().int().describe(
-          "Optional. Traffic percentage of the traffic allocation. Must be between 0 and 100.",
+          "Optional. Traffic percentage of the traffic allocation, relative to the remaining non-study traffic. Must be between `0` and `100`.",
         ).optional(),
-      })).describe("Optional. Traffic allocations for the version release.")
-        .optional(),
+      })).describe(
+        "Optional. Traffic allocations for the version release. When non-empty, the `traffic_percentage` values across all allocations must sum to `100`, representing the split of remaining non-study traffic.",
+      ).optional(),
     }).describe("Optional. Version release for the experiment.").optional(),
   }).describe("Optional. Experiment configuration for the deployment.")
     .optional(),
@@ -680,7 +682,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Deployments. Registered at `@swamp/gcp/ces/apps-deployments`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-deployments",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -846,6 +848,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

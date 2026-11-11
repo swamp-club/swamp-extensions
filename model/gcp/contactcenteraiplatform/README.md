@@ -14,8 +14,8 @@ the live state in GCP. Available methods:
 - **sync** — refresh all resource properties from the API
 
 Use
-`swamp model type describe @swamp/gcp/contactcenteraiplatform/contactcenters` to
-see the full list of configurable properties and available methods for this
+`swamp model type describe @swamp/gcp/contactcenteraiplatform/contactcenters_phonenumbers`
+to see the full list of configurable properties and available methods for this
 model.
 
 ## Authentication
@@ -67,17 +67,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new contactcenters model
-swamp model create @swamp/gcp/contactcenteraiplatform/contactcenters my-contactcenters
+# Create a new contactcenters_phonenumbers model
+swamp model create @swamp/gcp/contactcenteraiplatform/contactcenters_phonenumbers my-contactcenters_phonenumbers
 
 # Edit the model to configure its properties
-swamp model edit my-contactcenters
+swamp model edit my-contactcenters_phonenumbers
 
 # Create the resource in GCP
-swamp model method run my-contactcenters create
+swamp model method run my-contactcenters_phonenumbers create
 
 # Sync current state from GCP
-swamp model method run my-contactcenters sync
+swamp model method run my-contactcenters_phonenumbers sync
 ```
 
 ## License

@@ -38,42 +38,58 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const PlayerLatencyPolicySchema = z.object({
-  PolicyDurationSeconds: z.number().int().min(0).describe(
-    "The length of time, in seconds, that the policy is enforced while placing a new game session.",
-  ).optional(),
-  MaximumIndividualPlayerLatencyMilliseconds: z.number().int().min(0).describe(
-    "The maximum latency value that is allowed for any player, in milliseconds. All policies must have a value set for this property.",
-  ).optional(),
-});
-
 const GameSessionQueueDestinationSchema = z.object({
   DestinationArn: z.string().min(1).max(256).regex(
     new RegExp("[a-zA-Z0-9:/-]+"),
   ).optional(),
 });
 
-const TagSchema = z.object({
-  Value: z.string().min(1).max(256).describe(
-    "The value for the tag. You can specify a value that is 1 to 256 Unicode characters in length.",
+const PlayerLatencyPolicySchema = z.object({
+  MaximumIndividualPlayerLatencyMilliseconds: z.number().int().min(0).describe(
+    "The maximum latency value that is allowed for any player, in milliseconds. All policies must have a value set for this property.",
+  ).optional(),
+  PolicyDurationSeconds: z.number().int().min(0).describe(
+    "The length of time, in seconds, that the policy is enforced while placing a new game session.",
+  ).optional(),
+});
+
+const DeliveryDestinationSchema = z.object({
+  LogDestination: z.enum(["CLOUDWATCH", "S3", "FIREHOSE"]).describe(
+    "The type of service that receives the game session queue's placement logs.",
   ),
+  DestinationArn: z.string().min(1).max(512).regex(
+    new RegExp("^arn:[a-zA-Z0-9:/*._#-]+$"),
+  ).describe(
+    "The Amazon Resource Name (ARN) of the resource that receives the placement logs. The resource type must match LogDestination (a CloudWatch Logs log group, S3 bucket, or Firehose delivery stream). Required for FIREHOSE; optional for CLOUDWATCH and S3.",
+  ).optional(),
+});
+
+const TagSchema = z.object({
   Key: z.string().min(1).max(128).describe(
     "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length.",
   ),
+  Value: z.string().min(1).max(256).describe(
+    "The value for the tag. You can specify a value that is 1 to 256 Unicode characters in length.",
+  ),
 });
-
-const PlayerLatencyPolicyStateSchema = z.object({
-  PolicyDurationSeconds: z.number(),
-  MaximumIndividualPlayerLatencyMilliseconds: z.number(),
-}).partial();
 
 const GameSessionQueueDestinationStateSchema = z.object({
   DestinationArn: z.string(),
 }).partial();
 
+const PlayerLatencyPolicyStateSchema = z.object({
+  MaximumIndividualPlayerLatencyMilliseconds: z.number(),
+  PolicyDurationSeconds: z.number(),
+}).partial();
+
+const DeliveryDestinationStateSchema = z.object({
+  LogDestination: z.string(),
+  DestinationArn: z.string(),
+}).partial();
+
 const TagStateSchema = z.object({
-  Value: z.string(),
   Key: z.string(),
+  Value: z.string(),
 }).partial();
 
 const GlobalArgsSchema = z.object({
@@ -89,15 +105,22 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  Name: z.string().min(1).max(128).regex(new RegExp("[a-zA-Z0-9-]+")).describe(
+    "A descriptive label that is associated with game session queue. Queue names must be unique within each Region.",
+  ),
   TimeoutInSeconds: z.number().int().min(0).describe(
     "The maximum time, in seconds, that a new game session placement request remains in the queue.",
-  ).optional(),
-  PlayerLatencyPolicies: z.array(PlayerLatencyPolicySchema).describe(
-    "A set of policies that act as a sliding cap on player latency.",
   ).optional(),
   Destinations: z.array(GameSessionQueueDestinationSchema).describe(
     "A list of fleets and/or fleet aliases that can be used to fulfill game session placement requests in the queue.",
   ).optional(),
+  PlayerLatencyPolicies: z.array(PlayerLatencyPolicySchema).describe(
+    "A set of policies that act as a sliding cap on player latency.",
+  ).optional(),
+  CustomEventData: z.string().min(1).max(256).regex(new RegExp("[\\s\\S]*"))
+    .describe(
+      "Information that is added to all events that are related to this game session queue.",
+    ).optional(),
   NotificationTarget: z.string().min(1).max(300).regex(
     new RegExp("[a-zA-Z0-9:_-]*(\\.fifo)?"),
   ).describe(
@@ -112,48 +135,51 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "A list of locations where a queue is allowed to place new game sessions.",
   ).optional(),
-  CustomEventData: z.string().min(1).max(256).regex(new RegExp("[\\s\\S]*"))
-    .describe(
-      "Information that is added to all events that are related to this game session queue.",
-    ).optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this resource.",
-  ).optional(),
-  Name: z.string().min(1).max(128).regex(new RegExp("[a-zA-Z0-9-]+")).describe(
-    "A descriptive label that is associated with game session queue. Queue names must be unique within each Region.",
-  ),
   PriorityConfiguration: z.object({
-    PriorityOrder: z.array(
-      z.enum(["LATENCY", "COST", "DESTINATION", "LOCATION"]),
-    ).describe(
-      "The recommended sequence to use when prioritizing where to place new game sessions.",
-    ).optional(),
     LocationOrder: z.array(
       z.string().min(1).max(64).regex(new RegExp("^[A-Za-z0-9\\-]+")),
     ).describe(
       "The prioritization order to use for fleet locations, when the PriorityOrder property includes LOCATION.",
     ).optional(),
+    PriorityOrder: z.array(
+      z.enum(["LATENCY", "COST", "DESTINATION", "LOCATION"]),
+    ).describe(
+      "The recommended sequence to use when prioritizing where to place new game sessions.",
+    ).optional(),
   }).describe(
     "Custom settings to use when prioritizing destinations and locations for game session placements.",
+  ).optional(),
+  LogConfiguration: z.object({
+    DeliveryDestinations: z.array(DeliveryDestinationSchema).describe(
+      "The set of destinations that receive the game session queue's placement logs. A queue can deliver logs to between 1 and 3 destinations.",
+    ),
+  }).describe(
+    "A policy that determines where a game session queue's placement logs are delivered.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
   ).optional(),
 });
 
 const StateSchema = z.object({
+  Name: z.string(),
   TimeoutInSeconds: z.number().optional(),
-  PlayerLatencyPolicies: z.array(PlayerLatencyPolicyStateSchema).optional(),
   Destinations: z.array(GameSessionQueueDestinationStateSchema).optional(),
+  PlayerLatencyPolicies: z.array(PlayerLatencyPolicyStateSchema).optional(),
+  CustomEventData: z.string().optional(),
   NotificationTarget: z.string().optional(),
   FilterConfiguration: z.object({
     AllowedLocations: z.array(z.string()),
   }).partial().optional(),
-  Arn: z.string().optional(),
-  CustomEventData: z.string().optional(),
-  Tags: z.array(TagStateSchema).optional(),
-  Name: z.string(),
   PriorityConfiguration: z.object({
-    PriorityOrder: z.array(z.string()),
     LocationOrder: z.array(z.string()),
+    PriorityOrder: z.array(z.string()),
   }).partial().optional(),
+  LogConfiguration: z.object({
+    DeliveryDestinations: z.array(DeliveryDestinationStateSchema),
+  }).partial().optional(),
+  Arn: z.string().optional(),
+  Tags: z.array(TagStateSchema).optional(),
 }).passthrough();
 
 type StateData = Record<string, unknown>;
@@ -163,15 +189,22 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  Name: z.string().min(1).max(128).regex(new RegExp("[a-zA-Z0-9-]+")).describe(
+    "A descriptive label that is associated with game session queue. Queue names must be unique within each Region.",
+  ).optional(),
   TimeoutInSeconds: z.number().int().min(0).describe(
     "The maximum time, in seconds, that a new game session placement request remains in the queue.",
-  ).optional(),
-  PlayerLatencyPolicies: z.array(PlayerLatencyPolicySchema).describe(
-    "A set of policies that act as a sliding cap on player latency.",
   ).optional(),
   Destinations: z.array(GameSessionQueueDestinationSchema).describe(
     "A list of fleets and/or fleet aliases that can be used to fulfill game session placement requests in the queue.",
   ).optional(),
+  PlayerLatencyPolicies: z.array(PlayerLatencyPolicySchema).describe(
+    "A set of policies that act as a sliding cap on player latency.",
+  ).optional(),
+  CustomEventData: z.string().min(1).max(256).regex(new RegExp("[\\s\\S]*"))
+    .describe(
+      "Information that is added to all events that are related to this game session queue.",
+    ).optional(),
   NotificationTarget: z.string().min(1).max(300).regex(
     new RegExp("[a-zA-Z0-9:_-]*(\\.fifo)?"),
   ).describe(
@@ -186,29 +219,29 @@ const InputsSchema = z.object({
   }).describe(
     "A list of locations where a queue is allowed to place new game sessions.",
   ).optional(),
-  CustomEventData: z.string().min(1).max(256).regex(new RegExp("[\\s\\S]*"))
-    .describe(
-      "Information that is added to all events that are related to this game session queue.",
-    ).optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this resource.",
-  ).optional(),
-  Name: z.string().min(1).max(128).regex(new RegExp("[a-zA-Z0-9-]+")).describe(
-    "A descriptive label that is associated with game session queue. Queue names must be unique within each Region.",
-  ).optional(),
   PriorityConfiguration: z.object({
-    PriorityOrder: z.array(
-      z.enum(["LATENCY", "COST", "DESTINATION", "LOCATION"]),
-    ).describe(
-      "The recommended sequence to use when prioritizing where to place new game sessions.",
-    ).optional(),
     LocationOrder: z.array(
       z.string().min(1).max(64).regex(new RegExp("^[A-Za-z0-9\\-]+")),
     ).describe(
       "The prioritization order to use for fleet locations, when the PriorityOrder property includes LOCATION.",
     ).optional(),
+    PriorityOrder: z.array(
+      z.enum(["LATENCY", "COST", "DESTINATION", "LOCATION"]),
+    ).describe(
+      "The recommended sequence to use when prioritizing where to place new game sessions.",
+    ).optional(),
   }).describe(
     "Custom settings to use when prioritizing destinations and locations for game session placements.",
+  ).optional(),
+  LogConfiguration: z.object({
+    DeliveryDestinations: z.array(DeliveryDestinationSchema).describe(
+      "The set of destinations that receive the game session queue's placement logs. A queue can deliver logs to between 1 and 3 destinations.",
+    ).optional(),
+  }).describe(
+    "A policy that determines where a game session queue's placement logs are delivered.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
   ).optional(),
 });
 
@@ -231,7 +264,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift GameSessionQueue. Registered at `@swamp/aws/gamelift/game-session-queue`. */
 export const model = {
   type: "@swamp/aws/gamelift/game-session-queue",
-  version: "2026.11.08.2",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -306,6 +339,11 @@ export const model = {
     {
       toVersion: "2026.11.08.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
+      description: "Added: LogConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

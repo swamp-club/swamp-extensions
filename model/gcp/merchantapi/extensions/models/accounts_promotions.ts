@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.Promotions.
  *
- * Represents a promotion. See the following articles for more details. Required promotion input attributes to pass data validation checks are primarily defined below: * [Promotions data specification](https://support.google.com/merchants/answer/2906014) * [Local promotions data specification](https://support.google.com/merchants/answer/10146130) After inserting, updating a promotion input, it may take several minutes before the final promotion can be retrieved.
+ * Represents a promotion. See the following articles for more details. Required promotion input attributes to pass data validation checks are primarily defined below: * [Promotions data specification](https://support.google.com/merchants/answer/2906014) * [Local promotions data specification](https://support.google.com/merchants/answer/10146130) After inserting, updating a promotion input, it may take several minutes before the final promotion can be retrieved. For more information, see [Manage promotions](https://developers.google.com/merchant/api/guides/promotions/overview) and [Troubleshoot issues](https://developers.google.com/merchant/api/guides/promotions/troubleshooting).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -369,7 +369,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Optional. A list of promotion attributes.").optional(),
     contentLanguage: z.string().describe(
-      "Required. The two-letter [ISO 639-1](http://en.wikipedia.org/wiki/ISO_639-1) language code for the promotion. Promotions is only for [selected languages](https://support.google.com/merchants/answer/4588281?ref_topic=6396150&sjid=18314938579342094533-NC#option3&zippy=).",
+      "Required. The two-letter [ISO 639-1](http://en.wikipedia.org/wiki/ISO_639-1) language code for the promotion. Promotions is only for [selected languages](https://support.google.com/merchants/answer/4588281#option3&zippy=).",
     ).optional(),
     customAttributes: z.array(z.object({
       groupValues: z.array(z.record(z.string(), z.unknown())).describe(
@@ -389,7 +389,7 @@ const GlobalArgsSchema = z.object({
       "Identifier. The name of the promotion. Format: `accounts/{account}/promotions/{promotion}`",
     ).optional(),
     promotionId: z.string().describe(
-      "Required. The user provided promotion ID to uniquely identify the promotion. Follow [minimum requirements](https://support.google.com/merchants/answer/7050148?ref_topic=7322920&sjid=871860036916537104-NC#minimum_requirements) to prevent promotion disapprovals.",
+      "Required. The user provided promotion ID to uniquely identify the promotion. Follow [minimum requirements](https://support.google.com/merchants/answer/7050148#minimum_requirements) to prevent promotion disapprovals.",
     ).optional(),
     promotionStatus: z.object({
       creationDate: z.string().describe(
@@ -877,7 +877,7 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Optional. A list of promotion attributes.").optional(),
     contentLanguage: z.string().describe(
-      "Required. The two-letter [ISO 639-1](http://en.wikipedia.org/wiki/ISO_639-1) language code for the promotion. Promotions is only for [selected languages](https://support.google.com/merchants/answer/4588281?ref_topic=6396150&sjid=18314938579342094533-NC#option3&zippy=).",
+      "Required. The two-letter [ISO 639-1](http://en.wikipedia.org/wiki/ISO_639-1) language code for the promotion. Promotions is only for [selected languages](https://support.google.com/merchants/answer/4588281#option3&zippy=).",
     ).optional(),
     customAttributes: z.array(z.object({
       groupValues: z.array(z.record(z.string(), z.unknown())).describe(
@@ -897,7 +897,7 @@ const InputsSchema = z.object({
       "Identifier. The name of the promotion. Format: `accounts/{account}/promotions/{promotion}`",
     ).optional(),
     promotionId: z.string().describe(
-      "Required. The user provided promotion ID to uniquely identify the promotion. Follow [minimum requirements](https://support.google.com/merchants/answer/7050148?ref_topic=7322920&sjid=871860036916537104-NC#minimum_requirements) to prevent promotion disapprovals.",
+      "Required. The user provided promotion ID to uniquely identify the promotion. Follow [minimum requirements](https://support.google.com/merchants/answer/7050148#minimum_requirements) to prevent promotion disapprovals.",
     ).optional(),
     promotionStatus: z.object({
       creationDate: z.string().describe(
@@ -1045,7 +1045,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Promotions. Registered at `@swamp/gcp/merchantapi/accounts-promotions`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-promotions",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1079,6 +1079,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

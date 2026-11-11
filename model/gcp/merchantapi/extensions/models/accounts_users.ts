@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.Users.
  *
- * The `User` resource represents a user associated with a Merchant Center account. It is used to manage user permissions and access rights within the account. For more information, see [Frequently asked questions about people and access levels](//support.google.com/merchants/answer/12160472).
+ * The `User` resource represents a user associated with a Merchant Center account. It is used to manage user permissions and access rights within the account. For more information, see [Frequently asked questions about people and access levels](//support.google.com/merchants/answer/12160472) and [Control access to your account](https://developers.google.com/merchant/api/guides/accounts/control-access).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -168,7 +168,7 @@ const GlobalArgsSchema = z.object({
       "API_DEVELOPER",
     ]),
   ).describe(
-    "Required. The [access rights](https://support.google.com/merchants/answer/12160472?sjid=6789834943175119429-EU#accesstypes) the user has.",
+    "Required. The [access rights](https://support.google.com/merchants/answer/12160472#accesstypes) the user has.",
   ).optional(),
   name: z.string().describe(
     "Identifier. The resource name of the user. Format: `accounts/{account}/user/{email}` Use `me` to refer to your own email address, for example `accounts/{account}/users/me`.",
@@ -206,7 +206,7 @@ const InputsSchema = z.object({
       "API_DEVELOPER",
     ]),
   ).describe(
-    "Required. The [access rights](https://support.google.com/merchants/answer/12160472?sjid=6789834943175119429-EU#accesstypes) the user has.",
+    "Required. The [access rights](https://support.google.com/merchants/answer/12160472#accesstypes) the user has.",
   ).optional(),
   name: z.string().describe(
     "Identifier. The resource name of the user. Format: `accounts/{account}/user/{email}` Use `me` to refer to your own email address, for example `accounts/{account}/users/me`.",
@@ -245,7 +245,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Users. Registered at `@swamp/gcp/merchantapi/accounts-users`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-users",
-  version: "2026.10.23.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -264,6 +264,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

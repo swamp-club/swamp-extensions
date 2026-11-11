@@ -221,6 +221,9 @@ const GlobalArgsSchema = z.object({
         parentToolCallId: z.unknown().describe(
           "Output only. The id of the tool call that caused this one, when it was issued by a sub-agent working on behalf of a parent call. Empty for top-level calls. Lets a client group a sub-agent's work under the call that started it instead of rendering every step as a sibling.",
         ).optional(),
+        targetApp: z.unknown().describe(
+          "Output only. The app this call targets, derived by the assistant from the call's resource arguments: an app resource name, `PROJECT` for location-scoped tools, or empty for session-local tools. Set only in project-scoped assistant sessions.",
+        ).optional(),
         tool: z.unknown().describe(
           "Optional. The name of the tool to execute. Format: `projects/{project}/locations/{location}/apps/{app}/tools/{tool}`",
         ).optional(),
@@ -243,6 +246,9 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         response: z.unknown().describe(
           'Required. The tool execution result in JSON object format. Use "output" key to specify tool response and "error" key to specify error details (if any). If "output" and "error" keys are not specified, then whole "response" is treated as tool execution result.',
+        ).optional(),
+        targetApp: z.unknown().describe(
+          "Output only. The app the executed tool targeted; mirrors ToolCall.target_app.",
         ).optional(),
         tool: z.unknown().describe(
           "Optional. The name of the tool to execute. Format: `projects/{project}/locations/{location}/apps/{app}/tools/{tool}`",
@@ -315,6 +321,7 @@ const StateSchema = z.object({
             displayName: z.unknown(),
             id: z.unknown(),
             parentToolCallId: z.unknown(),
+            targetApp: z.unknown(),
             tool: z.unknown(),
             toolsetTool: z.unknown(),
           }).partial(),
@@ -324,6 +331,7 @@ const StateSchema = z.object({
             id: z.unknown(),
             parentToolCallId: z.unknown(),
             response: z.unknown(),
+            targetApp: z.unknown(),
             tool: z.unknown(),
             toolsetTool: z.unknown(),
           }).partial(),
@@ -406,6 +414,9 @@ const InputsSchema = z.object({
         parentToolCallId: z.unknown().describe(
           "Output only. The id of the tool call that caused this one, when it was issued by a sub-agent working on behalf of a parent call. Empty for top-level calls. Lets a client group a sub-agent's work under the call that started it instead of rendering every step as a sibling.",
         ).optional(),
+        targetApp: z.unknown().describe(
+          "Output only. The app this call targets, derived by the assistant from the call's resource arguments: an app resource name, `PROJECT` for location-scoped tools, or empty for session-local tools. Set only in project-scoped assistant sessions.",
+        ).optional(),
         tool: z.unknown().describe(
           "Optional. The name of the tool to execute. Format: `projects/{project}/locations/{location}/apps/{app}/tools/{tool}`",
         ).optional(),
@@ -428,6 +439,9 @@ const InputsSchema = z.object({
         ).optional(),
         response: z.unknown().describe(
           'Required. The tool execution result in JSON object format. Use "output" key to specify tool response and "error" key to specify error details (if any). If "output" and "error" keys are not specified, then whole "response" is treated as tool execution result.',
+        ).optional(),
+        targetApp: z.unknown().describe(
+          "Output only. The app the executed tool targeted; mirrors ToolCall.target_app.",
         ).optional(),
         tool: z.unknown().describe(
           "Optional. The name of the tool to execute. Format: `projects/{project}/locations/{location}/apps/{app}/tools/{tool}`",
@@ -493,7 +507,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Examples. Registered at `@swamp/gcp/ces/apps-examples`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-examples",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -652,6 +666,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

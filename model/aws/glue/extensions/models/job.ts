@@ -94,6 +94,16 @@ const GlobalArgsSchema = z.object({
     "R.2X",
     "R.4X",
     "R.8X",
+    "G.1X.GRAVITON",
+    "G.2X.GRAVITON",
+    "G.4X.GRAVITON",
+    "G.8X.GRAVITON",
+    "G.12X.GRAVITON",
+    "G.16X.GRAVITON",
+    "R.1X.GRAVITON",
+    "R.2X.GRAVITON",
+    "R.4X.GRAVITON",
+    "R.8X.GRAVITON",
   ]).describe(
     "TThe type of predefined worker that is allocated when a job runs.",
   ).optional(),
@@ -235,6 +245,16 @@ const InputsSchema = z.object({
     "R.2X",
     "R.4X",
     "R.8X",
+    "G.1X.GRAVITON",
+    "G.2X.GRAVITON",
+    "G.4X.GRAVITON",
+    "G.8X.GRAVITON",
+    "G.12X.GRAVITON",
+    "G.16X.GRAVITON",
+    "R.1X.GRAVITON",
+    "R.2X.GRAVITON",
+    "R.4X.GRAVITON",
+    "R.8X.GRAVITON",
   ]).describe(
     "TThe type of predefined worker that is allocated when a job runs.",
   ).optional(),
@@ -308,7 +328,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Job. Registered at `@swamp/aws/glue/job`. */
 export const model = {
   type: "@swamp/aws/glue/job",
-  version: "2026.11.08.2",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -382,6 +402,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

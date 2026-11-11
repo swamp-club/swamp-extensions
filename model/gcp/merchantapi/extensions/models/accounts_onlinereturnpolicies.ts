@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.OnlineReturnPolicies.
  *
- * [Online return policy](https://support.google.com/merchants/answer/10220642) object. This is currently used to represent return policies for ads and free listings programs.
+ * [Online return policy](https://support.google.com/merchants/answer/10220642) object. This is currently used to represent return policies for ads and free listings programs. For more information, see [Manage your online return policies](https://developers.google.com/merchant/api/guides/online-return-policies/overview).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -484,7 +484,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.OnlineReturnPolicies. Registered at `@swamp/gcp/merchantapi/accounts-onlinereturnpolicies`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-onlinereturnpolicies",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -508,6 +508,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

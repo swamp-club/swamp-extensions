@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.GbpAccounts.
  *
- * Collection of information related to a Google Business Profile (GBP) account.
+ * Collection of information related to a Google Business Profile (GBP) account. For more information, see [Link a Google business profile](https://developers.google.com/merchant/api/guides/accounts/link-business-profile).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -142,7 +142,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.GbpAccounts. Registered at `@swamp/gcp/merchantapi/accounts-gbpaccounts`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-gbpaccounts",
-  version: "2026.10.23.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -164,13 +164,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Collection of information related to a Google Business Profile (GBP) account.",
+        "Collection of information related to a Google Business Profile (GBP) account....",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.DataSources.
  *
- * The [data source](/merchant/api/guides/data-sources/overview) for the Merchant Center account.
+ * The [data source](https://developers.google.com/merchant/api/guides/data-sources/overview) for the Merchant Center account. For more information, see [Manage API data sources](https://developers.google.com/merchant/api/guides/data-sources/api-sources) and [Manage various data source types](https://developers.google.com/merchant/api/guides/data-sources/manage-various-data-sources).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -245,14 +245,6 @@ const GlobalArgsSchema = z.object({
     "Required. Identifier. The name of the data source. Format: `accounts/{account}/dataSources/{datasource}`",
   ).optional(),
   primaryProductDataSource: z.object({
-    channel: z.enum([
-      "CHANNEL_UNSPECIFIED",
-      "ONLINE_PRODUCTS",
-      "LOCAL_PRODUCTS",
-      "PRODUCTS",
-    ]).describe(
-      "Optional. Immutable. Specifies the type of data source channel.",
-    ).optional(),
     contentLanguage: z.string().describe(
       "Optional. Immutable. The two-letter ISO 639-1 language of the items in the data source. `feedLabel` and `contentLanguage` must be either both set or unset. The fields can only be unset for data sources without file input. If set, the data source will only accept products matching this combination. If unset, the data source will accept products without that restriction.",
     ).optional(),
@@ -392,7 +384,6 @@ const StateSchema = z.object({
   merchantReviewDataSource: z.object({}).partial().optional(),
   name: z.string(),
   primaryProductDataSource: z.object({
-    channel: z.string(),
     contentLanguage: z.string(),
     countries: z.array(z.string()),
     defaultRule: z.object({
@@ -534,14 +525,6 @@ const InputsSchema = z.object({
     "Required. Identifier. The name of the data source. Format: `accounts/{account}/dataSources/{datasource}`",
   ).optional(),
   primaryProductDataSource: z.object({
-    channel: z.enum([
-      "CHANNEL_UNSPECIFIED",
-      "ONLINE_PRODUCTS",
-      "LOCAL_PRODUCTS",
-      "PRODUCTS",
-    ]).describe(
-      "Optional. Immutable. Specifies the type of data source channel.",
-    ).optional(),
     contentLanguage: z.string().describe(
       "Optional. Immutable. The two-letter ISO 639-1 language of the items in the data source. `feedLabel` and `contentLanguage` must be either both set or unset. The fields can only be unset for data sources without file input. If set, the data source will only accept products matching this combination. If unset, the data source will accept products without that restriction.",
     ).optional(),
@@ -676,7 +659,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.DataSources. Registered at `@swamp/gcp/merchantapi/accounts-datasources`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-datasources",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -713,13 +696,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "The [data source](/merchant/api/guides/data-sources/overview) for the Merchan...",
+        "The [data source](https://developers.google.com/merchant/api/guides/data-sour...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

@@ -542,6 +542,13 @@ const StateSchema = z.object({
       reason: z.string(),
     }).partial(),
     imageSizeBytes: z.string(),
+    installedPackages: z.array(
+      z.object({
+        name: z.string(),
+        sourceRepository: z.string(),
+        version: z.string(),
+      }).partial(),
+    ),
   }).partial().optional(),
   creationTime: z.string().optional(),
   dataGovernanceType: z.string().optional(),
@@ -976,7 +983,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Routines. Registered at `@swamp/gcp/bigquery/routines`. */
 export const model = {
   type: "@swamp/gcp/bigquery/routines",
-  version: "2026.11.10.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1203,6 +1210,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

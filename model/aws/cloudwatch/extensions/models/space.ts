@@ -65,31 +65,30 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(3).max(64).regex(new RegExp("^[a-z0-9]+(-[a-z0-9]+)*$"))
-    .describe("The name of the space.").optional(),
+    .describe("A name that identifies the space.").optional(),
   DomainId: z.string().regex(new RegExp("^d-[0-9a-z]{1,25}$")).describe(
-    "The identifier of the domain the space belongs to.",
+    "The ID of the domain to create the space in.",
   ).optional(),
   DataAccessRoleArn: z.string().min(1).max(2048).regex(new RegExp("^arn:.+$"))
-    .describe(
-      "The Amazon Resource Name (ARN) of the IAM role the space uses to access observability data.",
-    ).optional(),
+    .describe("The ARN of the IAM role used for data access.").optional(),
   AgentCoreEvaluationRoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:.+$"),
   ).describe(
-    "The Amazon Resource Name (ARN) of the IAM role used for AgentCore evaluation.",
+    "The ARN of the IAM role used by AgentCore online evaluation. Absent when the space was created without one.",
   ).optional(),
   EncryptionConfiguration: z.object({
     EncryptionStrategy: z.enum(["AWS_OWNED", "CUSTOMER_MANAGED"]).describe(
-      "Whether the space is encrypted with an AWS owned key or a customer managed key.",
+      "Which kind of key to use. Required.",
     ),
     KmsKeyArn: z.string().min(1).max(2048).regex(
       new RegExp(
         "^arn:(aws|aws-cn|aws-us-gov):kms:[a-z0-9-]+:[0-9]{12}:key/(?:mrk-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
       ),
     ).describe(
-      "The Amazon Resource Name (ARN) of the customer managed KMS key. Required when encryptionStrategy is CUSTOMER_MANAGED.",
+      "Customer managed KMS key ARN. Required when encryptionStrategy is CUSTOMER_MANAGED, and must be omitted when it is AWS_OWNED. Must be a symmetric ENCRYPT_DECRYPT key in the caller's account and region.",
     ).optional(),
-  }).describe("The encryption configuration for the space.").optional(),
+  }).describe("How the space's data at rest is encrypted. Always populated.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -123,31 +122,30 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   Name: z.string().min(3).max(64).regex(new RegExp("^[a-z0-9]+(-[a-z0-9]+)*$"))
-    .describe("The name of the space.").optional(),
+    .describe("A name that identifies the space.").optional(),
   DomainId: z.string().regex(new RegExp("^d-[0-9a-z]{1,25}$")).describe(
-    "The identifier of the domain the space belongs to.",
+    "The ID of the domain to create the space in.",
   ).optional(),
   DataAccessRoleArn: z.string().min(1).max(2048).regex(new RegExp("^arn:.+$"))
-    .describe(
-      "The Amazon Resource Name (ARN) of the IAM role the space uses to access observability data.",
-    ).optional(),
+    .describe("The ARN of the IAM role used for data access.").optional(),
   AgentCoreEvaluationRoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:.+$"),
   ).describe(
-    "The Amazon Resource Name (ARN) of the IAM role used for AgentCore evaluation.",
+    "The ARN of the IAM role used by AgentCore online evaluation. Absent when the space was created without one.",
   ).optional(),
   EncryptionConfiguration: z.object({
     EncryptionStrategy: z.enum(["AWS_OWNED", "CUSTOMER_MANAGED"]).describe(
-      "Whether the space is encrypted with an AWS owned key or a customer managed key.",
+      "Which kind of key to use. Required.",
     ).optional(),
     KmsKeyArn: z.string().min(1).max(2048).regex(
       new RegExp(
         "^arn:(aws|aws-cn|aws-us-gov):kms:[a-z0-9-]+:[0-9]{12}:key/(?:mrk-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
       ),
     ).describe(
-      "The Amazon Resource Name (ARN) of the customer managed KMS key. Required when encryptionStrategy is CUSTOMER_MANAGED.",
+      "Customer managed KMS key ARN. Required when encryptionStrategy is CUSTOMER_MANAGED, and must be omitted when it is AWS_OWNED. Must be a symmetric ENCRYPT_DECRYPT key in the caller's account and region.",
     ).optional(),
-  }).describe("The encryption configuration for the space.").optional(),
+  }).describe("How the space's data at rest is encrypted. Always populated.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -172,7 +170,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch Space. Registered at `@swamp/aws/cloudwatch/space`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/space",
-  version: "2026.11.08.2",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.11.08.1",
@@ -181,6 +179,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

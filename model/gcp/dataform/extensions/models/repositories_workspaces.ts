@@ -219,7 +219,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.Workspaces. Registered at `@swamp/gcp/dataform/repositories-workspaces`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-workspaces",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -380,6 +380,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -674,6 +679,68 @@ export const model = {
             "httpMethod": "POST",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    create_long_running: {
+      description: "create long running",
+      arguments: z.object({
+        createTime: z.any().optional(),
+        dataEncryptionState: z.any().optional(),
+        disableMoves: z.any().optional(),
+        internalMetadata: z.any().optional(),
+        name: z.any().optional(),
+        privateResourceMetadata: z.any().optional(),
+        workspaceId: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["workspaceId"] !== undefined) {
+          params["workspaceId"] = String(args["workspaceId"]);
+        }
+        const body: Record<string, unknown> = {};
+        if (args["createTime"] !== undefined) {
+          body["createTime"] = args["createTime"];
+        }
+        if (args["dataEncryptionState"] !== undefined) {
+          body["dataEncryptionState"] = args["dataEncryptionState"];
+        }
+        if (args["disableMoves"] !== undefined) {
+          body["disableMoves"] = args["disableMoves"];
+        }
+        if (args["internalMetadata"] !== undefined) {
+          body["internalMetadata"] = args["internalMetadata"];
+        }
+        if (args["name"] !== undefined) body["name"] = args["name"];
+        if (args["privateResourceMetadata"] !== undefined) {
+          body["privateResourceMetadata"] = args["privateResourceMetadata"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "dataform.projects.locations.repositories.workspaces.createLongRunning",
+            "path": "v1/{+parent}/workspaces:createLongRunning",
+            "httpMethod": "POST",
+            "parameterOrder": ["parent"],
+            "parameters": {
+              "parent": { "location": "path", "required": true },
+              "workspaceId": { "location": "query" },
+            },
           },
           params,
           body,

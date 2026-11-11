@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.LfpMerchantStates.
  *
- * The LFP state of a merchant.
+ * The LFP state of a merchant. For more information, see [Manage local feeds partnership](https://developers.google.com/merchant/api/guides/local-feeds-partnership/overview).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -149,7 +149,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.LfpMerchantStates. Registered at `@swamp/gcp/merchantapi/accounts-lfpmerchantstates`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-lfpmerchantstates",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -176,12 +176,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "The LFP state of a merchant.",
+      description:
+        "The LFP state of a merchant. For more information, see [Manage local feeds pa...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

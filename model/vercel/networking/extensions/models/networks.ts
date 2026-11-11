@@ -57,6 +57,9 @@ const ResourceSchema = z.object({
   awsAvailabilityZoneIds: z.array(z.string()).nullable().optional(),
   awsRegion: z.string().nullable().optional(),
   cidr: z.string().nullable().optional(),
+  connectionTesting: z.object({
+    available: z.boolean().optional(),
+  }).nullable().optional(),
   createdAt: z.number().nullable().optional(),
   egressIpAddresses: z.array(z.string()).nullable().optional(),
   hostedZones: z.object({
@@ -92,7 +95,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Networks. Registered at `@swamp/vercel/networking/networks`. */
 export const model = {
   type: "@swamp/vercel/networking/networks",
-  version: "2026.10.23.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -156,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

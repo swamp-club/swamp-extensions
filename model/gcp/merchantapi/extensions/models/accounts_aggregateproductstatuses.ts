@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.AggregateProductStatuses.
  *
- * Aggregate product statuses for a given reporting context and country.
+ * Aggregate product statuses for a given reporting context and country. For more information, see [View Aggregate Product Statuses](https://developers.google.com/merchant/api/guides/accounts/aggregate-product-statuses).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -160,7 +160,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.AggregateProductStatuses. Registered at `@swamp/gcp/merchantapi/accounts-aggregateproductstatuses`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-aggregateproductstatuses",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -187,13 +187,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Aggregate product statuses for a given reporting context and country.",
+        "Aggregate product statuses for a given reporting context and country. For mor...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

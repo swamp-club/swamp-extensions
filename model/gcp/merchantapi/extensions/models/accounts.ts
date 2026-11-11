@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.
  *
- * The `Account` message represents a business's account within Merchant Center. It's the primary entity for managing product data, settings, and interactions with Google's services and external providers. Accounts can operate as standalone entities or be part of a advanced account structure. In an advanced account setup the parent account manages multiple sub-accounts. Establishing an account involves configuring attributes like the account name, time zone, and language preferences. The `Account` message is the parent entity for many other resources, for example, `AccountRelationship`, `Homepage`, `BusinessInfo` and so on.
+ * The `Account` message represents a business's account within Merchant Center. It's the primary entity for managing product data, settings, and interactions with Google's services and external providers. Accounts can operate as standalone entities or be part of a advanced account structure. In an advanced account setup the parent account manages multiple sub-accounts. Establishing an account involves configuring attributes like the account name, time zone, and language preferences. The `Account` message is the parent entity for many other resources, for example, `AccountRelationship`, `Homepage`, `BusinessInfo` and so on. For more information, see [Sign up for Merchant Center](https://support.google.com/merchants/answer/188924), [Manage accounts and settings](https://developers.google.com/merchant/api/guides/accounts/overview), [Create accounts](https://developers.google.com/merchant/api/guides/accounts/create-accounts), [Create test accounts](https://developers.google.com/merchant/api/guides/accounts/test-accounts), and [Filter accounts you can access](https://developers.google.com/merchant/api/guides/accounts/filter).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -248,7 +248,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts. Registered at `@swamp/gcp/merchantapi/accounts`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -287,6 +287,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

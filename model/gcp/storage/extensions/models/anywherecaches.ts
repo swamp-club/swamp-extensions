@@ -258,7 +258,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON AnywhereCaches. Registered at `@swamp/gcp/storage/anywherecaches`. */
 export const model = {
   type: "@swamp/gcp/storage/anywherecaches",
-  version: "2026.10.23.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -402,6 +402,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -719,42 +724,6 @@ export const model = {
           {
             "id": "storage.anywhereCaches.disable",
             "path": "b/{bucket}/anywhereCaches/{anywhereCacheId}/disable",
-            "httpMethod": "POST",
-            "parameterOrder": ["bucket", "anywhereCacheId"],
-            "parameters": {
-              "anywhereCacheId": { "location": "path", "required": true },
-              "bucket": { "location": "path", "required": true },
-            },
-          },
-          params,
-          {},
-          undefined,
-          undefined,
-          undefined,
-          credentials,
-        );
-        return { result };
-      },
-    },
-    pause: {
-      description: "pause",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const baseUrl = g["apiEndpoint"]?.toString() ??
-          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        if (g["bucket"] !== undefined) params["bucket"] = String(g["bucket"]);
-        if (g["anywhereCacheId"] !== undefined) {
-          params["anywhereCacheId"] = String(g["anywhereCacheId"]);
-        }
-        const result = await createResource(
-          baseUrl,
-          {
-            "id": "storage.anywhereCaches.pause",
-            "path": "b/{bucket}/anywhereCaches/{anywhereCacheId}/pause",
             "httpMethod": "POST",
             "parameterOrder": ["bucket", "anywhereCacheId"],
             "parameters": {

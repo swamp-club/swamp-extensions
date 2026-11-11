@@ -387,7 +387,7 @@ const GlobalArgsSchema = z.object({
       "Whether the subscription offer in the specified region is available for new subscribers. Existing subscribers will not have their subscription cancelled if this value is set to false. If not specified, this will default to false.",
     ).optional(),
     regionCode: z.string().describe(
-      'Required. Immutable. Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+      'Required. Immutable. Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
     ).optional(),
   })).describe(
     "Required. The region-specific configuration of this offer. Must contain at least one entry.",
@@ -694,7 +694,7 @@ const InputsSchema = z.object({
       "Whether the subscription offer in the specified region is available for new subscribers. Existing subscribers will not have their subscription cancelled if this value is set to false. If not specified, this will default to false.",
     ).optional(),
     regionCode: z.string().describe(
-      'Required. Immutable. Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+      'Required. Immutable. Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
     ).optional(),
   })).describe(
     "Required. The region-specific configuration of this offer. Must contain at least one entry.",
@@ -778,7 +778,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/androidpublisher/monetization-subscriptions-baseplans-offers",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -937,6 +937,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

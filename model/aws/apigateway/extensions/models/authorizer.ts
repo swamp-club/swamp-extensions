@@ -54,30 +54,30 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  RestApiId: z.string().optional(),
-  AuthType: z.string().optional(),
-  AuthorizerCredentials: z.string().optional(),
-  AuthorizerResultTtlInSeconds: z.number().int().optional(),
-  AuthorizerUri: z.string().optional(),
-  IdentitySource: z.string().optional(),
-  IdentityValidationExpression: z.string().optional(),
-  Name: z.string().optional(),
   ProviderARNs: z.array(z.string()).optional(),
+  AuthorizerCredentials: z.string().optional(),
+  IdentityValidationExpression: z.string().optional(),
   Type: z.string().optional(),
+  AuthorizerUri: z.string().optional(),
+  AuthorizerResultTtlInSeconds: z.number().int().optional(),
+  RestApiId: z.string().optional(),
+  IdentitySource: z.string().optional(),
+  AuthType: z.string().optional(),
+  Name: z.string().optional(),
 });
 
 const StateSchema = z.object({
-  RestApiId: z.string(),
-  AuthorizerId: z.string(),
-  AuthType: z.string().optional(),
-  AuthorizerCredentials: z.string().optional(),
-  AuthorizerResultTtlInSeconds: z.number().optional(),
-  AuthorizerUri: z.string().optional(),
-  IdentitySource: z.string().optional(),
-  IdentityValidationExpression: z.string().optional(),
-  Name: z.string().optional(),
   ProviderARNs: z.array(z.string()).optional(),
+  AuthorizerCredentials: z.string().optional(),
+  IdentityValidationExpression: z.string().optional(),
   Type: z.string().optional(),
+  AuthorizerUri: z.string().optional(),
+  AuthorizerId: z.string(),
+  AuthorizerResultTtlInSeconds: z.number().optional(),
+  RestApiId: z.string(),
+  IdentitySource: z.string().optional(),
+  AuthType: z.string().optional(),
+  Name: z.string().optional(),
 }).passthrough();
 
 type StateData = Record<string, unknown>;
@@ -88,16 +88,16 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  RestApiId: z.string().optional(),
-  AuthType: z.string().optional(),
-  AuthorizerCredentials: z.string().optional(),
-  AuthorizerResultTtlInSeconds: z.number().int().optional(),
-  AuthorizerUri: z.string().optional(),
-  IdentitySource: z.string().optional(),
-  IdentityValidationExpression: z.string().optional(),
-  Name: z.string().optional(),
   ProviderARNs: z.array(z.string()).optional(),
+  AuthorizerCredentials: z.string().optional(),
+  IdentityValidationExpression: z.string().optional(),
   Type: z.string().optional(),
+  AuthorizerUri: z.string().optional(),
+  AuthorizerResultTtlInSeconds: z.number().int().optional(),
+  RestApiId: z.string().optional(),
+  IdentitySource: z.string().optional(),
+  AuthType: z.string().optional(),
+  Name: z.string().optional(),
 });
 
 const _credentialKeys = new Set([
@@ -119,7 +119,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGateway Authorizer. Registered at `@swamp/aws/apigateway/authorizer`. */
 export const model = {
   type: "@swamp/aws/apigateway/authorizer",
-  version: "2026.11.08.2",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -188,6 +188,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -168,6 +168,7 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   dataset: z.string().optional(),
   destination_conf: z.string().optional(),
+  destination_name: z.string().optional(),
   enabled: z.boolean().optional(),
   error_message: z.string().optional(),
   filter_attack_traffic: z.boolean().optional(),
@@ -295,7 +296,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Jobs. Registered at `@swamp/cloudflare/logpush/jobs`. */
 export const model = {
   type: "@swamp/cloudflare/logpush/jobs",
-  version: "2026.11.05.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -384,6 +385,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

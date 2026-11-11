@@ -211,7 +211,7 @@ const GlobalArgsSchema = z.object({
       "Output only. Indicates whether the location can be deleted using the API.",
     ).optional(),
     canHaveBusinessCalls: z.boolean().describe(
-      "Output only. Indicates if the listing is eligible for business calls.",
+      "Output only. Deprecated: Relates to the Call Tracking feature which is no longer supported. Indicates whether the location is eligible for business calls.",
     ).optional(),
     canHaveFoodMenus: z.boolean().describe(
       "Output only. Indicates if the listing is eligible for food menu.",
@@ -249,7 +249,7 @@ const GlobalArgsSchema = z.object({
       "Output only. A link to the page on Google Search where a customer can leave a review for the location.",
     ).optional(),
     placeId: z.string().describe(
-      "Output only. If this locationappears on Google Maps, this field is populated with the place ID for the location. This ID can be used in various Places APIs. This field can be set during Create calls, but not for Update.",
+      "Output only. If this location appears on Google Maps, this field is populated with the place ID for the location. This ID can be used in various Places APIs. This field can be set during Create calls, but not for Update.",
     ).optional(),
   }).describe("Output only. Additional non-user-editable information.")
     .optional(),
@@ -974,7 +974,7 @@ const InputsSchema = z.object({
       "Output only. Indicates whether the location can be deleted using the API.",
     ).optional(),
     canHaveBusinessCalls: z.boolean().describe(
-      "Output only. Indicates if the listing is eligible for business calls.",
+      "Output only. Deprecated: Relates to the Call Tracking feature which is no longer supported. Indicates whether the location is eligible for business calls.",
     ).optional(),
     canHaveFoodMenus: z.boolean().describe(
       "Output only. Indicates if the listing is eligible for food menu.",
@@ -1012,7 +1012,7 @@ const InputsSchema = z.object({
       "Output only. A link to the page on Google Search where a customer can leave a review for the location.",
     ).optional(),
     placeId: z.string().describe(
-      "Output only. If this locationappears on Google Maps, this field is populated with the place ID for the location. This ID can be used in various Places APIs. This field can be set during Create calls, but not for Update.",
+      "Output only. If this location appears on Google Maps, this field is populated with the place ID for the location. This ID can be used in various Places APIs. This field can be set during Create calls, but not for Update.",
     ).optional(),
   }).describe("Output only. Additional non-user-editable information.")
     .optional(),
@@ -1440,7 +1440,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud My Business Business Information Locations. Registered at `@swamp/gcp/mybusinessbusinessinformation/locations`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/locations",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1634,6 +1634,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

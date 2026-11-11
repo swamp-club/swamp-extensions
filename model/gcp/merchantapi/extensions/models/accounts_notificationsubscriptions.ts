@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.Notificationsubscriptions.
  *
- * Represents a notification subscription owned by a Merchant account. See [Decode notifications](/merchant/api/guides/accounts/notifications#decode_notifications) for information on how to decode the notification payload and how to interpret its contents.
+ * Represents a notification subscription owned by a Merchant account. For more information, see [Notifications overview](https://developers.google.com/merchant/api/guides/notifications/overview). See [Decode notifications](https://developers.google.com/merchant/api/guides/notifications/overview#decode_notifications) for information on how to decode the notification payload and how to interpret its contents.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -242,7 +242,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Notificationsubscriptions. Registered at `@swamp/gcp/merchantapi/accounts-notificationsubscriptions`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-notificationsubscriptions",
-  version: "2026.10.23.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.24.1",
@@ -274,13 +274,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Represents a notification subscription owned by a Merchant account. See [Deco...",
+        "Represents a notification subscription owned by a Merchant account. For more ...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

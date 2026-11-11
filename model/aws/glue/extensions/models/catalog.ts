@@ -180,8 +180,8 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   CatalogId: z.string().optional(),
   ResourceArn: z.string(),
-  CreateTime: z.number().optional(),
-  UpdateTime: z.number().optional(),
+  CreateTime: z.string().optional(),
+  UpdateTime: z.string().optional(),
   Name: z.string().optional(),
   Description: z.string().optional(),
   Parameters: z.record(z.string(), z.unknown()).optional(),
@@ -283,7 +283,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Catalog. Registered at `@swamp/aws/glue/catalog`. */
 export const model = {
   type: "@swamp/aws/glue/catalog",
-  version: "2026.11.08.2",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -352,6 +352,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

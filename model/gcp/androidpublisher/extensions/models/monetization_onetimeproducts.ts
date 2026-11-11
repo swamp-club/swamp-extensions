@@ -272,7 +272,7 @@ const GlobalArgsSchema = z.object({
         "The price of the purchase option in the specified region. Must be set in the currency that is linked to the specified region.",
       ).optional(),
       regionCode: z.string().describe(
-        'Required. Region code this configuration applies to, as defined by ISO 3166-2, e.g., "US".',
+        'Required. Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g., "US".',
       ).optional(),
     })).describe(
       "Regional pricing and availability information for this purchase option.",
@@ -316,7 +316,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   restrictedPaymentCountries: z.object({
     regionCodes: z.array(z.string()).describe(
-      'Required. Region codes to impose payment restrictions on, as defined by ISO 3166-2, e.g. "US".',
+      'Required. Region codes to impose payment restrictions on, as defined by ISO 3166-1 alpha-2, e.g. "US".',
     ).optional(),
   }).describe(
     "Optional. Countries where the purchase of this one-time product is restricted to payment methods registered in the same country. If empty, no payment location restrictions are imposed.",
@@ -338,7 +338,7 @@ const GlobalArgsSchema = z.object({
       ]).describe("The age rating tier of a product for the given region.")
         .optional(),
       regionCode: z.string().describe(
-        'Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+        'Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
       ).optional(),
     })).describe(
       "Regional age rating information. Currently this field is only supported for region code `US`.",
@@ -348,7 +348,7 @@ const GlobalArgsSchema = z.object({
         "You must tell us if your app contains streaming products to correctly charge US state and local sales tax. Field only supported in the United States.",
       ).optional(),
       regionCode: z.string().describe(
-        'Required. Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+        'Required. Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
       ).optional(),
       streamingTaxType: z.enum([
         "STREAMING_TAX_TYPE_UNSPECIFIED",
@@ -585,7 +585,7 @@ const InputsSchema = z.object({
         "The price of the purchase option in the specified region. Must be set in the currency that is linked to the specified region.",
       ).optional(),
       regionCode: z.string().describe(
-        'Required. Region code this configuration applies to, as defined by ISO 3166-2, e.g., "US".',
+        'Required. Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g., "US".',
       ).optional(),
     })).describe(
       "Regional pricing and availability information for this purchase option.",
@@ -629,7 +629,7 @@ const InputsSchema = z.object({
   ).optional(),
   restrictedPaymentCountries: z.object({
     regionCodes: z.array(z.string()).describe(
-      'Required. Region codes to impose payment restrictions on, as defined by ISO 3166-2, e.g. "US".',
+      'Required. Region codes to impose payment restrictions on, as defined by ISO 3166-1 alpha-2, e.g. "US".',
     ).optional(),
   }).describe(
     "Optional. Countries where the purchase of this one-time product is restricted to payment methods registered in the same country. If empty, no payment location restrictions are imposed.",
@@ -651,7 +651,7 @@ const InputsSchema = z.object({
       ]).describe("The age rating tier of a product for the given region.")
         .optional(),
       regionCode: z.string().describe(
-        'Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+        'Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
       ).optional(),
     })).describe(
       "Regional age rating information. Currently this field is only supported for region code `US`.",
@@ -661,7 +661,7 @@ const InputsSchema = z.object({
         "You must tell us if your app contains streaming products to correctly charge US state and local sales tax. Field only supported in the United States.",
       ).optional(),
       regionCode: z.string().describe(
-        'Required. Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+        'Required. Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
       ).optional(),
       streamingTaxType: z.enum([
         "STREAMING_TAX_TYPE_UNSPECIFIED",
@@ -723,7 +723,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Monetization.Onetimeproducts. Registered at `@swamp/gcp/androidpublisher/monetization-onetimeproducts`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/monetization-onetimeproducts",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -873,6 +873,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

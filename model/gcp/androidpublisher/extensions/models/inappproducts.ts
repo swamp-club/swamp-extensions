@@ -233,7 +233,7 @@ const GlobalArgsSchema = z.object({
       ]).describe("The age rating tier of a product for the given region.")
         .optional(),
       regionCode: z.string().describe(
-        'Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+        'Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
       ).optional(),
     })).describe(
       "Regional age rating information. Currently this field is only supported for region code `US`.",
@@ -285,7 +285,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }),
   ).describe(
-    "Prices per buyer region. None of these can be zero, as in-app products are never free. Map key is region code, as defined by ISO 3166-2.",
+    "Prices per buyer region. None of these can be zero, as in-app products are never free. Map key is region code, as defined by ISO 3166-1 alpha-2.",
   ).optional(),
   purchaseType: z.enum([
     "purchaseTypeUnspecified",
@@ -323,7 +323,7 @@ const GlobalArgsSchema = z.object({
       ]).describe("The age rating tier of a product for the given region.")
         .optional(),
       regionCode: z.string().describe(
-        'Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+        'Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
       ).optional(),
     })).describe(
       "Regional age rating information. Currently this field is only supported for region code `US`.",
@@ -474,7 +474,7 @@ const InputsSchema = z.object({
       ]).describe("The age rating tier of a product for the given region.")
         .optional(),
       regionCode: z.string().describe(
-        'Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+        'Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
       ).optional(),
     })).describe(
       "Regional age rating information. Currently this field is only supported for region code `US`.",
@@ -526,7 +526,7 @@ const InputsSchema = z.object({
       ).optional(),
     }),
   ).describe(
-    "Prices per buyer region. None of these can be zero, as in-app products are never free. Map key is region code, as defined by ISO 3166-2.",
+    "Prices per buyer region. None of these can be zero, as in-app products are never free. Map key is region code, as defined by ISO 3166-1 alpha-2.",
   ).optional(),
   purchaseType: z.enum([
     "purchaseTypeUnspecified",
@@ -564,7 +564,7 @@ const InputsSchema = z.object({
       ]).describe("The age rating tier of a product for the given region.")
         .optional(),
       regionCode: z.string().describe(
-        'Region code this configuration applies to, as defined by ISO 3166-2, e.g. "US".',
+        'Region code this configuration applies to, as defined by ISO 3166-1 alpha-2, e.g. "US".',
       ).optional(),
     })).describe(
       "Regional age rating information. Currently this field is only supported for region code `US`.",
@@ -640,7 +640,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Inappproducts. Registered at `@swamp/gcp/androidpublisher/inappproducts`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/inappproducts",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -802,6 +802,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

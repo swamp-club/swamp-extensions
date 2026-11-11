@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Merchant Accounts.OmnichannelSettings.
  *
- * Collection of information related to the omnichannel settings of a merchant.
+ * Collection of information related to the omnichannel settings of a merchant. For more information, see [Manage omnichannel settings](https://developers.google.com/merchant/api/guides/accounts/manage-omnichannel-settings).
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -399,7 +399,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.OmnichannelSettings. Registered at `@swamp/gcp/merchantapi/accounts-omnichannelsettings`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-omnichannelsettings",
-  version: "2026.11.08.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -426,13 +426,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Collection of information related to the omnichannel settings of a merchant.",
+        "Collection of information related to the omnichannel settings of a merchant. ...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

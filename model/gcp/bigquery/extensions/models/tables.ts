@@ -1211,6 +1211,10 @@ const StateSchema = z.object({
       }).partial(),
     ),
   }).partial().optional(),
+  policyMember: z.object({
+    iamPolicyNamePrincipal: z.string(),
+    iamPolicyUidPrincipal: z.string(),
+  }).partial().optional(),
   rangePartitioning: z.object({
     field: z.string(),
     range: z.object({
@@ -2202,7 +2206,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Tables. Registered at `@swamp/gcp/bigquery/tables`. */
 export const model = {
   type: "@swamp/gcp/bigquery/tables",
-  version: "2026.11.10.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2418,6 +2422,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

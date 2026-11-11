@@ -80,7 +80,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Namespaces. Registered at `@swamp/cloudflare/workers/namespaces`. */
 export const model = {
   type: "@swamp/cloudflare/workers/namespaces",
-  version: "2026.10.23.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -117,6 +117,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -148,6 +153,9 @@ export const model = {
           "/workers/dispatch/namespaces";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
+        if (g.trusted_workers !== undefined) {
+          body.trusted_workers = g.trusted_workers;
+        }
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

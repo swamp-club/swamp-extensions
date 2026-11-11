@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/contactcenteraiplatform"
-version: "2026.11.08.1"
+version: "2026.11.11.1"
 license: "AGPL-3.0-or-later"
 description: "Google Cloud contactcenteraiplatform infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -12,9 +12,10 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: contactcenters
+  - Added: contactcenters_phonenumbers
 models:
   - contactcenters.ts
+  - contactcenters_phonenumbers.ts
   - locations.ts
 additionalFiles:
   - LICENSE.txt

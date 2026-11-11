@@ -74,13 +74,13 @@ const GlobalArgsSchema = z.object({
     Code: z.string().describe("The status code.").optional(),
   }).describe("The status of the transit gateway peering attachment.")
     .optional(),
+  PeerAccountId: z.string().describe("The ID of the peer account").optional(),
+  PeerRegion: z.string().describe("Peer Region").optional(),
   TransitGatewayId: z.string().describe("The ID of the transit gateway.")
     .optional(),
   PeerTransitGatewayId: z.string().describe(
     "The ID of the peer transit gateway.",
   ).optional(),
-  PeerAccountId: z.string().describe("The ID of the peer account").optional(),
-  PeerRegion: z.string().describe("Peer Region").optional(),
   Tags: z.array(TagSchema).describe(
     "The tags for the transit gateway peering attachment.",
   ).optional(),
@@ -91,12 +91,12 @@ const StateSchema = z.object({
     Message: z.string(),
     Code: z.string(),
   }).partial().optional(),
+  PeerAccountId: z.string().optional(),
+  PeerRegion: z.string().optional(),
   TransitGatewayId: z.string().optional(),
   PeerTransitGatewayId: z.string().optional(),
-  PeerAccountId: z.string().optional(),
   State: z.string().optional(),
   CreationTime: z.string().optional(),
-  PeerRegion: z.string().optional(),
   Tags: z.array(TagStateSchema).optional(),
   TransitGatewayAttachmentId: z.string(),
 }).passthrough();
@@ -115,13 +115,13 @@ const InputsSchema = z.object({
     Code: z.string().describe("The status code.").optional(),
   }).describe("The status of the transit gateway peering attachment.")
     .optional(),
+  PeerAccountId: z.string().describe("The ID of the peer account").optional(),
+  PeerRegion: z.string().describe("Peer Region").optional(),
   TransitGatewayId: z.string().describe("The ID of the transit gateway.")
     .optional(),
   PeerTransitGatewayId: z.string().describe(
     "The ID of the peer transit gateway.",
   ).optional(),
-  PeerAccountId: z.string().describe("The ID of the peer account").optional(),
-  PeerRegion: z.string().describe("Peer Region").optional(),
   Tags: z.array(TagSchema).describe(
     "The tags for the transit gateway peering attachment.",
   ).optional(),
@@ -146,7 +146,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TransitGatewayPeeringAttachment. Registered at `@swamp/aws/ec2/transit-gateway-peering-attachment`. */
 export const model = {
   type: "@swamp/aws/ec2/transit-gateway-peering-attachment",
-  version: "2026.11.08.2",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -215,6 +215,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

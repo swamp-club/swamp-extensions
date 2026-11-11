@@ -47,9 +47,35 @@ const TagSchema = z.object({
   ),
 });
 
+const NatRuleSchema = z.object({
+  RuleNumber: z.number().int().min(1).max(32766).describe(
+    "The rule number that uniquely identifies the NAT rule on the attachment.",
+  ),
+  MatchSourceCidr: z.string().min(9).max(18).regex(
+    new RegExp(
+      "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/([0-9]|[1-2][0-9]|3[0-2])$",
+    ),
+  ).describe(
+    "The IPv4 CIDR that source traffic is matched against for translation.",
+  ),
+  NatCidr: z.string().min(9).max(18).regex(
+    new RegExp(
+      "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/([0-9]|[1-2][0-9]|3[0-2])$",
+    ),
+  ).describe(
+    "The IPv4 CIDR that matched source traffic is translated into. Must have the same prefix length as MatchSourceCidr.",
+  ),
+});
+
 const TagStateSchema = z.object({
   Key: z.string(),
   Value: z.string(),
+}).partial();
+
+const NatRuleStateSchema = z.object({
+  RuleNumber: z.number(),
+  MatchSourceCidr: z.string(),
+  NatCidr: z.string(),
 }).partial();
 
 const GlobalArgsSchema = z.object({
@@ -101,6 +127,15 @@ const GlobalArgsSchema = z.object({
     "The attachment to move from one network function group to another.",
   ).optional(),
   RoutingPolicyLabel: z.string().describe("Routing policy label").optional(),
+  NatGatewaySupport: z.enum(["ENABLE", "DISABLE"]).describe(
+    "Whether NAT gateway support is enabled on the attachment. Required when NatGatewayRules lists rules. Set to DISABLE with NatGatewayRules to keep the rules on the attachment without translating traffic, and set it to ENABLE to activate them again. An attachment that is pending acceptance applies this setting once it is accepted. Only the core network owner can configure or read NAT gateway settings. Not available in AWS GovCloud (US).",
+  ).optional(),
+  NatSystemRouteSupport: z.boolean().describe(
+    "Whether system routes are installed for the NAT CIDRs of the attachment's NAT gateway rules. If omitted, a new NAT gateway configuration uses the service default of true and an existing configuration keeps its current value, so removing this property from a template doesn't reset the setting. Only the core network owner can configure this setting. Not available in AWS GovCloud (US).",
+  ).optional(),
+  NatGatewayRules: z.array(NatRuleSchema).describe(
+    "The complete set of NAT gateway rules on the attachment. Updating this property replaces the entire rule set, and rules left out of the new value are removed. To remove all rules, specify an empty list or remove this property. NAT gateway support can't be enabled without rules, so it is then disabled unless NatGatewaySupport is specified. Only the core network owner can configure NAT gateway rules. The rules aren't returned when the attachment is read, so drift detection doesn't check them. Not available in AWS GovCloud (US).",
+  ).optional(),
   Tags: z.array(TagSchema).describe("Tags for the attachment.").optional(),
 });
 
@@ -128,6 +163,9 @@ const StateSchema = z.object({
     NetworkFunctionGroupName: z.string(),
   }).partial().optional(),
   RoutingPolicyLabel: z.string().optional(),
+  NatGatewaySupport: z.string().optional(),
+  NatSystemRouteSupport: z.boolean().optional(),
+  NatGatewayRules: z.array(NatRuleStateSchema).optional(),
   Tags: z.array(TagStateSchema).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
@@ -175,6 +213,15 @@ const InputsSchema = z.object({
     "The attachment to move from one network function group to another.",
   ).optional(),
   RoutingPolicyLabel: z.string().describe("Routing policy label").optional(),
+  NatGatewaySupport: z.enum(["ENABLE", "DISABLE"]).describe(
+    "Whether NAT gateway support is enabled on the attachment. Required when NatGatewayRules lists rules. Set to DISABLE with NatGatewayRules to keep the rules on the attachment without translating traffic, and set it to ENABLE to activate them again. An attachment that is pending acceptance applies this setting once it is accepted. Only the core network owner can configure or read NAT gateway settings. Not available in AWS GovCloud (US).",
+  ).optional(),
+  NatSystemRouteSupport: z.boolean().describe(
+    "Whether system routes are installed for the NAT CIDRs of the attachment's NAT gateway rules. If omitted, a new NAT gateway configuration uses the service default of true and an existing configuration keeps its current value, so removing this property from a template doesn't reset the setting. Only the core network owner can configure this setting. Not available in AWS GovCloud (US).",
+  ).optional(),
+  NatGatewayRules: z.array(NatRuleSchema).describe(
+    "The complete set of NAT gateway rules on the attachment. Updating this property replaces the entire rule set, and rules left out of the new value are removed. To remove all rules, specify an empty list or remove this property. NAT gateway support can't be enabled without rules, so it is then disabled unless NatGatewaySupport is specified. Only the core network owner can configure NAT gateway rules. The rules aren't returned when the attachment is read, so drift detection doesn't check them. Not available in AWS GovCloud (US).",
+  ).optional(),
   Tags: z.array(TagSchema).describe("Tags for the attachment.").optional(),
 });
 
@@ -197,7 +244,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager DirectConnectGatewayAttachment. Registered at `@swamp/aws/networkmanager/direct-connect-gateway-attachment`. */
 export const model = {
   type: "@swamp/aws/networkmanager/direct-connect-gateway-attachment",
-  version: "2026.11.08.2",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -277,6 +324,12 @@ export const model = {
     {
       toVersion: "2026.11.08.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
+      description:
+        "Added: NatGatewaySupport, NatSystemRouteSupport, NatGatewayRules",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

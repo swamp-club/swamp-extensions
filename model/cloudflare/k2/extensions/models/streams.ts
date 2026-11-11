@@ -55,7 +55,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   worker_binding: z.object({
     enabled: z.boolean(),
-  }).optional(),
+  }).describe(
+    "Configures whether Workers bindings can produce records to the stream.",
+  ).optional(),
   name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_]+$"))
     .describe("Specifies the name of the K2 stream.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -115,7 +117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Streams. Registered at `@swamp/cloudflare/k2/streams`. */
 export const model = {
   type: "@swamp/cloudflare/k2/streams",
-  version: "2026.11.04.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.10.07.1",
@@ -139,6 +141,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

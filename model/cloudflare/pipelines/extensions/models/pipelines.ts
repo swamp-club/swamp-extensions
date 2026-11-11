@@ -54,6 +54,7 @@ const ResourceSchema = z.object({
   id: z.string(),
   modified_at: z.string().optional(),
   name: z.string().optional(),
+  outdated: z.boolean().optional(),
   sql: z.string().optional(),
   status: z.string().optional(),
   tables: z.array(z.object({
@@ -79,7 +80,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Pipelines. Registered at `@swamp/cloudflare/pipelines/pipelines`. */
 export const model = {
   type: "@swamp/cloudflare/pipelines/pipelines",
-  version: "2026.10.23.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -118,6 +119,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

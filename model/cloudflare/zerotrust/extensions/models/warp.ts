@@ -90,7 +90,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Warp. Registered at `@swamp/cloudflare/zerotrust/warp`. */
 export const model = {
   type: "@swamp/cloudflare/zerotrust/warp",
-  version: "2026.10.23.1",
+  version: "2026.11.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -139,6 +139,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -375,7 +380,6 @@ export const model = {
           body.is_default_network = g.is_default_network;
         }
         if (g.name !== undefined) body.name = g.name;
-        if (g.network !== undefined) body.network = g.network;
         const result = await update(endpoint, existing.id, body, "PATCH", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
